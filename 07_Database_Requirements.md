@@ -178,18 +178,22 @@ Stores project expense change history.
 ---
 
 ## 10. attendance
-Stores attendance data.
+Stores employee attendance records.
 
 ### Fields
 - id
 - employee_id
+- employee_name
 - attendance_date
-- punch_in_time
-- punch_out_time
-- total_hours
 - status
-- late_minutes
-- source
+- in_time
+- out_time
+- work_duration
+- late_by
+- early_by
+- overtime
+- shift
+- imported_file_id
 - created_at
 - updated_at
 
@@ -211,6 +215,29 @@ Stores attendance correction history.
 - corrected_by
 - corrected_at
 - remarks
+
+---
+
+## 11. attendance_summary
+Stores employee attendance summary records.
+
+### Fields
+- id
+- employee_id
+- month
+- year
+- present_count
+- absent_count
+- weekly_off_count
+- holiday_count
+- leave_count
+- late_hours
+- late_days
+- early_hours
+- early_days
+- average_working_hours
+- total_work_duration
+- total_overtime
 
 ---
 

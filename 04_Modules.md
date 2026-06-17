@@ -123,47 +123,42 @@ Project Officer:
 No Access
 
 ---
-
-# 4. Attendance Module
-
-## Purpose
-
-Manage employee attendance.
-
-## Features
-
 ### Attendance Import
 
-- Punch Machine Import
-- Excel Import
+- Import Pace Attendance Excel
+- Import Monthly Attendance Reports
+- Validate Attendance Data
 
 ### Attendance Records
 
 - Daily Attendance
 - Monthly Attendance
+- Employee Attendance History
 
-### Corrections
+### Attendance Summary
 
-- Attendance Corrections
+- Present Count
+- Absent Count
+- Weekly Off Count
+- Holiday Count
+- Leave Count
+- Late Hours
+- Late Days
+- Early Hours
+- Early Days
+- Average Working Hours
+
+### Attendance Corrections
+
+- Attendance Correction
 - Correction History
+- Correction Audit Logs
 
-### Reports
+### Attendance Analytics
 
-- Attendance Report
-- Employee Attendance Report
-
-## Access
-
-HR:
-Edit
-
-Others:
-View
-
-Project Officer:
-No Access
-
----
+- Attendance Trends
+- Employee Attendance Performance
+- Monthly Attendance Reports
 
 # 5. Expense Management Module
 

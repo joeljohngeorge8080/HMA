@@ -367,3 +367,35 @@ Audit Logs are visible to all users.
 Audit Logs are immutable.
 
 No user may modify or delete audit logs.
+
+## Attendance Data Source
+
+The primary attendance source shall be the Pace Attendance Software.
+
+Attendance data shall be imported through Excel exports generated from the attendance machine software.
+
+The system shall support:
+
+- Monthly Attendance Import
+- Attendance Record Processing
+- Attendance Summary Generation
+
+Attendance records shall contain:
+
+- Employee ID
+- Employee Name
+- Attendance Date
+- Status
+- In Time
+- Out Time
+- Work Duration
+- Late By
+- Early By
+- Overtime
+- Shift
+
+The imported attendance file shall be treated as the source of truth.
+
+Manual attendance corrections are allowed only by HR.
+
+All corrections must be logged.
