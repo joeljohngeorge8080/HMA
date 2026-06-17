@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **HMA IEMS** (HMA Internal Enterprise Management System) is a role-based web application that replaces fragmented Excel workflows with a centralized platform for managing projects, employees, attendance, payroll, expenses, finance, and reporting.
 
-The full specification lives in the numbered markdown files at the root (`01_Project_Overview.md` through `11_Development_Rules.md`). Always read the relevant spec file before implementing a module.
+The full specification lives in the numbered markdown files at the root (`01_Project_Overview.md` through `12_Excel_Import_Specifications.md`). Always read the relevant spec file before implementing a module.
 
 The `git-coreui/` directory contains the CoreUI free React admin template that serves as the frontend base.
 
