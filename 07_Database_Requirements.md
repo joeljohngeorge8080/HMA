@@ -15,9 +15,10 @@ Stores login accounts.
 - last_login_at
 
 ### Notes
-- Username is used for login.
+- Username or id is used for login.
 - Employee ID should be unique.
 - Passwords must be hashed.
+
 
 ---
 
