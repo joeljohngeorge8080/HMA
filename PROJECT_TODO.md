@@ -52,29 +52,31 @@ all ─▶ P14 (Brand & QA)
 
 ---
 
-## P1 — Authentication  🔄 IN PROGRESS  · deps: P0
+## P1 — Authentication  ✅ COMPLETE  · deps: P0
 
 ### Epic P1.1 — API client
-- 🔄 P1.1.1 Axios instance + base URL config (`src/services/api.js`) — *dep: P0*
-- 🔄 P1.1.2 JWT request interceptor (attach Bearer)
-- 🔄 P1.1.3 Response interceptor (401 → logout/redirect, expiry handling)
+- ✅ P1.1.1 Axios instance + base URL config (`src/services/api.js`)
+- ✅ P1.1.2 JWT request interceptor (attach Bearer)
+- ✅ P1.1.3 Response interceptor (401 → clear localStorage + logout + navigate `/login`)
 
 ### Epic P1.2 — Login flow
-- 🔄 P1.2.1 Redesign `Login.jsx` with HMA branding — *dep: P1.1.1*
-- 🔄 P1.2.2 `POST /auth/login` integration → store JWT + user — *dep: P1.1, P1.2.1*
-- 🔄 P1.2.3 Remove Phase-0 mock user from store
-- 🔄 P1.2.4 Logout + token clear + redirect (localStorage + logoutApi)
-- 🔄 P1.2.5 Redirect-after-login / deep-link return
-- 🔄 P1.2.6 HR password-reset entry point (Contact HR message in Login)
+- ✅ P1.2.1 Redesign `Login.jsx` — HMA branding, Employee ID field, error alert, loading state
+- ✅ P1.2.2 `POST /auth/login` integration → `localStorage.setItem('hma_token')` + dispatch user+token
+- ✅ P1.2.3 Remove Phase-0 mock user from store; seed token from localStorage on startup
+- ✅ P1.2.4 Logout: `logoutApi()` + `localStorage.removeItem('hma_token')` + dispatch null + navigate
+- ✅ P1.2.5 Redirect-after-login via `location.state.from` (deep-link return)
+- ✅ P1.2.6 "Forgot password?" → inline CAlert info: "Contact your HR administrator"
+- ✅ App startup token rehydration: `GET /auth/me` on mount if token exists; 401 clears session
+- ✅ Auth guards in `App.jsx`: unauthenticated `*` → `/login`; authenticated `/login` → `/dashboard`
 
-> NOTE: P2.1.1 (Wire ProtectedRoute) pulled forward into Phase 1 — done in AppContent.jsx (Step 7 of Phase 1 plan).
+> P2.1.1 pulled forward — ProtectedRoute wired in AppContent.jsx (module-level RBAC active).
 
 ---
 
 ## P2 — RBAC Enforcement + Audit Logging  ⬜  · deps: P1
 
 ### Epic P2.1 — Route & UI gating
-- 🔄 P2.1.1 Wire `ProtectedRoute` into router via route `module` keys — *pulled into Phase 1*
+- ✅ P2.1.1 Wire `ProtectedRoute` into router via route `module` keys — *done in Phase 1*
 - ⬜ P2.1.2 In-page edit/view gating via `usePermission`
 - ⬜ P2.1.3 403 / unauthorized handling
 - ⬜ P2.1.4 Business-lock layer (completed project / locked payroll read-only)
