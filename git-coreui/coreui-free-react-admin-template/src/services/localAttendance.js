@@ -253,18 +253,24 @@ export const localAttendance = {
 
   // ── corrections ──────────────────────────────────────────────────────────────
 
-  applyCorrection(recordId, { new_status, new_in_time, new_out_time, reason, corrected_by }) {
+  applyCorrection(
+    recordId,
+    { new_status, new_in_time, new_out_time, leave_type, reason, corrected_by },
+  ) {
     const rows = read(KEYS.records)
     const idx = rows.findIndex((r) => r.id === recordId)
     if (idx === -1) throw new Error('Record not found')
 
     const old = rows[idx]
     const ts = now()
+    const resolvedStatus = new_status || old.status
 
     const correction = {
       id: uid(),
       old_status: old.status,
-      new_status: new_status || old.status,
+      new_status: resolvedStatus,
+      old_leave_type: old.leave_type || null,
+      new_leave_type: resolvedStatus === 'On Leave' ? leave_type || null : null,
       old_in_time: old.in_time,
       new_in_time: new_in_time || old.in_time,
       old_out_time: old.out_time,
@@ -277,6 +283,7 @@ export const localAttendance = {
     rows[idx] = {
       ...old,
       status: correction.new_status,
+      leave_type: correction.new_leave_type,
       in_time: correction.new_in_time,
       out_time: correction.new_out_time,
       corrections: [...(old.corrections || []), correction],
