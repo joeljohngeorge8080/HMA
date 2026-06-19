@@ -143,10 +143,12 @@ const EmployeeList = () => {
               }}
             >
               <option value="">All Departments</option>
-              <option>HR</option>
               <option>Finance</option>
-              <option>Projects</option>
-              <option>Administration</option>
+              <option>HR</option>
+              <option>HMA Management</option>
+              <option>IT</option>
+              <option>SDP</option>
+              <option>Utility Staff</option>
             </CFormSelect>
           </CCol>
           <CCol md={2}>
@@ -158,9 +160,9 @@ const EmployeeList = () => {
               }}
             >
               <option value="">All Categories</option>
-              <option>Permanent</option>
-              <option>FTC</option>
-              <option>TPC</option>
+              <option value="Permanent">Permanent Executive</option>
+              <option value="FTC">FTC</option>
+              <option value="TPC">Third Party Contract</option>
             </CFormSelect>
           </CCol>
         </CRow>
