@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { CContainer, CSpinner } from '@coreui/react'
 
 import { useRoutes } from '../contexts/RoutesContext'
@@ -7,6 +7,8 @@ import ProtectedRoute from './ProtectedRoute'
 
 const AppContent = () => {
   const routes = useRoutes()
+  const { pathname } = useLocation()
+  const defaultDashboard = pathname.startsWith('/pms') ? '/pms/dashboard' : '/ems/dashboard'
 
   return (
     <CContainer className="px-4" lg>
@@ -32,7 +34,7 @@ const AppContent = () => {
               />
             )
           })}
-          <Route path="/" element={<Navigate to="dashboard" replace />} />
+          <Route path="*" element={<Navigate to={defaultDashboard} replace />} />
         </Routes>
       </Suspense>
     </CContainer>

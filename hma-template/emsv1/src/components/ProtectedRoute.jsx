@@ -1,20 +1,6 @@
-/**
- * ProtectedRoute Component
- *
- * Route guard that combines authentication and module-level RBAC.
- * - Not authenticated        → redirect to /login
- * - Authenticated, no access  → redirect to /dashboard
- * - Otherwise                 → render children
- *
- * NOTE: Created in Phase 0 but not yet wired into the router. Phase 1
- * introduces real login and wraps protected routes with this component.
- *
- * @component
- */
-
 import React from 'react'
 import PropTypes from 'prop-types'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 
 import useAuth from '../hooks/useAuth'
 import usePermission from '../hooks/usePermission'
@@ -22,13 +8,15 @@ import usePermission from '../hooks/usePermission'
 const ProtectedRoute = ({ module, action, children }) => {
   const { isAuthenticated } = useAuth()
   const allowed = usePermission(module, action)
+  const location = useLocation()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
   if (!allowed) {
-    return <Navigate to="/dashboard" replace />
+    const fallback = location.pathname.startsWith('/pms') ? '/pms/dashboard' : '/ems/dashboard'
+    return <Navigate to={fallback} replace />
   }
 
   return children

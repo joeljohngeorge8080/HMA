@@ -31,7 +31,7 @@ const Login = () => {
   const [error, setError] = useState('')
   const [showForgotMsg, setShowForgotMsg] = useState(false)
 
-  const from = location.state?.from?.pathname || '/dashboard'
+  const from = location.state?.from?.pathname || '/select-system'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -144,7 +144,7 @@ const Login = () => {
                               user: { employee_id: id, full_name: name, role },
                               token: `dev-token-${id}`,
                             })
-                            navigate('/dashboard')
+                            navigate('/select-system')
                           }}
                         >
                           {role}
