@@ -1,0 +1,22 @@
+export const MODULE = {
+  // EMS modules
+  DASHBOARD: 'dashboard',
+  STAFF_PAYROLL: 'staff_payroll',
+  ATTENDANCE: 'attendance',
+  EXPENSE_MANAGEMENT: 'expense_management',
+  FINANCE: 'finance',
+  REPORTS: 'reports',
+  AUDIT_LOGS: 'audit_logs',
+
+  // PMS modules
+  PMS_DASHBOARD: 'pms_dashboard',
+  PMS_PROJECTS: 'pms_projects',
+  PMS_LIFECYCLE: 'pms_lifecycle',
+  PMS_EXPENSES: 'pms_expenses',
+  PMS_DOCUMENTS: 'pms_documents',
+  PMS_TEAMS: 'pms_teams',
+  PMS_LOCATIONS: 'pms_locations',
+  PMS_REPORTS: 'pms_reports',
+  PMS_AGENCIES: 'pms_agencies',
+  PMS_PARTNERS: 'pms_partners',
+}
