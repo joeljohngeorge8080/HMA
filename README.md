@@ -270,3 +270,4 @@ If a change is large, architectural, or impacts multiple modules:
 3. Obtain approval before implementation.
 
 This prevents unnecessary rework and keeps development aligned with project goals.
+g
