@@ -76,7 +76,9 @@ const SystemSelection = () => {
           >
             <CIcon icon={cilBuilding} style={{ width: 28, height: 28, color: '#3b82f6' }} />
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: '#1a2035', marginBottom: 8 }}>EMS</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: '#1a2035', marginBottom: 8 }}>
+            EMS
+          </div>
           <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20, lineHeight: 1.5 }}>
             Enterprise Management System
             <br />
@@ -126,7 +128,9 @@ const SystemSelection = () => {
           >
             <CIcon icon={cilFolder} style={{ width: 28, height: 28, color: '#10b981' }} />
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: '#1a2035', marginBottom: 8 }}>PMS</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: '#1a2035', marginBottom: 8 }}>
+            PMS
+          </div>
           <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20, lineHeight: 1.5 }}>
             Project Management System
             <br />

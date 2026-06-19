@@ -63,7 +63,11 @@ const pmsNav = [
       { component: CNavItem, name: 'Proposals', to: '/pms/project-documents/proposals' },
       { component: CNavItem, name: 'Agreements', to: '/pms/project-documents/agreements' },
       { component: CNavItem, name: 'Invoices', to: '/pms/project-documents/invoices' },
-      { component: CNavItem, name: 'Utilization Certificates', to: '/pms/project-documents/utilization-certificates' },
+      {
+        component: CNavItem,
+        name: 'Utilization Certificates',
+        to: '/pms/project-documents/utilization-certificates',
+      },
       { component: CNavItem, name: 'Reports', to: '/pms/project-documents/reports' },
       { component: CNavItem, name: 'Other', to: '/pms/project-documents/other' },
     ],

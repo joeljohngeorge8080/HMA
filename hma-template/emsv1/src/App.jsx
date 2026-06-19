@@ -62,9 +62,7 @@ const AppRoutes = () => {
       />
       <Route
         path="*"
-        element={
-          <Navigate to={isAuthenticated ? '/select-system' : '/login'} replace />
-        }
+        element={<Navigate to={isAuthenticated ? '/select-system' : '/login'} replace />}
       />
     </Routes>
   )
