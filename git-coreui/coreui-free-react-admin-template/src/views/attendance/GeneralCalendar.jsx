@@ -35,21 +35,27 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const pad = (n) => String(n).padStart(2, '0')
 
-const HOLIDAY_BG = {
-  sunday: '#e9ecef',
-  saturday: '#e9ecef',
-  custom: '#fff3cd',
+const TODAY = new Date().toISOString().slice(0, 10)
+
+const CELL_BG = {
+  sunday: '#f3f4f6',
+  saturday: '#f3f4f6',
+  custom: '#fffbeb',
+  working: '#ffffff',
+  empty: '#fafafa',
 }
-const HOLIDAY_TEXT = {
-  sunday: '#6c757d',
-  saturday: '#6c757d',
-  custom: '#856404',
+
+const HOLIDAY_PILL = {
+  sunday: { bg: '#e5e7eb', text: '#6b7280' },
+  saturday: { bg: '#e5e7eb', text: '#6b7280' },
+  custom: { bg: '#fde68a', text: '#92400e' },
 }
 
 const GeneralCalendar = ({ year, month }) => {
   const canEdit = usePermission(MODULE.ATTENDANCE, 'edit')
 
   const [holidayMap, setHolidayMap] = useState({})
+  const [hoveredDate, setHoveredDate] = useState(null)
   const [addDate, setAddDate] = useState(null)
   const [addName, setAddName] = useState('')
   const [addError, setAddError] = useState('')
@@ -62,7 +68,7 @@ const GeneralCalendar = ({ year, month }) => {
     reload()
   }, [reload])
 
-  // Build calendar grid
+  // Build grid
   const daysInMonth = new Date(year, month, 0).getDate()
   const firstDow = new Date(year, month - 1, 1).getDay()
   const startOffset = (firstDow + 6) % 7
@@ -78,8 +84,7 @@ const GeneralCalendar = ({ year, month }) => {
   }
 
   const handleCellClick = (dateStr) => {
-    if (!canEdit) return
-    if (holidayMap[dateStr]) return
+    if (!canEdit || holidayMap[dateStr]) return
     setAddDate(dateStr)
     setAddName('')
     setAddError('')
@@ -111,16 +116,55 @@ const GeneralCalendar = ({ year, month }) => {
 
   return (
     <>
-      <CCard>
-        <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <CCard className="shadow-sm">
+        <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
           <div>
-            <strong>
+            <strong className="fs-6">
               General Calendar — {MONTHS[month - 1]} {year}
             </strong>
             <div className="small text-body-secondary mt-1">
-              {sundayCount} Sunday{sundayCount !== 1 ? 's' : ''} &middot; {satCount} 2nd/4th
-              Saturday{satCount !== 1 ? 's' : ''} &middot; {customCount} custom holiday
-              {customCount !== 1 ? 's' : ''}
+              <span className="me-2">
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    background: '#e5e7eb',
+                    borderRadius: 2,
+                    marginRight: 4,
+                    verticalAlign: 'middle',
+                  }}
+                />
+                {sundayCount} Sunday{sundayCount !== 1 ? 's' : ''}
+              </span>
+              <span className="me-2">
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    background: '#e5e7eb',
+                    borderRadius: 2,
+                    marginRight: 4,
+                    verticalAlign: 'middle',
+                  }}
+                />
+                {satCount} 2nd/4th Saturday{satCount !== 1 ? 's' : ''}
+              </span>
+              <span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    background: '#fde68a',
+                    borderRadius: 2,
+                    marginRight: 4,
+                    verticalAlign: 'middle',
+                  }}
+                />
+                {customCount} custom holiday{customCount !== 1 ? 's' : ''}
+              </span>
             </div>
           </div>
           {canEdit && (
@@ -129,43 +173,28 @@ const GeneralCalendar = ({ year, month }) => {
             </span>
           )}
         </CCardHeader>
-        <CCardBody className="px-3 pt-2 pb-3">
-          {/* Legend */}
-          <div className="d-flex gap-3 mb-3 flex-wrap align-items-center">
-            {[
-              { label: 'Sunday', bg: '#e9ecef' },
-              { label: '2nd / 4th Saturday', bg: '#e9ecef' },
-              { label: 'Custom Holiday', bg: '#fff3cd' },
-              { label: 'Working Day', bg: '#fff', border: true },
-            ].map((item) => (
-              <div key={item.label} className="d-flex align-items-center gap-1">
-                <div
-                  style={{
-                    width: 13,
-                    height: 13,
-                    background: item.bg,
-                    border: '1px solid #dee2e6',
-                    borderRadius: 2,
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 11 }}>{item.label}</span>
-              </div>
-            ))}
-          </div>
 
-          {/* Day header */}
-          <div style={{ display: 'flex', marginBottom: 2 }}>
-            {DAY_LABELS.map((label) => (
+        <CCardBody className="p-0">
+          {/* Day header row */}
+          <div
+            style={{
+              display: 'flex',
+              background: '#f8f9fa',
+              borderBottom: '2px solid #dee2e6',
+            }}
+          >
+            {DAY_LABELS.map((label, i) => (
               <div
                 key={label}
                 style={{
                   width: '14.28%',
                   textAlign: 'center',
-                  fontWeight: 600,
-                  fontSize: 12,
-                  padding: '4px 0',
-                  borderBottom: '2px solid #dee2e6',
+                  fontWeight: 700,
+                  fontSize: 11,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  padding: '10px 0',
+                  color: i >= 5 ? '#9ca3af' : '#374151',
                 }}
               >
                 {label}
@@ -173,9 +202,9 @@ const GeneralCalendar = ({ year, month }) => {
             ))}
           </div>
 
-          {/* Weeks */}
+          {/* Calendar weeks */}
           {weeks.map((week, wi) => (
-            <div key={wi} style={{ display: 'flex' }}>
+            <div key={wi} style={{ display: 'flex', borderBottom: '1px solid #f3f4f6' }}>
               {week.map((dayNum, di) => {
                 if (!dayNum) {
                   return (
@@ -183,80 +212,125 @@ const GeneralCalendar = ({ year, month }) => {
                       key={di}
                       style={{
                         width: '14.28%',
-                        minHeight: 70,
-                        border: '1px solid #dee2e6',
-                        background: '#fafafa',
+                        minHeight: 90,
+                        background: CELL_BG.empty,
+                        borderRight: '1px solid #f3f4f6',
                       }}
                     />
                   )
                 }
+
                 const dateStr = `${year}-${pad(month)}-${pad(dayNum)}`
                 const h = holidayMap[dateStr]
                 const isCustom = h?.type === 'custom'
                 const isClickable = canEdit && !h
+                const isToday = dateStr === TODAY
+                const isHovered = hoveredDate === dateStr
+                const pill = h ? HOLIDAY_PILL[h.type] : null
 
                 return (
                   <div
                     key={di}
                     onClick={() => isClickable && handleCellClick(dateStr)}
+                    onMouseEnter={() => isClickable && setHoveredDate(dateStr)}
+                    onMouseLeave={() => setHoveredDate(null)}
                     title={isClickable ? 'Click to mark as holiday' : undefined}
                     style={{
                       width: '14.28%',
-                      minHeight: 70,
-                      border: '1px solid #dee2e6',
-                      padding: '4px 6px',
-                      background: h ? HOLIDAY_BG[h.type] : '#fff',
+                      minHeight: 90,
+                      borderRight: '1px solid #f3f4f6',
+                      background: isHovered ? '#eff6ff' : h ? CELL_BG[h.type] : CELL_BG.working,
                       cursor: isClickable ? 'pointer' : 'default',
                       position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      padding: '10px 6px 8px',
+                      transition: 'background 0.12s',
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{dayNum}</div>
+                    {/* Date circle */}
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        background: isToday ? '#2563eb' : 'transparent',
+                        border: isToday ? 'none' : '2px solid transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: isToday ? 700 : 600,
+                        fontSize: 15,
+                        color: isToday ? '#ffffff' : h ? '#6b7280' : '#111827',
+                        marginBottom: 6,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {dayNum}
+                    </div>
+
+                    {/* Holiday label pill */}
                     {h && (
                       <div
                         style={{
                           fontSize: 10,
-                          marginTop: 2,
-                          color: HOLIDAY_TEXT[h.type],
-                          lineHeight: 1.3,
+                          fontWeight: 500,
+                          color: pill.text,
+                          background: pill.bg,
+                          borderRadius: 4,
+                          padding: '2px 6px',
+                          textAlign: 'center',
+                          lineHeight: 1.4,
+                          maxWidth: '100%',
+                          wordBreak: 'break-word',
                         }}
                       >
                         {h.name}
                       </div>
                     )}
+
+                    {/* Hover hint for working days */}
+                    {isHovered && (
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: '#2563eb',
+                          marginTop: 4,
+                          fontWeight: 500,
+                        }}
+                      >
+                        + Add holiday
+                      </div>
+                    )}
+
+                    {/* Delete button for custom holidays */}
                     {isCustom && canEdit && (
                       <button
                         onClick={(e) => handleDelete(e, h.id)}
                         title="Remove holiday"
                         style={{
                           position: 'absolute',
-                          top: 3,
-                          right: 4,
-                          background: 'none',
-                          border: 'none',
-                          fontSize: 12,
-                          color: '#dc3545',
+                          top: 4,
+                          right: 5,
+                          background: '#fef2f2',
+                          border: '1px solid #fecaca',
+                          borderRadius: '50%',
+                          width: 18,
+                          height: 18,
+                          fontSize: 11,
+                          color: '#dc2626',
                           cursor: 'pointer',
                           lineHeight: 1,
-                          padding: '1px 2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           fontWeight: 700,
+                          padding: 0,
                         }}
                       >
                         ×
                       </button>
-                    )}
-                    {isClickable && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: 3,
-                          right: 5,
-                          fontSize: 14,
-                          color: '#ced4da',
-                          lineHeight: 1,
-                        }}
-                      >
-                        +
-                      </div>
                     )}
                   </div>
                 )
@@ -269,23 +343,35 @@ const GeneralCalendar = ({ year, month }) => {
       {/* Add Holiday Modal */}
       <CModal visible={Boolean(addDate)} onClose={() => setAddDate(null)} size="sm">
         <CModalHeader>
-          <CModalTitle>Add Holiday — {addDate}</CModalTitle>
+          <CModalTitle>Add Holiday</CModalTitle>
         </CModalHeader>
         <CModalBody>
+          <div className="text-body-secondary small mb-2">
+            {addDate && (
+              <>
+                {new Date(addDate + 'T00:00:00').toLocaleDateString('en-IN', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </>
+            )}
+          </div>
           {addError && (
             <CAlert color="danger" className="py-1 small mb-2">
               {addError}
             </CAlert>
           )}
           <CFormInput
-            placeholder="Holiday name (e.g. Diwali, National Day)"
+            placeholder="Holiday name (e.g. Diwali, Republic Day)"
             value={addName}
             onChange={(e) => setAddName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddSave()}
             autoFocus
           />
-          <div className="small text-body-secondary mt-1">
-            This holiday will appear in all employee personal calendars.
+          <div className="small text-body-secondary mt-2">
+            This will reflect in all employee personal calendars.
           </div>
         </CModalBody>
         <CModalFooter>
