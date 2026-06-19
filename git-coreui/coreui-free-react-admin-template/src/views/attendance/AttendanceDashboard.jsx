@@ -18,12 +18,14 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCloudUpload, cilPencil, cilPeople } from '@coreui/icons'
+import { cilCalendar, cilCloudUpload, cilPencil, cilPeople } from '@coreui/icons'
 
 import { usePermission } from '../../hooks/usePermission'
 import { MODULE } from '../../constants/modules'
 import api from '../../services/api'
 import { localAttendance } from '../../services/localAttendance'
+import GeneralCalendar from './GeneralCalendar'
+import EmployeeCalendarModal from './EmployeeCalendarModal'
 
 const MONTHS = [
   'January',
@@ -65,6 +67,7 @@ const AttendanceDashboard = () => {
   const [uploads, setUploads] = useState([])
   const [summaries, setSummaries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [calendarEmp, setCalendarEmp] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -259,6 +262,7 @@ const AttendanceDashboard = () => {
                       <CTableHeaderCell>Leave</CTableHeaderCell>
                       <CTableHeaderCell>Late Days</CTableHeaderCell>
                       <CTableHeaderCell>Avg Hours</CTableHeaderCell>
+                      <CTableHeaderCell></CTableHeaderCell>
                     </CTableRow>
                   </CTableHead>
                   <CTableBody>
@@ -277,10 +281,26 @@ const AttendanceDashboard = () => {
                         <CTableDataCell>{s.weekly_off_count || 0}</CTableDataCell>
                         <CTableDataCell>{s.leave_count || 0}</CTableDataCell>
                         <CTableDataCell>
-                          {s.late_days > 0 ? <CBadge color="warning">{s.late_days}</CBadge> : 0}
+                          {s.late_days > 0 ? (
+                            <CBadge color="warning" className="text-dark">
+                              {s.late_days}
+                            </CBadge>
+                          ) : (
+                            0
+                          )}
                         </CTableDataCell>
                         <CTableDataCell className="text-body-secondary small">
                           {s.avg_working_hours || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CButton
+                            color="info"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCalendarEmp(s.employee_id)}
+                          >
+                            <CIcon icon={cilCalendar} />
+                          </CButton>
                         </CTableDataCell>
                       </CTableRow>
                     ))}
@@ -289,8 +309,22 @@ const AttendanceDashboard = () => {
               </CCardBody>
             </CCard>
           )}
+
+          {/* General Calendar — company holidays */}
+          <div className="mt-4">
+            <GeneralCalendar year={year} month={month} />
+          </div>
         </>
       )}
+
+      {/* Employee Personal Calendar Modal */}
+      <EmployeeCalendarModal
+        visible={Boolean(calendarEmp)}
+        onClose={() => setCalendarEmp(null)}
+        employeeId={calendarEmp}
+        year={year}
+        month={month}
+      />
     </>
   )
 }
