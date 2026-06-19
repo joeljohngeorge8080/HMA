@@ -5,6 +5,24 @@ import { CContainer, CSpinner } from '@coreui/react'
 import { useRoutes } from '../contexts/RoutesContext'
 import ProtectedRoute from './ProtectedRoute'
 
+/**
+ * Converts an absolute route path to a relative one for use in nested <Routes>.
+ *
+ * EmsLayout is mounted at /ems/* and PmsLayout at /pms/*.
+ * React Router v6 nested <Routes> must use paths relative to the parent match,
+ * so we strip the /ems/ or /pms/ prefix from each path.
+ *
+ * Examples:
+ *   /ems/dashboard          → dashboard
+ *   /ems/staff-payroll/:id  → staff-payroll/:id
+ *   /pms/projects/:id/edit  → projects/:id/edit
+ *   /                       → / (unchanged — the catch-all home entry)
+ */
+const toRelativePath = (path) => {
+  if (!path || path === '/') return path
+  return path.replace(/^\/(ems|pms)\//, '')
+}
+
 const AppContent = () => {
   const routes = useRoutes()
   const { pathname } = useLocation()
@@ -16,10 +34,11 @@ const AppContent = () => {
         <Routes>
           {routes.map((route, idx) => {
             if (!route.element) return null
+            const relativePath = toRelativePath(route.path)
             return (
               <Route
                 key={idx}
-                path={route.path}
+                path={relativePath}
                 exact={route.exact}
                 name={route.name}
                 element={
