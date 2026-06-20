@@ -24,7 +24,39 @@ const read = (key) => {
 }
 const write = (key, data) => localStorage.setItem(key, JSON.stringify(data))
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── private helpers ───────────────────────────────────────────────────────────
+
+// Rebuild all employee summaries for a given year+month from current records.
+// Called after any bulk-update that changes statuses (e.g. holiday application).
+const _rebuildMonthSummaries = (year, month) => {
+  const ts = now()
+  const allRecords = read(KEYS.records).filter((r) => r.year === year && r.month === month)
+  const byEmployee = {}
+  for (const r of allRecords) {
+    if (!byEmployee[r.employee_id]) byEmployee[r.employee_id] = []
+    byEmployee[r.employee_id].push(r)
+  }
+  const existingSummaries = read(KEYS.summaries)
+  const otherSummaries = existingSummaries.filter((s) => !(s.year === year && s.month === month))
+  const newSummaries = Object.entries(byEmployee).map(([empId, recs]) => {
+    const old = existingSummaries.find(
+      (s) => s.employee_id === empId && s.year === year && s.month === month,
+    )
+    return {
+      id: old?.id || uid(),
+      upload_id: old?.upload_id || null,
+      employee_id: empId,
+      year,
+      month,
+      created_at: old?.created_at || ts,
+      ...buildSummary(recs),
+      updated_at: ts,
+    }
+  })
+  write(KEYS.summaries, [...otherSummaries, ...newSummaries])
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_ORDER = ['Present', 'Half Day', 'Absent', 'On Leave', 'Holiday', 'Weekly Off']
 const isValidStatus = (s) => STATUS_ORDER.includes(s)
@@ -342,6 +374,83 @@ export const localAttendance = {
       total_absent_days: rows.reduce((sum, s) => sum + (s.absent_count || 0), 0),
       total_late_days: rows.reduce((sum, s) => sum + (s.late_days || 0), 0),
     }
+  },
+
+  // ── holiday calendar integration ─────────────────────────────────────────────
+  // Called by GeneralCalendar when HR adds a custom holiday.
+  // Flips every Absent record on that date to Holiday so no deduction is applied.
+  // Stores the original status so revertHolidayFromDate can undo the change.
+  applyHolidayToDate(date, holidayName) {
+    const d = new Date(date + 'T00:00:00')
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+    const rows = read(KEYS.records)
+    const ts = now()
+    let count = 0
+    const updated = rows.map((r) => {
+      if (r.date !== date || r.status !== 'Absent') return r
+      count++
+      return {
+        ...r,
+        pre_holiday_status: r.status,
+        status: 'Holiday',
+        corrections: [
+          ...(r.corrections || []),
+          {
+            id: uid(),
+            old_status: r.status,
+            new_status: 'Holiday',
+            reason: `Company holiday: ${holidayName}`,
+            corrected_by: 'Holiday Calendar',
+            corrected_at: ts,
+          },
+        ],
+        updated_at: ts,
+      }
+    })
+    if (count > 0) {
+      write(KEYS.records, updated)
+      _rebuildMonthSummaries(year, month)
+    }
+    return count
+  },
+
+  // Called by GeneralCalendar when HR removes a custom holiday.
+  // Reverts only records that were changed by applyHolidayToDate (have pre_holiday_status set).
+  revertHolidayFromDate(date) {
+    const d = new Date(date + 'T00:00:00')
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+    const rows = read(KEYS.records)
+    const ts = now()
+    let count = 0
+    const updated = rows.map((r) => {
+      if (r.date !== date || !r.pre_holiday_status) return r
+      count++
+      const original = r.pre_holiday_status
+      return {
+        ...r,
+        status: original,
+        pre_holiday_status: undefined,
+        corrections: [
+          ...(r.corrections || []),
+          {
+            id: uid(),
+            old_status: 'Holiday',
+            new_status: original,
+            reason: 'Holiday removed from calendar',
+            corrected_by: 'Holiday Calendar',
+            corrected_at: ts,
+          },
+        ],
+        updated_at: ts,
+      }
+    })
+    if (count > 0) {
+      write(KEYS.records, updated)
+      _rebuildMonthSummaries(year, month)
+    }
+    return count
   },
 
   isValidStatus,

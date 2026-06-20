@@ -17,6 +17,7 @@ import {
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
 import { localHolidays } from '../../../services/localHolidays'
+import { localAttendance } from '../../../services/localAttendance'
 
 const MONTHS = [
   'January',
@@ -121,6 +122,7 @@ const GeneralCalendar = ({ year: initialYear, month: initialMonth }) => {
     }
     try {
       localHolidays.addHoliday({ date: addDate, name: addName })
+      localAttendance.applyHolidayToDate(addDate, addName)
       setAddDate(null)
       reload()
     } catch (e) {
@@ -128,9 +130,10 @@ const GeneralCalendar = ({ year: initialYear, month: initialMonth }) => {
     }
   }
 
-  const handleDelete = (e, id) => {
+  const handleDelete = (e, id, dateStr) => {
     e.stopPropagation()
     localHolidays.deleteHoliday(id)
+    if (dateStr) localAttendance.revertHolidayFromDate(dateStr)
     reload()
   }
 
@@ -383,7 +386,7 @@ const GeneralCalendar = ({ year: initialYear, month: initialMonth }) => {
                     {/* Delete button for custom holidays */}
                     {isCustom && canEdit && (
                       <button
-                        onClick={(e) => handleDelete(e, h.id)}
+                        onClick={(e) => handleDelete(e, h.id, dateStr)}
                         title="Remove holiday"
                         style={{
                           position: 'absolute',
@@ -447,7 +450,7 @@ const GeneralCalendar = ({ year: initialYear, month: initialMonth }) => {
             autoFocus
           />
           <div className="small text-body-secondary mt-2">
-            This will reflect in all employee personal calendars.
+            Employees marked Absent on this date will be updated to Holiday (no deduction).
           </div>
         </CModalBody>
         <CModalFooter>
