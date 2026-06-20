@@ -185,14 +185,15 @@ const EmployeeList = () => {
                   <CTableHeaderCell>Department</CTableHeaderCell>
                   <CTableHeaderCell>Category</CTableHeaderCell>
                   <CTableHeaderCell>Gender</CTableHeaderCell>
-                  <CTableHeaderCell>Salary CTC</CTableHeaderCell>
+                  <CTableHeaderCell>Monthly CTC</CTableHeaderCell>
+                  <CTableHeaderCell>Joining Date</CTableHeaderCell>
                   <CTableHeaderCell>Status</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {employees.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={9} className="text-center text-body-secondary py-4">
+                    <CTableDataCell colSpan={10} className="text-center text-body-secondary py-4">
                       No employees found
                     </CTableDataCell>
                   </CTableRow>
@@ -224,6 +225,9 @@ const EmployeeList = () => {
                         <CTableDataCell>{emp.gender || '—'}</CTableDataCell>
                         <CTableDataCell>
                           {salary > 0 ? `₹${Number(salary).toLocaleString('en-IN')}` : '—'}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {emp.joined_date || emp.employment?.start_date || '—'}
                         </CTableDataCell>
                         <CTableDataCell>
                           <CBadge color={STATUS_COLORS[emp.status] || 'secondary'}>
