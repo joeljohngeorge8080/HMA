@@ -45,6 +45,7 @@ const STATUS_COLORS = {
   Inactive: 'secondary',
   Resigned: 'danger',
   Retired: 'warning',
+  Deleted: 'dark',
 }
 
 const TABS = [
@@ -299,8 +300,10 @@ const EmployeeProfile = () => {
             visible={showChangeStatus}
             onClose={() => setShowChangeStatus(false)}
             employeeId={id}
+            employeeName={fullName}
             currentStatus={profile.status}
             onSave={refreshProfile}
+            onDelete={() => navigate('/ems/staff-payroll')}
           />
           <SalaryUpdateModal
             visible={showSalaryUpdate}

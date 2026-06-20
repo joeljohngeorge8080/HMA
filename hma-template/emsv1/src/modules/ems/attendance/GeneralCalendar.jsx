@@ -6,6 +6,7 @@ import {
   CCardBody,
   CCardHeader,
   CFormInput,
+  CFormSelect,
   CModal,
   CModalBody,
   CModalFooter,
@@ -36,6 +37,9 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const pad = (n) => String(n).padStart(2, '0')
 
 const TODAY = new Date().toISOString().slice(0, 10)
+const _thisYear = new Date().getFullYear()
+const _thisMonth = new Date().getMonth() + 1
+const CAL_YEARS = Array.from({ length: 5 }, (_, i) => _thisYear - 1 + i)
 
 const CELL_BG = {
   sunday: '#f3f4f6',
@@ -51,9 +55,11 @@ const HOLIDAY_PILL = {
   custom: { bg: '#fde68a', text: '#92400e' },
 }
 
-const GeneralCalendar = ({ year, month }) => {
+const GeneralCalendar = ({ year: initialYear, month: initialMonth }) => {
   const canEdit = usePermission(MODULE.ATTENDANCE, 'edit')
 
+  const [year, setYear] = useState(initialYear || _thisYear)
+  const [month, setMonth] = useState(initialMonth || _thisMonth)
   const [holidayMap, setHolidayMap] = useState({})
   const [hoveredDate, setHoveredDate] = useState(null)
   const [addDate, setAddDate] = useState(null)
@@ -67,6 +73,24 @@ const GeneralCalendar = ({ year, month }) => {
   useEffect(() => {
     reload()
   }, [reload])
+
+  const handlePrevMonth = () => {
+    if (month === 1) {
+      setMonth(12)
+      setYear((y) => y - 1)
+    } else {
+      setMonth((m) => m - 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (month === 12) {
+      setMonth(1)
+      setYear((y) => y + 1)
+    } else {
+      setMonth((m) => m + 1)
+    }
+  }
 
   // Build grid
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -117,12 +141,64 @@ const GeneralCalendar = ({ year, month }) => {
   return (
     <>
       <CCard className="shadow-sm">
-        <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
-          <div>
-            <strong className="fs-6">
-              General Calendar — {MONTHS[month - 1]} {year}
-            </strong>
-            <div className="small text-body-secondary mt-1">
+        <CCardHeader className="py-3">
+          {/* Top row: title + navigation */}
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-2">
+            <strong className="fs-6">General Holiday Calendar</strong>
+
+            {/* Month / Year navigation */}
+            <div className="d-flex align-items-center gap-2">
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={handlePrevMonth}
+                style={{ lineHeight: 1, padding: '3px 9px', fontWeight: 700 }}
+              >
+                ‹
+              </CButton>
+
+              <CFormSelect
+                size="sm"
+                value={month}
+                onChange={(e) => setMonth(Number(e.target.value))}
+                style={{ width: 130 }}
+              >
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i + 1}>
+                    {m}
+                  </option>
+                ))}
+              </CFormSelect>
+
+              <CFormSelect
+                size="sm"
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                style={{ width: 90 }}
+              >
+                {CAL_YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </CFormSelect>
+
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={handleNextMonth}
+                style={{ lineHeight: 1, padding: '3px 9px', fontWeight: 700 }}
+              >
+                ›
+              </CButton>
+            </div>
+          </div>
+
+          {/* Bottom row: legend + hint */}
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div className="small text-body-secondary">
               <span className="me-2">
                 <span
                   style={{
@@ -166,12 +242,12 @@ const GeneralCalendar = ({ year, month }) => {
                 {customCount} custom holiday{customCount !== 1 ? 's' : ''}
               </span>
             </div>
+            {canEdit && (
+              <span className="text-body-secondary small fst-italic">
+                Click any working day to mark as holiday
+              </span>
+            )}
           </div>
-          {canEdit && (
-            <span className="text-body-secondary small fst-italic">
-              Click any working day to mark as holiday
-            </span>
-          )}
         </CCardHeader>
 
         <CCardBody className="p-0">

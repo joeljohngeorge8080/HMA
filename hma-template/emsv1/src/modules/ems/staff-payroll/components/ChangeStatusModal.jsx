@@ -5,6 +5,7 @@ import {
   CBadge,
   CButton,
   CForm,
+  CFormCheck,
   CFormInput,
   CFormLabel,
   CFormSelect,
@@ -16,29 +17,49 @@ import {
   CSpinner,
 } from '@coreui/react'
 import api from '../../../../services/api'
+import { localEmployees } from '../../../../services/localEmployees'
 
 const STATUS_COLORS = {
   Active: 'success',
   Inactive: 'secondary',
   Resigned: 'danger',
   Retired: 'warning',
+  Deleted: 'dark',
 }
-const STATUSES = ['Active', 'Inactive', 'Resigned', 'Retired']
+const STATUSES = ['Active', 'Inactive', 'Resigned', 'Retired', 'Deleted']
 const REQUIRES_EXIT = ['Resigned', 'Retired']
 
-const ChangeStatusModal = ({ visible, onClose, employeeId, currentStatus, onSave }) => {
+const ChangeStatusModal = ({
+  visible,
+  onClose,
+  employeeId,
+  employeeName,
+  currentStatus,
+  onSave,
+  onDelete,
+}) => {
   const [status, setStatus] = useState(currentStatus)
   const [exitDate, setExitDate] = useState('')
   const [remarks, setRemarks] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const needsExitDate = REQUIRES_EXIT.includes(status)
+  const isDeleting = status === 'Deleted'
 
   const handleSave = async (e) => {
     e.preventDefault()
     if (needsExitDate && !exitDate) {
       setError('Exit date is required for this status')
+      return
+    }
+    if (isDeleting && !remarks.trim()) {
+      setError('Reason for deletion is required')
+      return
+    }
+    if (isDeleting && !confirmed) {
+      setError('Please confirm you want to delete this employee')
       return
     }
     setSaving(true)
@@ -49,12 +70,27 @@ const ChangeStatusModal = ({ visible, onClose, employeeId, currentStatus, onSave
         exit_date: exitDate || undefined,
         remarks: remarks || undefined,
       })
+    } catch {
+      // API not available — use local store
+      try {
+        localEmployees.updateStatus(employeeId, {
+          status,
+          exit_date: exitDate || undefined,
+          remarks: remarks || undefined,
+        })
+      } catch (localErr) {
+        setError(localErr.message || 'Failed to update status')
+        setSaving(false)
+        return
+      }
+    }
+
+    setSaving(false)
+    if (isDeleting) {
+      onDelete?.()
+    } else {
       onSave()
       onClose()
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update status')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -62,6 +98,7 @@ const ChangeStatusModal = ({ visible, onClose, employeeId, currentStatus, onSave
     setStatus(currentStatus)
     setExitDate('')
     setRemarks('')
+    setConfirmed(false)
     setError('')
     onClose()
   }
@@ -86,9 +123,19 @@ const ChangeStatusModal = ({ visible, onClose, employeeId, currentStatus, onSave
             <CFormLabel className="fw-semibold">
               New Status <span className="text-danger">*</span>
             </CFormLabel>
-            <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)} required>
+            <CFormSelect
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value)
+                setConfirmed(false)
+                setError('')
+              }}
+              required
+            >
               {STATUSES.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s === 'Deleted' ? 'Delete Employee' : s}
+                </option>
               ))}
             </CFormSelect>
           </div>
@@ -108,21 +155,52 @@ const ChangeStatusModal = ({ visible, onClose, employeeId, currentStatus, onSave
           )}
 
           <div className="mb-3">
-            <CFormLabel>Remarks</CFormLabel>
+            <CFormLabel className={isDeleting ? 'fw-semibold' : ''}>
+              Remarks {isDeleting && <span className="text-danger">*</span>}
+            </CFormLabel>
             <CFormInput
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Optional reason for status change"
+              placeholder={
+                isDeleting
+                  ? 'Reason for deletion (required)'
+                  : 'Optional reason for status change'
+              }
+              required={isDeleting}
             />
           </div>
+
+          {isDeleting && (
+            <>
+              <CAlert color="danger" className="mb-3">
+                <strong>Warning: This action cannot be undone.</strong>
+                <br />
+                Deleting <strong>{employeeName || 'this employee'}</strong> will permanently mark
+                their record as deleted and remove them from all active lists. This deletion will
+                be recorded in the audit log.
+              </CAlert>
+              <div className="mb-3">
+                <CFormCheck
+                  id="confirm-delete"
+                  label={`I confirm I want to delete ${employeeName || 'this employee'}`}
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                />
+              </div>
+            </>
+          )}
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" type="button" onClick={handleClose} disabled={saving}>
             Cancel
           </CButton>
-          <CButton color="primary" type="submit" disabled={saving || status === currentStatus}>
+          <CButton
+            color={isDeleting ? 'danger' : 'primary'}
+            type="submit"
+            disabled={saving || status === currentStatus || (isDeleting && !confirmed)}
+          >
             {saving && <CSpinner size="sm" className="me-2" />}
-            Update Status
+            {isDeleting ? 'Delete Employee' : 'Update Status'}
           </CButton>
         </CModalFooter>
       </CForm>
@@ -134,8 +212,10 @@ ChangeStatusModal.propTypes = {
   visible: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   employeeId: PropTypes.string.isRequired,
+  employeeName: PropTypes.string,
   currentStatus: PropTypes.string.isRequired,
   onSave: PropTypes.func.isRequired,
+  onDelete: PropTypes.func,
 }
 
 export default ChangeStatusModal
