@@ -216,12 +216,17 @@ export const localAttendance = {
 
   // ── records ──────────────────────────────────────────────────────────────────
 
-  listRecords({ employeeId, year, month, page = 1, pageSize = 30 } = {}) {
+  listRecords({ employeeId, year, month, date, page = 1, pageSize = 30 } = {}) {
     let rows = read(KEYS.records)
     if (employeeId) rows = rows.filter((r) => r.employee_id === employeeId)
     if (year) rows = rows.filter((r) => r.year === Number(year))
     if (month) rows = rows.filter((r) => r.month === Number(month))
-    rows = rows.sort((a, b) => b.date.localeCompare(a.date))
+    if (date) rows = rows.filter((r) => r.date === date)
+    // When filtering by a single date, sort by employee ID for easy scanning;
+    // otherwise sort newest-first so recent records surface at the top.
+    rows = rows.sort((a, b) =>
+      date ? a.employee_id.localeCompare(b.employee_id) : b.date.localeCompare(a.date),
+    )
     const total = rows.length
     const start = (page - 1) * pageSize
     return { items: rows.slice(start, start + pageSize), total }

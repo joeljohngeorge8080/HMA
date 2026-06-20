@@ -96,6 +96,7 @@ const AttendanceCorrections = () => {
   const [year, setYear] = useState(thisYear)
   const [month, setMonth] = useState(thisMonth)
   const [empSearch, setEmpSearch] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
 
   // ── summaries list (primary calendar entry point) ──────────────────
   const [summaries, setSummaries] = useState([])
@@ -211,12 +212,23 @@ const AttendanceCorrections = () => {
   }, [calendarEmployee, year, month])
 
   // ── Effect 3: flat records for demoted table ───────────────────────
+  // When a specific date is selected, load all records for that date at once
+  // (max ~50 employees) — no pagination needed. Without a date filter the
+  // full month is paginated in PAGE_SIZE chunks.
   useEffect(() => {
     const loadRecords = async () => {
       setLoading(true)
+      const activePage = dateFilter ? 1 : page
+      const activePageSize = dateFilter ? 500 : PAGE_SIZE
       try {
-        const params = new URLSearchParams({ year, month, page, page_size: PAGE_SIZE })
+        const params = new URLSearchParams({
+          year,
+          month,
+          page: activePage,
+          page_size: activePageSize,
+        })
         if (empSearch) params.set('employee_id', empSearch)
+        if (dateFilter) params.set('date', dateFilter)
         const { data } = await api.get(`/attendance/records?${params}`)
         setRecords(data.items || [])
         setTotal(data.total || 0)
@@ -224,9 +236,10 @@ const AttendanceCorrections = () => {
         const result = localAttendance.listRecords({
           year,
           month,
+          date: dateFilter || undefined,
           employeeId: empSearch || undefined,
-          page,
-          pageSize: PAGE_SIZE,
+          page: activePage,
+          pageSize: activePageSize,
         })
         setRecords(result.items)
         setTotal(result.total)
@@ -235,7 +248,7 @@ const AttendanceCorrections = () => {
       }
     }
     loadRecords()
-  }, [year, month, page, empSearch, refreshTick])
+  }, [year, month, page, empSearch, dateFilter, refreshTick])
 
   // ── Effect 4: cancel drag if mouse released outside the window ─────
   useEffect(() => {
@@ -438,6 +451,7 @@ const AttendanceCorrections = () => {
                 onChange={(e) => {
                   setMonth(Number(e.target.value))
                   setPage(1)
+                  setDateFilter('')
                 }}
               >
                 {MONTHS.map((m, i) => (
@@ -455,6 +469,7 @@ const AttendanceCorrections = () => {
                 onChange={(e) => {
                   setYear(Number(e.target.value))
                   setPage(1)
+                  setDateFilter('')
                 }}
               >
                 {YEARS.map((y) => (
@@ -463,6 +478,18 @@ const AttendanceCorrections = () => {
                   </option>
                 ))}
               </CFormSelect>
+            </CCol>
+            <CCol md={2}>
+              <label className="fw-semibold small mb-1 d-block">Date</label>
+              <CFormInput
+                type="date"
+                size="sm"
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value)
+                  setPage(1)
+                }}
+              />
             </CCol>
             <CCol md={3}>
               <label className="fw-semibold small mb-1 d-block">Employee ID / Name</label>
@@ -551,21 +578,30 @@ const AttendanceCorrections = () => {
         </CCardBody>
       </CCard>
 
-      {/* All Records — demoted, row-level editing */}
+      {/* All Records — row-level editing, filtered by date */}
       <CCard className="mb-4">
         <CCardHeader className="d-flex align-items-center justify-content-between">
           <strong>
-            All Records — {MONTHS[month - 1]} {year}
+            {dateFilter
+              ? `Records — ${dateFilter}`
+              : `All Records — ${MONTHS[month - 1]} ${year}`}
           </strong>
           <span className="text-body-secondary small">{total} records</span>
         </CCardHeader>
         <CCardBody className="p-0">
+          {!dateFilter && (
+            <div className="px-3 py-2 border-bottom bg-info-subtle small text-info-emphasis">
+              Select a date above to view all employee records for that day.
+            </div>
+          )}
           {loading ? (
             <div className="text-center py-4">
               <CSpinner color="primary" size="sm" />
             </div>
           ) : records.length === 0 ? (
-            <p className="text-body-secondary small m-3">No records found.</p>
+            <p className="text-body-secondary small m-3">
+              {dateFilter ? 'No records found for this date.' : 'No records found.'}
+            </p>
           ) : (
             <CTable hover responsive bordered small className="mb-0">
               <CTableHead color="light">
@@ -626,7 +662,7 @@ const AttendanceCorrections = () => {
             </CTable>
           )}
 
-          {totalPages > 1 && (
+          {!dateFilter && totalPages > 1 && (
             <div className="d-flex justify-content-between align-items-center px-3 py-2 border-top">
               <span className="text-body-secondary small">
                 Page {page} of {totalPages}
