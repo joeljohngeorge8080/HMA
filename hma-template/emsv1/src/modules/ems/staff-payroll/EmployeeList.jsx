@@ -33,6 +33,7 @@ const STATUS_COLORS = {
   Inactive: 'secondary',
   Resigned: 'danger',
   Retired: 'warning',
+  Deleted: 'dark',
 }
 
 const EmployeeList = () => {
