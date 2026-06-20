@@ -8,6 +8,27 @@ const placeholder = (title, message) => {
   return Page
 }
 
+// Daily Reports lazy-loaded components
+const ReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/ReportSubmitPage'))
+const MyReportsPage = React.lazy(() => import('../modules/pms/daily-reports/MyReportsPage'))
+const ReportEditPage = React.lazy(() => import('../modules/pms/daily-reports/ReportEditPage'))
+const OfficerDashboardPage = React.lazy(
+  () => import('../modules/pms/daily-reports/OfficerDashboardPage'),
+)
+const ReportDetailReviewPage = React.lazy(
+  () => import('../modules/pms/daily-reports/ReportDetailReviewPage'),
+)
+const BackendReportsPage = React.lazy(
+  () => import('../modules/pms/daily-reports/BackendReportsPage'),
+)
+const TaskManagementPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskManagementPage'),
+)
+const MyTasksPage = React.lazy(() => import('../modules/pms/daily-reports/MyTasksPage'))
+const PersonnelLogPage = React.lazy(() => import('../modules/pms/daily-reports/PersonnelLogPage'))
+const FieldPersonnelBillsPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'))
+const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
+
 export const pmsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   {
@@ -223,10 +244,72 @@ export const pmsRoutes = [
     module: MODULE.PMS_PARTNERS,
   },
 
+  // ── Daily Reports ─────────────────────────────────────────────────────────
+  {
+    path: '/pms/daily-reports/new',
+    name: 'Submit Report',
+    element: ReportSubmitPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/history',
+    name: 'My Reports',
+    element: MyReportsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/:id/edit',
+    name: 'Edit Report',
+    element: ReportEditPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/review',
+    name: 'Review Reports',
+    element: OfficerDashboardPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/review/:id',
+    name: 'Report Detail',
+    element: ReportDetailReviewPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/approved',
+    name: 'Approved Reports',
+    element: BackendReportsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/tasks',
+    name: 'Assign Tasks',
+    element: TaskManagementPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/my-tasks',
+    name: 'My Tasks',
+    element: MyTasksPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/personnel-log',
+    name: 'Personnel Log',
+    element: PersonnelLogPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/field-personnel/bills',
+    name: 'Upload Bills',
+    element: FieldPersonnelBillsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+
   {
     path: '/pms/audit-logs',
     name: 'Audit Logs',
-    element: placeholder('Audit Logs'),
+    element: AuditLogsPage,
     module: MODULE.AUDIT_LOGS,
   },
 ]

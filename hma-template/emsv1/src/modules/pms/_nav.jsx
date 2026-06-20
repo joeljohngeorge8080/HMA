@@ -12,6 +12,7 @@ import {
   cilBuilding,
   cilListRich,
   cilTransfer,
+  cilUser,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -115,6 +116,28 @@ const pmsNav = [
     name: 'Implementing Partners',
     to: '/pms/implementing-partners',
     icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavGroup,
+    name: 'Field Personnel',
+    icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'My Dashboard', to: '/pms/daily-reports/personnel-log' },
+      { component: CNavItem, name: 'My Tasks', to: '/pms/daily-reports/my-tasks' },
+      { component: CNavItem, name: 'Submit Report', to: '/pms/daily-reports/new' },
+      { component: CNavItem, name: 'My Reports', to: '/pms/daily-reports/history' },
+      { component: CNavItem, name: 'Upload Bills', to: '/pms/field-personnel/bills' },
+    ],
+  },
+  {
+    component: CNavGroup,
+    name: 'Daily Reports (Admin)',
+    icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'Assign Tasks', to: '/pms/daily-reports/tasks' },
+      { component: CNavItem, name: 'Review Reports', to: '/pms/daily-reports/review' },
+      { component: CNavItem, name: 'Approved Reports', to: '/pms/daily-reports/approved' },
+    ],
   },
   {
     component: CNavItem,

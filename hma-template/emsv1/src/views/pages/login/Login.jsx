@@ -131,6 +131,7 @@ const Login = () => {
                         { role: 'HR', id: 'DEV003', name: 'Dev HR' },
                         { role: 'Finance', id: 'DEV004', name: 'Dev Finance' },
                         { role: 'Project Officer', id: 'DEV005', name: 'Dev Project Officer' },
+                        { role: 'Field Personnel', id: 'DEV006', name: 'Dev Field Personnel' },
                       ].map(({ role, id, name }) => (
                         <CButton
                           key={role}
