@@ -4,6 +4,17 @@
 // Swap out by replacing `localEmployees.*` calls with real API calls once the backend is running.
 
 const KEY = 'hma_employees'
+const ACTIVITY_LOG_KEY = 'hma_activity_log'
+
+const appendActivityLog = (entry) => {
+  try {
+    const logs = JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY) || '[]')
+    logs.push({ id: uid(), timestamp: now(), ...entry })
+    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(logs))
+  } catch {
+    // silent — log write failure should not break the main operation
+  }
+}
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -26,8 +37,10 @@ const writeAll = (rows) => {
 
 export const localEmployees = {
   // ── list ────────────────────────────────────────────────────────────────────
-  list({ search = '', status = '', department = '', category = '', page = 1, pageSize = 25 } = {}) {
+  list({ search = '', status = '', department = '', category = '', page = 1, pageSize = 25, includeDeleted = false } = {}) {
     let rows = readAll()
+
+    if (!includeDeleted) rows = rows.filter((e) => e.status !== 'Deleted')
 
     if (search) {
       const q = search.toLowerCase()
@@ -231,11 +244,19 @@ export const localEmployees = {
 
     const old = rows[idx]
     const ts = now()
+    const isDeleting = status === 'Deleted'
 
     rows[idx] = {
       ...old,
       status,
       exit_date: exit_date || old.exit_date || '',
+      ...(isDeleting
+        ? {
+            deleted: true,
+            deleted_at: ts,
+            deleted_remarks: remarks || '',
+          }
+        : {}),
       status_history: [
         ...(old.status_history || []),
         {
@@ -250,6 +271,17 @@ export const localEmployees = {
     }
 
     writeAll(rows)
+
+    if (isDeleting) {
+      appendActivityLog({
+        action: 'EMPLOYEE_DELETED',
+        employee_id: old.employee_id,
+        employee_name: old.employee_name,
+        department: old.employment?.department || '',
+        remarks: remarks || '',
+      })
+    }
+
     return rows[idx]
   },
 
