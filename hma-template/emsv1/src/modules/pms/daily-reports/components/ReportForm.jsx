@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react'
 import PropTypes from 'prop-types'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import {
   CCard,
   CCardBody,
@@ -24,9 +24,15 @@ import {
   CAlert,
   CInputGroup,
   CInputGroupText,
+  CTable,
+  CTableHead,
+  CTableRow,
+  CTableHeaderCell,
+  CTableBody,
+  CTableDataCell,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilSave, cilSend, cilWarning } from '@coreui/icons'
+import { cilSave, cilSend, cilWarning, cilTrash, cilPlus } from '@coreui/icons'
 
 import ImageUploadWithPreview from './ImageUploadWithPreview'
 
@@ -37,14 +43,13 @@ const ReportForm = ({
   onSubmit,
   onSaveDraft,
   loading = false,
-  tasks = [],
-  preselectedTaskId = null,
 }) => {
   const today = new Date().toISOString().split('T')[0]
   const nowTime = new Date().toTimeString().slice(0, 5)
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
     watch,
@@ -55,9 +60,14 @@ const ReportForm = ({
       report_date: defaultValues.report_date || today,
       report_time: defaultValues.report_time || nowTime,
       notes: defaultValues.notes || '',
-      task_id: preselectedTaskId || defaultValues.task_id || '',
+      meetings: defaultValues.meetings || [],
       ...defaultValues,
     },
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'meetings',
   })
 
   const [geoPhotos, setGeoPhotos] = useState(defaultValues.geo_photos || [])
@@ -67,13 +77,7 @@ const ReportForm = ({
   const handleFormSubmit = async (data) => {
     setSubmitError(null)
     try {
-      // Find the task title if a task is selected
-      let task_title = ''
-      if (data.task_id) {
-        const task = tasks.find((t) => t.id === data.task_id)
-        task_title = task?.title || ''
-      }
-      await onSubmit({ ...data, geo_photos: geoPhotos, bill_uploads: billUploads, task_title })
+      await onSubmit({ ...data, geo_photos: geoPhotos, bill_uploads: billUploads })
     } catch (err) {
       setSubmitError(err.message || 'Failed to submit report')
     }
@@ -86,7 +90,7 @@ const ReportForm = ({
       report_date: watch('report_date'),
       report_time: watch('report_time'),
       notes: watch('notes'),
-      task_id: watch('task_id'),
+      meetings: watch('meetings'),
       geo_photos: geoPhotos,
       bill_uploads: billUploads,
     }
@@ -123,30 +127,6 @@ const ReportForm = ({
         )}
 
         <CForm onSubmit={handleSubmit(handleFormSubmit)}>
-          {/* Task Selection */}
-          {tasks.length > 0 && (
-            <div className="mb-3">
-              <CFormLabel htmlFor="task_id" className="fw-medium">
-                Assigned Task
-              </CFormLabel>
-              <CFormSelect
-                id="task_id"
-                {...register('task_id')}
-                disabled={!!preselectedTaskId}
-              >
-                <option value="">— No task (standalone report) —</option>
-                {tasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}{task.due_date ? ` (due: ${task.due_date})` : ''}
-                  </option>
-                ))}
-              </CFormSelect>
-              <div className="text-body-tertiary mt-1" style={{ fontSize: '0.75rem' }}>
-                Optionally link this report to an assigned task
-              </div>
-            </div>
-          )}
-
           {/* Bill Topic */}
           <div className="mb-3">
             <CFormLabel htmlFor="bill_topic" className="fw-medium">
@@ -224,6 +204,85 @@ const ReportForm = ({
               )}
             </CCol>
           </CRow>
+
+          {/* Details of Meetings Conducted */}
+          <div className="mb-4">
+            <CFormLabel className="fw-medium">Details of Meetings Conducted (with LSGB)</CFormLabel>
+            <div className="table-responsive border rounded mb-2">
+              <CTable align="middle" className="mb-0" hover>
+                <CTableHead color="light">
+                  <CTableRow>
+                    <CTableHeaderCell className="text-center" style={{ width: '60px' }}>Sl. No</CTableHeaderCell>
+                    <CTableHeaderCell>Particulars</CTableHeaderCell>
+                    <CTableHeaderCell>Venue Address</CTableHeaderCell>
+                    <CTableHeaderCell>Local Point of Contact (Name, Contact No)</CTableHeaderCell>
+                    <CTableHeaderCell>Remarks</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center" style={{ width: '60px' }}></CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {fields.map((field, index) => (
+                    <CTableRow key={field.id}>
+                      <CTableDataCell className="text-center fw-medium text-body-secondary">
+                        {index + 1}
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <CFormInput
+                          size="sm"
+                          placeholder="e.g. Discussed project plan"
+                          {...register(`meetings.${index}.particulars`, { required: 'Required' })}
+                          invalid={!!errors?.meetings?.[index]?.particulars}
+                        />
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <CFormInput
+                          size="sm"
+                          placeholder="e.g. City Hall, Room 101"
+                          {...register(`meetings.${index}.venue_address`, { required: 'Required' })}
+                          invalid={!!errors?.meetings?.[index]?.venue_address}
+                        />
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <CFormInput
+                          size="sm"
+                          placeholder="e.g. John Doe, 9876543210"
+                          {...register(`meetings.${index}.local_contact`, { required: 'Required' })}
+                          invalid={!!errors?.meetings?.[index]?.local_contact}
+                        />
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <CFormInput
+                          size="sm"
+                          placeholder="Optional"
+                          {...register(`meetings.${index}.remarks`)}
+                        />
+                      </CTableDataCell>
+                      <CTableDataCell className="text-center">
+                        <CButton color="danger" variant="ghost" size="sm" onClick={() => remove(index)}>
+                          <CIcon icon={cilTrash} />
+                        </CButton>
+                      </CTableDataCell>
+                    </CTableRow>
+                  ))}
+                  {fields.length === 0 && (
+                    <CTableRow>
+                      <CTableDataCell colSpan="6" className="text-center text-body-secondary py-4">
+                        No meetings added yet.
+                      </CTableDataCell>
+                    </CTableRow>
+                  )}
+                </CTableBody>
+              </CTable>
+            </div>
+            <CButton
+              color="secondary"
+              variant="outline"
+              size="sm"
+              onClick={() => append({ particulars: '', venue_address: '', local_contact: '', remarks: '' })}
+            >
+              <CIcon icon={cilPlus} className="me-1" /> Add Meeting
+            </CButton>
+          </div>
 
           {/* Geo-tagged Photos Upload */}
           <div className="mb-3">
@@ -306,8 +365,6 @@ ReportForm.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   onSaveDraft: PropTypes.func,
   loading: PropTypes.bool,
-  tasks: PropTypes.array,
-  preselectedTaskId: PropTypes.string,
 }
 
 export default ReportForm

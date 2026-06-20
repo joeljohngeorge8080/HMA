@@ -144,6 +144,39 @@ export const localReports = {
     return report
   },
 
+  // ── createTaskReport ────────────────────────────────────────────────────────
+  createTaskReport(data) {
+    const rows = readAll()
+    const ts = now()
+
+    const report = {
+      id: uid(),
+      report_type: 'task', // Identify as task report
+      submitted_by: data.submitted_by || 'current_user',
+      submitted_by_name: data.submitted_by_name || 'Field Personnel',
+      submitted_at: ts,
+      
+      // Task specific fields
+      task_id: data.task_id,
+      task_title: data.task_title || '',
+      requested_status: data.requested_status || 'active',
+      notes: data.notes || '',
+      geo_photos: data.geo_photos || [],
+      bill_uploads: data.bill_uploads || [],
+      
+      status: REPORT_STATUS.SUBMITTED,
+      decline_reason: null,
+      reviewed_by: null,
+      reviewed_at: null,
+      forwarded_to_backend_at: null,
+      created_at: ts,
+      updated_at: ts,
+    }
+
+    writeAll([...rows, report])
+    return report
+  },
+
   // ── approve ─────────────────────────────────────────────────────────────────
   approve(id, reviewerId = 'project_officer') {
     const rows = readAll()
@@ -158,6 +191,24 @@ export const localReports = {
       reviewed_at: ts,
       forwarded_to_backend_at: ts,
       updated_at: ts,
+    }
+
+    // If it's a task report, also update the underlying task
+    if (rows[idx].report_type === 'task' && rows[idx].task_id) {
+      try {
+        // We need to dynamically import or rely on localTasks. Since we are in services, 
+        // it's safer to just load the task store and update it directly to avoid circular deps.
+        const TASK_KEY = 'hma_tasks'
+        const tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]')
+        const tIdx = tasks.findIndex(t => t.id === rows[idx].task_id)
+        if (tIdx !== -1) {
+          tasks[tIdx].status = rows[idx].requested_status
+          tasks[tIdx].updated_at = ts
+          localStorage.setItem(TASK_KEY, JSON.stringify(tasks))
+        }
+      } catch (e) {
+        console.error('Failed to update underlying task', e)
+      }
     }
 
     writeAll(rows)
@@ -193,23 +244,39 @@ export const localReports = {
     if (idx === -1) throw new Error('Report not found')
 
     const ts = now()
-    rows[idx] = {
-      ...rows[idx],
-      bill_topic: data.bill_topic ?? rows[idx].bill_topic,
-      amount: data.amount !== undefined ? parseFloat(data.amount) : rows[idx].amount,
-      report_date: data.report_date ?? rows[idx].report_date,
-      report_time: data.report_time ?? rows[idx].report_time,
-      notes: data.notes ?? rows[idx].notes,
-      geo_photos: data.geo_photos ?? rows[idx].geo_photos,
-      bill_uploads: data.bill_uploads ?? rows[idx].bill_uploads,
-      task_id: data.task_id ?? rows[idx].task_id,
-      task_title: data.task_title ?? rows[idx].task_title,
-      status: REPORT_STATUS.RESUBMITTED,
-      decline_reason: null,
-      reviewed_by: null,
-      reviewed_at: null,
-      submitted_at: ts,
-      updated_at: ts,
+    
+    if (rows[idx].report_type === 'task') {
+      rows[idx] = {
+        ...rows[idx],
+        requested_status: data.requested_status ?? rows[idx].requested_status,
+        notes: data.notes ?? rows[idx].notes,
+        geo_photos: data.geo_photos ?? rows[idx].geo_photos,
+        bill_uploads: data.bill_uploads ?? rows[idx].bill_uploads,
+        status: REPORT_STATUS.RESUBMITTED,
+        decline_reason: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        submitted_at: ts,
+        updated_at: ts,
+      }
+    } else {
+      rows[idx] = {
+        ...rows[idx],
+        bill_topic: data.bill_topic ?? rows[idx].bill_topic,
+        amount: data.amount !== undefined ? parseFloat(data.amount) : rows[idx].amount,
+        report_date: data.report_date ?? rows[idx].report_date,
+        report_time: data.report_time ?? rows[idx].report_time,
+        notes: data.notes ?? rows[idx].notes,
+        geo_photos: data.geo_photos ?? rows[idx].geo_photos,
+        bill_uploads: data.bill_uploads ?? rows[idx].bill_uploads,
+        meetings: data.meetings ?? rows[idx].meetings,
+        status: REPORT_STATUS.RESUBMITTED,
+        decline_reason: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        submitted_at: ts,
+        updated_at: ts,
+      }
     }
 
     writeAll(rows)

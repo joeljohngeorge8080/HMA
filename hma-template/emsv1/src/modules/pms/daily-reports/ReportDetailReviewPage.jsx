@@ -222,26 +222,47 @@ const ReportDetailReviewPage = () => {
             <CCardBody>
               <CTable borderless className="mb-0">
                 <CTableBody>
-                  <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
-                      Bill Topic
-                    </CTableDataCell>
-                    <CTableDataCell className="fw-semibold">{report.bill_topic}</CTableDataCell>
-                  </CTableRow>
-                  <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary">Amount</CTableDataCell>
-                    <CTableDataCell className="fw-semibold fs-5 text-primary">
-                      {formatCurrency(report.amount)}
-                    </CTableDataCell>
-                  </CTableRow>
-                  <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary">Date</CTableDataCell>
-                    <CTableDataCell>{formatDate(report.report_date)}</CTableDataCell>
-                  </CTableRow>
-                  <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary">Time</CTableDataCell>
-                    <CTableDataCell>{report.report_time || '—'}</CTableDataCell>
-                  </CTableRow>
+                  {report.report_type !== 'task' ? (
+                    <>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
+                          Bill Topic
+                        </CTableDataCell>
+                        <CTableDataCell className="fw-semibold">{report.bill_topic}</CTableDataCell>
+                      </CTableRow>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary">Amount</CTableDataCell>
+                        <CTableDataCell className="fw-semibold fs-5 text-primary">
+                          {formatCurrency(report.amount)}
+                        </CTableDataCell>
+                      </CTableRow>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary">Date</CTableDataCell>
+                        <CTableDataCell>{formatDate(report.report_date)}</CTableDataCell>
+                      </CTableRow>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary">Time</CTableDataCell>
+                        <CTableDataCell>{report.report_time || '—'}</CTableDataCell>
+                      </CTableRow>
+                    </>
+                  ) : (
+                    <>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
+                          Task Name
+                        </CTableDataCell>
+                        <CTableDataCell className="fw-semibold text-info">📋 {report.task_title}</CTableDataCell>
+                      </CTableRow>
+                      <CTableRow>
+                        <CTableDataCell className="fw-medium text-body-secondary">Requested Status</CTableDataCell>
+                        <CTableDataCell>
+                          <span className={`badge bg-${report.requested_status === 'completed' ? 'success' : report.requested_status === 'cancelled' ? 'danger' : 'primary'} text-uppercase px-2 py-1`}>
+                            {report.requested_status}
+                          </span>
+                        </CTableDataCell>
+                      </CTableRow>
+                    </>
+                  )}
                   <CTableRow>
                     <CTableDataCell className="fw-medium text-body-secondary">Submitted By</CTableDataCell>
                     <CTableDataCell>{report.submitted_by_name}</CTableDataCell>
@@ -250,7 +271,7 @@ const ReportDetailReviewPage = () => {
                     <CTableDataCell className="fw-medium text-body-secondary">Submitted At</CTableDataCell>
                     <CTableDataCell>{formatDateTime(report.submitted_at)}</CTableDataCell>
                   </CTableRow>
-                  {report.task_title && (
+                  {report.report_type !== 'task' && report.task_title && (
                     <CTableRow>
                       <CTableDataCell className="fw-medium text-body-secondary">Linked Task</CTableDataCell>
                       <CTableDataCell>
@@ -268,6 +289,41 @@ const ReportDetailReviewPage = () => {
               </CTable>
             </CCardBody>
           </CCard>
+
+          {/* Details of Meetings Conducted */}
+          {report.report_type !== 'task' && report.meetings && report.meetings.length > 0 && (
+            <CCard className="shadow-sm mb-3">
+              <CCardHeader className="bg-transparent">
+                <strong>Details of Meetings Conducted (LSGB)</strong>
+              </CCardHeader>
+              <CCardBody className="p-0">
+                <div className="table-responsive">
+                  <CTable hover align="middle" className="mb-0 border-0" style={{ fontSize: '0.875rem' }}>
+                    <CTableHead color="light">
+                      <CTableRow>
+                        <CTableHeaderCell className="text-center border-0" style={{ width: '60px' }}>Sl. No</CTableHeaderCell>
+                        <CTableHeaderCell className="border-0">Particulars</CTableHeaderCell>
+                        <CTableHeaderCell className="border-0">Venue Address</CTableHeaderCell>
+                        <CTableHeaderCell className="border-0">Local Point of Contact (Name, Contact No)</CTableHeaderCell>
+                        <CTableHeaderCell className="border-0">Remarks</CTableHeaderCell>
+                      </CTableRow>
+                    </CTableHead>
+                    <CTableBody>
+                      {report.meetings.map((m, idx) => (
+                        <CTableRow key={idx}>
+                          <CTableDataCell className="text-center fw-medium text-body-secondary">{idx + 1}</CTableDataCell>
+                          <CTableDataCell>{m.particulars}</CTableDataCell>
+                          <CTableDataCell>{m.venue_address}</CTableDataCell>
+                          <CTableDataCell>{m.local_contact}</CTableDataCell>
+                          <CTableDataCell>{m.remarks || '—'}</CTableDataCell>
+                        </CTableRow>
+                      ))}
+                    </CTableBody>
+                  </CTable>
+                </div>
+              </CCardBody>
+            </CCard>
+          )}
 
           {/* Geo-tagged Photos */}
           <AttachmentSection
@@ -347,7 +403,9 @@ const ReportDetailReviewPage = () => {
             Are you sure you want to <strong>approve</strong> this report?
           </p>
           <p className="text-body-secondary small mb-0">
-            The report will be forwarded to the backend team for settlement processing.
+            {report.report_type === 'task' 
+              ? `The task status will be updated to ${report.requested_status}.` 
+              : 'The report will be forwarded to the backend team for settlement processing.'}
           </p>
         </CModalBody>
         <CModalFooter>

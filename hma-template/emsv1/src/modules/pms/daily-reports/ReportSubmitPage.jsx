@@ -10,22 +10,11 @@ import { CContainer, CRow, CCol, CToaster, CToast, CToastBody, CToastClose } fro
 
 import ReportForm from './components/ReportForm'
 import { localReports } from '../../../services/localReports'
-import { localTasks } from '../../../services/localTasks'
 
 const ReportSubmitPage = () => {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
-  const [activeTasks, setActiveTasks] = useState([])
-
-  const preselectedTaskId = searchParams.get('task') || null
-
-  useEffect(() => {
-    localTasks.seedDemoData()
-    const tasks = localTasks.getActiveTasks()
-    setActiveTasks(tasks)
-  }, [])
 
   const handleSubmit = useCallback(
     async (data) => {
@@ -59,8 +48,6 @@ const ReportSubmitPage = () => {
             onSubmit={handleSubmit}
             onSaveDraft={handleSaveDraft}
             loading={loading}
-            tasks={activeTasks}
-            preselectedTaskId={preselectedTaskId}
           />
         </CCol>
       </CRow>

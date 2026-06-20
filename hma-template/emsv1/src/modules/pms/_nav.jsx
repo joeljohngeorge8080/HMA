@@ -28,8 +28,9 @@ const pmsNav = [
     name: 'Projects',
     icon: <CIcon icon={cilFolder} customClassName="nav-icon" />,
     items: [
-      { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
+      { component: CNavItem, name: 'My Projects', to: '/pms/projects/my-projects' },
       { component: CNavItem, name: 'Create Project', to: '/pms/projects/create' },
+      { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
       { component: CNavItem, name: 'Archive', to: '/pms/projects/archive' },
     ],
   },
@@ -134,6 +135,7 @@ const pmsNav = [
     name: 'Daily Reports (Admin)',
     icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
     items: [
+      { component: CNavItem, name: 'My Team', to: '/pms/daily-reports/team' },
       { component: CNavItem, name: 'Assign Tasks', to: '/pms/daily-reports/tasks' },
       { component: CNavItem, name: 'Review Reports', to: '/pms/daily-reports/review' },
       { component: CNavItem, name: 'Approved Reports', to: '/pms/daily-reports/approved' },

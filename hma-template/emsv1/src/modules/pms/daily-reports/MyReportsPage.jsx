@@ -66,7 +66,11 @@ const MyReportsPage = () => {
   const handleCardClick = (id) => {
     const report = localReports.getById(id)
     if (report?.status === REPORT_STATUS.DECLINED) {
-      navigate(`/pms/daily-reports/${id}/edit`)
+      if (report.report_type === 'task') {
+        navigate(`/pms/tasks/report/${report.task_id}/edit/${report.id}`)
+      } else {
+        navigate(`/pms/daily-reports/${id}/edit`)
+      }
     }
   }
 

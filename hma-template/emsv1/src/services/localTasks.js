@@ -1,6 +1,6 @@
-// localStorage-based task assignment store.
-// Project Officers create tasks and assign them to Field Personnel.
-// Field Personnel submit daily reports against these tasks.
+// localStorage-based task store — PROJECT-SCOPED.
+// Tasks now belong to a Project, not an individual.
+// Any Field Personnel who is a member of the project can see and submit against these tasks.
 
 const KEY = 'hma_tasks'
 
@@ -29,18 +29,18 @@ export const TASK_STATUS = {
   CANCELLED: 'cancelled',
 }
 
-// Demo personnel list (shared across task and report modules)
+// Legacy demo list kept for backward-compat with any remaining individual references
 export const FIELD_PERSONNEL_LIST = [
-  { id: 'fp_001', name: 'Rajesh Kumar' },
-  { id: 'fp_002', name: 'Anita Sharma' },
-  { id: 'fp_003', name: 'Vikram Patel' },
-  { id: 'fp_004', name: 'Priya Nair' },
-  { id: 'fp_005', name: 'Suresh Reddy' },
+  { id: 'fp_001', name: 'Rajesh Kumar', email: 'rajesh.kumar@hll.in' },
+  { id: 'fp_002', name: 'Anita Sharma', email: 'anita.sharma@hll.in' },
+  { id: 'fp_003', name: 'Vikram Patel', email: 'vikram.patel@hll.in' },
+  { id: 'fp_004', name: 'Priya Nair', email: 'priya.nair@hll.in' },
+  { id: 'fp_005', name: 'Suresh Reddy', email: 'suresh.reddy@hll.in' },
 ]
 
 export const localTasks = {
   // ── list ────────────────────────────────────────────────────────────────────
-  list({ search = '', status = '', assignee = '', page = 1, pageSize = 50 } = {}) {
+  list({ search = '', status = '', project_id = '', page = 1, pageSize = 50 } = {}) {
     let rows = readAll()
 
     if (search) {
@@ -49,13 +49,12 @@ export const localTasks = {
         (t) =>
           t.title?.toLowerCase().includes(q) ||
           t.description?.toLowerCase().includes(q) ||
-          t.assigned_to_name?.toLowerCase().includes(q),
+          t.project_name?.toLowerCase().includes(q),
       )
     }
     if (status) rows = rows.filter((t) => t.status === status)
-    if (assignee) rows = rows.filter((t) => t.assigned_to === assignee)
+    if (project_id) rows = rows.filter((t) => t.project_id === project_id)
 
-    // Sort newest first
     rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
     const total = rows.length
@@ -69,18 +68,35 @@ export const localTasks = {
     return readAll().find((t) => t.id === id) || null
   },
 
-  // ── getByAssignee ───────────────────────────────────────────────────────────
-  getByAssignee(userId, { status = '' } = {}) {
-    let rows = readAll().filter((t) => t.assigned_to === userId)
+  // ── getByProject ────────────────────────────────────────────────────────────
+  // Returns all tasks for a specific project (for Project Officer view)
+  getByProject(projectId, { status = '' } = {}) {
+    let rows = readAll().filter((t) => t.project_id === projectId)
     if (status) rows = rows.filter((t) => t.status === status)
     rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     return rows
   },
 
-  // ── getActiveTasks (for report form dropdown) ───────────────────────────────
-  getActiveTasks(userId = '') {
+  // ── getVisibleToEmail ────────────────────────────────────────────────────────
+  // Returns tasks for all projects where the given email is a team member.
+  // Used by Field Personnel to see their team's tasks.
+  getVisibleToEmail(email, projectList = []) {
+    if (!email || projectList.length === 0) return []
+    const projectIds = projectList
+      .filter((p) => p.field_personnel?.some((fp) => fp.email === email))
+      .map((p) => p.id)
+
+    if (projectIds.length === 0) return []
+
+    return readAll()
+      .filter((t) => projectIds.includes(t.project_id) && t.status === TASK_STATUS.ACTIVE)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  },
+
+  // ── getActiveTasks (legacy compat) ──────────────────────────────────────────
+  getActiveTasks(projectId = '') {
     let rows = readAll().filter((t) => t.status === TASK_STATUS.ACTIVE)
-    if (userId) rows = rows.filter((t) => t.assigned_to === userId)
+    if (projectId) rows = rows.filter((t) => t.project_id === projectId)
     return rows
   },
 
@@ -89,15 +105,12 @@ export const localTasks = {
     const rows = readAll()
     const ts = now()
 
-    const personnel = FIELD_PERSONNEL_LIST.find((p) => p.id === data.assigned_to)
-
     const task = {
       id: uid(),
       title: data.title,
       description: data.description || '',
+      project_id: data.project_id || null,
       project_name: data.project_name || 'General Project',
-      assigned_to: data.assigned_to,
-      assigned_to_name: personnel?.name || data.assigned_to_name || 'Unknown',
       assigned_by: data.assigned_by || 'project_officer',
       assigned_at: ts,
       due_date: data.due_date || null,
@@ -116,14 +129,9 @@ export const localTasks = {
     const idx = rows.findIndex((t) => t.id === id)
     if (idx === -1) throw new Error('Task not found')
 
-    const personnel = data.assigned_to
-      ? FIELD_PERSONNEL_LIST.find((p) => p.id === data.assigned_to)
-      : null
-
     rows[idx] = {
       ...rows[idx],
       ...data,
-      assigned_to_name: personnel?.name || rows[idx].assigned_to_name,
       updated_at: now(),
     }
 
@@ -137,12 +145,7 @@ export const localTasks = {
     const idx = rows.findIndex((t) => t.id === id)
     if (idx === -1) throw new Error('Task not found')
 
-    rows[idx] = {
-      ...rows[idx],
-      status: TASK_STATUS.COMPLETED,
-      updated_at: now(),
-    }
-
+    rows[idx] = { ...rows[idx], status: TASK_STATUS.COMPLETED, updated_at: now() }
     writeAll(rows)
     return rows[idx]
   },
@@ -153,12 +156,7 @@ export const localTasks = {
     const idx = rows.findIndex((t) => t.id === id)
     if (idx === -1) throw new Error('Task not found')
 
-    rows[idx] = {
-      ...rows[idx],
-      status: TASK_STATUS.CANCELLED,
-      updated_at: now(),
-    }
-
+    rows[idx] = { ...rows[idx], status: TASK_STATUS.CANCELLED, updated_at: now() }
     writeAll(rows)
     return rows[idx]
   },
@@ -173,53 +171,45 @@ export const localTasks = {
   },
 
   // ── seed demo data ──────────────────────────────────────────────────────────
-  seedDemoData() {
+  seedDemoData(projects = []) {
     if (readAll().length > 0) return
+
+    // Use real project IDs if provided, else use placeholder strings
+    const proj0 = projects[0]?.id || 'demo_proj_0'
+    const proj1 = projects[1]?.id || 'demo_proj_1'
+    const proj2 = projects[2]?.id || 'demo_proj_2'
 
     const demoTasks = [
       {
         title: 'Plot A3 Foundation Survey',
-        description: 'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos of the site.',
-        project_name: 'Medical College Construction',
-        assigned_to: 'fp_001',
-        due_date: '2026-06-20',
-      },
-      {
-        title: 'Block C Excavation',
-        description: 'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
-        project_name: 'Medical College Construction',
-        assigned_to: 'fp_003',
+        description: 'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos.',
+        project_id: proj0,
+        project_name: projects[0]?.title || 'Medical College Construction',
         due_date: '2026-06-25',
       },
       {
+        title: 'Block C Excavation Oversight',
+        description: 'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
+        project_id: proj0,
+        project_name: projects[0]?.title || 'Medical College Construction',
+        due_date: '2026-06-28',
+      },
+      {
         title: 'Material Procurement — Block B Phase 2',
-        description: 'Purchase cement, steel, and aggregate for Block B construction phase 2. Submit all purchase bills.',
-        project_name: 'Highway Expansion Phase 2',
-        assigned_to: 'fp_002',
+        description: 'Purchase cement, steel, and aggregate. Submit all purchase bills.',
+        project_id: proj1,
+        project_name: projects[1]?.title || 'Highway Expansion Phase 2',
         due_date: '2026-06-22',
       },
       {
         title: 'Safety Audit — All Sites',
-        description: 'Conduct safety compliance audit across all active sites. Document any violations with photos.',
-        project_name: 'City Hospital Renovation',
-        assigned_to: 'fp_004',
-        due_date: '2026-06-21',
-      },
-      {
-        title: 'Equipment Maintenance Log',
-        description: 'Inspect and log maintenance needs for heavy equipment at warehouse. Submit repair cost estimates.',
-        project_name: 'Highway Expansion Phase 2',
-        assigned_to: 'fp_005',
-        due_date: '2026-06-23',
+        description: 'Conduct safety compliance audit. Document any violations with photos.',
+        project_id: proj2,
+        project_name: projects[2]?.title || 'City Hospital Renovation',
+        due_date: '2026-07-01',
       },
     ]
 
     demoTasks.forEach((t) => this.create(t))
-
-    // Complete one task for demo variety
-    const all = readAll()
-    if (all.length >= 2) {
-      this.complete(all[1].id)
-    }
   },
 }
