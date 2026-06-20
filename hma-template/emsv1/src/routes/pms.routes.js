@@ -8,6 +8,23 @@ const placeholder = (title, message) => {
   return Page
 }
 
+// Project Associate pages
+const ProjectAssociateDashboard = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectAssociateDashboard'),
+)
+const ProjectListPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectListPage'),
+)
+const ProjectFormPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectFormPage'),
+)
+const ProjectDetailPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectDetailPage'),
+)
+const ProjectOfficersPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectOfficersPage'),
+)
+
 // Daily Reports lazy-loaded components
 const ReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/ReportSubmitPage'))
 const MyReportsPage = React.lazy(() => import('../modules/pms/daily-reports/MyReportsPage'))
@@ -38,16 +55,25 @@ export const pmsRoutes = [
     module: MODULE.PMS_DASHBOARD,
   },
 
+  // ── Project Associate Dashboard ───────────────────────────────────────────
+  {
+    path: '/pms/pa/dashboard',
+    name: 'PA Dashboard',
+    element: ProjectAssociateDashboard,
+    module: MODULE.PMS_PROJECTS,
+  },
+
+  // ── Projects ──────────────────────────────────────────────────────────────
   {
     path: '/pms/projects',
     name: 'Projects',
-    element: placeholder('All Projects'),
+    element: ProjectListPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
     path: '/pms/projects/create',
     name: 'Create Project',
-    element: placeholder('Create Project'),
+    element: ProjectFormPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
@@ -57,15 +83,15 @@ export const pmsRoutes = [
     module: MODULE.PMS_PROJECTS,
   },
   {
-    path: '/pms/projects/:id',
-    name: 'Project Detail',
-    element: placeholder('Project Detail'),
+    path: '/pms/projects/:id/edit',
+    name: 'Edit Project',
+    element: ProjectFormPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
-    path: '/pms/projects/:id/edit',
-    name: 'Edit Project',
-    element: placeholder('Edit Project'),
+    path: '/pms/projects/:id',
+    name: 'Project Detail',
+    element: ProjectDetailPage,
     module: MODULE.PMS_PROJECTS,
   },
 
@@ -165,7 +191,7 @@ export const pmsRoutes = [
   {
     path: '/pms/project-teams/officers',
     name: 'Project Officers',
-    element: placeholder('Project Officers'),
+    element: ProjectOfficersPage,
     module: MODULE.PMS_TEAMS,
   },
   {
