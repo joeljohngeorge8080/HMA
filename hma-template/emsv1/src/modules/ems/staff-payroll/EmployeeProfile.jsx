@@ -287,7 +287,7 @@ const EmployeeProfile = () => {
               />
             </CTabPane>
             <CTabPane visible={activeTab === 'attendance'}>
-              <AttendanceSummaryTab employeeId={id} />
+              <AttendanceSummaryTab employeeId={profile.employee_id} />
             </CTabPane>
           </CTabContent>
         </CCardBody>
