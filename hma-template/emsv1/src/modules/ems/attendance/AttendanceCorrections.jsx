@@ -27,7 +27,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilCalendar, cilPencil, cilWarning } from '@coreui/icons'
+import { cilArrowLeft, cilCalendar, cilCheckCircle, cilPencil, cilWarning } from '@coreui/icons'
 import { useSelector } from 'react-redux'
 
 import { usePermission } from '../../../hooks/usePermission'
@@ -74,12 +74,13 @@ const LEAVE_TYPES = [
 ]
 
 const LEGEND_ITEMS = [
+  { label: 'Present', bg: '#d1e7dd' },
+  { label: 'Absent', bg: '#f8d7da' },
+  { label: 'Half Day', bg: '#ffe5b4' },
   { label: 'SL', bg: '#f8d7da' },
   { label: 'CL', bg: '#cff4fc' },
   { label: 'OD', bg: '#d1e7dd' },
   { label: 'COFF', bg: '#fff3cd' },
-  { label: 'Absent', bg: '#f8d7da' },
-  { label: 'Half Day', bg: '#ffe5b4' },
   { label: 'Holiday/Off', bg: '#e9ecef' },
   { label: 'Selected', bg: 'var(--cui-primary)' },
 ]
@@ -105,7 +106,7 @@ const AttendanceCorrections = () => {
   const [empRecords, setEmpRecords] = useState([])
   const [empRecordsLoading, setEmpRecordsLoading] = useState(false)
   const [selectedDates, setSelectedDates] = useState(new Set())
-  const [pendingLeaveType, setPendingLeaveType] = useState(null)
+  const [pendingAction, setPendingAction] = useState(null)
   const [applyReason, setApplyReason] = useState('')
   const [applyProgress, setApplyProgress] = useState(null)
   const [calendarError, setCalendarError] = useState('')
@@ -249,7 +250,7 @@ const AttendanceCorrections = () => {
   const handleOpenCalendar = (summary) => {
     setCalendarEmployee(summary)
     setSelectedDates(new Set())
-    setPendingLeaveType(null)
+    setPendingAction(null)
     setApplyReason('')
     setCalendarError('')
     setApplyProgress(null)
@@ -258,7 +259,7 @@ const AttendanceCorrections = () => {
   const handleCloseCalendar = () => {
     setCalendarEmployee(null)
     setSelectedDates(new Set())
-    setPendingLeaveType(null)
+    setPendingAction(null)
     setApplyReason('')
     setCalendarError('')
     setApplyProgress(null)
@@ -289,15 +290,20 @@ const AttendanceCorrections = () => {
     isDragging.current = false
   }
 
-  const handleApplyLeave = async () => {
-    if (!pendingLeaveType || !applyReason.trim()) {
-      setCalendarError('Select a leave type and provide a reason.')
+  const handleApply = async () => {
+    if (!pendingAction || !applyReason.trim()) {
+      setCalendarError(
+        pendingAction === null
+          ? 'Choose an action (Mark as Present or a leave type) and provide a reason.'
+          : 'Reason is required.',
+      )
       return
     }
     setCalendarError('')
     const datesToApply = [...selectedDates].sort()
     setApplyProgress({ done: 0, total: datesToApply.length })
 
+    const isMarkPresent = pendingAction === 'PRESENT'
     let done = 0
     for (const dateStr of datesToApply) {
       const rec = empRecords.find((r) => r.date === dateStr)
@@ -306,14 +312,23 @@ const AttendanceCorrections = () => {
         setApplyProgress({ done, total: datesToApply.length })
         continue
       }
-      const payload = {
-        new_status: 'On Leave',
-        leave_type: pendingLeaveType,
-        new_in_time: null,
-        new_out_time: null,
-        reason: applyReason.trim(),
-        corrected_by: currentUser?.full_name || currentUser?.employee_id || 'HR',
-      }
+      const payload = isMarkPresent
+        ? {
+            new_status: 'Present',
+            leave_type: null,
+            new_in_time: null,
+            new_out_time: null,
+            reason: applyReason.trim(),
+            corrected_by: currentUser?.full_name || currentUser?.employee_id || 'HR',
+          }
+        : {
+            new_status: 'On Leave',
+            leave_type: pendingAction,
+            new_in_time: null,
+            new_out_time: null,
+            reason: applyReason.trim(),
+            corrected_by: currentUser?.full_name || currentUser?.employee_id || 'HR',
+          }
       try {
         await api.patch(`/attendance/records/${rec.id}/correct`, payload)
       } catch {
@@ -332,7 +347,7 @@ const AttendanceCorrections = () => {
     setEmpRecords(refreshed.items)
     setApplyProgress(null)
     setSelectedDates(new Set())
-    setPendingLeaveType(null)
+    setPendingAction(null)
     setApplyReason('')
     setRefreshTick((t) => t + 1)
   }
@@ -684,7 +699,7 @@ const AttendanceCorrections = () => {
               </div>
 
               <p className="text-body-secondary small mb-2">
-                Drag across days to select a range, then choose a leave type below.
+                Drag across days to select a range, then choose an action below.
               </p>
 
               <MonthCalendar
@@ -701,17 +716,34 @@ const AttendanceCorrections = () => {
               {selectedDates.size > 0 && (
                 <div className="mt-3 p-3 border rounded bg-light">
                   <div className="fw-semibold mb-2">
-                    {selectedDates.size} day{selectedDates.size !== 1 ? 's' : ''} selected
+                    {selectedDates.size} day{selectedDates.size !== 1 ? 's' : ''} selected — choose
+                    an action:
                   </div>
 
-                  <div className="d-flex gap-2 mb-3 flex-wrap">
+                  {/* Mark as Present */}
+                  <div className="mb-2">
+                    <span className="small text-body-secondary fw-semibold me-2">Attendance:</span>
+                    <CButton
+                      color="success"
+                      variant={pendingAction === 'PRESENT' ? undefined : 'outline'}
+                      size="sm"
+                      onClick={() => setPendingAction('PRESENT')}
+                    >
+                      <CIcon icon={cilCheckCircle} className="me-1" />
+                      Mark as Present
+                    </CButton>
+                  </div>
+
+                  {/* Leave types */}
+                  <div className="d-flex gap-2 mb-3 flex-wrap align-items-center">
+                    <span className="small text-body-secondary fw-semibold">Leave:</span>
                     {LEAVE_TYPES.map(({ code, label, color }) => (
                       <CButton
                         key={code}
                         color={color}
-                        variant={pendingLeaveType === code ? undefined : 'outline'}
+                        variant={pendingAction === code ? undefined : 'outline'}
                         size="sm"
-                        onClick={() => setPendingLeaveType(code)}
+                        onClick={() => setPendingAction(code)}
                       >
                         {code} — {label}
                       </CButton>
@@ -739,12 +771,24 @@ const AttendanceCorrections = () => {
                   )}
 
                   <CButton
-                    color="primary"
+                    color={pendingAction === 'PRESENT' ? 'success' : 'primary'}
                     size="sm"
-                    disabled={!pendingLeaveType || !applyReason.trim() || Boolean(applyProgress)}
-                    onClick={handleApplyLeave}
+                    disabled={!pendingAction || !applyReason.trim() || Boolean(applyProgress)}
+                    onClick={handleApply}
                   >
-                    Apply Leave
+                    {applyProgress ? (
+                      <>
+                        <CSpinner size="sm" className="me-1" />
+                        Applying…
+                      </>
+                    ) : pendingAction === 'PRESENT' ? (
+                      <>
+                        <CIcon icon={cilCheckCircle} className="me-1" />
+                        Mark as Present
+                      </>
+                    ) : (
+                      'Apply Leave'
+                    )}
                   </CButton>
                   <CButton
                     color="secondary"
@@ -753,7 +797,9 @@ const AttendanceCorrections = () => {
                     className="ms-2"
                     onClick={() => {
                       setSelectedDates(new Set())
-                      setPendingLeaveType(null)
+                      setPendingAction(null)
+                      setApplyReason('')
+                      setCalendarError('')
                     }}
                   >
                     Clear
