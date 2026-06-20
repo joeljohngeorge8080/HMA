@@ -34,6 +34,7 @@ import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
 import api from '../../../services/api'
 import { localAttendance } from '../../../services/localAttendance'
+import { localEmployees } from '../../../services/localEmployees'
 import MonthCalendar from './MonthCalendar'
 
 const MONTHS = [
@@ -127,9 +128,24 @@ const AttendanceCorrections = () => {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
 
+  // ── employee name lookup map ───────────────────────────────────────
+  const [nameMap, setNameMap] = useState({})
+
   // ── drag refs (useRef so mousemove reads live value, not stale closure)
   const isDragging = useRef(false)
   const dragAnchor = useRef(null)
+
+  // ── Effect 0: build employee_id → name lookup ─────────────────────
+  useEffect(() => {
+    try {
+      const { items } = localEmployees.list({ pageSize: 1000, includeDeleted: true })
+      const map = {}
+      for (const e of items) map[e.employee_id] = e.employee_name
+      setNameMap(map)
+    } catch {
+      // silent — name display degrades gracefully
+    }
+  }, [])
 
   // ── Effect 1: load employee summaries ──────────────────────────────
   useEffect(() => {
@@ -138,13 +154,25 @@ const AttendanceCorrections = () => {
       try {
         const { data } = await api.get(`/attendance/summaries?year=${year}&month=${month}`)
         let rows = data.items || []
-        if (empSearch)
-          rows = rows.filter((s) => s.employee_id.toLowerCase().includes(empSearch.toLowerCase()))
+        if (empSearch) {
+          const q = empSearch.toLowerCase()
+          rows = rows.filter(
+            (s) =>
+              s.employee_id.toLowerCase().includes(q) ||
+              (nameMap[s.employee_id] || '').toLowerCase().includes(q),
+          )
+        }
         setSummaries(rows)
       } catch {
         let rows = localAttendance.listMonthlySummaries({ year, month })
-        if (empSearch)
-          rows = rows.filter((s) => s.employee_id.toLowerCase().includes(empSearch.toLowerCase()))
+        if (empSearch) {
+          const q = empSearch.toLowerCase()
+          rows = rows.filter(
+            (s) =>
+              s.employee_id.toLowerCase().includes(q) ||
+              (nameMap[s.employee_id] || '').toLowerCase().includes(q),
+          )
+        }
         setSummaries(rows)
       } finally {
         setSummariesLoading(false)
@@ -422,10 +450,10 @@ const AttendanceCorrections = () => {
               </CFormSelect>
             </CCol>
             <CCol md={3}>
-              <label className="fw-semibold small mb-1 d-block">Employee ID</label>
+              <label className="fw-semibold small mb-1 d-block">Employee ID / Name</label>
               <CFormInput
                 size="sm"
-                placeholder="Filter by Employee ID"
+                placeholder="Filter by ID or name"
                 value={empSearch}
                 onChange={(e) => {
                   setEmpSearch(e.target.value)
@@ -461,6 +489,7 @@ const AttendanceCorrections = () => {
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>
+                  <CTableHeaderCell>Name</CTableHeaderCell>
                   <CTableHeaderCell>Present</CTableHeaderCell>
                   <CTableHeaderCell>Absent</CTableHeaderCell>
                   <CTableHeaderCell>Half Day</CTableHeaderCell>
@@ -473,6 +502,7 @@ const AttendanceCorrections = () => {
                 {summaries.map((s) => (
                   <CTableRow key={s.id || s.employee_id}>
                     <CTableDataCell className="fw-semibold">{s.employee_id}</CTableDataCell>
+                    <CTableDataCell>{nameMap[s.employee_id] || '—'}</CTableDataCell>
                     <CTableDataCell>
                       <CBadge color="success">{s.present_count || 0}</CBadge>
                     </CTableDataCell>
@@ -526,6 +556,7 @@ const AttendanceCorrections = () => {
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>
+                  <CTableHeaderCell>Name</CTableHeaderCell>
                   <CTableHeaderCell>Date</CTableHeaderCell>
                   <CTableHeaderCell>Status</CTableHeaderCell>
                   <CTableHeaderCell>In Time</CTableHeaderCell>
@@ -539,6 +570,7 @@ const AttendanceCorrections = () => {
                 {records.map((rec) => (
                   <CTableRow key={rec.id}>
                     <CTableDataCell className="fw-semibold">{rec.employee_id}</CTableDataCell>
+                    <CTableDataCell>{rec.employee_name || nameMap[rec.employee_id] || '—'}</CTableDataCell>
                     <CTableDataCell>{rec.date}</CTableDataCell>
                     <CTableDataCell>
                       <CBadge color={STATUS_COLORS[rec.status] || 'secondary'}>
@@ -618,7 +650,11 @@ const AttendanceCorrections = () => {
       >
         <CModalHeader>
           <CModalTitle>
-            Calendar — {calendarEmployee?.employee_id} — {MONTHS[month - 1]} {year}
+            Calendar — {calendarEmployee?.employee_id}
+            {calendarEmployee && nameMap[calendarEmployee.employee_id]
+              ? ` — ${nameMap[calendarEmployee.employee_id]}`
+              : ''}
+            {' '}— {MONTHS[month - 1]} {year}
           </CModalTitle>
         </CModalHeader>
         <CModalBody>
@@ -738,7 +774,11 @@ const AttendanceCorrections = () => {
       <CModal visible={Boolean(selected)} onClose={() => setSelected(null)} backdrop="static">
         <CModalHeader>
           <CModalTitle>
-            Correct Attendance — {selected?.employee_id} on {selected?.date}
+            Correct Attendance — {selected?.employee_id}
+            {selected && nameMap[selected.employee_id]
+              ? ` (${nameMap[selected.employee_id]})`
+              : ''}{' '}
+            on {selected?.date}
           </CModalTitle>
         </CModalHeader>
         <CForm onSubmit={handleSaveCorrection}>
