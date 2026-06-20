@@ -491,10 +491,10 @@ const DeductionSummary = ({ summaries, month, year }) => {
 
 const STEPS = [
   'Select Period',
-  'Upload & Validate',
-  'Preview',
-  'Employee Analysis',
-  'Confirm & Import',
+  'Upload File',
+  'Preview Data',
+  'Review & Confirm',
+  'Complete',
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -1081,6 +1081,11 @@ const AttendanceImport = () => {
             </CCardBody>
           </CCard>
 
+          {/* Salary deduction preview — shown before confirming so HR can review amounts */}
+          <div className="mt-4">
+            <DeductionSummary summaries={employeeSummaries} month={month} year={year} />
+          </div>
+
           <div className="d-flex gap-2 mt-3">
             <CButton color="secondary" variant="outline" onClick={() => setStep(2)}>
               ← Back
@@ -1094,7 +1099,7 @@ const AttendanceImport = () => {
         </>
       )}
 
-      {/* ── Step 4: Done + Deduction Summary ─────────────────────────────────── */}
+      {/* ── Step 4: Done ─────────────────────────────────────────────────────── */}
       {step === 4 && (
         <>
           {saveResult?.success ? (
@@ -1140,8 +1145,7 @@ const AttendanceImport = () => {
                 </CCardBody>
               </CCard>
 
-              {/* Deduction Summary */}
-              <DeductionSummary summaries={employeeSummaries} month={month} year={year} />
+              {/* Deduction summary was already reviewed in the previous step */}
             </>
           ) : (
             <CCard>

@@ -4,18 +4,22 @@
 //   Row 0:  Title "Monthly Status Report (Detailed Work Duration)"
 //   Row 2:  Date range "Nov 01 2025  To  Nov 29 2025"
 //   Row 6:  Day headers  ["Days", null, "1 St", "2 S", null, "3 M", ...]
+//              OR (no spacer variant): ["Days", "1 M", "2 T", ...]
 //   Row 8:  Department label
 //   Then repeating employee blocks (9 rows each + 1 blank separator):
-//     Employee: | | | "THLLXXXX : FULL NAME" | | | | | " Total Work Duration: ..."
-//     Status    | | | day1_status | day2_status | ...
-//     InTime    | | | day1_intime | ...
-//     OutTime   | | | day1_outtime | ...
-//     Duration  | | | day1_duration | ...
-//     Late By   | | | day1_lateby | ...
-//     Early By  | | | day1_earlyby | ...
-//     OT        | | | day1_ot | ...
-//     Shift     | | | day1_shift | ...
+//     Employee: | (null)... | "THLLXXXX : FULL NAME" | ... | " Total Work Duration: ..."
+//     Status    | (null)... | day1_status | day2_status | ...
+//     InTime    | (null)... | day1_intime | ...
+//     OutTime   | (null)... | day1_outtime | ...
+//     Duration  | (null)... | day1_duration | ...
+//     Late By   | (null)... | day1_lateby | ...
+//     Early By  | (null)... | day1_earlyby | ...
+//     OT        | (null)... | day1_ot | ...
+//     Shift     | (null)... | day1_shift | ...
 //     (blank)
+//
+// Two layout variants exist: with spacer columns (most files) and without (some files).
+// The employee name column is auto-detected so both variants parse correctly.
 //
 // Returns { rows, errors, warnings, detectedYear, detectedMonth }
 
@@ -37,12 +41,20 @@ const MONTH_MAP = {
 }
 
 const STATUS_NORMALIZE = {
+  // Standard Pace statuses
   P: 'Present',
   A: 'Absent',
   HD: 'Half Day',
   WO: 'Weekly Off',
   L: 'On Leave',
   H: 'Holiday',
+  // "Weekly Off Present" — employee worked on their scheduled day off
+  WOP: 'Present',
+  // "Weekly Off Half Present" — worked half a day on their day off
+  'WO½P': 'Half Day',
+  // "Half Present" — attended for half a day
+  '½P': 'Half Day',
+  // Long-form variants
   LEAVE: 'On Leave',
   HOLIDAY: 'Holiday',
   PRESENT: 'Present',
@@ -54,8 +66,9 @@ const STATUS_NORMALIZE = {
 
 const normalizeStatus = (raw) => {
   if (!raw) return null
-  const up = String(raw).trim().toUpperCase()
-  return STATUS_NORMALIZE[up] || null
+  const trimmed = String(raw).trim()
+  // Try exact match first, then uppercase match
+  return STATUS_NORMALIZE[trimmed] || STATUS_NORMALIZE[trimmed.toUpperCase()] || null
 }
 
 // "8:25" or "00:00" → "08:25" | null for "00:00" (zero means no activity)
@@ -68,11 +81,19 @@ const normTime = (val) => {
   return `${m[1].padStart(2, '0')}:${m[2]}`
 }
 
-// zero-preserving version for duration — keep "00:00" as null, non-zero keep
 const normDuration = normTime
 
 // Zero-pad to "HH:MM"
 const pad2 = (n) => String(n).padStart(2, '0')
+
+// Scan cols 1-8 for "EMPID : Full Name" — handles both spacer and non-spacer layouts
+const findEmpCell = (row) => {
+  for (let c = 1; c <= 8; c++) {
+    const v = String(row[c] || '').trim()
+    if (/^\S+\s*:\s*.+/.test(v)) return v
+  }
+  return ''
+}
 
 export const parseAttendanceExcel = (file) =>
   new Promise((resolve, reject) => {
@@ -146,16 +167,9 @@ export const parseAttendanceExcel = (file) =>
         const errors = []
         const warnings = []
 
-        // The block structure for each employee:
-        // offset 0: Employee: row  (col 3 = "ID : Name", col 8 = summary)
-        // offset 1: Status row
-        // offset 2: InTime row
-        // offset 3: OutTime row
-        // offset 4: Duration row
-        // offset 5: Late By row
-        // offset 6: Early By row
-        // offset 7: OT row
-        // offset 8: Shift row
+        // Block structure per employee (9 data rows + 1 blank):
+        //   offset 0: Employee row — col auto-detected → "EMPID : Full Name"
+        //   offset 1-8: Status, InTime, OutTime, Duration, Late By, Early By, OT, Shift
 
         const ROW_LABELS = [
           'Status',
@@ -176,8 +190,8 @@ export const parseAttendanceExcel = (file) =>
             continue
           }
 
-          // Parse employee identity from col 3: "THLL2408 : TITU S JAYAN"
-          const empCell = String(row[3] || '')
+          // Auto-detect employee column to support both spacer and non-spacer file variants
+          const empCell = findEmpCell(row)
           const empMatch = empCell.match(/^(\S+)\s*:\s*(.+)$/)
           if (!empMatch) {
             warnings.push(
@@ -227,7 +241,6 @@ export const parseAttendanceExcel = (file) =>
             if (detectedYear && detectedMonth) {
               date = `${detectedYear}-${pad2(detectedMonth)}-${pad2(dayOfMonth)}`
             }
-            // Fallback if year/month not detected — skip (can't form a real date)
             if (!date) {
               warnings.push(
                 `${employeeId} day ${dayOfMonth}: could not determine year/month — skipped`,
