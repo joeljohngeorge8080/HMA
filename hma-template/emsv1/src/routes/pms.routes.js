@@ -96,7 +96,7 @@ export const pmsRoutes = [
   {
     path: '/pms/projects/create',
     name: 'Create Project',
-    element: CreateProjectPage,
+    element: ProjectFormPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
@@ -114,7 +114,7 @@ export const pmsRoutes = [
   {
     path: '/pms/projects/:id',
     name: 'Project Detail',
-    element: ProjectDetailPage,
+    element: PAProjectDetailPage,
     module: MODULE.PMS_PROJECTS,
   },
 
