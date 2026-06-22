@@ -129,12 +129,14 @@ const Login = () => {
                     </p>
                     <div className="d-grid gap-2">
                       {[
-                        { role: 'CEO', id: 'DEV001', name: 'Dev CEO' },
-                        { role: 'Heads', id: 'DEV002', name: 'Dev Head' },
-                        { role: 'HR', id: 'DEV003', name: 'Dev HR' },
-                        { role: 'Finance', id: 'DEV004', name: 'Dev Finance' },
-                        { role: 'Project Officer', id: 'DEV005', name: 'Dev Project Officer' },
-                      ].map(({ role, id, name }) => (
+                        { role: 'CEO',               id: 'DEV001',     name: 'Dev CEO' },
+                        { role: 'Heads',             id: 'DEV002',     name: 'Dev Head' },
+                        { role: 'HR',                id: 'DEV003',     name: 'Dev HR' },
+                        { role: 'Finance',           id: 'DEV004',     name: 'Dev Finance' },
+                        { role: 'Project Associate', id: 'DEV_PA_001', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
+                        { role: 'Project Officer',   id: 'DEV005',     name: 'Dev Project Officer' },
+                        { role: 'Field Personnel',   id: 'DEV006',     name: 'Dev Field Personnel' },
+                      ].map(({ role, id, name, redirect }) => (
                         <CButton
                           key={role}
                           color="secondary"
@@ -142,14 +144,15 @@ const Login = () => {
                           size="sm"
                           type="button"
                           onClick={() => {
-                            const token = `dev-token-${id}`
-                            localStorage.setItem('hma_token', token)
+                            const devToken = `dev-token-${id}`
+                            localStorage.setItem('hma_token', devToken)
+                            localStorage.setItem('hma_dev_user', JSON.stringify({ employee_id: id, full_name: name, role }))
                             dispatch({
                               type: 'set',
                               user: { employee_id: id, full_name: name, role },
-                              token,
+                              token: devToken,
                             })
-                            navigate('/select-system')
+                            navigate(redirect || '/select-system')
                           }}
                         >
                           {role}
@@ -158,6 +161,8 @@ const Login = () => {
                     </div>
                   </>
                 )}
+
+
               </CCardBody>
             </CCard>
           </CCol>

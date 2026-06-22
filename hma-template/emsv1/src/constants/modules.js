@@ -19,4 +19,5 @@ export const MODULE = {
   PMS_REPORTS: 'pms_reports',
   PMS_AGENCIES: 'pms_agencies',
   PMS_PARTNERS: 'pms_partners',
+  PMS_DAILY_REPORTS: 'pms_daily_reports',
 }
