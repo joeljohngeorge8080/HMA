@@ -2,11 +2,60 @@ import React from 'react'
 import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
+// Project management pages
+const MyProjectsPage = React.lazy(() => import('../modules/pms/projects/MyProjectsPage'))
+const CreateProjectPage = React.lazy(() => import('../modules/pms/projects/CreateProjectPage'))
+const ProjectDetailPage = React.lazy(() => import('../modules/pms/projects/ProjectDetailPage'))
+
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
   Page.displayName = `Placeholder(${title})`
   return Page
 }
+
+// Project Associate pages
+const ProjectAssociateDashboard = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectAssociateDashboard'),
+)
+const ProjectListPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectListPage'),
+)
+const ProjectFormPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectFormPage'),
+)
+const PAProjectDetailPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectDetailPage'),
+)
+const ProjectOfficersPage = React.lazy(
+  () => import('../modules/pms/project-associate/ProjectOfficersPage'),
+)
+const TeamOverviewPage = React.lazy(
+  () => import('../modules/pms/project-associate/TeamOverviewPage'),
+)
+
+// Daily Reports lazy-loaded components
+const ReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/ReportSubmitPage'))
+const MyReportsPage = React.lazy(() => import('../modules/pms/daily-reports/MyReportsPage'))
+const ReportEditPage = React.lazy(() => import('../modules/pms/daily-reports/ReportEditPage'))
+const OfficerDashboardPage = React.lazy(
+  () => import('../modules/pms/daily-reports/OfficerDashboardPage'),
+)
+const ReportDetailReviewPage = React.lazy(
+  () => import('../modules/pms/daily-reports/ReportDetailReviewPage'),
+)
+const BackendReportsPage = React.lazy(
+  () => import('../modules/pms/daily-reports/BackendReportsPage'),
+)
+const TaskManagementPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskManagementPage'),
+)
+const FieldPersonnelOverviewPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'))
+const MyTasksPage = React.lazy(() => import('../modules/pms/daily-reports/MyTasksPage'))
+const TaskReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportSubmitPage'))
+const TaskReportEditPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportEditPage'))
+const PersonnelLogPage = React.lazy(() => import('../modules/pms/daily-reports/PersonnelLogPage'))
+const FieldPersonnelBillsPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'))
+const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
 
 export const pmsRoutes = [
   { path: '/', exact: true, name: 'Home' },
@@ -17,16 +66,37 @@ export const pmsRoutes = [
     module: MODULE.PMS_DASHBOARD,
   },
 
+  // ── Project Associate Dashboard ───────────────────────────────────────────
+  {
+    path: '/pms/pa/dashboard',
+    name: 'PA Dashboard',
+    element: ProjectAssociateDashboard,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/pa/team-overview',
+    name: 'Team Overview',
+    element: TeamOverviewPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+
+  // ── Projects ──────────────────────────────────────────────────────────────
   {
     path: '/pms/projects',
     name: 'Projects',
-    element: placeholder('All Projects'),
+    element: ProjectListPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/projects/my-projects',
+    name: 'My Projects',
+    element: MyProjectsPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
     path: '/pms/projects/create',
     name: 'Create Project',
-    element: placeholder('Create Project'),
+    element: CreateProjectPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
@@ -36,15 +106,15 @@ export const pmsRoutes = [
     module: MODULE.PMS_PROJECTS,
   },
   {
-    path: '/pms/projects/:id',
-    name: 'Project Detail',
-    element: placeholder('Project Detail'),
+    path: '/pms/projects/:id/edit',
+    name: 'Edit Project',
+    element: ProjectFormPage,
     module: MODULE.PMS_PROJECTS,
   },
   {
-    path: '/pms/projects/:id/edit',
-    name: 'Edit Project',
-    element: placeholder('Edit Project'),
+    path: '/pms/projects/:id',
+    name: 'Project Detail',
+    element: ProjectDetailPage,
     module: MODULE.PMS_PROJECTS,
   },
 
@@ -144,7 +214,7 @@ export const pmsRoutes = [
   {
     path: '/pms/project-teams/officers',
     name: 'Project Officers',
-    element: placeholder('Project Officers'),
+    element: ProjectOfficersPage,
     module: MODULE.PMS_TEAMS,
   },
   {
@@ -223,10 +293,90 @@ export const pmsRoutes = [
     module: MODULE.PMS_PARTNERS,
   },
 
+  // ── Daily Reports ─────────────────────────────────────────────────────────
+  {
+    path: '/pms/daily-reports/new',
+    name: 'Submit Report',
+    element: ReportSubmitPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/history',
+    name: 'My Reports',
+    element: MyReportsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/:id/edit',
+    name: 'Edit Report',
+    element: ReportEditPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/review',
+    name: 'Review Reports',
+    element: OfficerDashboardPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/review/:id',
+    name: 'Report Detail',
+    element: ReportDetailReviewPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/approved',
+    name: 'Approved Reports',
+    element: BackendReportsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/tasks',
+    name: 'Assign Tasks',
+    element: TaskManagementPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/team',
+    name: 'My Team',
+    element: FieldPersonnelOverviewPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/my-tasks',
+    name: 'My Tasks',
+    element: MyTasksPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/tasks/report/:id',
+    name: 'Task Report',
+    element: TaskReportSubmitPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/tasks/report/:taskId/edit/:reportId',
+    name: 'Edit Task Report',
+    element: TaskReportEditPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/daily-reports/personnel-log',
+    name: 'Personnel Log',
+    element: PersonnelLogPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+  {
+    path: '/pms/field-personnel/bills',
+    name: 'Upload Bills',
+    element: FieldPersonnelBillsPage,
+    module: MODULE.PMS_DAILY_REPORTS,
+  },
+
   {
     path: '/pms/audit-logs',
     name: 'Audit Logs',
-    element: placeholder('Audit Logs'),
+    element: AuditLogsPage,
     module: MODULE.AUDIT_LOGS,
   },
 ]

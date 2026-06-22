@@ -15,11 +15,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// On 401, clear session and send to login
+// On 401, clear session and send to login (but never for dev tokens)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const token = store.getState().token
+      // Dev tokens are not real JWTs — ignore 401s so the dev session stays alive
+      if (!token || token.startsWith('dev-')) {
+        return Promise.reject(error)
+      }
       localStorage.removeItem('hma_token')
       store.dispatch({ type: 'set', user: null, token: null })
       // HashRouter — navigate without useNavigate (which requires a component context)
