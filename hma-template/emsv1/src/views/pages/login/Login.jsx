@@ -25,8 +25,9 @@ const Login = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [employeeId, setEmployeeId] = useState('')
-  const [password, setPassword] = useState('')
+  const devMode = import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'
+  const [employeeId, setEmployeeId] = useState(devMode ? 'DEV001' : '')
+  const [password, setPassword] = useState(devMode ? 'dev' : '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showForgotMsg, setShowForgotMsg] = useState(false)
@@ -120,10 +121,12 @@ const Login = () => {
                   </CRow>
                 </CForm>
 
-                {import.meta.env.DEV && (
+                {devMode && (
                   <>
                     <hr />
-                    <p className="text-body-secondary small mb-2">Dev logins</p>
+                    <p className="text-body-secondary small mb-2">
+                      Dev mode — ID: DEV001–DEV005, Password: <code>dev</code>
+                    </p>
                     <div className="d-grid gap-2">
                       {[
                         { role: 'CEO', id: 'DEV001', name: 'Dev CEO' },
@@ -139,10 +142,12 @@ const Login = () => {
                           size="sm"
                           type="button"
                           onClick={() => {
+                            const token = `dev-token-${id}`
+                            localStorage.setItem('hma_token', token)
                             dispatch({
                               type: 'set',
                               user: { employee_id: id, full_name: name, role },
-                              token: `dev-token-${id}`,
+                              token,
                             })
                             navigate('/select-system')
                           }}
