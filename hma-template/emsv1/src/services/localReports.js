@@ -2,7 +2,7 @@
 // Mirrors the DRD Report Object schema.
 // Swap out by replacing `localReports.*` calls with real API calls once the backend is running.
 
-const KEY = 'hma_daily_reports'
+const KEY = 'hma_daily_reports_v2'
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID

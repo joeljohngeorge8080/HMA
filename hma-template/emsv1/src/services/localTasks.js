@@ -2,7 +2,7 @@
 // Tasks now belong to a Project, not an individual.
 // Any Field Personnel who is a member of the project can see and submit against these tasks.
 
-const KEY = 'hma_tasks'
+const KEY = 'hma_tasks_v2'
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
