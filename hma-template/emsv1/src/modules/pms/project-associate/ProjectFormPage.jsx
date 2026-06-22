@@ -1,5 +1,5 @@
-﻿/**
- * ProjectFormPage.jsx ΓÇö Create / Edit project form.
+/**
+ * ProjectFormPage.jsx — Create / Edit project form.
  * Routes: /pms/projects/create  &  /pms/projects/:id/edit
  */
 import React, { useState, useEffect } from 'react'
@@ -141,19 +141,19 @@ const ProjectFormPage = () => {
         if (form.officer_id && form.officer_id !== localProjects.getById(id)?.officer_id) {
           localProjects.assignOfficer(id, form.officer_id)
         }
-        setToast({ color: 'success', message: 'Γ£à Project updated successfully!' })
+        setToast({ color: 'success', message: '✅ Project updated successfully!' })
       } else {
         savedProject = localProjects.create(data)
         // Assign officer if selected
         if (form.officer_id) {
           localProjects.assignOfficer(savedProject.id, form.officer_id)
         }
-        setToast({ color: 'success', message: 'Γ£à Project created successfully!' })
+        setToast({ color: 'success', message: '✅ Project created successfully!' })
       }
 
       setTimeout(() => navigate(`/pms/projects/${savedProject.id}`), 1200)
     } catch (err) {
-      setToast({ color: 'danger', message: `Γ¥î Error: ${err.message}` })
+      setToast({ color: 'danger', message: `❌ Error: ${err.message}` })
     }
     setSaving(false)
   }
@@ -189,7 +189,7 @@ const ProjectFormPage = () => {
             {/* Project Details */}
             <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">≡ƒôï Project Details</h6>
+                <h6 className="fw-bold mb-0">📋 Project Details</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -198,7 +198,7 @@ const ProjectFormPage = () => {
                       Project Name <span className="text-danger">*</span>
                     </CFormLabel>
                     <CFormInput
-                      placeholder="e.g., Rural Water Supply Scheme ΓÇö Wayanad"
+                      placeholder="e.g., Rural Water Supply Scheme — Wayanad"
                       value={form.name}
                       onChange={(e) => set('name', e.target.value)}
                       invalid={!!errors.name}
@@ -303,13 +303,13 @@ const ProjectFormPage = () => {
             {/* Financial Details */}
             <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">≡ƒÆ░ Financial Details</h6>
+                <h6 className="fw-bold mb-0">💰 Financial Details</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
                   <CCol xs={12} md={6}>
                     <CFormLabel className="fw-semibold small">
-                      Project Value (Γé╣) <span className="text-danger">*</span>
+                      Project Value (₹) <span className="text-danger">*</span>
                     </CFormLabel>
                     <CFormInput
                       type="number"
@@ -323,12 +323,12 @@ const ProjectFormPage = () => {
                     )}
                     {form.project_value && !isNaN(Number(form.project_value)) && (
                       <div className="text-body-secondary small mt-1">
-                        Γé╣{Number(form.project_value).toLocaleString('en-IN')}
+                        ₹{Number(form.project_value).toLocaleString('en-IN')}
                       </div>
                     )}
                   </CCol>
                   <CCol xs={12} md={6}>
-                    <CFormLabel className="fw-semibold small">Amount Received (Γé╣)</CFormLabel>
+                    <CFormLabel className="fw-semibold small">Amount Received (₹)</CFormLabel>
                     <CFormInput
                       type="number"
                       placeholder="e.g., 2800000"
@@ -337,12 +337,12 @@ const ProjectFormPage = () => {
                     />
                     {form.amount_received && !isNaN(Number(form.amount_received)) && (
                       <div className="text-success small mt-1">
-                        Γé╣{Number(form.amount_received).toLocaleString('en-IN')}
+                        ₹{Number(form.amount_received).toLocaleString('en-IN')}
                       </div>
                     )}
                   </CCol>
                   <CCol xs={12} md={6}>
-                    <CFormLabel className="fw-semibold small">Expense Accounted (Γé╣)</CFormLabel>
+                    <CFormLabel className="fw-semibold small">Expense Accounted (₹)</CFormLabel>
                     <CFormInput
                       type="number"
                       placeholder="e.g., 1950000"
@@ -351,12 +351,12 @@ const ProjectFormPage = () => {
                     />
                     {form.expense_accounted && !isNaN(Number(form.expense_accounted)) && (
                       <div className="text-warning small mt-1">
-                        Γé╣{Number(form.expense_accounted).toLocaleString('en-IN')}
+                        ₹{Number(form.expense_accounted).toLocaleString('en-IN')}
                       </div>
                     )}
                   </CCol>
                   <CCol xs={12} md={6}>
-                    <CFormLabel className="fw-semibold small">Committed Expense (Γé╣)</CFormLabel>
+                    <CFormLabel className="fw-semibold small">Committed Expense (₹)</CFormLabel>
                     <CFormInput
                       type="number"
                       placeholder="e.g., 380000"
@@ -365,7 +365,7 @@ const ProjectFormPage = () => {
                     />
                     {form.committed_expense && !isNaN(Number(form.committed_expense)) && (
                       <div className="text-body-secondary small mt-1">
-                        Γé╣{Number(form.committed_expense).toLocaleString('en-IN')}
+                        ₹{Number(form.committed_expense).toLocaleString('en-IN')}
                       </div>
                     )}
                   </CCol>
@@ -391,11 +391,11 @@ const ProjectFormPage = () => {
                                 className="fw-bold fs-6"
                                 style={{ color: balance >= 0 ? '#06d6a0' : '#e74c3c' }}
                               >
-                                Γé╣{balance.toLocaleString('en-IN')}
+                                ₹{balance.toLocaleString('en-IN')}
                               </span>
                             </div>
                             <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
-                              Project Value ΓêÆ Expense Accounted ΓêÆ Committed Expense
+                              Project Value − Expense Accounted − Committed Expense
                             </div>
                           </div>
                         )
@@ -418,7 +418,7 @@ const ProjectFormPage = () => {
             {/* Status & Phase */}
             <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">≡ƒôè Status & Phase</h6>
+                <h6 className="fw-bold mb-0">📊 Status & Phase</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -463,10 +463,10 @@ const ProjectFormPage = () => {
                   onChange={(e) => set('officer_id', e.target.value)}
                   className="mb-3"
                 >
-                  <option value="">ΓÇö No officer assigned ΓÇö</option>
+                  <option value="">— No officer assigned —</option>
                   {officers.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.name} ┬╖ {o.designation}
+                      {o.name} · {o.designation}
                     </option>
                   ))}
                 </CFormSelect>
@@ -491,10 +491,10 @@ const ProjectFormPage = () => {
                     </div>
                     <div className="small">
                       <div className="text-body-secondary mb-1">
-                        ≡ƒôº {selectedOfficer.email}
+                        📧 {selectedOfficer.email}
                       </div>
                       <div className="text-body-secondary">
-                        ≡ƒô▒ {selectedOfficer.phone}
+                        📱 {selectedOfficer.phone}
                       </div>
                     </div>
                     <div className="mt-2">

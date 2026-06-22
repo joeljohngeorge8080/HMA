@@ -1,5 +1,5 @@
-﻿/**
- * ProjectListPage.jsx ΓÇö All projects list with search, filter, and actions.
+/**
+ * ProjectListPage.jsx — All projects list with search, filter, and actions.
  * Route: /pms/projects
  */
 import React, { useState, useEffect, useCallback } from 'react'
@@ -208,19 +208,19 @@ const ProjectListPage = () => {
                   <CTableDataCell className="py-3 ps-4">
                     <div className="fw-semibold">{p.name}</div>
                     <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
-                      {p.location} ┬╖ {p.funding_agency}
+                      {p.location} · {p.funding_agency}
                     </div>
                     {p.pending_approvals > 0 && (
                       <CBadge color="warning" shape="rounded-pill" className="mt-1" style={{ fontSize: '0.65rem' }}>
-                        ΓÅ│ {p.pending_approvals} pending approval
+                        ⏳ {p.pending_approvals} pending approval
                       </CBadge>
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
-                    <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || 'ΓÇö'}</span>
+                    <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
-                    <span className="text-body-secondary small">{p.project_type || 'ΓÇö'}</span>
+                    <span className="text-body-secondary small">{p.project_type || '—'}</span>
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
                     {p.officer_name ? (
@@ -228,7 +228,7 @@ const ProjectListPage = () => {
                         <div className="fw-medium">{p.officer_name}</div>
                         {p.email_sent && (
                           <span className="text-success" style={{ fontSize: '0.7rem' }}>
-                            Γ£ë∩╕Å Emailed
+                            ✉️ Emailed
                           </span>
                         )}
                       </div>
@@ -326,7 +326,7 @@ const ProjectListPage = () => {
         {projects.length === 0 && (
           <div className="text-center py-5">
             <div style={{ fontSize: '3.5rem' }} className="mb-2">
-              ≡ƒôü
+              📁
             </div>
             <h5 className="text-body-secondary">No projects found</h5>
             <p className="text-body-tertiary">
