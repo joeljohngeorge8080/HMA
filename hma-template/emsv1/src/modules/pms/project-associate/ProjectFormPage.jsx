@@ -38,6 +38,8 @@ import { localProjects, localOfficers } from '../../../services/localProjects'
 
 const EMPTY_FORM = {
   name: '',
+  project_code: '',
+  project_type: 'Other Public Health',
   description: '',
   funding_agency: '',
   implementing_partner: '',
@@ -47,8 +49,11 @@ const EMPTY_FORM = {
   phase: 'pipeline',
   project_value: '',
   amount_received: '',
+  expense_accounted: '',
+  committed_expense: '',
   start_date: '',
   end_date: '',
+  beneficiaries_completed: '',
   officer_id: '',
 }
 
@@ -73,6 +78,8 @@ const ProjectFormPage = () => {
       if (project) {
         setForm({
           name: project.name || '',
+          project_code: project.project_code || '',
+          project_type: project.project_type || 'Other Public Health',
           description: project.description || '',
           funding_agency: project.funding_agency || '',
           implementing_partner: project.implementing_partner || '',
@@ -82,6 +89,9 @@ const ProjectFormPage = () => {
           phase: project.phase || 'pipeline',
           project_value: project.project_value || '',
           amount_received: project.amount_received || '',
+          expense_accounted: project.expense_accounted || '',
+          committed_expense: project.committed_expense || '',
+          beneficiaries_completed: project.beneficiaries_completed || '',
           start_date: project.start_date || '',
           end_date: project.end_date || '',
           officer_id: project.officer_id || '',
@@ -100,6 +110,7 @@ const ProjectFormPage = () => {
   const validate = () => {
     const e = {}
     if (!form.name.trim()) e.name = 'Project name is required'
+    if (!form.project_code?.trim()) e.project_code = 'Project code is required'
     if (!form.project_value || isNaN(Number(form.project_value)))
       e.project_value = 'Enter a valid project value'
     if (!form.start_date) e.start_date = 'Start date is required'
@@ -118,6 +129,9 @@ const ProjectFormPage = () => {
         ...form,
         project_value: Number(form.project_value),
         amount_received: Number(form.amount_received) || 0,
+        expense_accounted: Number(form.expense_accounted) || 0,
+        committed_expense: Number(form.committed_expense) || 0,
+        beneficiaries_completed: Number(form.beneficiaries_completed) || 0,
       }
 
       let savedProject
@@ -192,6 +206,28 @@ const ProjectFormPage = () => {
                     {errors.name && (
                       <div className="text-danger small mt-1">{errors.name}</div>
                     )}
+                  </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">
+                      Project Code <span className="text-danger">*</span>
+                    </CFormLabel>
+                    <CFormInput
+                      placeholder="e.g., RWS-W-001"
+                      value={form.project_code || ''}
+                      onChange={(e) => set('project_code', e.target.value)}
+                      invalid={!!errors.project_code}
+                    />
+                    {errors.project_code && (
+                      <div className="text-danger small mt-1">{errors.project_code}</div>
+                    )}
+                  </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Project Type</CFormLabel>
+                    <CFormSelect value={form.project_type || ''} onChange={(e) => set('project_type', e.target.value)}>
+                      <option value="Consultancy">Consultancy</option>
+                      <option value="Other Public Health">Other Public Health</option>
+                      <option value="M-CUP">M-CUP</option>
+                    </CFormSelect>
                   </CCol>
                   <CCol xs={12}>
                     <CFormLabel className="fw-semibold small">Description</CFormLabel>
@@ -305,6 +341,76 @@ const ProjectFormPage = () => {
                       </div>
                     )}
                   </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Expense Accounted (₹)</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      placeholder="e.g., 1950000"
+                      value={form.expense_accounted}
+                      onChange={(e) => set('expense_accounted', e.target.value)}
+                    />
+                    {form.expense_accounted && !isNaN(Number(form.expense_accounted)) && (
+                      <div className="text-warning small mt-1">
+                        ₹{Number(form.expense_accounted).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Committed Expense (₹)</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      placeholder="e.g., 380000"
+                      value={form.committed_expense}
+                      onChange={(e) => set('committed_expense', e.target.value)}
+                    />
+                    {form.committed_expense && !isNaN(Number(form.committed_expense)) && (
+                      <div className="text-body-secondary small mt-1">
+                        ₹{Number(form.committed_expense).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </CCol>
+                  {/* Live fund balance preview */}
+                  {form.project_value && (
+                    <CCol xs={12}>
+                      {(() => {
+                        const pv = Number(form.project_value) || 0
+                        const ea = Number(form.expense_accounted) || 0
+                        const ce = Number(form.committed_expense) || 0
+                        const balance = pv - ea - ce
+                        return (
+                          <div
+                            className="rounded-3 p-3"
+                            style={{
+                              background: balance >= 0 ? 'rgba(6,214,160,0.08)' : 'rgba(231,76,60,0.08)',
+                              border: `1.5px solid ${balance >= 0 ? '#06d6a044' : '#e74c3c44'}`,
+                            }}
+                          >
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span className="small fw-semibold text-body-secondary">Fund Balance (auto-computed)</span>
+                              <span
+                                className="fw-bold fs-6"
+                                style={{ color: balance >= 0 ? '#06d6a0' : '#e74c3c' }}
+                              >
+                                ₹{balance.toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                            <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                              Project Value − Expense Accounted − Committed Expense
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </CCol>
+                  )}
+                  <CCol xs={12}>
+                    <CFormLabel className="fw-semibold small">Beneficiaries Completed Till Date</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      placeholder="e.g., 1500"
+                      value={form.beneficiaries_completed}
+                      onChange={(e) => set('beneficiaries_completed', e.target.value)}
+                    />
+                  </CCol>
                 </CRow>
               </CCardBody>
             </CCard>
@@ -320,19 +426,17 @@ const ProjectFormPage = () => {
                     <CFormLabel className="fw-semibold small">Project Status</CFormLabel>
                     <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
                       <option value="pipeline">Pipeline</option>
-                      <option value="active">Active</option>
-                      <option value="on_hold">On Hold</option>
+                      <option value="approved">Approved</option>
+                      <option value="ongoing">Ongoing</option>
                       <option value="completed">Completed</option>
                     </CFormSelect>
                   </CCol>
                   <CCol xs={12} md={6}>
                     <CFormLabel className="fw-semibold small">Project Phase</CFormLabel>
                     <CFormSelect value={form.phase} onChange={(e) => set('phase', e.target.value)}>
-                      <option value="pipeline">Pipeline</option>
-                      <option value="design">Design</option>
+                      <option value="design_and_initiation">Design and Initiation</option>
                       <option value="implementation">Implementation</option>
-                      <option value="followup">Follow-up</option>
-                      <option value="completed">Completed</option>
+                      <option value="monitoring_and_evaluation">Monitoring and Evaluation</option>
                     </CFormSelect>
                   </CCol>
                 </CRow>

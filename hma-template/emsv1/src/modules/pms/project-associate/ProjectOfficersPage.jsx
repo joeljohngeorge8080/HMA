@@ -514,7 +514,7 @@ const ProjectOfficersPage = () => {
                                 onClick={() => navigate(`/pms/projects/${p.id}`)}
                               >
                                 <CBadge
-                                  color={p.status === 'active' ? 'success' : p.status === 'pipeline' ? 'warning' : 'secondary'}
+                                  color={p.status === 'ongoing' ? 'success' : p.status === 'approved' ? 'info' : p.status === 'pipeline' ? 'secondary' : 'secondary'}
                                   shape="rounded-circle"
                                   style={{ width: 8, height: 8 }}
                                 >

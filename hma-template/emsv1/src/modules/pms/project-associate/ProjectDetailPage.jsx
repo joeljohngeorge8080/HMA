@@ -44,7 +44,10 @@ import {
   cilLocationPin,
   cilBuilding,
   cilDollar,
+  cilFolder,
+  cilFile,
 } from '@coreui/icons'
+import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
 
 const fmt = (n) =>
@@ -58,10 +61,10 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 const STATUS_META = {
-  active: { label: 'Active', color: 'success' },
-  pipeline: { label: 'Pipeline', color: 'warning' },
-  completed: { label: 'Completed', color: 'secondary' },
-  on_hold: { label: 'On Hold', color: 'danger' },
+  pipeline: { label: 'Pipeline', color: 'secondary' },
+  approved: { label: 'Approved', color: 'info' },
+  ongoing: { label: 'Ongoing', color: 'primary' },
+  completed: { label: 'Completed', color: 'success' },
 }
 
 // Demo pending approval items
@@ -87,14 +90,14 @@ const DEMO_APPROVALS = [
 ]
 
 const DEMO_TASKS = [
-  { title: 'Site survey & soil testing', status: 'completed', assignee: 'Field Team A', date: '2024-04-01' },
-  { title: 'Pipeline route mapping', status: 'completed', assignee: 'Arjun Sharma', date: '2024-04-15' },
-  { title: 'Procurement of pipes & fittings', status: 'completed', assignee: 'Procurement Team', date: '2024-05-10' },
-  { title: 'Excavation — Phase 1 (Villages 1–4)', status: 'completed', assignee: 'Field Team A', date: '2024-06-01' },
-  { title: 'Excavation — Phase 2 (Villages 5–8)', status: 'completed', assignee: 'Field Team B', date: '2024-07-15' },
-  { title: 'Pipeline laying — Phase 1', status: 'active', assignee: 'Field Team A', date: '2024-09-01' },
-  { title: 'Storage tank construction', status: 'active', assignee: 'Civil Contractor', date: '2024-10-01' },
-  { title: 'Final commissioning & testing', status: 'active', assignee: 'Arjun Sharma', date: '2025-01-15' },
+  { title: 'Site survey & soil testing', status: 'completed', assignee: 'Field Team A', target_date: '2024-04-01', actual_date: '2024-04-05' },
+  { title: 'Pipeline route mapping', status: 'completed', assignee: 'Arjun Sharma', target_date: '2024-04-15', actual_date: '2024-04-12' },
+  { title: 'Procurement of pipes & fittings', status: 'completed', assignee: 'Procurement Team', target_date: '2024-05-10', actual_date: '2024-05-10' },
+  { title: 'Excavation — Phase 1 (Villages 1–4)', status: 'completed', assignee: 'Field Team A', target_date: '2024-06-01', actual_date: '2024-06-15' },
+  { title: 'Excavation — Phase 2 (Villages 5–8)', status: 'completed', assignee: 'Field Team B', target_date: '2024-07-15', actual_date: '2024-07-10' },
+  { title: 'Pipeline laying — Phase 1', status: 'active', assignee: 'Field Team A', target_date: '2024-09-01', actual_date: null },
+  { title: 'Storage tank construction', status: 'active', assignee: 'Civil Contractor', target_date: '2024-10-01', actual_date: null },
+  { title: 'Final commissioning & testing', status: 'active', assignee: 'Arjun Sharma', target_date: '2025-01-15', actual_date: null },
 ]
 
 const ProjectDetailPage = () => {
@@ -105,6 +108,7 @@ const ProjectDetailPage = () => {
   const [approvals, setApprovals] = useState([])
   const [approveModal, setApproveModal] = useState({ visible: false, item: null })
   const [rejectModal, setRejectModal] = useState({ visible: false, item: null })
+  const [ucModal, setUcModal] = useState({ visible: false, milestone: null })
   const [toast, setToast] = useState(null)
 
   useEffect(() => {
@@ -148,7 +152,20 @@ const ProjectDetailPage = () => {
   const handleReject = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'rejected' } : a)))
     setRejectModal({ visible: false, item: null })
-    setToast({ color: 'warning', message: '⚠️ Request rejected and sent back' })
+    setToast({ color: 'danger', message: '⚠️ Request rejected and sent back' })
+  }
+
+  const handleSubmitUc = (milestone) => {
+    // Mock updating the UC status and actual date locally
+    const actualDate = new Date().toISOString().split('T')[0]
+    const updatedMilestones = project.milestones.map((m) =>
+      m.id === milestone.id ? { ...m, uc_status: 'Submitted', actual_date: actualDate } : m
+    )
+    const updatedProject = { ...project, milestones: updatedMilestones }
+    setProject(updatedProject)
+    localProjects.update(project.id, { milestones: updatedMilestones })
+    setUcModal({ visible: false, milestone: null })
+    setToast({ color: 'success', message: '✅ Utilisation Certificate submitted successfully' })
   }
 
   return (
@@ -206,60 +223,89 @@ const ProjectDetailPage = () => {
 
       {/* KPI row */}
       <CRow className="g-3 mb-4">
-        {[
-          {
-            label: 'Project Value',
-            value: fmt(project.project_value),
-            sub: 'Total sanctioned',
-            color: '#4361ee',
-            bg: 'rgba(67,97,238,0.06)',
-          },
-          {
-            label: 'Amount Received',
-            value: fmt(project.amount_received),
-            sub: `${receivedPct}% of total`,
-            color: '#2ec4b6',
-            bg: 'rgba(46,196,182,0.06)',
-          },
-          {
-            label: 'Amount Spent',
-            value: fmt(project.amount_spent),
-            sub: `Balance: ${fmt(project.amount_received - project.amount_spent)}`,
-            color: '#f77f00',
-            bg: 'rgba(247,127,0,0.06)',
-          },
-          {
-            label: 'Task Progress',
-            value: `${progressPct}%`,
-            sub: `${project.tasks_completed}/${project.tasks_count} tasks done`,
-            color: '#06d6a0',
-            bg: 'rgba(6,214,160,0.06)',
-          },
-        ].map((kpi, i) => (
-          <CCol key={i} xs={6} xl={3}>
-            <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-              <CCardBody className="py-3">
-                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
-                  {kpi.value}
-                </div>
-                <div className="fw-semibold small text-body">{kpi.label}</div>
-                <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                  {kpi.sub}
-                </div>
-                {kpi.label === 'Task Progress' && (
-                  <CProgress value={progressPct} height={4} color="success" className="mt-2 rounded-pill" />
-                )}
-              </CCardBody>
-            </CCard>
-          </CCol>
-        ))}
+        {/* Left Column */}
+        <CCol xs={12} md={6}>
+          <div className="d-flex flex-column gap-3 h-100">
+            {[
+              {
+                label: 'Project Value',
+                value: fmt(project.project_value),
+                sub: 'Total sanctioned',
+                color: '#4361ee',
+                bg: 'rgba(67,97,238,0.06)',
+              },
+              {
+                label: 'Task Progress',
+                value: `${progressPct}%`,
+                sub: `${project.tasks_completed}/${project.tasks_count} tasks done`,
+                color: '#06d6a0',
+                bg: 'rgba(6,214,160,0.06)',
+              },
+              {
+                label: 'Beneficiaries Completed',
+                value: project.beneficiaries_completed || 0,
+                sub: 'Till date',
+                color: '#f72585',
+                bg: 'rgba(247,37,133,0.06)',
+              },
+            ].map((kpi, i) => (
+              <CCard key={i} className="border-0 shadow-sm flex-grow-1" style={{ borderRadius: '12px' }}>
+                <CCardBody className="py-3">
+                  <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
+                    {kpi.value}
+                  </div>
+                  <div className="fw-semibold small text-body">{kpi.label}</div>
+                  <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                    {kpi.sub}
+                  </div>
+                  {kpi.label === 'Task Progress' && (
+                    <CProgress value={progressPct} height={4} color="success" className="mt-2 rounded-pill" />
+                  )}
+                </CCardBody>
+              </CCard>
+            ))}
+          </div>
+        </CCol>
+
+        {/* Right Column */}
+        <CCol xs={12} md={6}>
+          <div className="d-flex flex-column gap-3 h-100">
+            {[
+              {
+                label: 'Amount Received',
+                value: fmt(project.amount_received),
+                sub: `${receivedPct}% of total`,
+                color: '#2ec4b6',
+                bg: 'rgba(46,196,182,0.06)',
+              },
+              {
+                label: 'Amount Spent',
+                value: fmt(project.amount_spent),
+                sub: `Balance: ${fmt(project.amount_received - project.amount_spent)}`,
+                color: '#f77f00',
+                bg: 'rgba(247,127,0,0.06)',
+              },
+            ].map((kpi, i) => (
+              <CCard key={i} className="border-0 shadow-sm flex-grow-1" style={{ borderRadius: '12px' }}>
+                <CCardBody className="py-3">
+                  <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
+                    {kpi.value}
+                  </div>
+                  <div className="fw-semibold small text-body">{kpi.label}</div>
+                  <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                    {kpi.sub}
+                  </div>
+                </CCardBody>
+              </CCard>
+            ))}
+          </div>
+        </CCol>
       </CRow>
 
-      {/* Tabs */}
       <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
         <CCardHeader className="bg-transparent border-bottom-0 px-4 pt-3">
           <CNav variant="underline" role="tablist">
-            {['Overview', 'Project Officer', 'Tasks & Procurement', 'Approvals'].map((tab, i) => (
+            {['Overview', 'Project Officer', 'Tasks & Procurement', 'Approvals', 'Project Financials', 'Project Milestones'].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
                   active={activeTab === i}
@@ -271,6 +317,22 @@ const ProjectDetailPage = () => {
                   {i === 3 && approvals.filter((a) => a.status === 'pending').length > 0 && (
                     <CBadge color="danger" shape="rounded-pill" className="ms-2">
                       {approvals.filter((a) => a.status === 'pending').length}
+                    </CBadge>
+                  )}
+                  {i === 4 && (
+                    <CBadge
+                      color={
+                        (project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)) >= 0
+                          ? 'success'
+                          : 'danger'
+                      }
+                      shape="rounded-pill"
+                      className="ms-2"
+                    >
+                      {(() => {
+                        const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
+                        return bal >= 0 ? '✓' : '!'
+                      })()}
                     </CBadge>
                   )}
                 </CNavLink>
@@ -289,9 +351,11 @@ const ProjectDetailPage = () => {
                     <CCardBody>
                       <h6 className="fw-bold mb-3 text-body-secondary text-uppercase small">Project Info</h6>
                       {[
+                        { label: 'Project Code', value: project.project_code },
+                        { label: 'Project Type', value: project.project_type },
                         { label: 'Funding Agency', value: project.funding_agency },
                         { label: 'Implementing Partner', value: project.implementing_partner },
-                        { label: 'District', value: project.district },
+                        { label: 'Location', value: project.location },
                         { label: 'Start Date', value: fmtDate(project.start_date) },
                         { label: 'End Date', value: fmtDate(project.end_date) },
                         { label: 'Last Updated', value: fmtDate(project.updated_at) },
@@ -412,47 +476,115 @@ const ProjectDetailPage = () => {
 
             {/* Tasks & Procurement Tab */}
             <CTabPane visible={activeTab === 2}>
-              <h6 className="fw-semibold mb-3">Tasks</h6>
-              <div className="d-flex flex-column gap-2">
-                {DEMO_TASKS.map((task, i) => (
-                  <div
-                    key={i}
-                    className="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border"
-                    style={{ fontSize: '0.875rem' }}
-                  >
-                    <div
-                      className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0`}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        background: task.status === 'completed' ? '#06d6a020' : '#f0ad4e20',
-                      }}
-                    >
-                      <CIcon
-                        icon={task.status === 'completed' ? cilCheckCircle : cilTask}
-                        style={{
-                          color: task.status === 'completed' ? '#06d6a0' : '#f0ad4e',
-                          width: 14,
-                          height: 14,
-                        }}
-                      />
-                    </div>
-                    <div className="flex-grow-1">
-                      <div className="fw-medium">{task.title}</div>
-                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
-                        {task.assignee} · {task.date}
-                      </div>
-                    </div>
-                    <CBadge
-                      color={task.status === 'completed' ? 'success' : 'warning'}
-                      shape="rounded-pill"
-                      className="text-capitalize"
-                    >
-                      {task.status}
-                    </CBadge>
+              <CRow className="g-4">
+                <CCol xs={12} lg={4}>
+                  <CCard className="border-0 shadow-sm bg-body-tertiary h-100" style={{ borderRadius: '12px' }}>
+                    <CCardBody className="text-center p-4">
+                      <h6 className="fw-bold mb-4 small text-uppercase text-body-secondary">Schedule Status</h6>
+                      {(() => {
+                        const today = new Date().toISOString().split('T')[0]
+                        const tasksStats = DEMO_TASKS.map(t => {
+                          const isDelayed = t.status === 'completed' 
+                            ? (t.actual_date > t.target_date) 
+                            : (today > t.target_date)
+                          return { ...t, isDelayed }
+                        })
+                        const delayedCount = tasksStats.filter(t => t.isDelayed).length
+                        const onTrackCount = tasksStats.length - delayedCount
+
+                        return (
+                          <div style={{ maxWidth: '220px', margin: '0 auto' }}>
+                            <CChartDoughnut
+                              data={{
+                                labels: ['On Track', 'Delayed'],
+                                datasets: [
+                                  {
+                                    backgroundColor: ['#06d6a0', '#e74c3c'],
+                                    data: [onTrackCount, delayedCount],
+                                    borderWidth: 0,
+                                  },
+                                ],
+                              }}
+                              options={{
+                                plugins: {
+                                  legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } } }
+                                },
+                                cutout: '75%',
+                              }}
+                            />
+                            <div className="mt-3 small text-body-secondary">
+                              <strong>{delayedCount}</strong> out of {tasksStats.length} tasks are experiencing delays.
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </CCardBody>
+                  </CCard>
+                </CCol>
+                <CCol xs={12} lg={8}>
+                  <h6 className="fw-semibold mb-3">Tasks List</h6>
+                  <div className="d-flex flex-column gap-2">
+                    {DEMO_TASKS.map((task, i) => {
+                      const today = new Date().toISOString().split('T')[0]
+                      const isDelayed = task.status === 'completed' 
+                        ? (task.actual_date > task.target_date) 
+                        : (today > task.target_date)
+                      return (
+                        <div
+                          key={i}
+                          className="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border shadow-sm"
+                          style={{ fontSize: '0.875rem' }}
+                        >
+                          <div
+                            className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0`}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              background: task.status === 'completed' ? '#06d6a020' : '#f0ad4e20',
+                            }}
+                          >
+                            <CIcon
+                              icon={task.status === 'completed' ? cilCheckCircle : cilTask}
+                              style={{
+                                color: task.status === 'completed' ? '#06d6a0' : '#f0ad4e',
+                                width: 16,
+                                height: 16,
+                              }}
+                            />
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2 mb-1">
+                              <span className="fw-bold" style={{ fontSize: '0.95rem' }}>{task.title}</span>
+                              {isDelayed && (
+                                <CBadge color="danger" shape="rounded-pill" className="small" style={{ fontSize: '0.65rem' }}>Delayed</CBadge>
+                              )}
+                            </div>
+                            <CRow className="g-2 text-body-secondary mt-1" style={{ fontSize: '0.75rem' }}>
+                              <CCol xs={12} sm={4}>
+                                <CIcon icon={cilPeople} className="me-1 opacity-75" />
+                                {task.assignee}
+                              </CCol>
+                              <CCol xs={6} sm={4}>
+                                Target: <span className="fw-medium text-body">{fmtDate(task.target_date)}</span>
+                              </CCol>
+                              <CCol xs={6} sm={4}>
+                                Actual: <span className="fw-medium text-body">{task.actual_date ? fmtDate(task.actual_date) : '—'}</span>
+                              </CCol>
+                            </CRow>
+                          </div>
+                          <CBadge
+                            color={task.status === 'completed' ? 'success' : 'warning'}
+                            shape="rounded-pill"
+                            className="text-capitalize"
+                          >
+                            {task.status}
+                          </CBadge>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
+                </CCol>
+              </CRow>
             </CTabPane>
 
             {/* Approvals Tab */}
@@ -531,6 +663,281 @@ const ProjectDetailPage = () => {
                 </div>
               )}
             </CTabPane>
+
+            {/* Project Financials Tab */}
+            <CTabPane visible={activeTab === 4}>
+              {/* 4 KPI tiles */}
+              <CRow className="g-3 mb-4">
+                {[
+                  {
+                    label: 'Project Value',
+                    value: fmt(project.project_value),
+                    sub: 'Total sanctioned amount',
+                    color: '#4361ee',
+                    bg: 'rgba(67,97,238,0.07)',
+                    icon: '📋',
+                  },
+                  {
+                    label: 'Expense Accounted',
+                    value: fmt(project.expense_accounted),
+                    sub: `${project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}% of project value`,
+                    color: '#f77f00',
+                    bg: 'rgba(247,127,0,0.07)',
+                    icon: '📤',
+                  },
+                  {
+                    label: 'Committed Expense',
+                    value: fmt(project.committed_expense),
+                    sub: 'Approved but not yet paid',
+                    color: '#7209b7',
+                    bg: 'rgba(114,9,183,0.07)',
+                    icon: '🔒',
+                  },
+                  (() => {
+                    const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
+                    return {
+                      label: 'Fund Balance',
+                      value: fmt(bal),
+                      sub: 'Available after committed expenses',
+                      color: bal >= 0 ? '#06d6a0' : '#e74c3c',
+                      bg: bal >= 0 ? 'rgba(6,214,160,0.07)' : 'rgba(231,76,60,0.07)',
+                      icon: bal >= 0 ? '✅' : '⚠️',
+                    }
+                  })(),
+                ].map((kpi, i) => (
+                  <CCol key={i} xs={12} sm={6} xl={3}>
+                    <div
+                      className="rounded-3 p-4 h-100"
+                      style={{ background: kpi.bg, border: `1.5px solid ${kpi.color}22` }}
+                    >
+                      <div className="d-flex align-items-center gap-2 mb-3">
+                        <span style={{ fontSize: '1.25rem' }}>{kpi.icon}</span>
+                        <span className="small fw-semibold text-body-secondary">{kpi.label}</span>
+                      </div>
+                      <div className="fw-bold lh-1 mb-2" style={{ color: kpi.color, fontSize: '1.35rem' }}>
+                        {kpi.value}
+                      </div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                        {kpi.sub}
+                      </div>
+                    </div>
+                  </CCol>
+                ))}
+              </CRow>
+
+              {/* Utilisation breakdown card */}
+              <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+                <CCardBody className="px-4 py-3">
+                  <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Utilisation Breakdown</h6>
+                  <CRow className="g-4">
+                    <CCol xs={12} md={4}>
+                      <div className="d-flex justify-content-between mb-1 small">
+                        <span className="text-body-secondary">Expense Accounted</span>
+                        <span className="fw-semibold">
+                          {project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}%
+                        </span>
+                      </div>
+                      <CProgress
+                        value={project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}
+                        height={10}
+                        color="warning"
+                        className="rounded-pill"
+                      />
+                      <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                        {fmt(project.expense_accounted)} of {fmt(project.project_value)}
+                      </div>
+                    </CCol>
+                    <CCol xs={12} md={4}>
+                      <div className="d-flex justify-content-between mb-1 small">
+                        <span className="text-body-secondary">Committed Expense</span>
+                        <span className="fw-semibold">
+                          {project.project_value > 0 ? Math.round(((project.committed_expense || 0) / project.project_value) * 100) : 0}%
+                        </span>
+                      </div>
+                      <CProgress
+                        value={project.project_value > 0 ? Math.round(((project.committed_expense || 0) / project.project_value) * 100) : 0}
+                        height={10}
+                        color="info"
+                        className="rounded-pill"
+                      />
+                      <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                        {fmt(project.committed_expense)} of {fmt(project.project_value)}
+                      </div>
+                    </CCol>
+                    <CCol xs={12} md={4}>
+                      {(() => {
+                        const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
+                        const balPct = project.project_value > 0 ? Math.round((bal / project.project_value) * 100) : 0
+                        return (
+                          <>
+                            <div className="d-flex justify-content-between mb-1 small">
+                              <span className="text-body-secondary">Fund Balance</span>
+                              <span className="fw-semibold" style={{ color: bal >= 0 ? '#06d6a0' : '#e74c3c' }}>
+                                {balPct}%
+                              </span>
+                            </div>
+                            <CProgress
+                              value={Math.abs(balPct)}
+                              height={10}
+                              color={bal >= 0 ? 'success' : 'danger'}
+                              className="rounded-pill"
+                            />
+                            <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                              {fmt(bal)} remaining
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </CCol>
+                  </CRow>
+
+                  {/* Summary totals */}
+                  <hr className="mt-4 mb-3" />
+                  <CRow className="g-2 text-center">
+                    {[
+                      { label: 'Total Sanctioned', value: fmt(project.project_value), color: '#4361ee' },
+                      { label: 'Total Utilised', value: fmt((project.expense_accounted || 0) + (project.committed_expense || 0)), color: '#f77f00' },
+                      { label: 'Available Balance', value: fmt(project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)), color: '#06d6a0' },
+                    ].map((item, i) => (
+                      <CCol key={i} xs={12} md={4}>
+                        <div className="py-2 px-3 rounded-3" style={{ background: 'var(--cui-body-bg)' }}>
+                          <div className="fw-bold" style={{ color: item.color, fontSize: '1.1rem' }}>{item.value}</div>
+                          <div className="text-body-secondary small">{item.label}</div>
+                        </div>
+                      </CCol>
+                    ))}
+                  </CRow>
+                </CCardBody>
+              </CCard>
+            </CTabPane>
+
+            {/* Project Milestones Tab */}
+            <CTabPane visible={activeTab === 5}>
+              <CRow className="g-4">
+                {/* Milestones & UC Tracking */}
+                <CCol xs={12} lg={8}>
+                  <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
+                    <CCardBody className="p-4">
+                      <div className="d-flex align-items-center justify-content-between mb-4">
+                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">Fund Installments & UCs</h6>
+                      </div>
+                      
+                      {project.milestones && project.milestones.length > 0 ? (
+                        <div className="position-relative">
+                          {/* Vertical timeline line */}
+                          <div
+                            className="position-absolute bg-secondary opacity-25"
+                            style={{ left: '16px', top: '10px', bottom: '10px', width: '2px' }}
+                          ></div>
+                          
+                          <div className="d-flex flex-column gap-4">
+                            {project.milestones.map((ms, i) => (
+                              <div key={ms.id} className="d-flex position-relative">
+                                {/* Timeline Dot */}
+                                <div
+                                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 z-1"
+                                  style={{
+                                    width: 34,
+                                    height: 34,
+                                    background: ms.uc_status === 'Approved' ? '#06d6a0' : ms.uc_status === 'Submitted' ? '#4361ee' : '#fff',
+                                    border: `2px solid ${ms.uc_status === 'Approved' ? '#06d6a0' : ms.uc_status === 'Submitted' ? '#4361ee' : '#dee2e6'}`,
+                                    color: ms.uc_status === 'Pending' ? '#adb5bd' : '#fff',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                  }}
+                                >
+                                  {ms.uc_status === 'Approved' ? '✓' : i + 1}
+                                </div>
+                                
+                                {/* Content Card */}
+                                <div className="ms-4 flex-grow-1">
+                                  <div className="p-3 rounded-3 border bg-white shadow-sm">
+                                    <div className="d-flex justify-content-between align-items-start mb-2">
+                                      <div>
+                                        <h6 className="fw-bold mb-1">{ms.title}</h6>
+                                        <div className="text-primary fw-bold fs-5">{fmt(ms.amount)}</div>
+                                      </div>
+                                      <CBadge
+                                        color={ms.uc_status === 'Approved' ? 'success' : ms.uc_status === 'Submitted' ? 'primary' : 'warning'}
+                                        shape="rounded-pill"
+                                      >
+                                        UC: {ms.uc_status}
+                                      </CBadge>
+                                    </div>
+                                    
+                                    <CRow className="g-2 small text-body-secondary mt-2">
+                                      <CCol xs={6}>
+                                        <div><CIcon icon={cilFolder} className="me-1" /> Target Date</div>
+                                        <div className="fw-medium text-body">{fmtDate(ms.target_date)}</div>
+                                      </CCol>
+                                      <CCol xs={6}>
+                                        <div><CIcon icon={cilFolder} className="me-1" /> Actual Date</div>
+                                        <div className="fw-medium text-body">{ms.actual_date ? fmtDate(ms.actual_date) : '—'}</div>
+                                      </CCol>
+                                    </CRow>
+                                    
+                                    {ms.uc_status === 'Pending' && (
+                                      <div className="mt-3 pt-3 border-top text-end">
+                                        <CButton color="primary" size="sm" onClick={() => setUcModal({ visible: true, milestone: ms })}>
+                                          <CIcon icon={cilFile} className="me-1" />
+                                          Submit UC
+                                        </CButton>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-5 text-body-secondary">
+                          No milestones configured for this project.
+                        </div>
+                      )}
+                    </CCardBody>
+                  </CCard>
+                </CCol>
+                
+                {/* Project Risks */}
+                <CCol xs={12} lg={4}>
+                  <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
+                    <CCardBody className="p-4">
+                      <div className="d-flex align-items-center justify-content-between mb-4">
+                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">Project Risks</h6>
+                        <CButton color="secondary" variant="ghost" size="sm">
+                          Add Risk
+                        </CButton>
+                      </div>
+                      
+                      {project.risks && project.risks.length > 0 ? (
+                        <div className="d-flex flex-column gap-3">
+                          {project.risks.map((risk) => (
+                            <div key={risk.id} className="p-3 rounded-3 border bg-body-tertiary">
+                              <div className="d-flex justify-content-between mb-2">
+                                <CBadge
+                                  color={risk.severity === 'High' ? 'danger' : risk.severity === 'Medium' ? 'warning' : 'info'}
+                                  shape="rounded-pill"
+                                >
+                                  {risk.severity} Risk
+                                </CBadge>
+                                <span className="small text-body-secondary">{risk.status}</span>
+                              </div>
+                              <div className="fw-medium text-body small">
+                                {risk.title}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-body-secondary small bg-body-tertiary rounded-3 border">
+                          No active risks logged.
+                        </div>
+                      )}
+                    </CCardBody>
+                  </CCard>
+                </CCol>
+              </CRow>
+            </CTabPane>
           </CTabContent>
         </CCardBody>
       </CCard>
@@ -574,6 +981,36 @@ const ProjectDetailPage = () => {
           <CButton color="danger" onClick={() => handleReject(rejectModal.item)}>
             <CIcon icon={cilXCircle} className="me-1" />
             Reject
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* UC Submission Modal */}
+      <CModal visible={ucModal.visible} onClose={() => setUcModal({ visible: false, milestone: null })} alignment="center">
+        <CModalHeader>
+          <CModalTitle>Submit Utilisation Certificate (UC)</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <div className="mb-3">
+            <label className="form-label small text-body-secondary">Installment</label>
+            <div className="fw-medium">{ucModal.milestone?.title} — {fmt(ucModal.milestone?.amount)}</div>
+          </div>
+          <div className="mb-3">
+            <label className="form-label small text-body-secondary">Upload UC Document (PDF)</label>
+            <input type="file" className="form-control" accept=".pdf" />
+          </div>
+          <div className="mb-0">
+            <label className="form-label small text-body-secondary">Remarks</label>
+            <textarea className="form-control" rows="3" placeholder="Any comments regarding the fund utilisation..."></textarea>
+          </div>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" onClick={() => setUcModal({ visible: false, milestone: null })}>
+            Cancel
+          </CButton>
+          <CButton color="primary" onClick={() => handleSubmitUc(ucModal.milestone)}>
+            <CIcon icon={cilFile} className="me-1" />
+            Submit
           </CButton>
         </CModalFooter>
       </CModal>

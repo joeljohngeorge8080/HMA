@@ -53,10 +53,10 @@ const fmt = (n) =>
   }).format(n)
 
 const STATUS_META = {
-  active: { label: 'Active', color: 'success' },
-  pipeline: { label: 'Pipeline', color: 'warning' },
-  completed: { label: 'Completed', color: 'secondary' },
-  on_hold: { label: 'On Hold', color: 'danger' },
+  pipeline: { label: 'Pipeline', color: 'secondary' },
+  approved: { label: 'Approved', color: 'info' },
+  ongoing: { label: 'Ongoing', color: 'primary' },
+  completed: { label: 'Completed', color: 'success' },
 }
 
 const ProjectListPage = () => {
@@ -105,9 +105,10 @@ const ProjectListPage = () => {
       <div className="d-flex gap-2 flex-wrap mb-4">
         {[
           { label: 'All', value: stats.total, status: '' },
-          { label: 'Active', value: stats.active, status: 'active', color: 'success' },
-          { label: 'Pipeline', value: stats.pipeline, status: 'pipeline', color: 'warning' },
-          { label: 'Completed', value: stats.completed, status: 'completed', color: 'secondary' },
+          { label: 'Ongoing', value: stats.ongoing, status: 'ongoing', color: 'primary' },
+          { label: 'Approved', value: stats.approved, status: 'approved', color: 'info' },
+          { label: 'Pipeline', value: stats.pipeline, status: 'pipeline', color: 'secondary' },
+          { label: 'Completed', value: stats.completed, status: 'completed', color: 'success' },
         ].map((chip) => (
           <button
             key={chip.status}
@@ -154,11 +155,9 @@ const ProjectListPage = () => {
                 onChange={(e) => handleFilterChange('phase', e.target.value)}
               >
                 <option value="">All Phases</option>
-                <option value="pipeline">Pipeline</option>
-                <option value="design">Design</option>
+                <option value="design_and_initiation">Design and Initiation</option>
                 <option value="implementation">Implementation</option>
-                <option value="followup">Follow-up</option>
-                <option value="completed">Completed</option>
+                <option value="monitoring_and_evaluation">Monitoring and Evaluation</option>
               </CFormSelect>
             </CCol>
             <CCol xs={6} md={2}>
@@ -182,9 +181,11 @@ const ProjectListPage = () => {
         <CTable hover responsive className="mb-0" style={{ fontSize: '0.875rem' }}>
           <CTableHead className="bg-body-tertiary">
             <CTableRow>
-              <CTableHeaderCell className="border-0 py-3 ps-4" style={{ width: '28%' }}>
+              <CTableHeaderCell className="border-0 py-3 ps-4" style={{ width: '22%' }}>
                 Project
               </CTableHeaderCell>
+              <CTableHeaderCell className="border-0 py-3">Code</CTableHeaderCell>
+              <CTableHeaderCell className="border-0 py-3">Type</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Officer</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Value</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Amount Received</CTableHeaderCell>
@@ -214,6 +215,12 @@ const ProjectListPage = () => {
                         ⏳ {p.pending_approvals} pending approval
                       </CBadge>
                     )}
+                  </CTableDataCell>
+                  <CTableDataCell className="py-3">
+                    <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                  </CTableDataCell>
+                  <CTableDataCell className="py-3">
+                    <span className="text-body-secondary small">{p.project_type || '—'}</span>
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
                     {p.officer_name ? (
