@@ -23,11 +23,14 @@ const ProjectListPage = React.lazy(
 const ProjectFormPage = React.lazy(
   () => import('../modules/pms/project-associate/ProjectFormPage'),
 )
-const ProjectDetailPage = React.lazy(
+const PAProjectDetailPage = React.lazy(
   () => import('../modules/pms/project-associate/ProjectDetailPage'),
 )
 const ProjectOfficersPage = React.lazy(
   () => import('../modules/pms/project-associate/ProjectOfficersPage'),
+)
+const TeamOverviewPage = React.lazy(
+  () => import('../modules/pms/project-associate/TeamOverviewPage'),
 )
 
 // Daily Reports lazy-loaded components
@@ -68,6 +71,12 @@ export const pmsRoutes = [
     path: '/pms/pa/dashboard',
     name: 'PA Dashboard',
     element: ProjectAssociateDashboard,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/pa/team-overview',
+    name: 'Team Overview',
+    element: TeamOverviewPage,
     module: MODULE.PMS_PROJECTS,
   },
 

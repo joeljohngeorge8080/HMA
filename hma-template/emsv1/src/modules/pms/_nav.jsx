@@ -35,6 +35,7 @@ const pmsNav = [
       { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
       { component: CNavItem, name: 'Create Project', to: '/pms/projects/create' },
       { component: CNavItem, name: 'Project Officers', to: '/pms/project-teams/officers' },
+      { component: CNavItem, name: 'Team Overview', to: '/pms/pa/team-overview' },
     ],
   },
   {
