@@ -4,6 +4,8 @@ import { CContainer, CSpinner } from '@coreui/react'
 
 import { useRoutes } from '../contexts/RoutesContext'
 import ProtectedRoute from './ProtectedRoute'
+import useRole from '../hooks/useRole'
+import { ROLE } from '../constants/roles'
 
 /**
  * Converts an absolute route path to a relative one for use in nested <Routes>.
@@ -26,7 +28,19 @@ const toRelativePath = (path) => {
 const AppContent = () => {
   const routes = useRoutes()
   const { pathname } = useLocation()
-  const defaultDashboard = pathname.startsWith('/pms') ? '/pms/dashboard' : '/ems/dashboard'
+  const role = useRole()
+
+  // Role-aware default: PA and PO go to their dedicated dashboard,
+  // everyone else goes to the generic system dashboard.
+  const defaultDashboard = (() => {
+    if (pathname.startsWith('/pms')) {
+      if (role === ROLE.PROJECT_ASSOCIATE || role === ROLE.PROJECT_OFFICER) {
+        return '/pms/pa/dashboard'
+      }
+      return '/pms/dashboard'
+    }
+    return '/ems/dashboard'
+  })()
 
   return (
     <CContainer className="px-4" lg>

@@ -13,6 +13,7 @@ import {
   cilListRich,
   cilTransfer,
   cilUser,
+  cilBriefcase,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -22,6 +23,19 @@ const pmsNav = [
     name: 'Dashboard',
     to: '/pms/dashboard',
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+  },
+  // ── Project Associate section ──
+  {
+    component: CNavGroup,
+    name: 'Project Associate',
+    icon: <CIcon icon={cilBriefcase} customClassName="nav-icon" />,
+    badge: { color: 'primary', text: 'PA' },
+    items: [
+      { component: CNavItem, name: 'PA Dashboard', to: '/pms/pa/dashboard' },
+      { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
+      { component: CNavItem, name: 'Create Project', to: '/pms/projects/create' },
+      { component: CNavItem, name: 'Project Officers', to: '/pms/project-teams/officers' },
+    ],
   },
   {
     component: CNavGroup,

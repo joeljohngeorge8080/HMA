@@ -3,46 +3,61 @@ import { AppContent, AppSidebar, AppFooter, AppHeader } from '../components/inde
 import { RoutesContext } from '../contexts/RoutesContext'
 import pmsNav from '../modules/pms/_nav'
 import { pmsRoutes } from '../routes/pms.routes'
-import { CButton } from '@coreui/react'
+import { CButton, CBadge } from '@coreui/react'
+
+const ROLE_NAV_MAP = {
+  admin: (nav) => nav,
+  project_associate: (nav) =>
+    nav.filter(
+      (item) =>
+        item.name === 'Project Associate' ||
+        item.name === 'Switch to EMS' ||
+        item.name === 'Dashboard',
+    ),
+  field_personnel: (nav) =>
+    nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
+}
+
+const ROLES = [
+  { key: 'admin', label: 'Administrator', color: 'primary' },
+  { key: 'project_associate', label: 'Project Associate', color: 'success' },
+  { key: 'field_personnel', label: 'Field Personnel', color: 'warning' },
+]
 
 const PmsLayout = () => {
-  // Simple role toggle for demonstration
-  const [role, setRole] = useState('field_personnel')
+  const [role, setRole] = useState('project_associate')
+  const filterFn = ROLE_NAV_MAP[role] || ROLE_NAV_MAP.admin
+  const filteredNav = filterFn(pmsNav)
 
-  // Filter navigation based on role
-  const filteredNav = pmsNav.filter(item => {
-    if (role === 'field_personnel') {
-      // Field Personnel should only see their section and the switch to EMS option
-      return item.name === 'Field Personnel' || item.name === 'Switch to EMS'
-    }
-    return true // Admins see everything
-  })
   return (
     <RoutesContext.Provider value={pmsRoutes}>
       <div>
         <AppSidebar nav={filteredNav} />
         <div className="wrapper d-flex flex-column min-vh-100">
           <AppHeader />
-          {/* Demo Role Switcher (Can be removed in production) */}
-          <div className="bg-warning-subtle p-2 border-bottom d-flex justify-content-end align-items-center shadow-sm">
-            <span className="me-3 small fw-bold text-dark">Viewing As:</span>
-            <CButton 
-              size="sm" 
-              color={role === 'admin' ? 'primary' : 'secondary'} 
-              variant={role === 'admin' ? '' : 'outline'}
-              className="me-2"
-              onClick={() => setRole('admin')}
-            >
-              Administrator
-            </CButton>
-            <CButton 
-              size="sm" 
-              color={role === 'field_personnel' ? 'primary' : 'secondary'} 
-              variant={role === 'field_personnel' ? '' : 'outline'}
-              onClick={() => setRole('field_personnel')}
-            >
-              Field Personnel
-            </CButton>
+          {/* Demo Role Switcher */}
+          <div
+            className="p-2 border-bottom d-flex justify-content-end align-items-center gap-2 flex-wrap"
+            style={{ background: 'rgba(67,97,238,0.06)' }}
+          >
+            <span className="small fw-bold text-body-secondary me-1">Viewing As:</span>
+            {ROLES.map((r) => (
+              <CButton
+                key={r.key}
+                size="sm"
+                color={role === r.key ? r.color : 'secondary'}
+                variant={role === r.key ? '' : 'outline'}
+                onClick={() => setRole(r.key)}
+                className="d-flex align-items-center gap-1"
+              >
+                {r.label}
+                {role === r.key && (
+                  <CBadge color="light" className="text-dark ms-1" style={{ fontSize: '0.6rem' }}>
+                    Active
+                  </CBadge>
+                )}
+              </CButton>
+            ))}
           </div>
           <div className="body flex-grow-1">
             <AppContent />
