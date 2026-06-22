@@ -3,8 +3,8 @@
  * Follows the same pattern as localReports.js and localTasks.js.
  */
 
-const PROJECTS_KEY = 'hma_projects'
-const OFFICERS_KEY = 'hma_project_officers'
+const PROJECTS_KEY = 'hma_projects_v7'
+const OFFICERS_KEY = 'hma_project_officers_v5'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,8 @@ const DEMO_OFFICERS = [
 const DEMO_PROJECTS = [
   {
     id: 'proj_001',
+    project_code: 'RWS-W-001',
+    project_type: 'Other Public Health',
     name: 'Rural Water Supply Scheme — Wayanad',
     description:
       'Installation of drinking water pipelines and storage tanks across 12 tribal villages in Wayanad district.',
@@ -89,13 +91,16 @@ const DEMO_PROJECTS = [
     implementing_partner: 'Kerala Water Authority',
     location: 'Wayanad, Kerala',
     district: 'Wayanad',
-    status: 'active',
+    status: 'ongoing',
     phase: 'implementation',
     project_value: 4500000,
     amount_received: 2800000,
     amount_spent: 1950000,
+    expense_accounted: 1950000,
+    committed_expense: 380000,
     start_date: '2024-03-01',
     end_date: '2025-02-28',
+    beneficiaries_completed: 1200,
     officer_id: 'po_001',
     officer_name: 'Arjun Sharma',
     officer_email: 'arjun.sharma@hma.org',
@@ -105,9 +110,20 @@ const DEMO_PROJECTS = [
     tasks_count: 8,
     tasks_completed: 5,
     pending_approvals: 2,
+    milestones: [
+      { id: 'ms_1', title: 'Installment 1 (25%)', amount: 1125000, target_date: '2024-04-15', actual_date: '2024-04-10', uc_status: 'Approved' },
+      { id: 'ms_2', title: 'Installment 2 (50%)', amount: 2250000, target_date: '2024-09-15', actual_date: '2024-09-20', uc_status: 'Submitted' },
+      { id: 'ms_3', title: 'Installment 3 (25%)', amount: 1125000, target_date: '2025-02-15', actual_date: null, uc_status: 'Pending' },
+    ],
+    risks: [
+      { id: 'r_1', title: 'Delay in land acquisition for storage tanks', severity: 'High', status: 'Open' },
+      { id: 'r_2', title: 'Monsoon weather delaying pipeline laying', severity: 'Medium', status: 'Mitigated' }
+    ],
   },
   {
     id: 'proj_002',
+    project_code: 'SE-I-002',
+    project_type: 'Consultancy',
     name: 'Solar Electrification — Idukki Villages',
     description:
       'Solar panel installation and micro-grid setup for 6 remote villages in Idukki to provide 24/7 electricity.',
@@ -115,13 +131,16 @@ const DEMO_PROJECTS = [
     implementing_partner: 'KSEB',
     location: 'Idukki, Kerala',
     district: 'Idukki',
-    status: 'active',
+    status: 'ongoing',
     phase: 'design',
     project_value: 7200000,
     amount_received: 3600000,
     amount_spent: 890000,
+    expense_accounted: 890000,
+    committed_expense: 1200000,
     start_date: '2024-06-01',
     end_date: '2025-05-31',
+    beneficiaries_completed: 450,
     officer_id: 'po_002',
     officer_name: 'Priya Nair',
     officer_email: 'priya.nair@hma.org',
@@ -131,9 +150,19 @@ const DEMO_PROJECTS = [
     tasks_count: 6,
     tasks_completed: 1,
     pending_approvals: 1,
+    milestones: [
+      { id: 'ms_1', title: 'Installment 1 (40%)', amount: 2880000, target_date: '2024-07-01', actual_date: '2024-07-05', uc_status: 'Approved' },
+      { id: 'ms_2', title: 'Installment 2 (40%)', amount: 2880000, target_date: '2024-11-01', actual_date: null, uc_status: 'Pending' },
+      { id: 'ms_3', title: 'Installment 3 (20%)', amount: 1440000, target_date: '2025-04-01', actual_date: null, uc_status: 'Pending' },
+    ],
+    risks: [
+      { id: 'r_1', title: 'Vendor delay in solar panel delivery', severity: 'High', status: 'Open' }
+    ],
   },
   {
     id: 'proj_003',
+    project_code: 'LTC-M-003',
+    project_type: 'M-CUP',
     name: 'Livelihood Training Centre — Malappuram',
     description:
       'Construction and equipping of a vocational training centre for skill development of youth in Malappuram.',
@@ -141,13 +170,16 @@ const DEMO_PROJECTS = [
     implementing_partner: 'Kudumbashree',
     location: 'Malappuram, Kerala',
     district: 'Malappuram',
-    status: 'active',
+    status: 'ongoing',
     phase: 'implementation',
     project_value: 2800000,
     amount_received: 2800000,
     amount_spent: 2200000,
+    expense_accounted: 2200000,
+    committed_expense: 95000,
     start_date: '2023-09-01',
     end_date: '2024-08-31',
+    beneficiaries_completed: 300,
     officer_id: 'po_001',
     officer_name: 'Arjun Sharma',
     officer_email: 'arjun.sharma@hma.org',
@@ -157,9 +189,16 @@ const DEMO_PROJECTS = [
     tasks_count: 10,
     tasks_completed: 9,
     pending_approvals: 0,
+    milestones: [
+      { id: 'ms_1', title: 'Installment 1 (50%)', amount: 1400000, target_date: '2023-10-01', actual_date: '2023-10-05', uc_status: 'Approved' },
+      { id: 'ms_2', title: 'Installment 2 (50%)', amount: 1400000, target_date: '2024-03-01', actual_date: '2024-03-10', uc_status: 'Approved' },
+    ],
+    risks: [],
   },
   {
     id: 'proj_004',
+    project_code: 'CHP-T-004',
+    project_type: 'Other Public Health',
     name: 'Community Health Post — Thrissur',
     description:
       'Establishment of a primary health post with telemedicine facilities in underserved areas of Thrissur.',
@@ -172,8 +211,11 @@ const DEMO_PROJECTS = [
     project_value: 3100000,
     amount_received: 0,
     amount_spent: 0,
+    expense_accounted: 0,
+    committed_expense: 0,
     start_date: '2025-01-01',
     end_date: '2025-12-31',
+    beneficiaries_completed: 0,
     officer_id: 'po_004',
     officer_name: 'Kavitha Reddy',
     officer_email: 'k.reddy@hma.org',
@@ -183,9 +225,19 @@ const DEMO_PROJECTS = [
     tasks_count: 0,
     tasks_completed: 0,
     pending_approvals: 0,
+    milestones: [
+      { id: 'ms_1', title: 'Installment 1 (30%)', amount: 930000, target_date: '2025-02-01', actual_date: null, uc_status: 'Pending' },
+      { id: 'ms_2', title: 'Installment 2 (40%)', amount: 1240000, target_date: '2025-06-01', actual_date: null, uc_status: 'Pending' },
+      { id: 'ms_3', title: 'Installment 3 (30%)', amount: 930000, target_date: '2025-10-01', actual_date: null, uc_status: 'Pending' },
+    ],
+    risks: [
+      { id: 'r_1', title: 'Pending government approvals for location', severity: 'Medium', status: 'Open' }
+    ],
   },
   {
     id: 'proj_005',
+    project_code: 'OFC-P-005',
+    project_type: 'Consultancy',
     name: 'Organic Farming Collective — Palakkad',
     description:
       'Support for formation and capacity building of organic farming collectives in Palakkad district.',
@@ -198,8 +250,11 @@ const DEMO_PROJECTS = [
     project_value: 1500000,
     amount_received: 1500000,
     amount_spent: 1490000,
+    expense_accounted: 1490000,
+    committed_expense: 0,
     start_date: '2023-01-01',
     end_date: '2023-12-31',
+    beneficiaries_completed: 50,
     officer_id: null,
     officer_name: null,
     officer_email: null,
@@ -209,6 +264,8 @@ const DEMO_PROJECTS = [
     tasks_count: 12,
     tasks_completed: 12,
     pending_approvals: 0,
+    milestones: [],
+    risks: [],
   },
 ]
 
@@ -254,10 +311,15 @@ export const localProjects = {
       status: data.status || 'pipeline',
       phase: data.phase || 'pipeline',
       amount_spent: 0,
+      expense_accounted: data.expense_accounted || 0,
+      committed_expense: data.committed_expense || 0,
+      beneficiaries_completed: data.beneficiaries_completed || 0,
       tasks_count: 0,
       tasks_completed: 0,
       pending_approvals: 0,
       email_sent: false,
+      milestones: [],
+      risks: [],
       created_at: now(),
       updated_at: now(),
     }
@@ -318,13 +380,19 @@ export const localProjects = {
     const totalSpent = items.reduce((s, p) => s + (p.amount_spent || 0), 0)
     return {
       total: items.length,
-      active: items.filter((p) => p.status === 'active').length,
+      ongoing: items.filter((p) => p.status === 'ongoing').length,
+      approved: items.filter((p) => p.status === 'approved').length,
       pipeline: items.filter((p) => p.status === 'pipeline').length,
       completed: items.filter((p) => p.status === 'completed').length,
       pendingApprovals: items.reduce((s, p) => s + (p.pending_approvals || 0), 0),
       totalValue,
       totalReceived,
       totalSpent,
+      types: {
+        consultancy: items.filter((p) => p.project_type === 'Consultancy').length,
+        health: items.filter((p) => p.project_type === 'Other Public Health').length,
+        mcup: items.filter((p) => p.project_type === 'M-CUP').length,
+      },
     }
   },
 }

@@ -38,18 +38,16 @@ const fmt = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
 const STATUS_META = {
-  active: { label: 'Active', color: 'success' },
-  pipeline: { label: 'Pipeline', color: 'warning' },
-  completed: { label: 'Completed', color: 'secondary' },
-  on_hold: { label: 'On Hold', color: 'danger' },
+  pipeline: { label: 'Pipeline', color: 'secondary' },
+  approved: { label: 'Approved', color: 'info' },
+  ongoing: { label: 'Ongoing', color: 'primary' },
+  completed: { label: 'Completed', color: 'success' },
 }
 
 const PHASE_META = {
-  pipeline: { label: 'Pipeline', color: '#f0ad4e' },
-  design: { label: 'Design', color: '#5bc0de' },
-  implementation: { label: 'Implementation', color: '#337ab7' },
-  followup: { label: 'Follow-up', color: '#9b59b6' },
-  completed: { label: 'Completed', color: '#5cb85c' },
+  design_and_initiation:      { label: 'Design and Initiation',      color: '#5bc0de' },
+  implementation:             { label: 'Implementation',             color: '#337ab7' },
+  monitoring_and_evaluation:  { label: 'Monitoring and Evaluation',  color: '#06d6a0' },
 }
 
 const ProjectAssociateDashboard = () => {
@@ -70,33 +68,30 @@ const ProjectAssociateDashboard = () => {
 
   if (!stats) return null
 
-  const utilizationPct =
-    stats.totalReceived > 0 ? Math.round((stats.totalSpent / stats.totalReceived) * 100) : 0
-
   const kpiCards = [
     {
-      label: 'Total Projects',
-      value: stats.total,
+      label: 'Pipeline',
+      value: stats.pipeline,
       icon: cilFolder,
+      color: '#f0ad4e',
+      bg: 'rgba(240,173,78,0.08)',
+      sub: 'Awaiting approval',
+    },
+    {
+      label: 'Approved',
+      value: stats.approved,
+      icon: cilCheckCircle,
+      color: '#0dcaf0',
+      bg: 'rgba(13,202,240,0.08)',
+      sub: 'Ready to start',
+    },
+    {
+      label: 'Ongoing',
+      value: stats.ongoing,
+      icon: cilClock,
       color: '#4361ee',
       bg: 'rgba(67,97,238,0.08)',
-      sub: `${stats.active} active`,
-    },
-    {
-      label: 'Total Project Value',
-      value: fmt(stats.totalValue),
-      icon: cilCheckCircle,
-      color: '#2ec4b6',
-      bg: 'rgba(46,196,182,0.08)',
-      sub: `${fmt(stats.totalReceived)} received`,
-    },
-    {
-      label: 'Pending Approvals',
-      value: stats.pendingApprovals,
-      icon: cilBell,
-      color: '#f77f00',
-      bg: 'rgba(247,127,0,0.08)',
-      sub: 'Require your action',
+      sub: 'Currently active',
     },
     {
       label: 'Completed',
@@ -104,7 +99,7 @@ const ProjectAssociateDashboard = () => {
       icon: cilCheckCircle,
       color: '#06d6a0',
       bg: 'rgba(6,214,160,0.08)',
-      sub: `${stats.pipeline} in pipeline`,
+      sub: 'Successfully finished',
     },
   ]
 
@@ -179,37 +174,10 @@ const ProjectAssociateDashboard = () => {
       </CRow>
 
       <CRow className="g-4">
-        {/* Left: Fund Utilization + Phase Breakdown */}
+        {/* Left: Phase Breakdown */}
         <CCol xs={12} lg={4}>
           <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
-            <CCardHeader className="bg-transparent border-bottom-0 pt-3 pb-0">
-              <h6 className="fw-bold mb-0">Fund Utilization</h6>
-            </CCardHeader>
-            <CCardBody>
-              <div className="mb-3">
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="small text-body-secondary">Received vs Spent</span>
-                  <span className="small fw-semibold">{utilizationPct}%</span>
-                </div>
-                <CProgress
-                  value={utilizationPct}
-                  color={utilizationPct > 90 ? 'danger' : utilizationPct > 70 ? 'warning' : 'success'}
-                  height={10}
-                  className="rounded-pill"
-                />
-                <div className="d-flex justify-content-between mt-2">
-                  <div>
-                    <div className="small text-body-secondary">Total Received</div>
-                    <div className="fw-bold text-success small">{fmt(stats.totalReceived)}</div>
-                  </div>
-                  <div className="text-end">
-                    <div className="small text-body-secondary">Total Spent</div>
-                    <div className="fw-bold text-primary small">{fmt(stats.totalSpent)}</div>
-                  </div>
-                </div>
-              </div>
-
-              <hr />
+            <CCardBody className="pt-4">
               <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
                 Projects by Phase
               </h6>
@@ -227,6 +195,36 @@ const ProjectAssociateDashboard = () => {
                       height={5}
                       className="rounded-pill"
                       style={{ '--cui-progress-bar-bg': meta.color }}
+                    />
+                  </div>
+                )
+              })}
+            </CCardBody>
+          </CCard>
+
+          {/* Projects by Type */}
+          <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
+            <CCardBody className="pt-4">
+              <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
+                Projects by Type
+              </h6>
+              {[
+                { label: 'Consultancy', count: stats.types?.consultancy || 0, color: '#4361ee' },
+                { label: 'Other Public Health', count: stats.types?.health || 0, color: '#2ec4b6' },
+                { label: 'M-CUP', count: stats.types?.mcup || 0, color: '#f77f00' },
+              ].map((type) => {
+                const total = Math.max(stats.total, 1)
+                return (
+                  <div key={type.label} className="mb-2">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="small">{type.label}</span>
+                      <span className="small fw-semibold">{type.count}</span>
+                    </div>
+                    <CProgress
+                      value={(type.count / total) * 100}
+                      height={5}
+                      className="rounded-pill"
+                      style={{ '--cui-progress-bar-bg': type.color }}
                     />
                   </div>
                 )
@@ -303,6 +301,8 @@ const ProjectAssociateDashboard = () => {
                 <CTableHead className="bg-body-tertiary">
                   <CTableRow>
                     <CTableHeaderCell className="border-0 py-3 ps-4">Project</CTableHeaderCell>
+                    <CTableHeaderCell className="border-0 py-3">Code</CTableHeaderCell>
+                    <CTableHeaderCell className="border-0 py-3">Type</CTableHeaderCell>
                     <CTableHeaderCell className="border-0 py-3">Officer</CTableHeaderCell>
                     <CTableHeaderCell className="border-0 py-3">Value</CTableHeaderCell>
                     <CTableHeaderCell className="border-0 py-3">Progress</CTableHeaderCell>
@@ -336,6 +336,12 @@ const ProjectAssociateDashboard = () => {
                               {p.pending_approvals} pending
                             </CBadge>
                           )}
+                        </CTableDataCell>
+                        <CTableDataCell className="py-3">
+                          <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                        </CTableDataCell>
+                        <CTableDataCell className="py-3">
+                          <span className="text-body-secondary small">{p.project_type || '—'}</span>
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
                           {p.officer_name ? (

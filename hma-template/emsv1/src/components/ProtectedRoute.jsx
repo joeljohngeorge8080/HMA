@@ -4,10 +4,25 @@ import { Navigate, useLocation } from 'react-router-dom'
 
 import useAuth from '../hooks/useAuth'
 import usePermission from '../hooks/usePermission'
+import useRole from '../hooks/useRole'
+import { ROLE } from '../constants/roles'
+
+/**
+ * Returns the appropriate dashboard fallback for a given role.
+ * Project Associate and Project Officer have dedicated dashboards
+ * instead of the generic /pms/dashboard placeholder.
+ */
+const getPmsFallback = (role) => {
+  if (role === ROLE.PROJECT_ASSOCIATE || role === ROLE.PROJECT_OFFICER) {
+    return '/pms/pa/dashboard'
+  }
+  return '/pms/dashboard'
+}
 
 const ProtectedRoute = ({ module, action, children }) => {
   const { isAuthenticated } = useAuth()
   const allowed = usePermission(module, action)
+  const role = useRole()
   const location = useLocation()
 
   if (!isAuthenticated) {
@@ -15,7 +30,9 @@ const ProtectedRoute = ({ module, action, children }) => {
   }
 
   if (!allowed) {
-    const fallback = location.pathname.startsWith('/pms') ? '/pms/dashboard' : '/ems/dashboard'
+    const fallback = location.pathname.startsWith('/pms')
+      ? getPmsFallback(role)
+      : '/ems/dashboard'
     return <Navigate to={fallback} replace />
   }
 

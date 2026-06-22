@@ -140,11 +140,14 @@ const Login = () => {
                           variant="outline"
                           size="sm"
                           type="button"
-                          onClick={() => {
+                        onClick={() => {
+                            const devToken = `dev-token-${id}`
+                            localStorage.setItem('hma_token', devToken)
+                            localStorage.setItem('hma_dev_user', JSON.stringify({ employee_id: id, full_name: name, role }))
                             dispatch({
                               type: 'set',
                               user: { employee_id: id, full_name: name, role },
-                              token: `dev-token-${id}`,
+                              token: devToken,
                             })
                             navigate(redirect || '/select-system')
                           }}
