@@ -1,5 +1,5 @@
-/**
- * ProjectDetailPage.jsx — Full project detail view for Project Associate.
+﻿/**
+ * ProjectDetailPage.jsx ΓÇö Full project detail view for Project Associate.
  * Route: /pms/projects/:id
  */
 import React, { useState, useEffect } from 'react'
@@ -58,7 +58,7 @@ const fmt = (n) =>
   }).format(n || 0)
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'ΓÇö'
 
 const STATUS_META = {
   pipeline: { label: 'Pipeline', color: 'secondary' },
@@ -72,7 +72,7 @@ const DEMO_APPROVALS = [
   {
     id: 'apr_1',
     type: 'Procurement',
-    title: 'Purchase of 50 PVC pipes — 6 inch',
+    title: 'Purchase of 50 PVC pipes ΓÇö 6 inch',
     submittedBy: 'Arjun Sharma',
     submittedAt: '2024-12-10',
     amount: 48500,
@@ -81,7 +81,7 @@ const DEMO_APPROVALS = [
   {
     id: 'apr_2',
     type: 'Task Expense',
-    title: 'Labour charges — Pipeline excavation (Week 2)',
+    title: 'Labour charges ΓÇö Pipeline excavation (Week 2)',
     submittedBy: 'Arjun Sharma',
     submittedAt: '2024-12-08',
     amount: 32000,
@@ -93,9 +93,9 @@ const DEMO_TASKS = [
   { title: 'Site survey & soil testing', status: 'completed', assignee: 'Field Team A', target_date: '2024-04-01', actual_date: '2024-04-05' },
   { title: 'Pipeline route mapping', status: 'completed', assignee: 'Arjun Sharma', target_date: '2024-04-15', actual_date: '2024-04-12' },
   { title: 'Procurement of pipes & fittings', status: 'completed', assignee: 'Procurement Team', target_date: '2024-05-10', actual_date: '2024-05-10' },
-  { title: 'Excavation — Phase 1 (Villages 1–4)', status: 'completed', assignee: 'Field Team A', target_date: '2024-06-01', actual_date: '2024-06-15' },
-  { title: 'Excavation — Phase 2 (Villages 5–8)', status: 'completed', assignee: 'Field Team B', target_date: '2024-07-15', actual_date: '2024-07-10' },
-  { title: 'Pipeline laying — Phase 1', status: 'active', assignee: 'Field Team A', target_date: '2024-09-01', actual_date: null },
+  { title: 'Excavation ΓÇö Phase 1 (Villages 1ΓÇô4)', status: 'completed', assignee: 'Field Team A', target_date: '2024-06-01', actual_date: '2024-06-15' },
+  { title: 'Excavation ΓÇö Phase 2 (Villages 5ΓÇô8)', status: 'completed', assignee: 'Field Team B', target_date: '2024-07-15', actual_date: '2024-07-10' },
+  { title: 'Pipeline laying ΓÇö Phase 1', status: 'active', assignee: 'Field Team A', target_date: '2024-09-01', actual_date: null },
   { title: 'Storage tank construction', status: 'active', assignee: 'Civil Contractor', target_date: '2024-10-01', actual_date: null },
   { title: 'Final commissioning & testing', status: 'active', assignee: 'Arjun Sharma', target_date: '2025-01-15', actual_date: null },
 ]
@@ -124,7 +124,7 @@ const ProjectDetailPage = () => {
   if (!project) {
     return (
       <CContainer lg className="py-4 text-center">
-        <div style={{ fontSize: '4rem' }}>🔍</div>
+        <div style={{ fontSize: '4rem' }}>≡ƒöì</div>
         <h5 className="text-body-secondary">Project not found</h5>
         <CButton color="primary" variant="outline" onClick={() => navigate('/pms/projects')}>
           Back to Projects
@@ -146,13 +146,13 @@ const ProjectDetailPage = () => {
   const handleApprove = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'approved' } : a)))
     setApproveModal({ visible: false, item: null })
-    setToast({ color: 'success', message: '✅ Approval granted successfully' })
+    setToast({ color: 'success', message: 'Γ£à Approval granted successfully' })
   }
 
   const handleReject = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'rejected' } : a)))
     setRejectModal({ visible: false, item: null })
-    setToast({ color: 'danger', message: '⚠️ Request rejected and sent back' })
+    setToast({ color: 'danger', message: 'ΓÜá∩╕Å Request rejected and sent back' })
   }
 
   const handleSubmitUc = (milestone) => {
@@ -165,7 +165,7 @@ const ProjectDetailPage = () => {
     setProject(updatedProject)
     localProjects.update(project.id, { milestones: updatedMilestones })
     setUcModal({ visible: false, milestone: null })
-    setToast({ color: 'success', message: '✅ Utilisation Certificate submitted successfully' })
+    setToast({ color: 'success', message: 'Γ£à Utilisation Certificate submitted successfully' })
   }
 
   return (
@@ -188,7 +188,7 @@ const ProjectDetailPage = () => {
         style={{ background: 'linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%)' }}
       >
         <div className="position-absolute end-0 top-0 opacity-10" style={{ fontSize: '8rem', lineHeight: 1 }}>
-          🏗️
+          ≡ƒÅù∩╕Å
         </div>
         <div className="position-relative d-flex flex-wrap justify-content-between align-items-start gap-3">
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -206,7 +206,7 @@ const ProjectDetailPage = () => {
               <span><CIcon icon={cilBuilding} className="me-1" />{project.funding_agency}</span>
               <span>
                 <CIcon icon={cilCalendar} className="me-1" />
-                {fmtDate(project.start_date)} → {fmtDate(project.end_date)}
+                {fmtDate(project.start_date)} ΓåÆ {fmtDate(project.end_date)}
               </span>
             </div>
           </div>
@@ -331,7 +331,7 @@ const ProjectDetailPage = () => {
                     >
                       {(() => {
                         const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
-                        return bal >= 0 ? '✓' : '!'
+                        return bal >= 0 ? 'Γ£ô' : '!'
                       })()}
                     </CBadge>
                   )}
@@ -362,7 +362,7 @@ const ProjectDetailPage = () => {
                       ].map((row, i) => (
                         <div key={i} className="d-flex justify-content-between py-2 border-bottom small">
                           <span className="text-body-secondary">{row.label}</span>
-                          <span className="fw-medium">{row.value || '—'}</span>
+                          <span className="fw-medium">{row.value || 'ΓÇö'}</span>
                         </div>
                       ))}
                     </CCardBody>
@@ -468,7 +468,7 @@ const ProjectDetailPage = () => {
                     }}
                     className="fw-semibold"
                   >
-                    Assign one now →
+                    Assign one now ΓåÆ
                   </a>
                 </CAlert>
               )}
@@ -568,7 +568,7 @@ const ProjectDetailPage = () => {
                                 Target: <span className="fw-medium text-body">{fmtDate(task.target_date)}</span>
                               </CCol>
                               <CCol xs={6} sm={4}>
-                                Actual: <span className="fw-medium text-body">{task.actual_date ? fmtDate(task.actual_date) : '—'}</span>
+                                Actual: <span className="fw-medium text-body">{task.actual_date ? fmtDate(task.actual_date) : 'ΓÇö'}</span>
                               </CCol>
                             </CRow>
                           </div>
@@ -591,7 +591,7 @@ const ProjectDetailPage = () => {
             <CTabPane visible={activeTab === 3}>
               {approvals.length === 0 ? (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>✅</div>
+                  <div style={{ fontSize: '3rem' }}>Γ£à</div>
                   <h6>No pending approvals</h6>
                   <p className="small">All submissions are reviewed</p>
                 </div>
@@ -629,7 +629,7 @@ const ProjectDetailPage = () => {
                             </div>
                             <h6 className="fw-semibold mb-1">{item.title}</h6>
                             <div className="text-body-secondary small">
-                              Submitted by {item.submittedBy} · {item.submittedAt}
+                              Submitted by {item.submittedBy} ┬╖ {item.submittedAt}
                             </div>
                           </div>
                           <div className="text-end">
@@ -675,7 +675,7 @@ const ProjectDetailPage = () => {
                     sub: 'Total sanctioned amount',
                     color: '#4361ee',
                     bg: 'rgba(67,97,238,0.07)',
-                    icon: '📋',
+                    icon: '≡ƒôï',
                   },
                   {
                     label: 'Expense Accounted',
@@ -683,7 +683,7 @@ const ProjectDetailPage = () => {
                     sub: `${project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}% of project value`,
                     color: '#f77f00',
                     bg: 'rgba(247,127,0,0.07)',
-                    icon: '📤',
+                    icon: '≡ƒôñ',
                   },
                   {
                     label: 'Committed Expense',
@@ -691,7 +691,7 @@ const ProjectDetailPage = () => {
                     sub: 'Approved but not yet paid',
                     color: '#7209b7',
                     bg: 'rgba(114,9,183,0.07)',
-                    icon: '🔒',
+                    icon: '≡ƒöÆ',
                   },
                   (() => {
                     const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
@@ -701,7 +701,7 @@ const ProjectDetailPage = () => {
                       sub: 'Available after committed expenses',
                       color: bal >= 0 ? '#06d6a0' : '#e74c3c',
                       bg: bal >= 0 ? 'rgba(6,214,160,0.07)' : 'rgba(231,76,60,0.07)',
-                      icon: bal >= 0 ? '✅' : '⚠️',
+                      icon: bal >= 0 ? 'Γ£à' : 'ΓÜá∩╕Å',
                     }
                   })(),
                 ].map((kpi, i) => (
@@ -845,7 +845,7 @@ const ProjectDetailPage = () => {
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                   }}
                                 >
-                                  {ms.uc_status === 'Approved' ? '✓' : i + 1}
+                                  {ms.uc_status === 'Approved' ? 'Γ£ô' : i + 1}
                                 </div>
                                 
                                 {/* Content Card */}
@@ -871,7 +871,7 @@ const ProjectDetailPage = () => {
                                       </CCol>
                                       <CCol xs={6}>
                                         <div><CIcon icon={cilFolder} className="me-1" /> Actual Date</div>
-                                        <div className="fw-medium text-body">{ms.actual_date ? fmtDate(ms.actual_date) : '—'}</div>
+                                        <div className="fw-medium text-body">{ms.actual_date ? fmtDate(ms.actual_date) : 'ΓÇö'}</div>
                                       </CCol>
                                     </CRow>
                                     
@@ -993,7 +993,7 @@ const ProjectDetailPage = () => {
         <CModalBody>
           <div className="mb-3">
             <label className="form-label small text-body-secondary">Installment</label>
-            <div className="fw-medium">{ucModal.milestone?.title} — {fmt(ucModal.milestone?.amount)}</div>
+            <div className="fw-medium">{ucModal.milestone?.title} ΓÇö {fmt(ucModal.milestone?.amount)}</div>
           </div>
           <div className="mb-3">
             <label className="form-label small text-body-secondary">Upload UC Document (PDF)</label>

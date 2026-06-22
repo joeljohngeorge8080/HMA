@@ -1,5 +1,5 @@
-/**
- * ProjectOfficersPage.jsx — Manage project officers (Project Associate view).
+﻿/**
+ * ProjectOfficersPage.jsx ΓÇö Manage project officers (Project Associate view).
  * Route: /pms/project-teams/officers
  * PA is superior: can add, edit, activate/deactivate any officer.
  */
@@ -66,7 +66,7 @@ const DESIGNATIONS = [
   'Assistant Project Officer',
 ]
 
-// ─── Reusable officer form (used by both Add and Edit modals) ─────────────────
+// ΓöÇΓöÇΓöÇ Reusable officer form (used by both Add and Edit modals) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const OfficerForm = ({ form, setField, formErrors }) => (
   <CForm>
     <CRow className="g-3">
@@ -128,7 +128,7 @@ const OfficerForm = ({ form, setField, formErrors }) => (
   </CForm>
 )
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Main page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const ProjectOfficersPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -154,7 +154,7 @@ const ProjectOfficersPage = () => {
   const [expandedId, setExpandedId] = useState(null)
   const [officerProjects, setOfficerProjects] = useState({})
 
-  // ── Load ────────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Load ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const load = useCallback(() => {
     localProjects.seedDemoData()
     const result = localOfficers.list(filters)
@@ -164,7 +164,7 @@ const ProjectOfficersPage = () => {
 
   useEffect(() => { load() }, [load])
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const handleFilterChange = (field, value) =>
     setFilters((prev) => ({ ...prev, [field]: value }))
 
@@ -180,7 +180,7 @@ const ProjectOfficersPage = () => {
     return Object.keys(e).length === 0
   }
 
-  // ── Add officer ──────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Add officer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const openAdd = () => {
     setAddForm(EMPTY_FORM)
     setAddErrors({})
@@ -192,16 +192,16 @@ const ProjectOfficersPage = () => {
     setAddSaving(true)
     try {
       localOfficers.create(addForm)
-      setToast({ color: 'success', message: '✅ Officer added. Invite email sent via AWS SES.' })
+      setToast({ color: 'success', message: 'Γ£à Officer added. Invite email sent via AWS SES.' })
       setAddVisible(false)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: `Γ¥î ${err.message}` })
     }
     setAddSaving(false)
   }
 
-  // ── Edit officer ─────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Edit officer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const openEdit = (officer, e) => {
     e?.stopPropagation()
     setEditTarget(officer)
@@ -220,17 +220,17 @@ const ProjectOfficersPage = () => {
     setEditSaving(true)
     try {
       localOfficers.update(editTarget.id, editForm)
-      setToast({ color: 'success', message: '✅ Officer details updated.' })
+      setToast({ color: 'success', message: 'Γ£à Officer details updated.' })
       setEditVisible(false)
       setEditTarget(null)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: `Γ¥î ${err.message}` })
     }
     setEditSaving(false)
   }
 
-  // ── Toggle status ────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Toggle status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const toggleStatus = (officer, e) => {
     e?.stopPropagation()
     const next = officer.status === 'active' ? 'inactive' : 'active'
@@ -239,7 +239,7 @@ const ProjectOfficersPage = () => {
     load()
   }
 
-  // ── Expand row ───────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Expand row ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const toggleExpand = (officerId) => {
     if (expandedId === officerId) { setExpandedId(null); return }
     setExpandedId(officerId)
@@ -251,7 +251,7 @@ const ProjectOfficersPage = () => {
     }
   }
 
-  // ── Stats ────────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const activeCount = officers.filter((o) => o.status === 'active').length
   const inactiveCount = officers.filter((o) => o.status === 'inactive').length
   const totalAssignments = officers.reduce((s, o) => s + o.projects_assigned.length, 0)
@@ -278,14 +278,14 @@ const ProjectOfficersPage = () => {
             </CBadge>
           </div>
           <div className="opacity-75 small">
-            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong> — you can view, add and edit Project Officers
+            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong> ΓÇö you can view, add and edit Project Officers
           </div>
         </div>
         <div
           className="small opacity-75 d-none d-md-flex align-items-center gap-1 px-3 py-1 rounded-pill"
           style={{ background: 'rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}
         >
-          Admin &nbsp;›&nbsp; <strong>Project Associate</strong> &nbsp;›&nbsp; Project Officer &nbsp;›&nbsp; Field Personnel
+          Admin &nbsp;ΓÇ║&nbsp; <strong>Project Associate</strong> &nbsp;ΓÇ║&nbsp; Project Officer &nbsp;ΓÇ║&nbsp; Field Personnel
         </div>
       </div>
 
@@ -294,7 +294,7 @@ const ProjectOfficersPage = () => {
         <div>
           <h4 className="fw-bold mb-1">Project Officers</h4>
           <p className="text-body-secondary small mb-0">
-            {total} officer{total !== 1 ? 's' : ''} · {totalAssignments} total project assignments
+            {total} officer{total !== 1 ? 's' : ''} ┬╖ {totalAssignments} total project assignments
           </p>
         </div>
         <CButton color="primary" className="shadow-sm" onClick={openAdd}>
@@ -414,7 +414,7 @@ const ProjectOfficersPage = () => {
 
                   {/* Designation */}
                   <CTableDataCell className="py-3">
-                    <span className="fw-medium">{officer.designation || '—'}</span>
+                    <span className="fw-medium">{officer.designation || 'ΓÇö'}</span>
                   </CTableDataCell>
 
                   {/* Projects count */}
@@ -450,7 +450,7 @@ const ProjectOfficersPage = () => {
 
                   {/* Actions */}
                   <CTableDataCell className="py-3 pe-4 text-end">
-                    {/* Direct edit button — PA privilege */}
+                    {/* Direct edit button ΓÇö PA privilege */}
                     <CButton
                       color="success"
                       variant="outline"
@@ -536,7 +536,7 @@ const ProjectOfficersPage = () => {
 
         {officers.length === 0 && (
           <div className="text-center py-5">
-            <div style={{ fontSize: '3.5rem' }} className="mb-2">👥</div>
+            <div style={{ fontSize: '3.5rem' }} className="mb-2">≡ƒæÑ</div>
             <h5 className="text-body-secondary">No officers found</h5>
             <p className="text-body-tertiary">
               {filters.search || filters.status ? 'Try adjusting filters' : 'Add your first project officer to get started'}
@@ -551,7 +551,7 @@ const ProjectOfficersPage = () => {
         )}
       </CCard>
 
-      {/* ── Add Officer Modal ──────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Add Officer Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <CModal visible={addVisible} onClose={() => setAddVisible(false)} alignment="center" size="md">
         <CModalHeader>
           <CModalTitle>
@@ -585,7 +585,7 @@ const ProjectOfficersPage = () => {
         </CModalFooter>
       </CModal>
 
-      {/* ── Edit Officer Modal ─────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Edit Officer Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <CModal
         visible={editVisible}
         onClose={() => { setEditVisible(false); setEditTarget(null) }}
@@ -595,7 +595,7 @@ const ProjectOfficersPage = () => {
         <CModalHeader>
           <CModalTitle>
             <CIcon icon={cilPen} className="me-2 text-success" />
-            Edit Officer — {editTarget?.name}
+            Edit Officer ΓÇö {editTarget?.name}
           </CModalTitle>
         </CModalHeader>
         <CModalBody>
@@ -606,7 +606,7 @@ const ProjectOfficersPage = () => {
           >
             <CIcon icon={cilShieldAlt} />
             <div>
-              You have <strong>Project Associate</strong> privileges — you can edit this officer's details.
+              You have <strong>Project Associate</strong> privileges ΓÇö you can edit this officer's details.
             </div>
           </div>
           <OfficerForm

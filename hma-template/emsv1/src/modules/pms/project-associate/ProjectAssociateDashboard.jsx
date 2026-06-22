@@ -1,5 +1,5 @@
-/**
- * ProjectAssociateDashboard.jsx — Project Associate main dashboard.
+﻿/**
+ * ProjectAssociateDashboard.jsx ΓÇö Project Associate main dashboard.
  * Route: /pms/pa/dashboard
  */
 import React, { useState, useEffect, useCallback } from 'react'
@@ -117,7 +117,7 @@ const ProjectAssociateDashboard = () => {
           className="position-absolute top-0 end-0 opacity-10"
           style={{ fontSize: '8rem', lineHeight: 1, marginTop: '-1rem' }}
         >
-          🏗️
+          ≡ƒÅù∩╕Å
         </div>
         <div className="position-relative">
           <h3 className="fw-bold mb-1">Project Associate Dashboard</h3>
@@ -338,10 +338,10 @@ const ProjectAssociateDashboard = () => {
                           )}
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
-                          <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                          <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || 'ΓÇö'}</span>
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
-                          <span className="text-body-secondary small">{p.project_type || '—'}</span>
+                          <span className="text-body-secondary small">{p.project_type || 'ΓÇö'}</span>
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
                           {p.officer_name ? (
@@ -353,7 +353,7 @@ const ProjectAssociateDashboard = () => {
                                   style={{ fontSize: '0.7rem' }}
                                   title="Email sent via SES"
                                 >
-                                  ✉️ Invited
+                                  Γ£ë∩╕Å Invited
                                 </span>
                               )}
                             </div>
@@ -403,7 +403,7 @@ const ProjectAssociateDashboard = () => {
               </CTable>
               {recentProjects.length === 0 && (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>📁</div>
+                  <div style={{ fontSize: '3rem' }}>≡ƒôü</div>
                   <div>No projects yet</div>
                 </div>
               )}
