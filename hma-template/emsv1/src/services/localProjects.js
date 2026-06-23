@@ -3,8 +3,8 @@
  * Merged version supporting both Project Associate and Project Officer flows.
  */
 
-const PROJECTS_KEY = 'hma_projects_v7'
-const OFFICERS_KEY = 'hma_project_officers_v5'
+const PROJECTS_KEY = 'hma_projects_v8'
+const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
