@@ -8,6 +8,7 @@ import {
   cilFile,
   cilPeople,
   cilLocationPin,
+  cilCash,
   cilChartPie,
   cilBuilding,
   cilListRich,
@@ -70,6 +71,18 @@ const pmsNav = [
       { component: CNavItem, name: 'Expense History', to: '/pms/project-expenses/history' },
       { component: CNavItem, name: 'Analysis', to: '/pms/project-expenses/analysis' },
       { component: CNavItem, name: 'Documents', to: '/pms/project-expenses/documents' },
+    ],
+  },
+  {
+    component: CNavGroup,
+    name: 'General Expenses',
+    icon: <CIcon icon={cilCash} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'Overview', to: '/ems/general-expenses' },
+      { component: CNavItem, name: 'Add Expense', to: '/ems/general-expenses/new' },
+      { component: CNavItem, name: 'Categories', to: '/ems/general-expenses/categories' },
+      { component: CNavItem, name: 'Upload Excel', to: '/ems/general-expenses/upload' },
+      { component: CNavItem, name: 'Analysis', to: '/ems/general-expenses/analysis' },
     ],
   },
   {

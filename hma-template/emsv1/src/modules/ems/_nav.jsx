@@ -6,9 +6,12 @@ import {
   cilCalendar,
   cilMoney,
   cilDollar,
+  cilCash,
   cilChartPie,
   cilListRich,
   cilTransfer,
+  cilCloudUpload,
+  cilTags,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -47,6 +50,19 @@ const emsNav = [
     to: '/ems/expense-management',
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
+  },
+  {
+    component: CNavGroup,
+    name: 'General Expenses',
+    icon: <CIcon icon={cilCash} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+    items: [
+      { component: CNavItem, name: 'Overview', to: '/ems/general-expenses' },
+      { component: CNavItem, name: 'Add Expense', to: '/ems/general-expenses/new' },
+      { component: CNavItem, name: 'Categories', to: '/ems/general-expenses/categories', icon: <CIcon icon={cilTags} customClassName="nav-icon" /> },
+      { component: CNavItem, name: 'Upload Excel', to: '/ems/general-expenses/upload', icon: <CIcon icon={cilCloudUpload} customClassName="nav-icon" /> },
+      { component: CNavItem, name: 'Analysis', to: '/ems/general-expenses/analysis', icon: <CIcon icon={cilChartPie} customClassName="nav-icon" /> },
+    ],
   },
   {
     component: CNavItem,
