@@ -30,7 +30,7 @@ const ROLES = [
 ]
 
 const PmsLayout = () => {
-  const [role, setRole] = useState('project_officer')
+  const [role, setRole] = useState('admin')
   const filterFn = ROLE_NAV_MAP[role] || ROLE_NAV_MAP.admin
   const filteredNav = filterFn(pmsNav)
 
