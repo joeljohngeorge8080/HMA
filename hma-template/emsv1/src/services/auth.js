@@ -1,25 +1,31 @@
 import api from './api'
 
 const DEV_USERS = {
-  DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO', role: 'CEO' },
-  DEV002: { employee_id: 'DEV002', full_name: 'Dev Head', role: 'Heads' },
-  DEV003: { employee_id: 'DEV003', full_name: 'Dev HR', role: 'HR' },
-  DEV004: { employee_id: 'DEV004', full_name: 'Dev Finance', role: 'Finance' },
-  DEV005: { employee_id: 'DEV005', full_name: 'Dev Project Officer', role: 'Project Officer' },
+  DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO',             role: 'CEO',            google_email: 'ceo@hma.dev' },
+  DEV002: { employee_id: 'DEV002', full_name: 'Dev Head',            role: 'Heads',          google_email: 'head@hma.dev' },
+  DEV003: { employee_id: 'DEV003', full_name: 'Dev HR',              role: 'HR',             google_email: 'hr@hma.dev' },
+  DEV004: { employee_id: 'DEV004', full_name: 'Dev Finance',         role: 'Finance',        google_email: 'finance@hma.dev' },
+  DEV005: { employee_id: 'DEV005', full_name: 'Dev Project Officer', role: 'Project Officer',google_email: 'po@hma.dev' },
 }
 
 const isDevMode = () => import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'
 
-export const loginApi = (employee_id, password) => {
-  if (isDevMode() && DEV_USERS[employee_id] && password === 'dev') {
-    return Promise.resolve({
-      data: {
-        access_token: `dev-token-${employee_id}`,
-        user: DEV_USERS[employee_id],
-      },
-    })
+/**
+ * Called after Google returns a credential (ID token).
+ * In production, sends the token to the backend for verification.
+ * In dev mode, bypasses Google entirely and returns a fake session.
+ */
+export const loginWithGoogle = (credential) => {
+  if (isDevMode() && credential?.startsWith('dev-bypass-')) {
+    const roleKey = credential.replace('dev-bypass-', '')
+    const user = DEV_USERS[roleKey]
+    if (user) {
+      return Promise.resolve({
+        data: { access_token: `dev-token-${roleKey}`, user },
+      })
+    }
   }
-  return api.post('/auth/login', { employee_id, password })
+  return api.post('/auth/google', { credential })
 }
 
 export const getMeApi = () => {

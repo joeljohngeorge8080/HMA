@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import employees
+from app.routers import auth, employees
 
 app = FastAPI(
     title='HMA IEMS API',
@@ -19,6 +19,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+app.include_router(auth.router)
 app.include_router(employees.router)
 
 
