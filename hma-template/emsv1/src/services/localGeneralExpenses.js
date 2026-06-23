@@ -24,24 +24,97 @@ const read = (key) => {
 }
 const write = (key, data) => localStorage.setItem(key, JSON.stringify(data))
 
+// Fixed UUIDs so expense seed rows can reference them reliably
+const CAT_IDS = {
+  HOUSE_RENT:       'cat-00000000-0001',
+  INTERNET:         'cat-00000000-0002',
+  ELECTRICITY:      'cat-00000000-0003',
+  WATER_BILL:       'cat-00000000-0004',
+  STATIONERY:       'cat-00000000-0005',
+  SOFTWARE:         'cat-00000000-0006',
+  AMC:              'cat-00000000-0007',
+  MAINTENANCE:      'cat-00000000-0008',
+  TELEPHONE:        'cat-00000000-0009',
+  IMPREST:          'cat-00000000-0010',
+  MISCELLANEOUS:    'cat-00000000-0011',
+  OUTSOURCED_SVC:   'cat-00000000-0012',
+}
+
+const SEED_TS = '2025-09-01T00:00:00.000Z'
+
 const DEFAULT_CATEGORIES = [
-  { id: uid(), name: 'House Rent', description: 'Office space rent', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Internet', description: 'Broadband and mobile data', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Electricity', description: 'Electricity bills', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Water Bill', description: 'Water utility', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Stationery', description: 'Office supplies', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Software Licenses', description: 'Software subscriptions', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'AMC', description: 'Annual maintenance contracts', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Maintenance', description: 'General maintenance', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Telephone', description: 'Phone bills', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Imprest', description: 'Petty cash imprest', is_active: true, created_at: now(), updated_at: now() },
-  { id: uid(), name: 'Miscellaneous', description: 'Other expenses', is_active: true, created_at: now(), updated_at: now() },
+  { id: CAT_IDS.HOUSE_RENT,     name: 'House Rent',          description: 'Office space rent',               is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.INTERNET,       name: 'Internet',            description: 'Broadband and data services',     is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.ELECTRICITY,    name: 'Electricity',         description: 'Electricity bills (KSEB)',        is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.WATER_BILL,     name: 'Water Bill',          description: 'Water utility (KWA)',             is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.STATIONERY,     name: 'Stationery',          description: 'Office supplies',                 is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.SOFTWARE,       name: 'Software Licenses',   description: 'Software subscriptions and AMC',  is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.AMC,            name: 'AMC',                 description: 'Annual maintenance contracts',    is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.MAINTENANCE,    name: 'Maintenance',         description: 'Repairs and maintenance',         is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.TELEPHONE,      name: 'Telephone',           description: 'Landline and communication',      is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.IMPREST,        name: 'Imprest',             description: 'Petty cash imprest',             is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.MISCELLANEOUS,  name: 'Miscellaneous',       description: 'Other administrative expenses',  is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+  { id: CAT_IDS.OUTSOURCED_SVC, name: 'Outsourced Services', description: 'HK, security, and city salaries',is_active: true, created_at: SEED_TS, updated_at: SEED_TS },
+]
+
+// September 2025 Admin Expenses — sourced from EXPENSE MASTER SHEET
+const _makeExp = (catId, name, freq, planned, actual, remarks) => {
+  const p = parseFloat(planned) || 0
+  const a = actual !== null && actual !== undefined ? parseFloat(actual) : 0
+  const hasActual = actual !== null && actual !== undefined
+  return {
+    id: uid(),
+    category_id: catId,
+    expense_name: name,
+    month: 9,
+    year: 2025,
+    frequency: freq,
+    planned_amount: parseFloat(p.toFixed(2)),
+    actual_amount: parseFloat(a.toFixed(2)),
+    variance: parseFloat((a - p).toFixed(2)),
+    status: hasActual && a > 0 ? 'Paid' : 'Pending',
+    remarks: remarks || null,
+    upload_id: null,
+    created_at: SEED_TS,
+    updated_at: SEED_TS,
+  }
+}
+
+const DEFAULT_EXPENSES = [
+  _makeExp(CAT_IDS.MAINTENANCE,    'Contract Vehicle',                    'Monthly',   43661,       46000,    'Vendor: Manjith Travels'),
+  _makeExp(CAT_IDS.AMC,            'Photocopier SDP',                     'Monthly',   7000,        4720,     'Vendor: Oval Blue Technologies'),
+  _makeExp(CAT_IDS.AMC,            'Desktop Rental',                      'Monthly',   57652,       57652,    'Vendor: Volks Electronics'),
+  _makeExp(CAT_IDS.INTERNET,       'Internet Services',                   'Quarterly', 4720,        5306.46,  'Vendor: Asianet'),
+  _makeExp(CAT_IDS.STATIONERY,     'Stationery',                          'Monthly',   16667,       9524,     null),
+  _makeExp(CAT_IDS.HOUSE_RENT,     'House Rent',                          'Monthly',   150000,      119100,   'Vendor: Dr Anandam'),
+  _makeExp(CAT_IDS.TELEPHONE,      'Land Line',                           'Monthly',   2000,        1977,     'Vendor: BSNL'),
+  _makeExp(CAT_IDS.ELECTRICITY,    'Electricity Bill',                    'Monthly',   22000,       19999,    'Vendor: KSEB'),
+  _makeExp(CAT_IDS.WATER_BILL,     'Water Bill',                          'Monthly',   8000,        null,     'Vendor: KWA'),
+  _makeExp(CAT_IDS.AMC,            'DG AMC',                              'One-time',  833,         null,     'Vendor: Subramania Industries'),
+  _makeExp(CAT_IDS.IMPREST,        'Monthly Imprest',                     'Monthly',   10000,       10000,    null),
+  _makeExp(CAT_IDS.AMC,            'EPABX AMC',                           'One-time',  667,         null,     'Vendor: Geejey Solutions'),
+  _makeExp(CAT_IDS.SOFTWARE,       'Tally Software Renewal',              'Annual',    1333,        null,     'Vendor: VRS Infosystems'),
+  _makeExp(CAT_IDS.AMC,            'CAMC Computer Hardware',              'Quarterly', 1250,        null,     'Vendor: Armtech Computer Services'),
+  _makeExp(CAT_IDS.AMC,            'AC AMC',                              'Quarterly', 3000,        null,     'Vendor: Nu Aire'),
+  _makeExp(CAT_IDS.MAINTENANCE,    'Repair & Maintenance',                'Monthly',   4167,        null,     null),
+  _makeExp(CAT_IDS.SOFTWARE,       'Microsoft 365',                       'Annual',    583,         null,     null),
+  _makeExp(CAT_IDS.AMC,            'Photocopier - Admin & DVP',           'Monthly',   5000,        null,     'Vendor: Asterisk'),
+  _makeExp(CAT_IDS.MISCELLANEOUS,  'Speed Post',                          'Monthly',   10000,       2572,     'Vendor: India Post'),
+  _makeExp(CAT_IDS.MISCELLANEOUS,  'Financial Consultant',                'Monthly',   108000,      null,     'Vendor: Pradeep Kumar Cost Accountant'),
+  _makeExp(CAT_IDS.MISCELLANEOUS,  'Accounts Assistance',                 'Monthly',   62500,       null,     'Vendor: Pradeep Kumar Cost Accountant'),
+  _makeExp(CAT_IDS.OUTSOURCED_SVC, 'Housekeeping Salary',                 'Monthly',   50000,       46955,    'Vendor: Vismaya Services'),
+  _makeExp(CAT_IDS.OUTSOURCED_SVC, 'My City Salary',                      'Monthly',   67500,       66207,    'Vendor: Vismaya Services'),
+  _makeExp(CAT_IDS.OUTSOURCED_SVC, 'Security Salary',                     'Monthly',   95000,       96550,    'Vendor: Naveen Security Services'),
 ]
 
 function _ensureSeeded() {
   const cats = read(KEYS.categories)
   if (cats.length === 0) {
     write(KEYS.categories, DEFAULT_CATEGORIES)
+  }
+  const exps = read(KEYS.expenses)
+  if (exps.length === 0) {
+    write(KEYS.expenses, DEFAULT_EXPENSES)
   }
 }
 
