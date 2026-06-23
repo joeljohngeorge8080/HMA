@@ -21,6 +21,7 @@ import { cilLockLocked, cilUser } from '@coreui/icons'
 
 import { loginWithGoogle } from '../../../services/auth'
 import api from '../../../services/api'
+import Lightfall from './Lightfall'
 
 const Login = () => {
   const dispatch = useDispatch()
@@ -92,11 +93,35 @@ const Login = () => {
   const isLoading = loadingPass || loadingGoogle
 
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
+    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+
+      {/* ── Lightfall background ── */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+        <Lightfall
+          colors={['#A6C8FF', '#5227FF', '#FF9FFC']}
+          backgroundColor="#0A29FF"
+          speed={0.5}
+          streakCount={2}
+          streakWidth={1}
+          streakLength={1}
+          glow={1}
+          density={0.6}
+          twinkle={1}
+          zoom={3}
+          backgroundGlow={0.5}
+          opacity={1}
+          mouseInteraction
+          mouseStrength={0.5}
+          mouseRadius={1}
+        />
+      </div>
+
+      {/* ── Login card ── */}
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
       <CContainer>
         <CRow className="justify-content-center">
           <CCol md={5} lg={4}>
-            <CCard className="p-4">
+            <CCard className="p-4" style={{ backdropFilter: 'blur(12px)', background: 'rgba(255,255,255,0.92)' }}>
               <CCardBody>
                 <h2 className="fw-bold mb-0">HMA IEMS</h2>
                 <p className="text-body-secondary mb-4">Internal Enterprise Management System</p>
@@ -212,6 +237,7 @@ const Login = () => {
           </CCol>
         </CRow>
       </CContainer>
+      </div>
     </div>
   )
 }
