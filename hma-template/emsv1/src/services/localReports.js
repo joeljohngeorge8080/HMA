@@ -198,7 +198,7 @@ export const localReports = {
       try {
         // We need to dynamically import or rely on localTasks. Since we are in services, 
         // it's safer to just load the task store and update it directly to avoid circular deps.
-        const TASK_KEY = 'hma_tasks'
+        const TASK_KEY = 'hma_tasks_v2'
         const tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]')
         const tIdx = tasks.findIndex(t => t.id === rows[idx].task_id)
         if (tIdx !== -1) {

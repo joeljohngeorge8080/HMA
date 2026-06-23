@@ -41,6 +41,9 @@ const Login = () => {
     try {
       const { data } = await loginApi(employeeId, password)
       localStorage.setItem('hma_token', data.access_token)
+      if (data.access_token.startsWith('dev-')) {
+        localStorage.setItem('hma_dev_user', JSON.stringify(data.user))
+      }
       dispatch({ type: 'set', user: data.user, token: data.access_token })
       navigate(from, { replace: true })
     } catch (err) {

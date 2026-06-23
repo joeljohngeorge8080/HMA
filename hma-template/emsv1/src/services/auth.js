@@ -1,11 +1,13 @@
 import api from './api'
 
 const DEV_USERS = {
-  DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO', role: 'CEO' },
-  DEV002: { employee_id: 'DEV002', full_name: 'Dev Head', role: 'Heads' },
-  DEV003: { employee_id: 'DEV003', full_name: 'Dev HR', role: 'HR' },
-  DEV004: { employee_id: 'DEV004', full_name: 'Dev Finance', role: 'Finance' },
-  DEV005: { employee_id: 'DEV005', full_name: 'Dev Project Officer', role: 'Project Officer' },
+  DEV001:    { employee_id: 'DEV001',    full_name: 'Dev CEO',               role: 'CEO' },
+  DEV002:    { employee_id: 'DEV002',    full_name: 'Dev Head',              role: 'Heads' },
+  DEV003:    { employee_id: 'DEV003',    full_name: 'Dev HR',                role: 'HR' },
+  DEV004:    { employee_id: 'DEV004',    full_name: 'Dev Finance',           role: 'Finance' },
+  DEV005:    { employee_id: 'DEV005',    full_name: 'Dev Project Officer',   role: 'Project Officer' },
+  DEV_PA_001:{ employee_id: 'DEV_PA_001',full_name: 'Dev Project Associate', role: 'Project Associate' },
+  DEV006:    { employee_id: 'DEV006',    full_name: 'Dev Field Personnel',   role: 'Field Personnel' },
 }
 
 const isDevMode = () => import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'

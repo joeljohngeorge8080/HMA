@@ -7,16 +7,16 @@ import usePermission from '../hooks/usePermission'
 import useRole from '../hooks/useRole'
 import { ROLE } from '../constants/roles'
 
-/**
- * Returns the appropriate dashboard fallback for a given role.
- * Project Associate and Project Officer have dedicated dashboards
- * instead of the generic /pms/dashboard placeholder.
- */
 const getPmsFallback = (role) => {
   if (role === ROLE.PROJECT_ASSOCIATE || role === ROLE.PROJECT_OFFICER) {
     return '/pms/pa/dashboard'
   }
-  return '/pms/dashboard'
+  if (role === ROLE.FIELD_PERSONNEL || role === ROLE.BACKEND_TEAM) {
+    // FP/BT have no pms_dashboard access — send to their section
+    return '/pms/daily-reports/my-tasks'
+  }
+  // HR and any other non-PMS role: exit PMS to prevent infinite redirect
+  return '/select-system'
 }
 
 const ProtectedRoute = ({ module, action, children }) => {

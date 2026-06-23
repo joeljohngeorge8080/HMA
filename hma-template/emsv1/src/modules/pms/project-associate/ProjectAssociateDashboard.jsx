@@ -13,6 +13,7 @@ import {
   CCardHeader,
   CButton,
   CBadge,
+  CSpinner,
   CProgress,
   CTable,
   CTableHead,
@@ -66,7 +67,7 @@ const ProjectAssociateDashboard = () => {
     load()
   }, [load])
 
-  if (!stats) return null
+  if (!stats) return <div className="text-center py-5"><CSpinner color="primary" /></div>
 
   const kpiCards = [
     {
