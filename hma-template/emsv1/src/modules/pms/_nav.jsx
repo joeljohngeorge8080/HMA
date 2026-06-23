@@ -14,6 +14,8 @@ import {
   cilTransfer,
   cilUser,
   cilBriefcase,
+  cilMoney,
+  cilTask,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -161,6 +163,27 @@ const pmsNav = [
     name: 'Audit Logs',
     to: '/pms/audit-logs',
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
+  },
+  // ── Backend Team section ──
+  {
+    component: CNavGroup,
+    name: 'Settlements',
+    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+    badge: { color: 'primary', text: 'BT' },
+    items: [
+      { component: CNavItem, name: 'Process Settlements', to: '/pms/settlements' },
+      { component: CNavItem, name: 'Approved Bills', to: '/pms/daily-reports/approved' },
+    ],
+  },
+  // ── Project Coordinator section ──
+  {
+    component: CNavGroup,
+    name: 'Coordinator',
+    icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
+    badge: { color: 'success', text: 'PC' },
+    items: [
+      { component: CNavItem, name: 'Merged Reports', to: '/pms/merged-reports' },
+    ],
   },
   {
     component: CNavItem,
