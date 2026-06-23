@@ -82,12 +82,12 @@ const Login = () => {
 
   // ── Dev quick-login ─────────────────────────────────────────────────────────
 
-  const handleDevLogin = (key, user) => {
+  const handleDevLogin = (key, user, redirect) => {
     const devToken = `dev-token-${key}`
     localStorage.setItem('hma_token', devToken)
     localStorage.setItem('hma_dev_user', JSON.stringify(user))
     dispatch({ type: 'set', user, token: devToken })
-    navigate('/select-system')
+    navigate(redirect || '/select-system')
   }
 
   const isLoading = loadingPass || loadingGoogle
@@ -205,12 +205,14 @@ const Login = () => {
                     <p className="text-body-secondary small mb-2">Dev quick-login</p>
                     <div className="d-grid gap-2">
                       {[
-                        { label: 'CEO',             key: 'DEV001', role: 'CEO',             name: 'Dev CEO' },
-                        { label: 'Heads',           key: 'DEV002', role: 'Heads',           name: 'Dev Head' },
-                        { label: 'HR',              key: 'DEV003', role: 'HR',              name: 'Dev HR' },
-                        { label: 'Finance',         key: 'DEV004', role: 'Finance',         name: 'Dev Finance' },
-                        { label: 'Project Officer', key: 'DEV005', role: 'Project Officer', name: 'Dev Project Officer' },
-                      ].map(({ label, key, role, name }) => (
+                        { label: 'CEO',               key: 'DEV001',     role: 'CEO',               name: 'Dev CEO' },
+                        { label: 'Heads',             key: 'DEV002',     role: 'Heads',             name: 'Dev Head' },
+                        { label: 'HR',                key: 'DEV003',     role: 'HR',                name: 'Dev HR' },
+                        { label: 'Finance',           key: 'DEV004',     role: 'Finance',           name: 'Dev Finance' },
+                        { label: 'Project Associate', key: 'DEV_PA_001', role: 'Project Associate', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
+                        { label: 'Project Officer',   key: 'DEV005',     role: 'Project Officer',   name: 'Dev Project Officer' },
+                        { label: 'Field Personnel',   key: 'DEV006',     role: 'Field Personnel',   name: 'Dev Field Personnel' },
+                      ].map(({ label, key, role, name, redirect }) => (
                         <CButton
                           key={key}
                           color="secondary"
@@ -218,12 +220,11 @@ const Login = () => {
                           size="sm"
                           type="button"
                           onClick={() =>
-                            handleDevLogin(key, {
-                              employee_id: key,
-                              full_name: name,
-                              role,
-                              google_email: `${key.toLowerCase()}@hma.dev`,
-                            })
+                            handleDevLogin(
+                              key,
+                              { employee_id: key, full_name: name, role, google_email: `${key.toLowerCase()}@hma.dev` },
+                              redirect,
+                            )
                           }
                         >
                           {label}
