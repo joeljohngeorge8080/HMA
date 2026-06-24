@@ -6,7 +6,7 @@ const DEV_USERS = {
   DEV003: { employee_id: 'DEV003', full_name: 'Dev HR',              role: 'HR',             google_email: 'hr@hma.dev' },
   DEV004: { employee_id: 'DEV004', full_name: 'Dev Finance',         role: 'Finance',        google_email: 'finance@hma.dev' },
   DEV005: { employee_id: 'DEV005', full_name: 'Dev Project Officer', role: 'Project Officer',google_email: 'po@hma.dev' },
-  DEV007: { employee_id: 'THLL0001', full_name: 'Dev Employee',      role: 'Employee',       google_email: 'employee@hma.dev' },
+  DEV007: { employee_id: 'THLL2408', full_name: 'Titu S Jayan',      role: 'Employee',       google_email: 'dev007@hma.dev' },
 }
 
 const isDevMode = () => import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'

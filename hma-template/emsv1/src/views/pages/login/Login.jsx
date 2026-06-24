@@ -212,8 +212,8 @@ const Login = () => {
                         { label: 'Project Associate', key: 'DEV_PA_001', role: 'Project Associate', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
                         { label: 'Project Officer',   key: 'DEV005',     role: 'Project Officer',   name: 'Dev Project Officer' },
                         { label: 'Field Personnel',   key: 'DEV006',     role: 'Field Personnel',   name: 'Dev Field Personnel' },
-                        { label: 'Employee',          key: 'DEV007',     role: 'Employee',          name: 'Dev Employee' },
-                      ].map(({ label, key, role, name, redirect }) => (
+                        { label: 'Employee',          key: 'DEV007',     role: 'Employee',          name: 'Titu S Jayan', employeeId: 'THLL2408' },
+                      ].map(({ label, key, role, name, redirect, employeeId }) => (
                         <CButton
                           key={key}
                           color="secondary"
@@ -223,7 +223,7 @@ const Login = () => {
                           onClick={() =>
                             handleDevLogin(
                               key,
-                              { employee_id: key, full_name: name, role, google_email: `${key.toLowerCase()}@hma.dev` },
+                              { employee_id: employeeId || key, full_name: name, role, google_email: `${key.toLowerCase()}@hma.dev` },
                               redirect,
                             )
                           }
