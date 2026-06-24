@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -14,6 +14,53 @@ import { AppSidebarNav } from './AppSidebarNav'
 import hmaLogo from 'src/assets/brand/hma-logo.png'
 
 import useRole from '../hooks/useRole'
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+const SidebarClock = () => {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const day = DAYS[now.getDay()]
+  const date = now.getDate()
+  const month = MONTHS[now.getMonth()]
+  const year = now.getFullYear()
+
+  const hours = now.getHours()
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  const displayHours = String(hours % 12 || 12).padStart(2, '0')
+
+  return (
+    <div
+      style={{
+        padding: '10px 16px',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: 12,
+        lineHeight: 1.6,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
+        {displayHours}:{minutes}:{seconds}{' '}
+        <span style={{ fontSize: 11, opacity: 0.8 }}>{ampm}</span>
+      </div>
+      <div>{day}</div>
+      <div>
+        {date} {month} {year}
+      </div>
+    </div>
+  )
+}
 
 const AppSidebar = ({ nav = [] }) => {
   const dispatch = useDispatch()
@@ -60,10 +107,13 @@ const AppSidebar = ({ nav = [] }) => {
         />
       </CSidebarHeader>
       <AppSidebarNav items={visibleNavigation} />
-      <CSidebarFooter className="border-top d-none d-lg-flex">
-        <CSidebarToggler
-          onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
-        />
+      <CSidebarFooter className="border-top d-none d-lg-flex flex-column p-0">
+        {!unfoldable && <SidebarClock />}
+        <div className="d-flex">
+          <CSidebarToggler
+            onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
+          />
+        </div>
       </CSidebarFooter>
     </CSidebar>
   )
