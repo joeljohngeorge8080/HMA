@@ -7,6 +7,9 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
+  CNav,
+  CNavItem,
+  CNavLink,
   CPagination,
   CPaginationItem,
   CRow,
@@ -17,11 +20,14 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
+  CTabContent,
+  CTabPane,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
   cilChartPie,
   cilCloudUpload,
+  cilLayers,
   cilPencil,
   cilPlus,
   cilTags,
@@ -34,6 +40,7 @@ import api from '../../../services/api'
 import { localGeneralExpenses } from '../../../services/localGeneralExpenses'
 import ExpenseFilters from './components/ExpenseFilters'
 import VarianceBadge from './components/VarianceBadge'
+import DivisionsSummary from './components/DivisionsSummary'
 
 const thisYear = new Date().getFullYear()
 const thisMonth = new Date().getMonth() + 1
@@ -57,6 +64,7 @@ const GeneralExpenseList = () => {
   const navigate = useNavigate()
   const canEdit = usePermission(MODULE.GENERAL_EXPENSES, 'edit')
 
+  const [activeTab, setActiveTab] = useState('expenses')
   const [filters, setFilters] = useState({
     year: thisYear,
     month: thisMonth,
@@ -166,6 +174,36 @@ const GeneralExpenseList = () => {
         )}
       </div>
 
+      {/* Tabs */}
+      <CNav variant="tabs" className="mb-3">
+        <CNavItem>
+          <CNavLink
+            active={activeTab === 'expenses'}
+            onClick={() => setActiveTab('expenses')}
+            style={{ cursor: 'pointer' }}
+          >
+            <CIcon icon={cilTags} className="me-1" />
+            Expenses
+          </CNavLink>
+        </CNavItem>
+        <CNavItem>
+          <CNavLink
+            active={activeTab === 'divisions'}
+            onClick={() => setActiveTab('divisions')}
+            style={{ cursor: 'pointer' }}
+          >
+            <CIcon icon={cilLayers} className="me-1" />
+            Divisions
+          </CNavLink>
+        </CNavItem>
+      </CNav>
+
+      <CTabContent>
+        <CTabPane visible={activeTab === 'divisions'}>
+          <DivisionsSummary year={filters.year} month={filters.month} />
+        </CTabPane>
+
+        <CTabPane visible={activeTab === 'expenses'}>
       <ExpenseFilters
         year={filters.year}
         month={filters.month}
@@ -302,6 +340,9 @@ const GeneralExpenseList = () => {
           <CPaginationItem disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next</CPaginationItem>
         </CPagination>
       )}
+
+        </CTabPane>
+      </CTabContent>
 
       {/* Delete Confirm Modal */}
       {deleteTarget && (
