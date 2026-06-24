@@ -36,6 +36,7 @@ from app.schemas.employee import (
     EmployeeUpdate,
     FamilyMemberCreate,
     IdentificationUpdate,
+    SalaryDirectUpdateRequest,
     SalaryIncrementRequest,
 )
 from app.services.audit_service import write_audit
@@ -265,6 +266,52 @@ def apply_salary_increment(
         new_value={
             'salary': str(new_salary),
             'increment_pct': str(data.increment_percentage.value),
+            'increment_amount': str(increment_amount),
+            'effective_date': str(data.effective_date),
+        },
+        remarks=data.remarks,
+        ip_address=ip,
+    )
+    session.commit()
+    session.refresh(hist)
+    return hist
+
+
+def apply_salary_direct_update(
+    session: Session,
+    emp: Employee,
+    data: SalaryDirectUpdateRequest,
+    actor: User,
+    ip: Optional[str] = None,
+) -> EmployeeSalaryHistory:
+    previous_salary = emp.current_salary
+    new_salary = data.new_salary.quantize(Decimal('0.01'))
+    increment_amount = (new_salary - previous_salary).quantize(Decimal('0.01'))
+
+    hist = EmployeeSalaryHistory(
+        employee_id=emp.id,
+        previous_salary=previous_salary,
+        increment_percentage=Decimal('0'),
+        increment_amount=increment_amount,
+        new_salary=new_salary,
+        effective_date=data.effective_date,
+        remarks=data.remarks,
+        changed_by=actor.id,
+        created_at=_now(),
+    )
+
+    emp.current_salary = new_salary
+    emp.updated_at = _now()
+
+    session.add(hist)
+    session.add(emp)
+
+    write_audit(
+        session, actor, MODULE, ActionType.SALARY_UPDATE,
+        record_id=str(emp.id),
+        old_value={'salary': str(previous_salary)},
+        new_value={
+            'salary': str(new_salary),
             'increment_amount': str(increment_amount),
             'effective_date': str(data.effective_date),
         },
