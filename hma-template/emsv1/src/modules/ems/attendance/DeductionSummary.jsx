@@ -25,7 +25,11 @@ const MONTHS = [
 ]
 
 const fmt = (n) =>
-  Number(n).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })
+  Number(n).toLocaleString('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  })
 
 const DeductionSummary = ({ year, month }) => {
   const [summaries, setSummaries] = useState([])
@@ -46,10 +50,8 @@ const DeductionSummary = ({ year, month }) => {
     load()
   }, [year, month])
 
-  const daysInMonth = new Date(year, month, 0).getDate()
-
-  // Build salary lookup from localEmployees keyed by employee_id text
-  const salaryMap = useMemo(() => {
+  // Build salary + name lookup keyed by employee_id text (e.g. "EMP001")
+  const empMap = useMemo(() => {
     const map = {}
     try {
       const { items } = localEmployees.list({ pageSize: 1000 })
@@ -67,32 +69,44 @@ const DeductionSummary = ({ year, month }) => {
 
   const rows = useMemo(() => {
     return summaries.map((s) => {
-      const empInfo = salaryMap[s.employee_id] || { name: '—', salary: 0 }
-      const salary = empInfo.salary
+      const info = empMap[s.employee_id] || { name: '—', salary: 0 }
+      const salary = info.salary
 
-      // Working days = calendar days minus weekly offs
-      const weeklyOff = s.weekly_off_count || 0
-      const workingDays = Math.max(1, daysInMonth - weeklyOff)
-      const dailyRate = salary / workingDays
-
-      const absentDays = s.absent_count || 0
-      const halfDays = s.half_day_count || 0
+      const presentCount = s.present_count || 0   // includes half-day entries
+      const absentCount = s.absent_count || 0
+      const halfDayCount = s.half_day_count || 0  // already counted inside present_count
+      const leaveCount = s.leave_count || 0        // paid leaves — no deduction
       const lateDays = s.late_days || 0
 
-      const absentDeduction = absentDays * dailyRate
-      const halfDayDeduction = halfDays * (dailyRate / 2)
-      const lateDeduction = lateDays * (dailyRate / 4) // quarter-day per late
+      // Working days = days the employee was expected to work
+      // = present (incl. half-days) + absent + paid leave
+      // This equals: daysInMonth - weekly_off - holidays
+      const workingDays = Math.max(1, presentCount + absentCount + leaveCount)
+
+      const perDayRate = salary / workingDays
+
+      // LOP (Loss of Pay) = absent days + half-day entries count as 0.5 each
+      // Paid leaves are NOT deducted
+      const absentDeduction = absentCount * perDayRate
+      const halfDayDeduction = halfDayCount * (perDayRate / 2)
+
+      // Late deduction: ¼ day per late entry (company policy)
+      const lateDeduction = lateDays * (perDayRate / 4)
+
       const totalDeduction = absentDeduction + halfDayDeduction + lateDeduction
       const netPayable = Math.max(0, salary - totalDeduction)
 
       return {
+        key: s.id || s.employee_id,
         employee_id: s.employee_id,
-        name: empInfo.name,
+        name: info.name,
         salary,
         workingDays,
-        dailyRate,
-        absentDays,
-        halfDays,
+        perDayRate,
+        presentCount,
+        halfDayCount,
+        absentCount,
+        leaveCount,
         lateDays,
         absentDeduction,
         halfDayDeduction,
@@ -101,7 +115,7 @@ const DeductionSummary = ({ year, month }) => {
         netPayable,
       }
     })
-  }, [summaries, salaryMap, daysInMonth])
+  }, [summaries, empMap])
 
   const totals = useMemo(
     () =>
@@ -114,7 +128,14 @@ const DeductionSummary = ({ year, month }) => {
           totalDeduction: acc.totalDeduction + r.totalDeduction,
           netPayable: acc.netPayable + r.netPayable,
         }),
-        { salary: 0, absentDeduction: 0, halfDayDeduction: 0, lateDeduction: 0, totalDeduction: 0, netPayable: 0 },
+        {
+          salary: 0,
+          absentDeduction: 0,
+          halfDayDeduction: 0,
+          lateDeduction: 0,
+          totalDeduction: 0,
+          netPayable: 0,
+        },
       ),
     [rows],
   )
@@ -130,7 +151,8 @@ const DeductionSummary = ({ year, month }) => {
   if (rows.length === 0) {
     return (
       <p className="text-body-secondary mt-3">
-        No attendance data for {MONTHS[month - 1]} {year}. Import attendance to calculate deductions.
+        No attendance data for {MONTHS[month - 1]} {year}. Import attendance to calculate
+        deductions.
       </p>
     )
   }
@@ -174,10 +196,12 @@ const DeductionSummary = ({ year, month }) => {
       </CRow>
 
       <p className="text-body-secondary small mb-3">
-        Daily rate = monthly salary ÷ (calendar days − weekly offs).&nbsp;
-        Absent deduction = absent days × daily rate.&nbsp;
-        Half-day deduction = half days × ½ daily rate.&nbsp;
-        Late deduction = late days × ¼ daily rate.
+        <strong>Per-day rate</strong> = monthly salary ÷ working days, where working days =
+        present days + absent days + paid leave (weekly offs &amp; holidays excluded).&nbsp;
+        <strong>Absent deduction</strong> = absent days × per-day rate.&nbsp;
+        <strong>Half-day deduction</strong> = half-day count × ½ per-day rate.&nbsp;
+        <strong>Late deduction</strong> = late days × ¼ per-day rate.&nbsp;
+        Paid leave (CL/SL/OD/COFF) is not deducted.
       </p>
 
       <CCard>
@@ -190,11 +214,11 @@ const DeductionSummary = ({ year, month }) => {
           <CTable hover responsive bordered small className="mb-0">
             <CTableHead color="light">
               <CTableRow>
-                <CTableHeaderCell>Employee ID</CTableHeaderCell>
+                <CTableHeaderCell>Emp ID</CTableHeaderCell>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Gross Salary</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Working Days</CTableHeaderCell>
-                <CTableHeaderCell className="text-end">Daily Rate</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Per-Day Rate</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Absent</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Absent Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Half Days</CTableHeaderCell>
@@ -207,17 +231,17 @@ const DeductionSummary = ({ year, month }) => {
             </CTableHead>
             <CTableBody>
               {rows.map((r) => (
-                <CTableRow key={r.employee_id}>
+                <CTableRow key={r.key}>
                   <CTableDataCell className="fw-semibold">{r.employee_id}</CTableDataCell>
                   <CTableDataCell>{r.name}</CTableDataCell>
                   <CTableDataCell className="text-end">{fmt(r.salary)}</CTableDataCell>
                   <CTableDataCell className="text-center">{r.workingDays}</CTableDataCell>
                   <CTableDataCell className="text-end small text-body-secondary">
-                    {fmt(r.dailyRate)}
+                    {fmt(r.perDayRate)}
                   </CTableDataCell>
                   <CTableDataCell className="text-center">
-                    {r.absentDays > 0 ? (
-                      <span className="text-danger fw-semibold">{r.absentDays}</span>
+                    {r.absentCount > 0 ? (
+                      <span className="text-danger fw-semibold">{r.absentCount}</span>
                     ) : (
                       <span className="text-body-secondary">0</span>
                     )}
@@ -226,8 +250,8 @@ const DeductionSummary = ({ year, month }) => {
                     {r.absentDeduction > 0 ? fmt(r.absentDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center">
-                    {r.halfDays > 0 ? (
-                      <span className="text-warning fw-semibold">{r.halfDays}</span>
+                    {r.halfDayCount > 0 ? (
+                      <span className="text-warning fw-semibold">{r.halfDayCount}</span>
                     ) : (
                       <span className="text-body-secondary">0</span>
                     )}
