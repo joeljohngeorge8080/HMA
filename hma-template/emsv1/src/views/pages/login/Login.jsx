@@ -212,6 +212,7 @@ const Login = () => {
                         { label: 'Project Associate', key: 'DEV_PA_001', role: 'Project Associate', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
                         { label: 'Project Officer',   key: 'DEV005',     role: 'Project Officer',   name: 'Dev Project Officer' },
                         { label: 'Field Personnel',   key: 'DEV006',     role: 'Field Personnel',   name: 'Dev Field Personnel' },
+                        { label: 'Employee',          key: 'DEV007',     role: 'Employee',          name: 'Dev Employee' },
                       ].map(({ label, key, role, name, redirect }) => (
                         <CButton
                           key={key}
