@@ -9,6 +9,7 @@ import {
   cilChartPie,
   cilListRich,
   cilTransfer,
+  cilReload,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -46,6 +47,13 @@ const emsNav = [
     name: 'Expense Management',
     to: '/ems/expense-management',
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+  },
+  {
+    component: CNavItem,
+    name: 'Admin Expenses',
+    to: '/ems/admin-expenses',
+    icon: <CIcon icon={cilReload} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
   {
