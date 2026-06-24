@@ -60,6 +60,27 @@ const fmt = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
+const getDelayDays = (targetDateStr, actualDateStr) => {
+  if (!targetDateStr) return 0
+  const [ty, tm, td] = targetDateStr.split('-').map(Number)
+  const target = new Date(ty, tm - 1, td)
+  
+  let actual
+  if (actualDateStr) {
+    const [ay, am, ad] = actualDateStr.split('-').map(Number)
+    actual = new Date(ay, am - 1, ad)
+  } else {
+    actual = new Date()
+  }
+  
+  target.setHours(0, 0, 0, 0)
+  actual.setHours(0, 0, 0, 0)
+  
+  const diffTime = actual.getTime() - target.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays > 0 ? diffDays : 0
+}
+
 const STATUS_META = {
   pipeline: { label: 'Pipeline', color: 'secondary' },
   approved: { label: 'Approved', color: 'info' },
@@ -865,13 +886,24 @@ const ProjectDetailPage = () => {
                                     </div>
                                     
                                     <CRow className="g-2 small text-body-secondary mt-2">
-                                      <CCol xs={6}>
+                                      <CCol xs={4}>
                                         <div><CIcon icon={cilFolder} className="me-1" /> Target Date</div>
                                         <div className="fw-medium text-body">{fmtDate(ms.target_date)}</div>
                                       </CCol>
-                                      <CCol xs={6}>
+                                      <CCol xs={4}>
                                         <div><CIcon icon={cilFolder} className="me-1" /> Actual Date</div>
                                         <div className="fw-medium text-body">{ms.actual_date ? fmtDate(ms.actual_date) : '—'}</div>
+                                      </CCol>
+                                      <CCol xs={4}>
+                                        <div><CIcon icon={cilWarning} className="me-1" /> Delay</div>
+                                        {(() => {
+                                          const delay = getDelayDays(ms.target_date, ms.actual_date)
+                                          return (
+                                            <div className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}>
+                                              {delay > 0 ? `${delay} days` : 'No delay'}
+                                            </div>
+                                          )
+                                        })()}
                                       </CCol>
                                     </CRow>
                                     
