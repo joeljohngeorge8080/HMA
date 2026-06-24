@@ -205,25 +205,27 @@ const Login = () => {
                     <p className="text-body-secondary small mb-2">Dev quick-login</p>
                     <div className="d-grid gap-2">
                       {[
-                        { label: 'CEO',               key: 'DEV001',     role: 'CEO',               name: 'Dev CEO' },
-                        { label: 'Heads',             key: 'DEV002',     role: 'Heads',             name: 'Dev Head' },
-                        { label: 'HR',                key: 'DEV003',     role: 'HR',                name: 'Dev HR' },
-                        { label: 'Finance',           key: 'DEV004',     role: 'Finance',           name: 'Dev Finance' },
-                        { label: 'Project Associate', key: 'DEV_PA_001', role: 'Project Associate', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
-                        { label: 'Project Officer',   key: 'DEV005',     role: 'Project Officer',   name: 'Dev Project Officer' },
-                        { label: 'Field Personnel',   key: 'DEV006',     role: 'Field Personnel',   name: 'Dev Field Personnel' },
-                        { label: 'Employee',          key: 'DEV007',     role: 'Employee',          name: 'Titu S Jayan', employeeId: 'THLL2408' },
-                      ].map(({ label, key, role, name, redirect, employeeId }) => (
+                        { label: 'CEO',                 role: 'CEO',                 id: 'DEV001',     name: 'Dev CEO' },
+                        { label: 'Heads',               role: 'Heads',               id: 'DEV002',     name: 'Dev Head' },
+                        { label: 'HR',                  role: 'HR',                  id: 'DEV003',     name: 'Dev HR' },
+                        { label: 'Finance',             role: 'Finance',             id: 'DEV004',     name: 'Dev Finance' },
+                        { label: 'Project Associate',   role: 'Project Associate',   id: 'DEV_PA_001', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
+                        { label: 'Project Officer',     role: 'Project Officer',     id: 'DEV005',     name: 'Dev Project Officer' },
+                        { label: 'Field Personnel',     role: 'Field Personnel',     id: 'DEV006',     name: 'Dev Field Personnel' },
+                        { label: 'Backend Team',        role: 'Backend Team',        id: 'DEV007',     name: 'Dev Backend Team',        redirect: '/pms/settlements' },
+                        { label: 'Project Coordinator', role: 'Project Coordinator', id: 'DEV008',     name: 'Dev Project Coordinator', redirect: '/pms/merged-reports' },
+                        { label: 'Employee',            role: 'Employee',            id: 'DEV009',     name: 'Titu S Jayan', employeeId: 'THLL2408' },
+                      ].map(({ label, id, role, name, redirect, employeeId }) => (
                         <CButton
-                          key={key}
+                          key={id}
                           color="secondary"
                           variant="outline"
                           size="sm"
                           type="button"
                           onClick={() =>
                             handleDevLogin(
-                              key,
-                              { employee_id: employeeId || key, full_name: name, role, google_email: `${key.toLowerCase()}@hma.dev` },
+                              id,
+                              { employee_id: employeeId || id, full_name: name, role, google_email: `${id.toLowerCase()}@hma.dev` },
                               redirect,
                             )
                           }

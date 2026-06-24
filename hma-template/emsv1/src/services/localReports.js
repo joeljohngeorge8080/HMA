@@ -29,6 +29,8 @@ export const REPORT_STATUS = {
   DECLINED: 'declined',
   RESUBMITTED: 'resubmitted',
   APPROVED: 'approved',
+  SETTLED: 'settled',
+  REPORT_SUBMITTED: 'report_submitted',
 }
 
 export const localReports = {
@@ -215,6 +217,44 @@ export const localReports = {
     return rows[idx]
   },
 
+  // ── markSettled ─────────────────────────────────────────────────────────────
+  markSettled(id) {
+    const rows = readAll()
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx === -1) throw new Error('Report not found')
+    if (rows[idx].status !== REPORT_STATUS.APPROVED) {
+      throw new Error('Only approved reports can be marked as settled')
+    }
+
+    const ts = now()
+    rows[idx] = {
+      ...rows[idx],
+      status: REPORT_STATUS.SETTLED,
+      settled_at: ts,
+      updated_at: ts,
+    }
+
+    writeAll(rows)
+    return rows[idx]
+  },
+
+  // ── markReportSubmitted ─────────────────────────────────────────────────────
+  markReportSubmitted(id) {
+    const rows = readAll()
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx === -1) throw new Error('Report not found')
+
+    const ts = now()
+    rows[idx] = {
+      ...rows[idx],
+      status: REPORT_STATUS.REPORT_SUBMITTED,
+      updated_at: ts,
+    }
+
+    writeAll(rows)
+    return rows[idx]
+  },
+
   // ── decline ─────────────────────────────────────────────────────────────────
   decline(id, reviewerId = 'project_officer', reason = '') {
     const rows = readAll()
@@ -383,5 +423,107 @@ export const localReports = {
       this.approve(all[0].id, 'po_001')
       this.decline(all[2].id, 'po_001', 'Receipt image is blurry. Please re-upload a clear photo of the transport bill.')
     }
+  },
+}
+
+// ── localMergedReports ────────────────────────────────────────────────────────
+// Manages "Merged Reports" sent by the Backend Team to the Project Coordinator.
+// A Merged Report bundles multiple settled reports.
+
+const MERGED_REPORTS_KEY = 'hma_merged_reports'
+
+const readMerged = () => {
+  try {
+    return JSON.parse(localStorage.getItem(MERGED_REPORTS_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+const writeMerged = (rows) => {
+  localStorage.setItem(MERGED_REPORTS_KEY, JSON.stringify(rows))
+}
+
+export const MERGED_REPORT_STATUS = {
+  PENDING: 'pending',
+  FINALISED: 'finalised',
+}
+
+export const localMergedReports = {
+  list({ search = '', status = '', page = 1, pageSize = 25 } = {}) {
+    let rows = readMerged()
+
+    if (search) {
+      const q = search.toLowerCase()
+      rows = rows.filter(
+        (r) =>
+          r.title?.toLowerCase().includes(q) ||
+          r.notes?.toLowerCase().includes(q),
+      )
+    }
+    if (status) rows = rows.filter((r) => r.status === status)
+
+    // Sort newest first
+    rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+    const total = rows.length
+    const total_pages = Math.max(1, Math.ceil(total / pageSize))
+    const start = (page - 1) * pageSize
+    return { items: rows.slice(start, start + pageSize), total, total_pages }
+  },
+
+  create(data) {
+    const rows = readMerged()
+    const ts = now()
+
+    // Create the merged report record
+    const report = {
+      id: `MR-${uid().split('-')[0].toUpperCase()}`,
+      title: data.title || `Merged Settlement Report — ${ts.split('T')[0]}`,
+      notes: data.notes || '',
+      created_by: data.createdBy || 'backend_team',
+      created_by_name: data.createdByName || 'Backend Team',
+      created_at: ts,
+      status: MERGED_REPORT_STATUS.PENDING,
+      bill_ids: data.billIds || [],
+      // Keep a snapshot of the bills
+      bills_snapshot: data.bills || [],
+      total_amount: (data.bills || []).reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0),
+      bill_count: (data.billIds || []).length,
+      finalised_at: null,
+    }
+
+    writeMerged([...rows, report])
+
+    // Update the underlying bills to REPORT_SUBMITTED so they don't show in the pool anymore
+    data.billIds.forEach((billId) => {
+      try {
+        localReports.markReportSubmitted(billId)
+      } catch (err) {
+        console.error('Failed to update underlying bill status:', err)
+      }
+    })
+
+    return report
+  },
+
+  finalise(id) {
+    const rows = readMerged()
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx === -1) throw new Error('Merged Report not found')
+    
+    if (rows[idx].status !== MERGED_REPORT_STATUS.PENDING) {
+      throw new Error('Report is already finalised')
+    }
+
+    const ts = now()
+    rows[idx] = {
+      ...rows[idx],
+      status: MERGED_REPORT_STATUS.FINALISED,
+      finalised_at: ts,
+    }
+
+    writeMerged(rows)
+    return rows[idx]
   },
 }
