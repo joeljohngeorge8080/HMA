@@ -72,26 +72,22 @@ const DeductionSummary = ({ year, month }) => {
       const info = empMap[s.employee_id] || { name: '—', salary: 0 }
       const salary = info.salary
 
-      const presentCount = s.present_count || 0   // includes half-day entries
       const absentCount = s.absent_count || 0
       const halfDayCount = s.half_day_count || 0  // already counted inside present_count
-      const leaveCount = s.leave_count || 0        // paid leaves — no deduction
-      const lateDays = s.late_days || 0
+      const excessLateUnits = s.excess_late_units || 0  // units beyond 7 free
 
-      // Working days = days the employee was expected to work
-      // = present (incl. half-days) + absent + paid leave
-      // This equals: daysInMonth - weekly_off - holidays
-      const workingDays = Math.max(1, presentCount + absentCount + leaveCount)
-
-      const perDayRate = salary / workingDays
+      // Daily Salary = Monthly Salary / Total Days in Month (per business rules)
+      const daysInMonth = new Date(year, month, 0).getDate()
+      const perDayRate = salary / daysInMonth
 
       // LOP (Loss of Pay) = absent days + half-day entries count as 0.5 each
       // Paid leaves are NOT deducted
       const absentDeduction = absentCount * perDayRate
       const halfDayDeduction = halfDayCount * (perDayRate / 2)
 
-      // Late deduction: ¼ day per late entry (company policy)
-      const lateDeduction = lateDays * (perDayRate / 4)
+      // Late deduction: per business rules — only excess units (beyond 7 free) are deducted
+      // 1 unit = 15 min; hourly rate = perDayRate / 8; 15-min deduction = perDayRate / 32
+      const lateDeduction = excessLateUnits * (perDayRate / 32)
 
       const totalDeduction = absentDeduction + halfDayDeduction + lateDeduction
       const netPayable = Math.max(0, salary - totalDeduction)
@@ -101,13 +97,11 @@ const DeductionSummary = ({ year, month }) => {
         employee_id: s.employee_id,
         name: info.name,
         salary,
-        workingDays,
+        daysInMonth,
         perDayRate,
-        presentCount,
         halfDayCount,
         absentCount,
-        leaveCount,
-        lateDays,
+        excessLateUnits,
         absentDeduction,
         halfDayDeduction,
         lateDeduction,
@@ -196,11 +190,11 @@ const DeductionSummary = ({ year, month }) => {
       </CRow>
 
       <p className="text-body-secondary small mb-3">
-        <strong>Per-day rate</strong> = monthly salary ÷ working days, where working days =
-        present days + absent days + paid leave (weekly offs &amp; holidays excluded).&nbsp;
+        <strong>Per-day rate</strong> = monthly salary ÷ total days in month.&nbsp;
         <strong>Absent deduction</strong> = absent days × per-day rate.&nbsp;
         <strong>Half-day deduction</strong> = half-day count × ½ per-day rate.&nbsp;
-        <strong>Late deduction</strong> = late days × ¼ per-day rate.&nbsp;
+        <strong>Late deduction</strong> = excess units (beyond 7 free) × per-day rate ÷ 32
+        (1 unit = 15 min; hourly rate = per-day ÷ 8; 15-min = hourly ÷ 4).&nbsp;
         Paid leave (CL/SL/OD/COFF) is not deducted.
       </p>
 
@@ -217,13 +211,13 @@ const DeductionSummary = ({ year, month }) => {
                 <CTableHeaderCell>Emp ID</CTableHeaderCell>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Gross Salary</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">Working Days</CTableHeaderCell>
+                <CTableHeaderCell className="text-center">Days in Month</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Per-Day Rate</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Absent</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Absent Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Half Days</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Half-Day Ded.</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">Late</CTableHeaderCell>
+                <CTableHeaderCell className="text-center">Late Units (excess)</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Late Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Total Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-success">Net Payable</CTableHeaderCell>
@@ -235,7 +229,7 @@ const DeductionSummary = ({ year, month }) => {
                   <CTableDataCell className="fw-semibold">{r.employee_id}</CTableDataCell>
                   <CTableDataCell>{r.name}</CTableDataCell>
                   <CTableDataCell className="text-end">{fmt(r.salary)}</CTableDataCell>
-                  <CTableDataCell className="text-center">{r.workingDays}</CTableDataCell>
+                  <CTableDataCell className="text-center">{r.daysInMonth}</CTableDataCell>
                   <CTableDataCell className="text-end small text-body-secondary">
                     {fmt(r.perDayRate)}
                   </CTableDataCell>
@@ -260,10 +254,10 @@ const DeductionSummary = ({ year, month }) => {
                     {r.halfDayDeduction > 0 ? fmt(r.halfDayDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center">
-                    {r.lateDays > 0 ? (
-                      <span className="text-warning fw-semibold">{r.lateDays}</span>
+                    {r.excessLateUnits > 0 ? (
+                      <span className="text-warning fw-semibold">{r.excessLateUnits}</span>
                     ) : (
-                      <span className="text-body-secondary">0</span>
+                      <span className="text-body-secondary">—</span>
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="text-end text-danger">

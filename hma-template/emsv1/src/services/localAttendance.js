@@ -86,6 +86,7 @@ const buildSummary = (records) => {
     halfDay = 0,
     lateDays = 0,
     lateMinTotal = 0,
+    lateUnitsTotal = 0,
     earlyDays = 0,
     earlyMinTotal = 0,
     workMinTotal = 0,
@@ -116,6 +117,10 @@ const buildSummary = (records) => {
     if (r.late_by_minutes > 0) {
       lateDays++
       lateMinTotal += r.late_by_minutes
+      // Only entries ≤60 min late count as units; >60 min triggers half-day rule instead
+      if (r.late_by_minutes <= 60) {
+        lateUnitsTotal += Math.ceil(r.late_by_minutes / 15)
+      }
     }
     if (r.early_by_minutes > 0) {
       earlyDays++
@@ -138,6 +143,8 @@ const buildSummary = (records) => {
     late_days: lateDays,
     late_hours: fmtDuration(lateMinTotal),
     late_minutes_total: lateMinTotal,
+    late_units: lateUnitsTotal,
+    excess_late_units: Math.max(0, lateUnitsTotal - 7),
     early_days: earlyDays,
     early_hours: fmtDuration(earlyMinTotal),
     total_work_duration: fmtDuration(workMinTotal),
