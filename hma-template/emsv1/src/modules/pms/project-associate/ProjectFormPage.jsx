@@ -24,6 +24,9 @@ import {
   CToastBody,
   CToastClose,
   CSpinner,
+  CProgress,
+  CInputGroup,
+  CInputGroupText,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -35,6 +38,10 @@ import {
   cilArrowLeft,
 } from '@coreui/icons'
 import { localProjects, localOfficers } from '../../../services/localProjects'
+
+const INST_COLORS = ['#4f9ef8','#7c6af7','#2ec4b6','#f77c6a','#f7c948','#56c89a','#f77cb5','#a2c4f0','#f7a84c','#9a6af7']
+const instUid = () => `inst_${Date.now()}_${Math.random().toString(36).slice(2,5)}`
+const makeInst = (idx) => ({ _key: instUid(), label: `Installment ${idx + 1}`, percentage: '', start_date: '', end_date: '' })
 
 const EMPTY_FORM = {
   name: '',
@@ -53,6 +60,7 @@ const EMPTY_FORM = {
   committed_expense: '',
   start_date: '',
   end_date: '',
+  beneficiaries_target: '',
   beneficiaries_completed: '',
   officer_id: '',
 }
@@ -68,6 +76,25 @@ const ProjectFormPage = () => {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [emailNotice, setEmailNotice] = useState(false)
+
+  // Installments state
+  const [numInstallments, setNumInstallments] = useState(1)
+  const [installments, setInstallments] = useState([makeInst(0)])
+
+  const setInstField = (idx, field, value) => setInstallments((prev) => { const next = [...prev]; next[idx] = { ...next[idx], [field]: value }; return next })
+
+  const handleNumChange = (n) => {
+    const count = Math.max(1, Math.min(10, Number(n) || 1))
+    setNumInstallments(count)
+    setInstallments((prev) => {
+      if (count > prev.length) return [...prev, ...Array.from({ length: count - prev.length }, (_, i) => makeInst(prev.length + i))]
+      return prev.slice(0, count)
+    })
+  }
+
+  const pctTotal = installments.reduce((s, i) => s + (parseFloat(i.percentage) || 0), 0)
+  const pctValid = Math.abs(pctTotal - 100) < 0.01
+  const valuation = parseFloat(form.project_value) || 0
 
   useEffect(() => {
     localProjects.seedDemoData()
@@ -91,6 +118,7 @@ const ProjectFormPage = () => {
           amount_received: project.amount_received || '',
           expense_accounted: project.expense_accounted || '',
           committed_expense: project.committed_expense || '',
+          beneficiaries_target: project.beneficiaries_target || '',
           beneficiaries_completed: project.beneficiaries_completed || '',
           start_date: project.start_date || '',
           end_date: project.end_date || '',
@@ -125,13 +153,21 @@ const ProjectFormPage = () => {
 
     setSaving(true)
     try {
+      const enrichedInstallments = installments.map((inst) => {
+        const pct = parseFloat(inst.percentage) || 0
+        const amount = valuation * (pct / 100)
+        return { ...inst, percentage: pct, amount, uc_status: 'Pending', actual_date: null }
+      })
+
       const data = {
         ...form,
         project_value: Number(form.project_value),
         amount_received: Number(form.amount_received) || 0,
         expense_accounted: Number(form.expense_accounted) || 0,
         committed_expense: Number(form.committed_expense) || 0,
+        beneficiaries_target: Number(form.beneficiaries_target) || 0,
         beneficiaries_completed: Number(form.beneficiaries_completed) || 0,
+        installments: enrichedInstallments,
       }
 
       let savedProject
@@ -402,8 +438,17 @@ const ProjectFormPage = () => {
                       })()}
                     </CCol>
                   )}
-                  <CCol xs={12}>
-                    <CFormLabel className="fw-semibold small">Beneficiaries Completed Till Date</CFormLabel>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Total Beneficiaries (Predicted Target)</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      placeholder="e.g., 5000"
+                      value={form.beneficiaries_target}
+                      onChange={(e) => set('beneficiaries_target', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Beneficiaries Completed (Till Date)</CFormLabel>
                     <CFormInput
                       type="number"
                       placeholder="e.g., 1500"
@@ -440,6 +485,76 @@ const ProjectFormPage = () => {
                     </CFormSelect>
                   </CCol>
                 </CRow>
+              </CCardBody>
+            </CCard>
+
+            {/* Installments */}
+            <CCard className="border-0 shadow-sm mt-4" style={{ borderRadius: '12px' }}>
+              <CCardHeader className="bg-transparent border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h6 className="fw-bold mb-0">📅 Installments</h6>
+                <span className={`small fw-bold ${pctTotal === 0 ? 'text-body-secondary' : pctValid ? 'text-success' : 'text-danger'}`}>
+                  Total: {pctTotal.toFixed(1)}% {pctTotal > 0 && (pctValid ? '✓' : '≠ 100%')}
+                </span>
+              </CCardHeader>
+              <CCardBody>
+                <div className="mb-4">
+                  <CFormLabel className="fw-semibold small">Number of Installments</CFormLabel>
+                  <div className="d-flex align-items-center gap-2" style={{ maxWidth: 180 }}>
+                    <CButton color="secondary" variant="outline" size="sm" onClick={() => handleNumChange(numInstallments - 1)} disabled={numInstallments <= 1}>−</CButton>
+                    <CFormInput type="number" min="1" max="10" className="text-center fw-bold" value={numInstallments} onChange={(e) => handleNumChange(e.target.value)} />
+                    <CButton color="secondary" variant="outline" size="sm" onClick={() => handleNumChange(numInstallments + 1)} disabled={numInstallments >= 10}>+</CButton>
+                  </div>
+                  <div className="small text-body-secondary mt-1">1 – 10 installments</div>
+                </div>
+
+                <div className="d-flex flex-column gap-3">
+                  {installments.map((inst, idx) => {
+                    const pct = parseFloat(inst.percentage) || 0
+                    const amt = valuation * (pct / 100)
+                    const color = INST_COLORS[idx % INST_COLORS.length]
+                    return (
+                      <div key={inst._key} className="rounded border p-3" style={{ borderLeft: `4px solid ${color}` }}>
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <span className="fw-semibold small" style={{ color }}>{inst.label}</span>
+                          {pct > 0 && valuation > 0 && <span className="small text-body-secondary">≈ ₹{amt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>}
+                        </div>
+                        <CRow className="g-2">
+                          <CCol xs={12} md={2}>
+                            <CFormLabel className="small fw-medium mb-1">% Share *</CFormLabel>
+                            <CInputGroup size="sm">
+                              <CFormInput type="number" min="0" max="100" step="0.1" placeholder="0" value={inst.percentage} onChange={(e) => setInstField(idx, 'percentage', e.target.value)} />
+                              <CInputGroupText>%</CInputGroupText>
+                            </CInputGroup>
+                          </CCol>
+                          <CCol xs={12} md={5}>
+                            <CFormLabel className="small fw-medium mb-1">Start Date</CFormLabel>
+                            <CFormInput type="date" size="sm" value={inst.start_date} onChange={(e) => setInstField(idx, 'start_date', e.target.value)} />
+                          </CCol>
+                          <CCol xs={12} md={5}>
+                            <CFormLabel className="small fw-medium mb-1">End Date (Target)</CFormLabel>
+                            <CFormInput type="date" size="sm" value={inst.end_date} onChange={(e) => setInstField(idx, 'end_date', e.target.value)} />
+                          </CCol>
+                        </CRow>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {pctTotal > 0 && (
+                  <div className="mt-4">
+                    <div className="small text-body-secondary mb-1">% Distribution</div>
+                    <div className="d-flex rounded overflow-hidden" style={{ height: 12 }}>
+                      {installments.map((inst, idx) => {
+                        const p = parseFloat(inst.percentage) || 0
+                        return p > 0 ? <div key={inst._key} style={{ width: `${(p / Math.max(pctTotal, 1)) * 100}%`, background: INST_COLORS[idx % INST_COLORS.length] }} title={`${inst.label}: ${p}%`} /> : null
+                      })}
+                      {pctTotal < 100 && <div style={{ flexGrow: 1, background: 'var(--cui-border-color)' }} />}
+                    </div>
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      {installments.map((inst, idx) => { const p = parseFloat(inst.percentage) || 0; return p > 0 ? <div key={inst._key} className="d-flex align-items-center gap-1 small"><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: INST_COLORS[idx % INST_COLORS.length] }} />{inst.label}: {p}%</div> : null })}
+                    </div>
+                  </div>
+                )}
               </CCardBody>
             </CCard>
           </CCol>
