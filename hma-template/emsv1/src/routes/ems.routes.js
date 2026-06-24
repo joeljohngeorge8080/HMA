@@ -3,6 +3,7 @@ import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
 const Dashboard = React.lazy(() => import('../modules/ems/dashboard/Dashboard'))
+const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyProfilePage'))
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
 const EmployeeProfile = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeProfile'))
 const EmployeeForm = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeForm'))
@@ -42,6 +43,7 @@ const placeholder = (title, message) => {
 export const emsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/ems/dashboard', name: 'Dashboard', element: Dashboard, module: MODULE.DASHBOARD },
+  { path: '/ems/my-profile', name: 'My Profile', element: MyProfilePage, module: MODULE.MY_PROFILE },
 
   {
     path: '/ems/staff-payroll',

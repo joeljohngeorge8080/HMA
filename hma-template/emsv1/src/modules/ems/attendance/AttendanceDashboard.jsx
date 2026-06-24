@@ -21,6 +21,7 @@ import {
   CTableRow,
   CTabContent,
   CTabPane,
+  CTooltip,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCalendar, cilCloudUpload, cilMoney, cilPencil, cilPeople } from '@coreui/icons'
@@ -330,14 +331,16 @@ const AttendanceDashboard = () => {
                           {s.avg_working_hours || '—'}
                         </CTableDataCell>
                         <CTableDataCell>
-                          <CButton
-                            color="info"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCalendarEmp(s.employee_id)}
-                          >
-                            <CIcon icon={cilCalendar} />
-                          </CButton>
+                          <CTooltip content="View Calendar">
+                            <CButton
+                              color="info"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCalendarEmp(s.employee_id)}
+                            >
+                              <CIcon icon={cilCalendar} />
+                            </CButton>
+                          </CTooltip>
                         </CTableDataCell>
                       </CTableRow>
                     ))}

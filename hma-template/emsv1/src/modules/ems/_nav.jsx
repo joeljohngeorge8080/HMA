@@ -12,6 +12,7 @@ import {
   cilTransfer,
   cilCloudUpload,
   cilTags,
+  cilUser,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -22,9 +23,17 @@ const STAFF_ROLES = [ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
 const emsNav = [
   {
     component: CNavItem,
+    name: 'My Profile',
+    to: '/ems/my-profile',
+    icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+    roles: [ROLE.EMPLOYEE],
+  },
+  {
+    component: CNavItem,
     name: 'Dashboard',
     to: '/ems/dashboard',
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
   },
   {
     component: CNavItem,
@@ -76,12 +85,14 @@ const emsNav = [
     name: 'Reports & Analysis',
     to: '/ems/reports-analysis',
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
   },
   {
     component: CNavItem,
     name: 'Audit Logs',
     to: '/ems/audit-logs',
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
   },
   {
     component: CNavItem,

@@ -75,6 +75,11 @@ export const PERMISSIONS = {
     [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
   },
 
+  // Employee can only view their own profile — no access to any other EMS module
+  [MODULE.MY_PROFILE]: {
+    [ROLE.EMPLOYEE]: ACCESS.VIEW,
+  },
+
   // ── PMS ─────────────────────────────────────────────────────────────
   [MODULE.PMS_DASHBOARD]: {
     [ROLE.CEO]: ACCESS.VIEW,

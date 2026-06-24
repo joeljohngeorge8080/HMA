@@ -17,6 +17,7 @@ export const ROLE = {
   FIELD_PERSONNEL: 'Field Personnel',
   BACKEND_TEAM: 'Backend Team',
   PROJECT_COORDINATOR: 'Project Coordinator',
+  EMPLOYEE: 'Employee',
 }
 
 export const ROLES = [
@@ -29,4 +30,5 @@ export const ROLES = [
   ROLE.FIELD_PERSONNEL,
   ROLE.BACKEND_TEAM,
   ROLE.PROJECT_COORDINATOR,
+  ROLE.EMPLOYEE,
 ]
