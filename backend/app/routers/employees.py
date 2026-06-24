@@ -41,6 +41,7 @@ from app.schemas.employee import (
     FamilyMemberResponse,
     IdentificationResponse,
     IdentificationUpdate,
+    SalaryDirectUpdateRequest,
     SalaryIncrementRequest,
     SalaryIncrementResponse,
 )
@@ -372,6 +373,20 @@ def apply_salary_increment(
 ):
     emp = svc.get_employee_or_404(session, employee_id)
     hist = svc.apply_salary_increment(session, emp, data, current_user, get_client_ip(request))
+    return SalaryIncrementResponse.model_validate(hist)
+
+
+@router.post('/{employee_id}/salary-update', response_model=SalaryIncrementResponse, status_code=201)
+def direct_salary_update(
+    request: Request,
+    employee_id: uuid.UUID,
+    data: SalaryDirectUpdateRequest,
+    session: SessionDep,
+    _: Annotated[None, Depends(require_hr)],
+    current_user: CurrentUser,
+):
+    emp = svc.get_employee_or_404(session, employee_id)
+    hist = svc.apply_salary_direct_update(session, emp, data, current_user, get_client_ip(request))
     return SalaryIncrementResponse.model_validate(hist)
 
 

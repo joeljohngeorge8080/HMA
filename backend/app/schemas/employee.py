@@ -171,6 +171,26 @@ class SalaryIncrementRequest(BaseModel):
         return v
 
 
+class SalaryDirectUpdateRequest(BaseModel):
+    new_salary: Decimal
+    effective_date: date
+    remarks: Optional[str] = None
+
+    @field_validator('new_salary')
+    @classmethod
+    def validate_new_salary(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError('Salary must be greater than zero')
+        return v
+
+    @field_validator('effective_date')
+    @classmethod
+    def validate_effective_date(cls, v: date) -> date:
+        if v < date.today():
+            raise ValueError('Effective date cannot be in the past')
+        return v
+
+
 class SalaryIncrementResponse(BaseModel):
     id: uuid.UUID
     employee_id: uuid.UUID

@@ -18,6 +18,7 @@ class ActionType(str, Enum):
     OVERRIDE = 'Override'
     PASSWORD_RESET = 'PasswordReset'
     SALARY_INCREMENT = 'SalaryIncrement'
+    SALARY_UPDATE = 'SalaryUpdate'
     STATUS_CHANGE = 'StatusChange'
     DOCUMENT_UPLOAD = 'DocumentUpload'
 

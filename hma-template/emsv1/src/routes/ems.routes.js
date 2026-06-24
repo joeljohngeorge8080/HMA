@@ -14,6 +14,25 @@ const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
 
+const GeneralExpenseList = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseList'),
+)
+const GeneralExpenseForm = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseForm'),
+)
+const GeneralExpenseDetail = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseDetail'),
+)
+const CategoryManager = React.lazy(
+  () => import('../modules/ems/general-expenses/components/CategoryManager'),
+)
+const ExpenseUpload = React.lazy(
+  () => import('../modules/ems/general-expenses/components/ExpenseUpload'),
+)
+const ExpenseAnalysis = React.lazy(
+  () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
+)
+
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
   Page.displayName = `Placeholder(${title})`
@@ -73,6 +92,49 @@ export const emsRoutes = [
     name: 'Expense Management',
     element: placeholder('Expense Management'),
     module: MODULE.EXPENSE_MANAGEMENT,
+  },
+
+  {
+    path: '/ems/general-expenses',
+    name: 'General Expenses',
+    element: GeneralExpenseList,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/new',
+    name: 'Add Expense',
+    element: GeneralExpenseForm,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/categories',
+    name: 'Expense Categories',
+    element: CategoryManager,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/upload',
+    name: 'Upload Excel',
+    element: ExpenseUpload,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/analysis',
+    name: 'Expense Analysis',
+    element: ExpenseAnalysis,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/:id/edit',
+    name: 'Edit Expense',
+    element: GeneralExpenseForm,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/:id',
+    name: 'Expense Detail',
+    element: GeneralExpenseDetail,
+    module: MODULE.GENERAL_EXPENSES,
   },
 
   {
