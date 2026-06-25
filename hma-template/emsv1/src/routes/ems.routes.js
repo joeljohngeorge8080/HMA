@@ -14,6 +14,7 @@ const AttendanceImport = React.lazy(() => import('../modules/ems/attendance/Atte
 const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
+const GlobalHRPoolPage = React.lazy(() => import('../modules/ems/hr-pool/GlobalHRPoolPage'))
 
 const GeneralExpenseList = React.lazy(
   () => import('../modules/ems/general-expenses/GeneralExpenseList'),
@@ -107,6 +108,12 @@ export const emsRoutes = [
     module: MODULE.RECRUITMENT,
   },
 
+  {
+    path: '/ems/hr-pool/global',
+    name: 'Global HR & Core Pool',
+    element: GlobalHRPoolPage,
+    module: MODULE.HR_POOL,
+  },
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
