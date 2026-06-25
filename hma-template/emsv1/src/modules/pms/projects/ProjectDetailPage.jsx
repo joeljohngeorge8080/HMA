@@ -58,6 +58,7 @@ import {
 
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
 import { localTasks } from '../../../services/localTasks'
+import { localOrgPool } from '../../../services/localOrgPool'
 import TaskAssignModal from '../daily-reports/components/TaskAssignModal'
 
 const formatCurrency = (amount) =>
@@ -102,6 +103,8 @@ const ProjectDetailPage = () => {
 
   const [project, setProject] = useState(null)
   const [tasks, setTasks] = useState([])
+  const [hrBudgets, setHrBudgets] = useState([])
+  const [coreBudgets, setCoreBudgets] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState(null)
@@ -117,6 +120,8 @@ const ProjectDetailPage = () => {
     if (p) {
       const t = localTasks.getByProject(id)
       setTasks(t)
+      setHrBudgets(localOrgPool.getProjectInstallmentBudgets(id, 'hr'))
+      setCoreBudgets(localOrgPool.getProjectInstallmentBudgets(id, 'core'))
     }
     setLoading(false)
   }
@@ -308,6 +313,44 @@ const ProjectDetailPage = () => {
                         height={8}
                       />
                     </>
+                  )}
+                </CCardBody>
+              </CCard>
+              <CCard className="shadow-sm mt-4">
+                <CCardHeader className="bg-transparent fw-semibold pt-3">
+                  <CIcon icon={cilCalendar} className="me-2" />Monthly Budget Visualiser (View Only)
+                </CCardHeader>
+                <CCardBody>
+                  <p className="small text-body-secondary mb-3">
+                    Projected monthly breakdown for active installments.
+                  </p>
+                  {hrBudgets.length === 0 ? (
+                    <div className="text-center small text-body-tertiary">No installments to show.</div>
+                  ) : (
+                    hrBudgets.map((hr, idx) => {
+                      const core = coreBudgets[idx]
+                      return (
+                        <div key={hr.installmentId} className="mb-3 border rounded p-2">
+                          <div className="fw-medium small mb-1">{hr.installmentLabel}</div>
+                          <div className="d-flex justify-content-between text-body-secondary" style={{ fontSize: '0.75rem' }}>
+                            <span>Total: {formatCurrency(hr.installmentAmount)}</span>
+                            <span>{hr.months} Months</span>
+                          </div>
+                          <hr className="my-2" />
+                          <div className="d-flex gap-3 justify-content-between">
+                            <div className="text-center w-50">
+                              <div className="small fw-semibold text-primary">HR ({hr.pct}%)</div>
+                              <div className="fw-bold fs-6 text-primary">{formatCurrency(hr.monthlyBudget)}<span className="fw-normal" style={{ fontSize: '0.7rem' }}>/mo</span></div>
+                            </div>
+                            <div className="border-start"></div>
+                            <div className="text-center w-50">
+                              <div className="small fw-semibold text-success">Core ({core?.pct}%)</div>
+                              <div className="fw-bold fs-6 text-success">{formatCurrency(core?.monthlyBudget)}<span className="fw-normal" style={{ fontSize: '0.7rem' }}>/mo</span></div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
                   )}
                 </CCardBody>
               </CCard>

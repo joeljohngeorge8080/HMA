@@ -266,4 +266,106 @@ export const localOrgPool = {
   getAllHRExpenses() {
     return readPool().hr_expenses || []
   },
+
+  // ── Core Expense CRUD ──────────────────────────────────────────────────────
+
+  getCoreExpenses() {
+    return readPool().core_expenses || []
+  },
+
+  addCoreExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const allocations = this.computeAllocations('core', parseFloat(expense.amount) || 0)
+    const newExp = {
+      id: uid().replace('hre_', 'core_'),
+      label: expense.label || '',
+      amount: parseFloat(expense.amount) || 0,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      entered_by_project_id: enteredByProjectId,
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.core_expenses = [...(pool.core_expenses || []), newExp]
+    writePool(pool)
+    return newExp
+  },
+
+  removeCoreExpense(expenseId) {
+    const pool = readPool()
+    pool.core_expenses = (pool.core_expenses || []).filter((e) => e.id !== expenseId)
+    writePool(pool)
+  },
+
+  updateCoreExpense(expenseId, data) {
+    const pool = readPool()
+    pool.core_expenses = (pool.core_expenses || []).map((e) => {
+      if (e.id !== expenseId) return e
+      const updated = { ...e, ...data }
+      if (data.amount !== undefined) {
+        updated.project_allocations = this.computeAllocations('core', parseFloat(data.amount) || 0)
+      }
+      return updated
+    })
+    writePool(pool)
+  },
+
+  /**
+   * Returns all Core expense records in which this project has an allocated charge,
+   * enriched with myAmount, mySharePct, isFromThisProject.
+   */
+  getProjectCoreCharges(projectId) {
+    return (readPool().core_expenses || [])
+      .map((exp) => {
+        const alloc = (exp.project_allocations || []).find((a) => a.projectId === projectId)
+        if (!alloc) return null
+        return {
+          ...exp,
+          myAmount: alloc.amountCharged,
+          mySharePct: alloc.sharePct,
+          isFromThisProject: exp.entered_by_project_id === projectId,
+        }
+      })
+      .filter(Boolean)
+  },
+
+  /**
+   * Returns this project's Core budget summary for the current installment.
+   */
+  getProjectCoreBudgetSummary(projectId) {
+    const budgets = this.getActiveProjectMonthlyBudgets('core')
+    const mine = budgets.find((b) => b.projectId === projectId)
+
+    const charges = this.getProjectCoreCharges(projectId)
+    const totalCharged = charges.reduce((s, c) => s + (c.myAmount || 0), 0)
+
+    if (!mine) {
+      return {
+        isActive: false,
+        monthlyBudget: 0,
+        poolBudget: 0,
+        sharePct: 0,
+        totalMonthlyPool: 0,
+        totalCharged: Math.round(totalCharged * 100) / 100,
+        remaining: 0,
+        activeProjectCount: budgets.length,
+      }
+    }
+
+    return {
+      isActive: true,
+      monthlyBudget: mine.monthlyBudget,
+      poolBudget: mine.poolBudget,
+      sharePct: mine.sharePct,
+      totalMonthlyPool: mine.totalMonthlyPool,
+      totalCharged: Math.round(totalCharged * 100) / 100,
+      remaining: Math.round((mine.poolBudget - totalCharged) * 100) / 100,
+      activeProjectCount: budgets.length,
+    }
+  },
+
+  /** Returns all Core expenses in the org pool. */
+  getAllCoreExpenses() {
+    return readPool().core_expenses || []
+  },
 }
