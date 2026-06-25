@@ -55,7 +55,7 @@ const emsNav = [
   },
   {
     component: CNavItem,
-    name: 'Expense Management',
+    name: 'Admin Expenses',
     to: '/ems/expense-management',
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
