@@ -214,7 +214,8 @@ const Login = () => {
                         { label: 'Field Personnel',     role: 'Field Personnel',     id: 'DEV006',     name: 'Dev Field Personnel' },
                         { label: 'Backend Team',        role: 'Backend Team',        id: 'DEV007',     name: 'Dev Backend Team',        redirect: '/pms/settlements' },
                         { label: 'Project Coordinator', role: 'Project Coordinator', id: 'DEV008',     name: 'Dev Project Coordinator', redirect: '/pms/merged-reports' },
-                      ].map(({ label, id, role, name, redirect }) => (
+                        { label: 'Employee',            role: 'Employee',            id: 'DEV009',     name: 'Titu S Jayan', employeeId: 'THLL2408' },
+                      ].map(({ label, id, role, name, redirect, employeeId }) => (
                         <CButton
                           key={id}
                           color="secondary"
@@ -224,7 +225,7 @@ const Login = () => {
                           onClick={() =>
                             handleDevLogin(
                               id,
-                              { employee_id: id, full_name: name, role, google_email: `${id.toLowerCase()}@hma.dev` },
+                              { employee_id: employeeId || id, full_name: name, role, google_email: `${id.toLowerCase()}@hma.dev` },
                               redirect,
                             )
                           }

@@ -13,9 +13,22 @@ import {
 import { cilAccountLogout, cilUser } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 
-import avatar8 from './../../assets/images/avatars/8.jpg'
 import useAuth from '../../hooks/useAuth'
 import { logoutApi } from '../../services/auth'
+
+const getInitials = (name) => {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0][0].toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+const AVATAR_COLORS = ['primary', 'secondary', 'success', 'danger', 'warning', 'info']
+const pickColor = (name) => {
+  if (!name) return 'secondary'
+  const code = name.charCodeAt(0) + (name.charCodeAt(1) || 0)
+  return AVATAR_COLORS[code % AVATAR_COLORS.length]
+}
 
 const AppHeaderDropdown = () => {
   const dispatch = useDispatch()
@@ -29,10 +42,15 @@ const AppHeaderDropdown = () => {
     navigate('/login')
   }
 
+  const initials = getInitials(user?.full_name)
+  const avatarColor = pickColor(user?.full_name)
+
   return (
     <CDropdown variant="nav-item">
       <CDropdownToggle placement="bottom-end" className="py-0 pe-0" caret={false}>
-        <CAvatar src={avatar8} size="md" />
+        <CAvatar color={avatarColor} textColor="white" size="md">
+          {initials}
+        </CAvatar>
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" placement="bottom-end">
         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">

@@ -65,6 +65,20 @@ export const PERMISSIONS = {
     [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
     [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
   },
+  [MODULE.GENERAL_EXPENSES]: {
+    [ROLE.CEO]: ACCESS.VIEW,
+    [ROLE.HEADS]: ACCESS.VIEW,
+    [ROLE.HR]: ACCESS.EDIT,
+    [ROLE.FINANCE]: ACCESS.VIEW,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+    [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
+  },
+
+  // Employee can only view their own profile — no access to any other EMS module
+  [MODULE.MY_PROFILE]: {
+    [ROLE.EMPLOYEE]: ACCESS.VIEW,
+  },
 
   // ── PMS ─────────────────────────────────────────────────────────────
   [MODULE.PMS_DASHBOARD]: {

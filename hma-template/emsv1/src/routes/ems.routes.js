@@ -3,6 +3,7 @@ import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
 const Dashboard = React.lazy(() => import('../modules/ems/dashboard/Dashboard'))
+const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyProfilePage'))
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
 const EmployeeProfile = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeProfile'))
 const EmployeeForm = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeForm'))
@@ -14,6 +15,29 @@ const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
 
+const GeneralExpenseList = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseList'),
+)
+const GeneralExpenseForm = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseForm'),
+)
+const GeneralExpenseDetail = React.lazy(
+  () => import('../modules/ems/general-expenses/GeneralExpenseDetail'),
+)
+const CategoryManager = React.lazy(
+  () => import('../modules/ems/general-expenses/components/CategoryManager'),
+)
+const ExpenseUpload = React.lazy(
+  () => import('../modules/ems/general-expenses/components/ExpenseUpload'),
+)
+const ExpenseAnalysis = React.lazy(
+  () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
+)
+
+const AdminExpensePage = React.lazy(
+  () => import('../modules/ems/expense-management/AdminExpensePage'),
+)
+
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
   Page.displayName = `Placeholder(${title})`
@@ -23,6 +47,7 @@ const placeholder = (title, message) => {
 export const emsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/ems/dashboard', name: 'Dashboard', element: Dashboard, module: MODULE.DASHBOARD },
+  { path: '/ems/my-profile', name: 'My Profile', element: MyProfilePage, module: MODULE.MY_PROFILE },
 
   {
     path: '/ems/staff-payroll',
@@ -71,8 +96,51 @@ export const emsRoutes = [
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
-    element: placeholder('Expense Management'),
+    element: AdminExpensePage,
     module: MODULE.EXPENSE_MANAGEMENT,
+  },
+
+  {
+    path: '/ems/general-expenses',
+    name: 'General Expenses',
+    element: GeneralExpenseList,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/new',
+    name: 'Add Expense',
+    element: GeneralExpenseForm,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/categories',
+    name: 'Expense Categories',
+    element: CategoryManager,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/upload',
+    name: 'Upload Excel',
+    element: ExpenseUpload,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/analysis',
+    name: 'Expense Analysis',
+    element: ExpenseAnalysis,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/:id/edit',
+    name: 'Edit Expense',
+    element: GeneralExpenseForm,
+    module: MODULE.GENERAL_EXPENSES,
+  },
+  {
+    path: '/ems/general-expenses/:id',
+    name: 'Expense Detail',
+    element: GeneralExpenseDetail,
+    module: MODULE.GENERAL_EXPENSES,
   },
 
   {

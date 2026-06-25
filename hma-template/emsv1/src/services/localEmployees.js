@@ -293,6 +293,41 @@ export const localEmployees = {
     return rows[idx]
   },
 
+  // ── updateSalaryDirect ────────────────────────────────────────────────────────
+  updateSalaryDirect(id, { new_salary, effective_date, remarks }) {
+    const rows = readAll()
+    const idx = rows.findIndex((e) => e.id === id)
+    if (idx === -1) throw new Error('Employee not found')
+
+    const old = rows[idx]
+    const previous = parseFloat(old.current_salary || 0)
+    const newSal = parseFloat(new_salary)
+    const amount = newSal - previous
+    const ts = now()
+
+    rows[idx] = {
+      ...old,
+      current_salary: newSal,
+      salary_history: [
+        ...(old.salary_history || []),
+        {
+          id: uid(),
+          previous_salary: previous,
+          increment_percentage: 0,
+          increment_amount: amount,
+          new_salary: newSal,
+          effective_date,
+          remarks: remarks || '',
+          created_at: ts,
+        },
+      ],
+      updated_at: ts,
+    }
+
+    writeAll(rows)
+    return rows[idx]
+  },
+
   // ── applySalaryIncrement ──────────────────────────────────────────────────────
   applySalaryIncrement(id, { increment_percentage, effective_date, remarks }) {
     const rows = readAll()
