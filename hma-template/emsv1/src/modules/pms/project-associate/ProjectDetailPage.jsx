@@ -2,7 +2,7 @@
  * ProjectDetailPage.jsx — Full project detail view for Project Associate.
  * Route: /pms/projects/:id
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CContainer,
@@ -29,6 +29,18 @@ import {
   CToast,
   CToastBody,
   CToastClose,
+  CSpinner,
+  CTable,
+  CTableHead,
+  CTableBody,
+  CTableRow,
+  CTableHeaderCell,
+  CTableDataCell,
+  CFormInput,
+  CFormSelect,
+  CFormCheck,
+  CInputGroup,
+  CInputGroupText,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -46,9 +58,172 @@ import {
   cilDollar,
   cilFolder,
   cilFile,
+  cilPlus,
+  cilTrash,
+  cilPencil,
+  cilWallet,
+  cilChevronBottom,
+  cilChevronTop,
 } from '@coreui/icons'
 import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
+import { localPayroll } from '../../../services/localPayroll'
+import { localOrgPool } from '../../../services/localOrgPool'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
+
+// ─── Budget helpers ────────────────────────────────────────────────────────────
+const fmtShort = (n) => {
+  if (!n && n !== 0) return '—'
+  if (Math.abs(n) >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(2)} Cr`
+  if (Math.abs(n) >= 1_00_000)    return `₹${(n / 1_00_000).toFixed(2)} L`
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+}
+
+const formatMonth = (m) => {
+  if (!m) return '—'
+  try { const [y, mo] = m.split('-'); return new Date(y, mo - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) } catch { return m }
+}
+
+const RECURRING_TYPES = [
+  { value: 'electricity', label: '⚡ Electricity' },
+  { value: 'water',       label: '💧 Water' },
+  { value: 'internet',    label: '🌐 Internet' },
+  { value: 'other',       label: '📦 Other' },
+]
+
+// ── Expense Card ──────────────────────────────────────────────────────────────
+const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd, onRemove, onEdit }) => {
+  const [form, setForm] = useState({ label: '', amount: '', date: '', notes: '', is_recurring: false, recurring_type: 'electricity' })
+  const [adding, setAdding] = useState(false)
+  const [editId, setEditId] = useState(null)
+  const [editForm, setEditForm] = useState({})
+
+  const totalUsed = expenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
+  const remaining = (budget || 0) - totalUsed
+  const pct = budget > 0 ? Math.round((totalUsed / budget) * 100) : 0
+
+  const suggestion = useMemo(() => {
+    if (!isAdmin || !form.is_recurring || !form.recurring_type) return null
+    return localPayroll.suggestRecurringAmount(projectId, form.recurring_type)
+  }, [isAdmin, form.is_recurring, form.recurring_type, projectId])
+
+  const handleAdd = () => {
+    if (!form.label || !form.amount) return
+    onAdd({ ...form, amount: parseFloat(form.amount) })
+    setForm({ label: '', amount: '', date: '', notes: '', is_recurring: false, recurring_type: 'electricity' })
+    setAdding(false)
+  }
+
+  const startEdit = (exp) => { setEditId(exp.id); setEditForm({ ...exp }) }
+  const handleEditSave = () => { onEdit(editId, editForm); setEditId(null) }
+
+  const fmtIN = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
+
+  return (
+    <CCard className="shadow-sm h-100">
+      <CCardHeader className={`bg-transparent fw-semibold pt-3 border-start border-4 border-start-${color}`}>{title}</CCardHeader>
+      <CCardBody className="d-flex flex-column">
+        <div className="mb-3">
+          <div className="d-flex justify-content-between small text-body-secondary mb-1">
+            <span>Used: {fmtShort(totalUsed)}</span>
+            <span>Budget: {fmtShort(budget)}</span>
+          </div>
+          <CProgress value={Math.min(pct, 100)} color={pct > 90 ? 'danger' : pct > 70 ? 'warning' : color} height={6} />
+          <div className={`small fw-semibold mt-1 ${remaining < 0 ? 'text-danger' : 'text-success'}`}>
+            {remaining >= 0 ? `${fmtShort(remaining)} remaining` : `${fmtShort(Math.abs(remaining))} over budget`}
+          </div>
+        </div>
+        {expenses.length === 0 ? (
+          <div className="text-center text-body-tertiary small py-3">No expenses added yet.</div>
+        ) : (
+          <div className="d-flex flex-column gap-2 mb-3">
+            {expenses.map((exp) =>
+              editId === exp.id ? (
+                <div key={exp.id} className="border rounded p-2 bg-body-secondary">
+                  <CRow className="g-1 mb-1">
+                    <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Label" value={editForm.label} onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
+                    <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
+                    <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
+                    {isAdmin && (
+                      <CCol xs={12}>
+                        <div className="d-flex align-items-center gap-2 mt-1">
+                          <CFormCheck label="Recurring" checked={!!editForm.is_recurring} onChange={(e) => setEditForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
+                          {editForm.is_recurring && (
+                            <CFormSelect size="sm" value={editForm.recurring_type} onChange={(e) => setEditForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 140 }}>
+                              {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            </CFormSelect>
+                          )}
+                        </div>
+                      </CCol>
+                    )}
+                  </CRow>
+                  <div className="d-flex gap-1">
+                    <CButton size="sm" color="primary" onClick={handleEditSave}>Save</CButton>
+                    <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>Cancel</CButton>
+                  </div>
+                </div>
+              ) : (
+                <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2">
+                  <div>
+                    <div className="fw-semibold small">
+                      {exp.label}
+                      {exp.is_recurring && <CBadge color="info" className="ms-2" style={{ fontSize: '0.65rem' }}>{RECURRING_TYPES.find((r) => r.value === exp.recurring_type)?.label || 'Recurring'}</CBadge>}
+                    </div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>{fmtDate(exp.date)}{exp.notes && ` · ${exp.notes}`}</div>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="fw-bold small">{fmtShort(exp.amount)}</span>
+                    <CButton color="secondary" variant="ghost" size="sm" onClick={() => startEdit(exp)}><CIcon icon={cilPencil} size="sm" /></CButton>
+                    <CButton color="danger" variant="ghost" size="sm" onClick={() => onRemove(exp.id)}><CIcon icon={cilTrash} size="sm" /></CButton>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+        {adding ? (
+          <div className="border rounded p-2 bg-body-secondary mt-auto">
+            <CRow className="g-1 mb-1">
+              <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Expense label *" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
+              <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" min="0" placeholder="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
+              <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
+              <CCol xs={12}><CFormInput size="sm" placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></CCol>
+              {isAdmin && (
+                <CCol xs={12}>
+                  <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                    <CFormCheck label="Recurring / Fixed expense" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
+                    {form.is_recurring && (
+                      <CFormSelect size="sm" value={form.recurring_type} onChange={(e) => setForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 150 }}>
+                        {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </CFormSelect>
+                    )}
+                  </div>
+                  {form.is_recurring && suggestion?.suggested && (
+                    <div className="small text-info mt-1 d-flex align-items-center gap-2">
+                      💡 Previous: ₹{suggestion.prevAmount?.toLocaleString('en-IN')} → Suggested: ₹{suggestion.suggested?.toLocaleString('en-IN')} (+5%)
+                      <CButton size="sm" color="info" variant="ghost" style={{ padding: '0 6px' }} onClick={() => setForm((f) => ({ ...f, amount: String(suggestion.suggested) }))}>Use</CButton>
+                    </div>
+                  )}
+                </CCol>
+              )}
+            </CRow>
+            <div className="d-flex gap-1 mt-1">
+              <CButton size="sm" color="primary" onClick={handleAdd}>Add</CButton>
+              <CButton size="sm" color="secondary" variant="ghost" onClick={() => setAdding(false)}>Cancel</CButton>
+            </div>
+          </div>
+        ) : (
+          <CButton size="sm" color={color} variant="outline" className="mt-auto" onClick={() => setAdding(true)}>
+            <CIcon icon={cilPlus} className="me-1" />Add Expense
+          </CButton>
+        )}
+      </CCardBody>
+    </CCard>
+  )
+}
+
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -131,11 +306,22 @@ const ProjectDetailPage = () => {
   const [rejectModal, setRejectModal] = useState({ visible: false, item: null })
   const [ucModal, setUcModal] = useState({ visible: false, milestone: null })
   const [toast, setToast] = useState(null)
+  // Budget & Payroll state
+  const [actualDateEditing, setActualDateEditing] = useState(null)
+  const [actualDateVal, setActualDateVal] = useState('')
+  // Beneficiaries state
+  const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
+
+  const role = useRole()
+  const isBudgetAdmin = role === ROLE.CEO || role === ROLE.FINANCE || role === ROLE.HR
 
   useEffect(() => {
     localProjects.seedDemoData()
     const p = localProjects.getById(id)
     setProject(p)
+    if (p) {
+      setBeneficiariesCompleted(p.beneficiaries_completed || 0)
+    }
     // Load approvals only for projects that have pending ones
     if (p && p.pending_approvals > 0) {
       setApprovals(DEMO_APPROVALS)
@@ -176,17 +362,28 @@ const ProjectDetailPage = () => {
     setToast({ color: 'danger', message: '⚠️ Request rejected and sent back' })
   }
 
-  const handleSubmitUc = (milestone) => {
-    // Mock updating the UC status and actual date locally
+  const handleSubmitUc = (inst) => {
     const actualDate = new Date().toISOString().split('T')[0]
-    const updatedMilestones = project.milestones.map((m) =>
-      m.id === milestone.id ? { ...m, uc_status: 'Submitted', actual_date: actualDate } : m
-    )
-    const updatedProject = { ...project, milestones: updatedMilestones }
-    setProject(updatedProject)
-    localProjects.update(project.id, { milestones: updatedMilestones })
+    const updated = localProjects.updateInstallment(project.id, inst.id, {
+      uc_status: 'Submitted',
+      actual_date: actualDate,
+    })
+    setProject(updated)
     setUcModal({ visible: false, milestone: null })
     setToast({ color: 'success', message: '✅ Utilisation Certificate submitted successfully' })
+  }
+
+  const handleActivateProject = () => {
+    const updated = localProjects.activateProject(project.id)
+    setProject(updated)
+    setToast({ color: 'success', message: '🟢 Project operations activated! HR & Core pool contributions are now live.' })
+  }
+
+  const handleUpdateBeneficiaries = () => {
+    const val = parseInt(beneficiariesCompleted, 10) || 0
+    const updated = localProjects.update(project.id, { beneficiaries_completed: val })
+    setProject(updated)
+    setToast({ color: 'success', message: '✅ Beneficiaries completed count updated!' })
   }
 
   return (
@@ -239,6 +436,18 @@ const ProjectDetailPage = () => {
             <CIcon icon={cilPen} className="me-1" />
             Edit Project
           </CButton>
+          {!project.is_operations_active && (
+            <CButton
+              color="success"
+              className="fw-semibold flex-shrink-0"
+              onClick={handleActivateProject}
+            >
+              ▶ Activate Project
+            </CButton>
+          )}
+          {project.is_operations_active && (
+            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>🟢 Operations Active</CBadge>
+          )}
         </div>
       </div>
 
@@ -263,22 +472,35 @@ const ProjectDetailPage = () => {
                 bg: 'rgba(6,214,160,0.06)',
               },
               {
-                label: 'Beneficiaries Completed',
-                value: project.beneficiaries_completed || 0,
-                sub: 'Till date',
+                label: 'Beneficiaries Reached',
+                value: `${project.beneficiaries_completed?.toLocaleString('en-IN') || 0} / ${project.beneficiaries_target?.toLocaleString('en-IN') || 0}`,
+                sub: 'Completed vs Target',
                 color: '#f72585',
                 bg: 'rgba(247,37,133,0.06)',
+                isBeneficiaries: true,
               },
             ].map((kpi, i) => (
               <CCard key={i} className="border-0 shadow-sm flex-grow-1" style={{ borderRadius: '12px' }}>
                 <CCardBody className="py-3">
-                  <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
-                    {kpi.value}
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
+                      {kpi.value}
+                    </div>
                   </div>
                   <div className="fw-semibold small text-body">{kpi.label}</div>
-                  <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                  <div className="text-body-secondary mb-2" style={{ fontSize: '0.72rem' }}>
                     {kpi.sub}
                   </div>
+                  {kpi.isBeneficiaries && (
+                    <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
+                      <CFormInput type="number" size="sm" style={{ width: '90px', fontSize: '0.75rem' }} 
+                        value={beneficiariesCompleted} 
+                        onChange={(e) => setBeneficiariesCompleted(e.target.value)} 
+                        placeholder="Completed"
+                      />
+                      <CButton size="sm" color="danger" variant="outline" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }} onClick={handleUpdateBeneficiaries}>Save</CButton>
+                    </div>
+                  )}
                   {kpi.label === 'Task Progress' && (
                     <CProgress value={progressPct} height={4} color="success" className="mt-2 rounded-pill" />
                   )}
@@ -326,7 +548,7 @@ const ProjectDetailPage = () => {
       <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
         <CCardHeader className="bg-transparent border-bottom-0 px-4 pt-3">
           <CNav variant="underline" role="tablist">
-            {['Overview', 'Project Officer', 'Tasks & Procurement', 'Approvals', 'Project Financials', 'Project Milestones'].map((tab, i) => (
+            {['Overview', 'Project Officer', 'Tasks & Procurement', 'Approvals', 'Project Financials', 'Project Milestones', 'Budget & Payroll'].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
                   active={activeTab === i}
@@ -843,7 +1065,7 @@ const ProjectDetailPage = () => {
                         <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">Fund Installments & UCs</h6>
                       </div>
                       
-                      {project.milestones && project.milestones.length > 0 ? (
+                      {project.installments && project.installments.length > 0 ? (
                         <div className="position-relative">
                           {/* Vertical timeline line */}
                           <div
@@ -852,21 +1074,21 @@ const ProjectDetailPage = () => {
                           ></div>
                           
                           <div className="d-flex flex-column gap-4">
-                            {project.milestones.map((ms, i) => (
-                              <div key={ms.id} className="d-flex position-relative">
+                            {project.installments.map((inst, i) => (
+                              <div key={inst.id} className="d-flex position-relative">
                                 {/* Timeline Dot */}
                                 <div
                                   className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 z-1"
                                   style={{
                                     width: 34,
                                     height: 34,
-                                    background: ms.uc_status === 'Approved' ? '#06d6a0' : ms.uc_status === 'Submitted' ? '#4361ee' : '#fff',
-                                    border: `2px solid ${ms.uc_status === 'Approved' ? '#06d6a0' : ms.uc_status === 'Submitted' ? '#4361ee' : '#dee2e6'}`,
-                                    color: ms.uc_status === 'Pending' ? '#adb5bd' : '#fff',
+                                    background: inst.uc_status === 'Approved' ? '#06d6a0' : inst.uc_status === 'Submitted' ? '#4361ee' : '#fff',
+                                    border: `2px solid ${inst.uc_status === 'Approved' ? '#06d6a0' : inst.uc_status === 'Submitted' ? '#4361ee' : '#dee2e6'}`,
+                                    color: inst.uc_status === 'Pending' ? '#adb5bd' : '#fff',
                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                   }}
                                 >
-                                  {ms.uc_status === 'Approved' ? '✓' : i + 1}
+                                  {inst.uc_status === 'Approved' ? '✓' : i + 1}
                                 </div>
                                 
                                 {/* Content Card */}
@@ -874,25 +1096,25 @@ const ProjectDetailPage = () => {
                                   <div className="p-3 rounded-3 border bg-white shadow-sm">
                                     <div className="d-flex justify-content-between align-items-start mb-2">
                                       <div>
-                                        <h6 className="fw-bold mb-1">{ms.title}</h6>
-                                        <div className="text-primary fw-bold fs-5">{fmt(ms.amount)}</div>
+                                        <h6 className="fw-bold mb-1">{inst.label} <span className="text-body-secondary fw-normal small">({inst.percentage}%)</span></h6>
+                                        <div className="text-primary fw-bold fs-5">{fmt(inst.amount)}</div>
                                       </div>
                                       <CBadge
-                                        color={ms.uc_status === 'Approved' ? 'success' : ms.uc_status === 'Submitted' ? 'primary' : 'warning'}
+                                        color={inst.uc_status === 'Approved' ? 'success' : inst.uc_status === 'Submitted' ? 'primary' : 'warning'}
                                         shape="rounded-pill"
                                       >
-                                        UC: {ms.uc_status}
+                                        UC: {inst.uc_status || 'Pending'}
                                       </CBadge>
                                     </div>
                                     
                                     <CRow className="g-2 small text-body-secondary mt-2">
                                       <CCol xs={4}>
                                         <div><CIcon icon={cilFolder} className="me-1" /> Target Date</div>
-                                        <div className="fw-medium text-body">{fmtDate(ms.target_date)}</div>
+                                        <div className="fw-medium text-body">{fmtDate(inst.target_date)}</div>
                                       </CCol>
                                       <CCol xs={4}>
                                         <div><CIcon icon={cilFolder} className="me-1" /> Actual Date</div>
-                                        <div className="fw-medium text-body">{ms.actual_date ? fmtDate(ms.actual_date) : '—'}</div>
+                                        <div className="fw-medium text-body">{inst.actual_date ? fmtDate(inst.actual_date) : '—'}</div>
                                       </CCol>
                                       <CCol xs={4}>
                                         <div><CIcon icon={cilWarning} className="me-1" /> Delay</div>
@@ -907,9 +1129,9 @@ const ProjectDetailPage = () => {
                                       </CCol>
                                     </CRow>
                                     
-                                    {ms.uc_status === 'Pending' && (
+                                    {(inst.uc_status === 'Pending' || !inst.uc_status) && (
                                       <div className="mt-3 pt-3 border-top text-end">
-                                        <CButton color="primary" size="sm" onClick={() => setUcModal({ visible: true, milestone: ms })}>
+                                        <CButton color="primary" size="sm" onClick={() => setUcModal({ visible: true, milestone: inst })}>
                                           <CIcon icon={cilFile} className="me-1" />
                                           Submit UC
                                         </CButton>
@@ -923,7 +1145,7 @@ const ProjectDetailPage = () => {
                         </div>
                       ) : (
                         <div className="text-center py-5 text-body-secondary">
-                          No milestones configured for this project.
+                          No installments configured for this project.
                         </div>
                       )}
                     </CCardBody>
@@ -969,6 +1191,134 @@ const ProjectDetailPage = () => {
                   </CCard>
                 </CCol>
               </CRow>
+            </CTabPane>
+
+            {/* ══ TAB 6: Budget & Payroll ════════════════════════════════════ */}
+            <CTabPane visible={activeTab === 6}>
+              {/* Budget & Payroll helpers inline — uses project.installments */}
+              {(() => {
+                const installments = project.installments || []
+
+                const saveActualDate = (instId) => {
+                  const updated = localProjects.updateInstallment(project.id, instId, { actual_date: actualDateVal || null })
+                  setProject(updated)
+                  setActualDateEditing(null)
+                  setToast({ color: 'success', message: 'Actual date updated.' })
+                }
+
+                const updateProjectPct = (field, val) => {
+                  const updated = localProjects.update(project.id, { [field]: parseFloat(val) || 0 })
+                  setProject(updated)
+                }
+
+                const handleAddExpense = (pool, expense) => {
+                  const updated = localProjects.addExpense(project.id, pool, expense)
+                  setProject(updated)
+                  setToast({ color: 'success', message: `${pool.toUpperCase()} expense added.` })
+                }
+
+                const handleRemoveExpense = (pool, expId) => {
+                  const updated = localProjects.removeExpense(project.id, pool, expId)
+                  setProject(updated)
+                }
+
+                const handleEditExpense = (pool, expId, data) => {
+                  const updated = localProjects.updateExpense(project.id, pool, expId, data)
+                  setProject(updated)
+                }
+
+                const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
+                const UC_COLORS = { Pending: 'secondary', Submitted: 'warning', Approved: 'success' }
+
+                return (
+                  <div>
+                    {/* Admin Budget Section */}
+                    <CCard className="shadow-sm mb-4 border-top border-top-4 border-top-primary">
+                      <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
+                        <span>🌐 Admin Budget</span>
+                        <div className="d-flex gap-3 flex-wrap">
+                          {[{ key: 'admin_pct', color: '#f7c948', label: 'Admin' }].map(({ key, color, label }) => (
+                            <div key={key} className="d-flex align-items-center gap-2">
+                              <span className="small fw-semibold" style={{ color }}>{label}</span>
+                              <span className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center" style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}>{project[key] ?? 5}</span>
+                              <span className="small text-body-tertiary">%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CCardHeader>
+                      <CCardBody>
+                        <CRow className="g-3">
+                          <CCol xs={12}>
+                            <ExpenseCard title="🏛 Admin Expenses" color="warning" budget={(project.project_valuation || project.project_value || 0) * ((project.admin_pct ?? 5) / 100)} expenses={project.admin_expenses || []} isAdmin={true} projectId={project.id}
+                              onAdd={(exp) => handleAddExpense('admin', exp)}
+                              onRemove={(expId) => handleRemoveExpense('admin', expId)}
+                              onEdit={(expId, data) => handleEditExpense('admin', expId, data)} />
+                          </CCol>
+                        </CRow>
+                      </CCardBody>
+                    </CCard>
+
+                    {/* Installments Table */}
+                    <CCard className="shadow-sm mb-4">
+                      <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
+                        <span>📅 Installment Schedule</span>
+                        <CBadge color="primary" shape="rounded-pill">{installments.length} installments</CBadge>
+                      </CCardHeader>
+                      <CCardBody className="p-0">
+                        {installments.length === 0 ? (
+                          <div className="text-center text-body-tertiary small py-4">No installments defined. Edit the project to add installments.</div>
+                        ) : (
+                          <div style={{ overflowX: 'auto' }}>
+                            <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
+                              <CTableHead color="light">
+                                <CTableRow>
+                                  <CTableHeaderCell>Installment</CTableHeaderCell>
+                                  <CTableHeaderCell className="text-center">%</CTableHeaderCell>
+                                  <CTableHeaderCell className="text-end">Amount</CTableHeaderCell>
+                                  <CTableHeaderCell>Period (Start – End/Target)</CTableHeaderCell>
+                                  <CTableHeaderCell>Actual Date</CTableHeaderCell>
+                                  <CTableHeaderCell className="text-center">UC Status</CTableHeaderCell>
+                                </CTableRow>
+                              </CTableHead>
+                              <CTableBody>
+                                {installments.map((inst, instIdx) => (
+                                  <React.Fragment key={inst.id}>
+                                    <CTableRow>
+                                      <CTableDataCell className="fw-semibold">{inst.label}</CTableDataCell>
+                                      <CTableDataCell className="text-center"><CBadge color="secondary">{inst.percentage}%</CBadge></CTableDataCell>
+                                      <CTableDataCell className="text-end fw-bold text-primary">{fmtShort(inst.amount)}</CTableDataCell>
+                                      <CTableDataCell className="text-body-secondary">{fmtD(inst.start_date)} – {fmtD(inst.end_date)}</CTableDataCell>
+                                      <CTableDataCell>
+                                        {actualDateEditing === inst.id ? (
+                                          <div className="d-flex gap-1 align-items-center" onClick={(e) => e.stopPropagation()}>
+                                            <CFormInput type="date" size="sm" value={actualDateVal} style={{ maxWidth: 150 }} onChange={(e) => setActualDateVal(e.target.value)} />
+                                            <CButton size="sm" color="success" onClick={() => saveActualDate(inst.id)}>✓</CButton>
+                                            <CButton size="sm" color="secondary" variant="ghost" onClick={() => setActualDateEditing(null)}>✕</CButton>
+                                          </div>
+                                        ) : (
+                                          <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                            <span className={inst.actual_date ? 'text-success fw-semibold' : 'text-body-tertiary fst-italic'}>
+                                              {inst.actual_date ? fmtD(inst.actual_date) : 'Not received'}
+                                            </span>
+                                            <CButton size="sm" color="secondary" variant="ghost" onClick={() => { setActualDateEditing(inst.id); setActualDateVal(inst.actual_date || '') }}>
+                                              <CIcon icon={cilPencil} size="sm" />
+                                            </CButton>
+                                          </div>
+                                        )}
+                                      </CTableDataCell>
+                                      <CTableDataCell className="text-center"><CBadge color={UC_COLORS[inst.uc_status] || 'secondary'}>{inst.uc_status || 'Pending'}</CBadge></CTableDataCell>
+                                    </CTableRow>
+                                  </React.Fragment>
+                                ))}
+                              </CTableBody>
+                            </CTable>
+                          </div>
+                        )}
+                      </CCardBody>
+                    </CCard>
+                  </div>
+                )
+              })()}
             </CTabPane>
           </CTabContent>
         </CCardBody>
