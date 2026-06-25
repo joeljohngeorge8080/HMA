@@ -34,7 +34,7 @@ const MONTHS = [
 ]
 
 const YEARS = [thisYear - 2, thisYear - 1, thisYear, thisYear + 1]
-const FREQUENCIES = ['Monthly', 'Quarterly', 'Annual', 'One-time']
+const FREQUENCIES = ['Monthly', 'Quarterly', 'Half Yearly', 'Annually', 'One-time']
 const STATUSES = ['Pending', 'Paid', 'Overdue', 'Cancelled']
 
 const EMPTY = {

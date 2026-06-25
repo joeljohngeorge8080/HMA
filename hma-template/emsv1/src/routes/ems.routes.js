@@ -34,6 +34,10 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 
+const AdminExpensePage = React.lazy(
+  () => import('../modules/ems/expense-management/AdminExpensePage'),
+)
+
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
   Page.displayName = `Placeholder(${title})`
@@ -92,7 +96,7 @@ export const emsRoutes = [
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
-    element: placeholder('Expense Management'),
+    element: AdminExpensePage,
     module: MODULE.EXPENSE_MANAGEMENT,
   },
 

@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import {
+  CAlert,
   CBadge,
+  CButton,
   CCard,
   CCardBody,
   CCardHeader,
   CCol,
+  CFormInput,
+  CFormLabel,
+  CFormSelect,
+  CFormTextarea,
   CProgress,
   CRow,
   CSpinner,
@@ -16,13 +22,29 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilPencil, cilPlus } from '@coreui/icons'
 import api from '../../../../services/api'
 import { localGeneralExpenses } from '../../../../services/localGeneralExpenses'
+import useRole from '../../../../hooks/useRole'
+import { ROLE } from '../../../../constants/roles'
+import CoreSalaryPanel from './CoreSalaryPanel'
+import AdminDivisionPanel from './AdminDivisionPanel'
 
-const MONTHS = [
+const MONTHS_LABEL = [
   '', 'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
+const MONTHS_OPT = [
+  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' },
+  { v: 4, l: 'April' }, { v: 5, l: 'May' }, { v: 6, l: 'June' },
+  { v: 7, l: 'July' }, { v: 8, l: 'August' }, { v: 9, l: 'September' },
+  { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+]
+const THIS_YEAR = new Date().getFullYear()
+const YEARS = [THIS_YEAR - 2, THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
+const FREQUENCIES = ['Monthly', 'Quarterly', 'Half Yearly', 'Annually', 'One-time']
+const STATUSES = ['Pending', 'Paid', 'Overdue', 'Cancelled']
 
 const currency = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -31,29 +53,205 @@ const currency = (n) =>
     maximumFractionDigits: 0,
   }).format(n || 0)
 
-// Category IDs classified as HR division; everything else falls under Admin.
-// Outsourced Services covers HK, Security, and City salaries — workforce costs managed by HR.
+const STATUS_COLORS = {
+  Pending: 'warning',
+  Paid: 'success',
+  Overdue: 'danger',
+  Cancelled: 'secondary',
+}
+
+// Outsourced Services — HR division (HK, Security, City salaries)
 const HR_CATEGORY_IDS = new Set(['cat-00000000-0012'])
 
-const DIVISIONS = [
-  {
-    key: 'hr',
-    label: 'HR Expenses',
-    description: 'Workforce & outsourced staff costs',
-    color: 'info',
-    matchFn: (catId) => HR_CATEGORY_IDS.has(catId),
-  },
-  {
-    key: 'admin',
-    label: 'Admin Expenses',
-    description: 'Office operations & infrastructure',
-    color: 'primary',
-    matchFn: (catId) => !HR_CATEGORY_IDS.has(catId),
-  },
-]
+const HR_DIVISION = {
+  key: 'hr',
+  label: 'HR Expenses',
+  description: 'Outsourced workforce costs (HK, Security, City staff)',
+  color: 'info',
+  matchFn: (catId) => HR_CATEGORY_IDS.has(catId),
+  filterCats: (cats) => cats.filter((c) => HR_CATEGORY_IDS.has(c.id)),
+}
 
-const DivisionCard = ({ division, expenses, categories }) => {
+// ── Inline expense form modal ─────────────────────────────────────────────────
+
+const EMPTY_FORM = {
+  category_id: '',
+  expense_name: '',
+  month: new Date().getMonth() + 1,
+  year: THIS_YEAR,
+  frequency: 'Monthly',
+  planned_amount: '',
+  actual_amount: '',
+  status: 'Pending',
+  remarks: '',
+}
+
+const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSave, onClose, saving, error }) => {
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }))
+  const variance =
+    form.planned_amount !== '' && form.actual_amount !== ''
+      ? parseFloat((parseFloat(form.actual_amount || 0) - parseFloat(form.planned_amount || 0)).toFixed(2))
+      : null
+
+  return (
+    <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">{title}</h5>
+            <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
+          </div>
+          <div className="modal-body">
+            {error && <CAlert color="danger" className="py-2">{error}</CAlert>}
+            <CRow className="g-3">
+              <CCol md={6}>
+                <CFormLabel className="fw-semibold">
+                  Category <span className="text-danger">*</span>
+                </CFormLabel>
+                {divCategories.length === 1 ? (
+                  /* Single-category division (e.g. HR) — lock it, no accidental blank selection */
+                  <div className="form-control bg-body-secondary">
+                    {divCategories[0].name}
+                  </div>
+                ) : (
+                  <CFormSelect
+                    value={form.category_id}
+                    onChange={(e) => set('category_id', e.target.value)}
+                  >
+                    <option value="">Select category…</option>
+                    {(divCategories.length > 0 ? divCategories : allCategories).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </CFormSelect>
+                )}
+              </CCol>
+
+              <CCol md={6}>
+                <CFormLabel className="fw-semibold">
+                  Expense Name <span className="text-danger">*</span>
+                </CFormLabel>
+                <CFormInput
+                  value={form.expense_name}
+                  onChange={(e) => set('expense_name', e.target.value)}
+                  placeholder="e.g. Housekeeping Salary"
+                />
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">Month</CFormLabel>
+                <CFormSelect value={form.month} onChange={(e) => set('month', parseInt(e.target.value))}>
+                  {MONTHS_OPT.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
+                </CFormSelect>
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">Year</CFormLabel>
+                <CFormSelect value={form.year} onChange={(e) => set('year', parseInt(e.target.value))}>
+                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </CFormSelect>
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">Frequency</CFormLabel>
+                <CFormSelect value={form.frequency} onChange={(e) => set('frequency', e.target.value)}>
+                  {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                </CFormSelect>
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">
+                  Planned Amount (₹) <span className="text-danger">*</span>
+                </CFormLabel>
+                <CFormInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.planned_amount}
+                  onChange={(e) => set('planned_amount', e.target.value)}
+                  placeholder="0.00"
+                />
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">Actual Amount (₹)</CFormLabel>
+                <CFormInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.actual_amount}
+                  onChange={(e) => set('actual_amount', e.target.value)}
+                  placeholder="0.00"
+                />
+              </CCol>
+
+              <CCol sm={4}>
+                <CFormLabel className="fw-semibold">Variance</CFormLabel>
+                <div
+                  className={`form-control bg-body-secondary ${
+                    variance === null ? '' : variance > 0 ? 'text-danger' : variance < 0 ? 'text-success' : ''
+                  }`}
+                  style={{ userSelect: 'none' }}
+                >
+                  {variance === null
+                    ? '—'
+                    : `${variance > 0 ? '+' : ''}${new Intl.NumberFormat('en-IN').format(variance)}`}
+                </div>
+              </CCol>
+
+              <CCol sm={6}>
+                <CFormLabel className="fw-semibold">Status</CFormLabel>
+                <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </CFormSelect>
+              </CCol>
+
+              <CCol md={12}>
+                <CFormLabel>Remarks</CFormLabel>
+                <CFormTextarea
+                  rows={2}
+                  value={form.remarks}
+                  onChange={(e) => set('remarks', e.target.value)}
+                  placeholder="Optional notes (vendor, reference, etc.)"
+                />
+              </CCol>
+            </CRow>
+          </div>
+          <div className="modal-footer">
+            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="primary" onClick={onSave} disabled={saving}>
+              {saving && <CSpinner size="sm" className="me-1" />}
+              Save
+            </CButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+ExpenseModal.propTypes = {
+  title: PropTypes.string.isRequired,
+  form: PropTypes.object.isRequired,
+  setForm: PropTypes.func.isRequired,
+  divCategories: PropTypes.array.isRequired,
+  allCategories: PropTypes.array.isRequired,
+  onSave: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+  saving: PropTypes.bool,
+  error: PropTypes.string,
+}
+
+// ── Division card ─────────────────────────────────────────────────────────────
+
+const DivisionCard = ({ division, expenses, categories, canEdit, month, year, onRefresh }) => {
   const divExpenses = expenses.filter((e) => division.matchFn(e.category_id))
+  const divCategories = division.filterCats(categories)
+
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const totalPlanned = divExpenses.reduce((s, e) => s + parseFloat(e.planned_amount || 0), 0)
   const totalActual = divExpenses.reduce((s, e) => s + parseFloat(e.actual_amount || 0), 0)
@@ -61,119 +259,243 @@ const DivisionCard = ({ division, expenses, categories }) => {
   const paidCount = divExpenses.filter((e) => e.status === 'Paid').length
   const pendingCount = divExpenses.filter((e) => e.status === 'Pending').length
   const overdueCount = divExpenses.filter((e) => e.status === 'Overdue').length
-
-  // Per-category totals within this division
-  const catMap = {}
-  for (const e of divExpenses) {
-    if (!catMap[e.category_id]) catMap[e.category_id] = { planned: 0, actual: 0, count: 0 }
-    catMap[e.category_id].planned += parseFloat(e.planned_amount || 0)
-    catMap[e.category_id].actual += parseFloat(e.actual_amount || 0)
-    catMap[e.category_id].count++
-  }
-
-  const catRows = Object.entries(catMap)
-    .map(([catId, totals]) => ({
-      catId,
-      name: categories.find((c) => c.id === catId)?.name || 'Unknown',
-      ...totals,
-      variance: totals.actual - totals.planned,
-    }))
-    .sort((a, b) => b.planned - a.planned)
-
   const utilizationPct =
     totalPlanned > 0 ? Math.min(100, Math.round((totalActual / totalPlanned) * 100)) : 0
 
+  const openAdd = () => {
+    setEditTarget(null)
+    setError('')
+    const defaultCat = divCategories.length === 1 ? divCategories[0].id : ''
+    setForm({
+      ...EMPTY_FORM,
+      category_id: defaultCat,
+      month: month || new Date().getMonth() + 1,
+      year: year || THIS_YEAR,
+    })
+    setShowModal(true)
+  }
+
+  const openEdit = (exp) => {
+    setEditTarget(exp)
+    setError('')
+    setForm({
+      category_id: exp.category_id,
+      expense_name: exp.expense_name,
+      month: exp.month,
+      year: exp.year,
+      frequency: exp.frequency,
+      planned_amount: exp.planned_amount,
+      actual_amount: exp.actual_amount,
+      status: exp.status,
+      remarks: exp.remarks || '',
+    })
+    setShowModal(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.category_id) { setError('Select a category'); return }
+    if (!form.expense_name.trim()) { setError('Expense name is required'); return }
+    if (form.planned_amount === '' || isNaN(parseFloat(form.planned_amount))) {
+      setError('Planned amount is required')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+
+    const payload = {
+      category_id: form.category_id,
+      expense_name: form.expense_name.trim(),
+      month: parseInt(form.month),
+      year: parseInt(form.year),
+      frequency: form.frequency,
+      planned_amount: parseFloat(form.planned_amount),
+      actual_amount: parseFloat(form.actual_amount || 0),
+      status: form.status,
+      remarks: form.remarks.trim() || null,
+    }
+
+    try {
+      if (editTarget) {
+        await api.patch(`/general-expenses/${editTarget.id}`, payload)
+      } else {
+        await api.post('/general-expenses', payload)
+      }
+    } catch {
+      try {
+        if (editTarget) {
+          localGeneralExpenses.expenses.update(editTarget.id, payload)
+        } else {
+          localGeneralExpenses.expenses.create(payload)
+        }
+      } catch (localErr) {
+        setError(localErr.message || 'Save failed')
+        setSaving(false)
+        return
+      }
+    }
+
+    setSaving(false)
+    setShowModal(false)
+    onRefresh()
+  }
+
   return (
-    <CCard className={`border-top border-top-${division.color} border-3 h-100`}>
-      <CCardHeader>
-        <div className="d-flex align-items-center justify-content-between">
-          <div>
-            <strong>{division.label}</strong>
-            <div className="small text-body-secondary mt-1">{division.description}</div>
+    <>
+      <CCard className={`border-top border-top-${division.color} border-3 h-100`}>
+        <CCardHeader>
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <strong>{division.label}</strong>
+              <div className="small text-body-secondary mt-1">{division.description}</div>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <CBadge color={division.color} className="fs-6 px-3 py-2">
+                {divExpenses.length} item{divExpenses.length !== 1 ? 's' : ''}
+              </CBadge>
+              {canEdit && (
+                <CButton color={division.color} size="sm" onClick={openAdd}>
+                  <CIcon icon={cilPlus} className="me-1" /> Add
+                </CButton>
+              )}
+            </div>
           </div>
-          <CBadge color={division.color} className="fs-6 px-3 py-2">
-            {divExpenses.length} item{divExpenses.length !== 1 ? 's' : ''}
-          </CBadge>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {divExpenses.length === 0 ? (
-          <p className="text-body-secondary small mb-0">No expense records for this division.</p>
-        ) : (
-          <>
-            {/* Totals */}
-            <CRow className="g-2 mb-3">
-              <CCol xs={4}>
-                <div className="border rounded p-2 text-center">
-                  <div className="small text-body-secondary">Planned</div>
-                  <div className={`fw-bold text-${division.color}`}>{currency(totalPlanned)}</div>
-                </div>
-              </CCol>
-              <CCol xs={4}>
-                <div className="border rounded p-2 text-center">
-                  <div className="small text-body-secondary">Actual</div>
-                  <div className="fw-bold">{currency(totalActual)}</div>
-                </div>
-              </CCol>
-              <CCol xs={4}>
-                <div className="border rounded p-2 text-center">
-                  <div className="small text-body-secondary">Variance</div>
-                  <div className={`fw-bold text-${variance > 0 ? 'danger' : 'success'}`}>
-                    {variance > 0 ? '+' : ''}{currency(variance)}
+        </CCardHeader>
+        <CCardBody>
+          {divExpenses.length === 0 ? (
+            <p className="text-body-secondary small mb-0">
+              No expense records for this division.
+              {canEdit && ' Click "Add" to create one.'}
+            </p>
+          ) : (
+            <>
+              {/* Totals */}
+              <CRow className="g-2 mb-3">
+                <CCol xs={4}>
+                  <div className="border rounded p-2 text-center">
+                    <div className="small text-body-secondary">Planned</div>
+                    <div className={`fw-bold text-${division.color}`}>{currency(totalPlanned)}</div>
                   </div>
+                </CCol>
+                <CCol xs={4}>
+                  <div className="border rounded p-2 text-center">
+                    <div className="small text-body-secondary">Actual</div>
+                    <div className="fw-bold">{currency(totalActual)}</div>
+                  </div>
+                </CCol>
+                <CCol xs={4}>
+                  <div className="border rounded p-2 text-center">
+                    <div className="small text-body-secondary">Variance</div>
+                    <div className={`fw-bold text-${variance > 0 ? 'danger' : 'success'}`}>
+                      {variance > 0 ? '+' : ''}{currency(variance)}
+                    </div>
+                  </div>
+                </CCol>
+              </CRow>
+
+              {/* Utilization bar */}
+              <div className="mb-3">
+                <div className="d-flex justify-content-between small text-body-secondary mb-1">
+                  <span>Budget utilisation</span>
+                  <span>{utilizationPct}%</span>
                 </div>
-              </CCol>
-            </CRow>
-
-            {/* Utilization bar */}
-            <div className="mb-3">
-              <div className="d-flex justify-content-between small text-body-secondary mb-1">
-                <span>Budget utilisation</span>
-                <span>{utilizationPct}%</span>
+                <CProgress
+                  value={utilizationPct}
+                  color={
+                    utilizationPct > 100
+                      ? 'danger'
+                      : utilizationPct > 85
+                      ? 'warning'
+                      : division.color
+                  }
+                  height={8}
+                />
               </div>
-              <CProgress
-                value={utilizationPct}
-                color={utilizationPct > 100 ? 'danger' : utilizationPct > 85 ? 'warning' : division.color}
-                height={8}
-              />
-            </div>
 
-            {/* Status badges */}
-            <div className="d-flex gap-2 mb-3 flex-wrap">
-              {paidCount > 0 && <CBadge color="success">{paidCount} Paid</CBadge>}
-              {pendingCount > 0 && <CBadge color="warning">{pendingCount} Pending</CBadge>}
-              {overdueCount > 0 && <CBadge color="danger">{overdueCount} Overdue</CBadge>}
-            </div>
+              {/* Status badges */}
+              <div className="d-flex gap-2 mb-3 flex-wrap">
+                {paidCount > 0 && <CBadge color="success">{paidCount} Paid</CBadge>}
+                {pendingCount > 0 && <CBadge color="warning">{pendingCount} Pending</CBadge>}
+                {overdueCount > 0 && <CBadge color="danger">{overdueCount} Overdue</CBadge>}
+              </div>
 
-            {/* Category breakdown */}
-            <CTable small bordered hover className="mb-0">
-              <CTableHead color="light">
-                <CTableRow>
-                  <CTableHeaderCell>Category</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Planned</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Actual</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Variance</CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {catRows.map((row) => (
-                  <CTableRow key={row.catId}>
-                    <CTableDataCell>{row.name}</CTableDataCell>
-                    <CTableDataCell className="text-end small">{currency(row.planned)}</CTableDataCell>
-                    <CTableDataCell className="text-end small">{currency(row.actual)}</CTableDataCell>
-                    <CTableDataCell
-                      className={`text-end small fw-semibold text-${row.variance > 0 ? 'danger' : 'success'}`}
-                    >
-                      {row.variance > 0 ? '+' : ''}{currency(row.variance)}
-                    </CTableDataCell>
+              {/* Individual expense rows */}
+              <CTable small bordered hover responsive className="mb-0">
+                <CTableHead color="light">
+                  <CTableRow>
+                    <CTableHeaderCell>Expense</CTableHeaderCell>
+                    <CTableHeaderCell>Category</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Planned</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Actual</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Variance</CTableHeaderCell>
+                    <CTableHeaderCell>Status</CTableHeaderCell>
+                    {canEdit && <CTableHeaderCell />}
                   </CTableRow>
-                ))}
-              </CTableBody>
-            </CTable>
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+                </CTableHead>
+                <CTableBody>
+                  {divExpenses.map((exp) => {
+                    const v = parseFloat(exp.actual_amount || 0) - parseFloat(exp.planned_amount || 0)
+                    const catName =
+                      categories.find((c) => c.id === exp.category_id)?.name ||
+                      exp.category_name ||
+                      'Unknown'
+                    return (
+                      <CTableRow key={exp.id}>
+                        <CTableDataCell className="fw-semibold small">{exp.expense_name}</CTableDataCell>
+                        <CTableDataCell>
+                          <CBadge color="info" textColor="dark" className="small">
+                            {catName}
+                          </CBadge>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end small">{currency(exp.planned_amount)}</CTableDataCell>
+                        <CTableDataCell className="text-end small">{currency(exp.actual_amount)}</CTableDataCell>
+                        <CTableDataCell
+                          className={`text-end small fw-semibold text-${v > 0 ? 'danger' : 'success'}`}
+                        >
+                          {v > 0 ? '+' : ''}{currency(v)}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CBadge color={STATUS_COLORS[exp.status] || 'secondary'} className="small">
+                            {exp.status}
+                          </CBadge>
+                        </CTableDataCell>
+                        {canEdit && (
+                          <CTableDataCell>
+                            <CButton
+                              color="secondary"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(exp)}
+                              title="Edit expense"
+                            >
+                              <CIcon icon={cilPencil} />
+                            </CButton>
+                          </CTableDataCell>
+                        )}
+                      </CTableRow>
+                    )
+                  })}
+                </CTableBody>
+              </CTable>
+            </>
+          )}
+        </CCardBody>
+      </CCard>
+
+      {showModal && (
+        <ExpenseModal
+          title={editTarget ? `Edit — ${editTarget.expense_name}` : `Add ${division.label}`}
+          form={form}
+          setForm={setForm}
+          divCategories={divCategories}
+          allCategories={categories}
+          onSave={handleSave}
+          onClose={() => setShowModal(false)}
+          saving={saving}
+          error={error}
+        />
+      )}
+    </>
   )
 }
 
@@ -181,12 +503,24 @@ DivisionCard.propTypes = {
   division: PropTypes.object.isRequired,
   expenses: PropTypes.array.isRequired,
   categories: PropTypes.array.isRequired,
+  canEdit: PropTypes.bool,
+  month: PropTypes.number,
+  year: PropTypes.number,
+  onRefresh: PropTypes.func.isRequired,
 }
 
+// ── DivisionsSummary ──────────────────────────────────────────────────────────
+
 const DivisionsSummary = ({ year, month }) => {
+  const role = useRole()
+  const canEdit = role === ROLE.HR
+
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const onRefresh = () => setRefreshKey((k) => k + 1)
 
   useEffect(() => {
     const load = async () => {
@@ -214,7 +548,7 @@ const DivisionsSummary = ({ year, month }) => {
       }
     }
     load()
-  }, [year, month])
+  }, [year, month, refreshKey])
 
   const totalPlanned = useMemo(
     () => expenses.reduce((s, e) => s + parseFloat(e.planned_amount || 0), 0),
@@ -235,7 +569,7 @@ const DivisionsSummary = ({ year, month }) => {
 
   const periodLabel =
     month && year
-      ? `${MONTHS[month]} ${year}`
+      ? `${MONTHS_LABEL[month]} ${year}`
       : year
       ? `Year ${year}`
       : 'All Time'
@@ -243,22 +577,22 @@ const DivisionsSummary = ({ year, month }) => {
   return (
     <>
       {/* Overall header */}
-      <div className="d-flex align-items-center justify-content-between mb-3">
+      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
           <strong className="fs-6">Divisions Overview</strong>
           <span className="text-body-secondary small ms-2">— {periodLabel}</span>
         </div>
-        <div className="d-flex gap-3 text-center">
+        <div className="d-flex gap-3 text-center flex-wrap">
           <div>
-            <div className="small text-body-secondary">Total Planned</div>
-            <div className="fw-bold text-primary">{currency(totalPlanned)}</div>
+            <div className="small text-body-secondary">HR Planned</div>
+            <div className="fw-bold text-info">{currency(totalPlanned)}</div>
           </div>
           <div>
-            <div className="small text-body-secondary">Total Actual</div>
+            <div className="small text-body-secondary">HR Actual</div>
             <div className="fw-bold">{currency(totalActual)}</div>
           </div>
           <div>
-            <div className="small text-body-secondary">Net Variance</div>
+            <div className="small text-body-secondary">HR Variance</div>
             <div className={`fw-bold text-${totalActual > totalPlanned ? 'danger' : 'success'}`}>
               {currency(Math.abs(totalActual - totalPlanned))}
               <span className="small ms-1">{totalActual > totalPlanned ? 'over' : 'under'}</span>
@@ -267,19 +601,22 @@ const DivisionsSummary = ({ year, month }) => {
         </div>
       </div>
 
-      {expenses.length === 0 ? (
-        <p className="text-body-secondary">
-          No expense records for {periodLabel}. Add expenses to see division breakdowns.
-        </p>
-      ) : (
-        <CRow className="g-4">
-          {DIVISIONS.map((div) => (
-            <CCol key={div.key} lg={6}>
-              <DivisionCard division={div} expenses={expenses} categories={categories} />
-            </CCol>
-          ))}
-        </CRow>
-      )}
+      {/* HR then Admin — stacked */}
+      <div className="d-flex flex-column gap-4 mb-4">
+        <DivisionCard
+          division={HR_DIVISION}
+          expenses={expenses}
+          categories={categories}
+          canEdit={canEdit}
+          month={month}
+          year={year}
+          onRefresh={onRefresh}
+        />
+        <AdminDivisionPanel canEdit={canEdit} />
+      </div>
+
+      {/* Core — full width */}
+      <CoreSalaryPanel year={year} month={month} canEdit={canEdit} />
     </>
   )
 }
