@@ -66,11 +66,8 @@ const emsNav = [
     icon: <CIcon icon={cilCash} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
     items: [
-      { component: CNavItem, name: 'Overview', to: '/ems/general-expenses' },
-      { component: CNavItem, name: 'Add Expense', to: '/ems/general-expenses/new' },
+      { component: CNavItem, name: 'Divisions', to: '/ems/general-expenses' },
       { component: CNavItem, name: 'Categories', to: '/ems/general-expenses/categories', icon: <CIcon icon={cilTags} customClassName="nav-icon" /> },
-      { component: CNavItem, name: 'Upload Excel', to: '/ems/general-expenses/upload', icon: <CIcon icon={cilCloudUpload} customClassName="nav-icon" /> },
-      { component: CNavItem, name: 'Analysis', to: '/ems/general-expenses/analysis', icon: <CIcon icon={cilChartPie} customClassName="nav-icon" /> },
     ],
   },
   {
