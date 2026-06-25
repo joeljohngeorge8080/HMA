@@ -14,6 +14,7 @@ const AttendanceImport = React.lazy(() => import('../modules/ems/attendance/Atte
 const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
+const GlobalHRPoolPage = React.lazy(() => import('../modules/ems/hr-pool/GlobalHRPoolPage'))
 
 const GeneralExpenseList = React.lazy(
   () => import('../modules/ems/general-expenses/GeneralExpenseList'),
@@ -37,6 +38,8 @@ const ExpenseAnalysis = React.lazy(
 const AdminExpensePage = React.lazy(
   () => import('../modules/ems/expense-management/AdminExpensePage'),
 )
+const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
+const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -92,7 +95,25 @@ export const emsRoutes = [
     element: AttendanceCorrections,
     module: MODULE.ATTENDANCE,
   },
+  {
+    path: '/ems/internship',
+    name: 'Internship',
+    element: InternshipPage,
+    module: MODULE.INTERNSHIP,
+  },
+  {
+    path: '/ems/recruitment',
+    name: 'Recruitment',
+    element: RecruitmentPage,
+    module: MODULE.RECRUITMENT,
+  },
 
+  {
+    path: '/ems/hr-pool/global',
+    name: 'Global HR & Core Pool',
+    element: GlobalHRPoolPage,
+    module: MODULE.HR_POOL,
+  },
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
