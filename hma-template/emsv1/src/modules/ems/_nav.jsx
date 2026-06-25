@@ -51,6 +51,8 @@ const emsNav = [
       { component: CNavItem, name: 'Overview', to: '/ems/attendance' },
       { component: CNavItem, name: 'Import Excel', to: '/ems/attendance/import' },
       { component: CNavItem, name: 'Corrections', to: '/ems/attendance/corrections' },
+      { component: CNavItem, name: 'Internship', to: '/ems/internship' },
+      { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
     ],
   },
   {

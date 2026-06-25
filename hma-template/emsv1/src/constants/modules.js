@@ -9,6 +9,9 @@ export const MODULE = {
   REPORTS: 'reports',
   AUDIT_LOGS: 'audit_logs',
 
+  INTERNSHIP: 'internship',
+  RECRUITMENT: 'recruitment',
+
   MY_PROFILE: 'my_profile',
 
   // PMS modules
