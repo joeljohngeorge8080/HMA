@@ -56,7 +56,6 @@ const TaskReportEditPage = React.lazy(() => import('../modules/pms/daily-reports
 const PersonnelLogPage = React.lazy(() => import('../modules/pms/daily-reports/PersonnelLogPage'))
 const FieldPersonnelBillsPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'))
 const SettlementsPage = React.lazy(() => import('../modules/pms/daily-reports/SettlementsPage'))
-const MergedReportsPage = React.lazy(() => import('../modules/pms/daily-reports/MergedReportsPage'))
 const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
 
 export const pmsRoutes = [
@@ -380,12 +379,6 @@ export const pmsRoutes = [
     path: '/pms/settlements',
     name: 'Settlements',
     element: SettlementsPage,
-    module: MODULE.PMS_SETTLEMENTS,
-  },
-  {
-    path: '/pms/merged-reports',
-    name: 'Merged Reports',
-    element: MergedReportsPage,
     module: MODULE.PMS_SETTLEMENTS,
   },
 
