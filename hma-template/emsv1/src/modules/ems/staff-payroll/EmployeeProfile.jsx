@@ -18,7 +18,7 @@ import {
   CTabPane,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilFile, cilMoney, cilPencil, cilSwapHorizontal } from '@coreui/icons'
+import { cilArrowLeft, cilFile, cilMoney, cilPencil, cilPeople, cilSwapHorizontal } from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
@@ -36,6 +36,7 @@ import DocumentsTab from './components/DocumentsTab'
 import SalaryTab from './components/SalaryTab'
 import AttendanceSummaryTab from './components/AttendanceSummaryTab'
 import ChangeStatusModal from './components/ChangeStatusModal'
+import ManageAccessModal from './components/ManageAccessModal'
 import SalaryUpdateModal from './components/SalaryUpdateModal'
 import ProfilePhotoUpload from './components/ProfilePhotoUpload'
 import ProjectAssignmentSection from './components/ProjectAssignmentSection'
@@ -74,6 +75,8 @@ const EmployeeProfile = () => {
 
   const [showChangeStatus, setShowChangeStatus] = useState(false)
   const [showSalaryUpdate, setShowSalaryUpdate] = useState(false)
+  const [showManageAccess, setShowManageAccess] = useState(false)
+  const [employeeAccount, setEmployeeAccount] = useState(null)
   const [photo, setPhoto] = useState(null)
 
   useEffect(() => {
@@ -99,6 +102,16 @@ const EmployeeProfile = () => {
     }
     fetchProfile()
   }, [id])
+
+  const openManageAccess = async () => {
+    try {
+      const { data } = await api.get(`/employees/${id}/account`)
+      setEmployeeAccount(data)
+    } catch {
+      setEmployeeAccount(null)
+    }
+    setShowManageAccess(true)
+  }
 
   const refreshProfile = async () => {
     try {
@@ -198,6 +211,10 @@ const EmployeeProfile = () => {
                   <CButton color="success" size="sm" onClick={() => setShowSalaryUpdate(true)}>
                     <CIcon icon={cilMoney} className="me-1" />
                     Update Salary
+                  </CButton>
+                  <CButton color="dark" size="sm" onClick={openManageAccess}>
+                    <CIcon icon={cilPeople} className="me-1" />
+                    Manage Access
                   </CButton>
                 </CButtonGroup>
               </CCol>
@@ -311,6 +328,13 @@ const EmployeeProfile = () => {
             employeeId={id}
             currentSalary={profile.current_salary}
             onSave={refreshProfile}
+          />
+          <ManageAccessModal
+            visible={showManageAccess}
+            onClose={() => setShowManageAccess(false)}
+            employeeId={id}
+            employeeName={fullName}
+            currentAccount={employeeAccount}
           />
         </>
       )}

@@ -12,6 +12,19 @@ const ProtectedRoute = ({ module, action, children }) => {
   const allowed = usePermission(module, action)
   const role = useRole()
 
+  const getPmsFallback = (role) => {
+    if (role === ROLE.PROJECT_ASSOCIATE || role === ROLE.PROJECT_OFFICER) {
+      return '/pms/pa/dashboard'
+    }
+    if (role === ROLE.BACKEND_TEAM) {
+      return '/pms/settlements'
+    }
+    if (role === ROLE.PROJECT_COORDINATOR) {
+      return '/pms/merged-reports'
+    }
+    return '/pms/dashboard'
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }

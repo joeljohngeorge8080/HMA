@@ -4,9 +4,15 @@ export const MODULE = {
   STAFF_PAYROLL: 'staff_payroll',
   ATTENDANCE: 'attendance',
   EXPENSE_MANAGEMENT: 'expense_management',
+  GENERAL_EXPENSES: 'general_expenses',
   FINANCE: 'finance',
   REPORTS: 'reports',
   AUDIT_LOGS: 'audit_logs',
+
+  INTERNSHIP: 'internship',
+  RECRUITMENT: 'recruitment',
+
+  MY_PROFILE: 'my_profile',
 
   // PMS modules
   PMS_DASHBOARD: 'pms_dashboard',
@@ -20,4 +26,5 @@ export const MODULE = {
   PMS_AGENCIES: 'pms_agencies',
   PMS_PARTNERS: 'pms_partners',
   PMS_DAILY_REPORTS: 'pms_daily_reports',
+  PMS_SETTLEMENTS: 'pms_settlements',
 }

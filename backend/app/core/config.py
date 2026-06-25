@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     AWS_REGION: str = 'ap-south-1'
     S3_BUCKET_NAME: str = 'hma-iems-documents'
 
+    GOOGLE_CLIENT_ID: str = ''
+
     ENVIRONMENT: str = 'development'
 
     class Config:

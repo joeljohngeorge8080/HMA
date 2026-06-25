@@ -16,6 +16,7 @@ from app.models.employee import (
     IncrementPercentage,
     MaritalStatus,
 )
+from app.models.user import UserRole
 
 
 # ─── Employee Master List (table row) ─────────────────────────────────────────
@@ -70,6 +71,26 @@ class EmployeeCreate(BaseModel):
     mobile_number: str
     phone_number: Optional[str] = None
     emergency_contact: Optional[str] = None
+
+    # System login — HR assigns the employee's Google account, password, and role
+    google_email: str
+    default_password: str
+    user_role: UserRole = UserRole.PROJECT_OFFICER
+
+    @field_validator('google_email')
+    @classmethod
+    def validate_google_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', v):
+            raise ValueError('Invalid email address')
+        return v
+
+    @field_validator('default_password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
 
     @field_validator('employee_id')
     @classmethod
@@ -141,6 +162,26 @@ class SalaryIncrementRequest(BaseModel):
     increment_percentage: IncrementPercentage  # 3 | 6 | 8 only
     effective_date: date
     remarks: Optional[str] = None
+
+    @field_validator('effective_date')
+    @classmethod
+    def validate_effective_date(cls, v: date) -> date:
+        if v < date.today():
+            raise ValueError('Effective date cannot be in the past')
+        return v
+
+
+class SalaryDirectUpdateRequest(BaseModel):
+    new_salary: Decimal
+    effective_date: date
+    remarks: Optional[str] = None
+
+    @field_validator('new_salary')
+    @classmethod
+    def validate_new_salary(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError('Salary must be greater than zero')
+        return v
 
     @field_validator('effective_date')
     @classmethod
@@ -392,6 +433,46 @@ class EmployeeProfileResponse(BaseModel):
     identification: Optional[IdentificationResponse] = None
     bank_accounts: List[BankAccountResponse] = []
     family_members: List[FamilyMemberResponse] = []
+
+    model_config = {'from_attributes': True}
+
+
+# ─── Account Management (HR: update Google account / role) ────────────────────
+
+class EmployeeAccountUpdate(BaseModel):
+    google_email: Optional[str] = None
+    new_password: Optional[str] = None
+    user_role: Optional[UserRole] = None
+
+    @field_validator('google_email')
+    @classmethod
+    def validate_google_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip().lower()
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', v):
+            raise ValueError('Invalid email address')
+        return v
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
+
+    @model_validator(mode='after')
+    def require_at_least_one(self) -> 'EmployeeAccountUpdate':
+        if self.google_email is None and self.new_password is None and self.user_role is None:
+            raise ValueError('At least one field must be provided')
+        return self
+
+
+class EmployeeAccountResponse(BaseModel):
+    employee_id: str
+    google_email: str
+    role: str
+    is_active: bool
 
     model_config = {'from_attributes': True}
 
