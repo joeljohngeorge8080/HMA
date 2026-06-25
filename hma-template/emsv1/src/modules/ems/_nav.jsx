@@ -10,7 +10,6 @@ import {
   cilChartPie,
   cilListRich,
   cilTransfer,
-  cilCloudUpload,
   cilTags,
   cilUser,
 } from '@coreui/icons'
@@ -35,26 +34,42 @@ const emsNav = [
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
-  {
-    component: CNavItem,
-    name: 'Staff & Payroll',
-    to: '/ems/staff-payroll',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
+
+  // ── HR Admin group ─────────────────────────────────────────────────
   {
     component: CNavGroup,
-    name: 'Attendance',
-    icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+    name: 'HR Admin',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
     items: [
-      { component: CNavItem, name: 'Overview', to: '/ems/attendance' },
-      { component: CNavItem, name: 'Import Excel', to: '/ems/attendance/import' },
-      { component: CNavItem, name: 'Corrections', to: '/ems/attendance/corrections' },
-      { component: CNavItem, name: 'Internship', to: '/ems/internship' },
-      { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
+      {
+        component: CNavItem,
+        name: 'Staff & Payroll',
+        to: '/ems/staff-payroll',
+        icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavGroup,
+        name: 'Attendance',
+        icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+        items: [
+          { component: CNavItem, name: 'Overview', to: '/ems/attendance' },
+          { component: CNavItem, name: 'Import Excel', to: '/ems/attendance/import' },
+          { component: CNavItem, name: 'Corrections', to: '/ems/attendance/corrections' },
+        ],
+      },
+      {
+        component: CNavGroup,
+        name: 'Activity',
+        items: [
+          { component: CNavItem, name: 'Internship', to: '/ems/internship' },
+          { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
+        ],
+      },
     ],
   },
+
+  // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
     name: 'Admin Expenses',
@@ -69,9 +84,16 @@ const emsNav = [
     roles: STAFF_ROLES,
     items: [
       { component: CNavItem, name: 'Divisions', to: '/ems/general-expenses' },
-      { component: CNavItem, name: 'Categories', to: '/ems/general-expenses/categories', icon: <CIcon icon={cilTags} customClassName="nav-icon" /> },
+      {
+        component: CNavItem,
+        name: 'Categories',
+        to: '/ems/general-expenses/categories',
+        icon: <CIcon icon={cilTags} customClassName="nav-icon" />,
+      },
     ],
   },
+
+  // ── Other ──────────────────────────────────────────────────────────
   {
     component: CNavItem,
     name: 'Finance',
