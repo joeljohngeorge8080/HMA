@@ -209,11 +209,11 @@ const Login = () => {
                         { label: 'Heads',               role: 'Heads',               id: 'DEV002',     name: 'Dev Head' },
                         { label: 'HR',                  role: 'HR',                  id: 'DEV003',     name: 'Dev HR' },
                         { label: 'Finance',             role: 'Finance',             id: 'DEV004',     name: 'Dev Finance' },
+                        { label: 'Project Coordinator', role: 'Project Coordinator', id: 'DEV008',     name: 'Dev Project Coordinator', redirect: '/pms/pa/dashboard' },
                         { label: 'Project Associate',   role: 'Project Associate',   id: 'DEV_PA_001', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
                         { label: 'Project Officer',     role: 'Project Officer',     id: 'DEV005',     name: 'Dev Project Officer' },
                         { label: 'Field Personnel',     role: 'Field Personnel',     id: 'DEV006',     name: 'Dev Field Personnel' },
                         { label: 'Backend Team',        role: 'Backend Team',        id: 'DEV007',     name: 'Dev Backend Team',        redirect: '/pms/settlements' },
-                        { label: 'Project Coordinator', role: 'Project Coordinator', id: 'DEV008',     name: 'Dev Project Coordinator', redirect: '/pms/merged-reports' },
                         { label: 'Employee',            role: 'Employee',            id: 'DEV009',     name: 'Titu S Jayan', employeeId: 'THLL2408' },
                       ].map(({ label, id, role, name, redirect, employeeId }) => (
                         <CButton

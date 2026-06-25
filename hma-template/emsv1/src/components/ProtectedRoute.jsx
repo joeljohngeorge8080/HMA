@@ -6,6 +6,7 @@ import { CAlert } from '@coreui/react'
 import useAuth from '../hooks/useAuth'
 import usePermission from '../hooks/usePermission'
 import useRole from '../hooks/useRole'
+import { ROLE } from '../constants/roles'
 
 const ProtectedRoute = ({ module, action, children }) => {
   const { isAuthenticated } = useAuth()
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ module, action, children }) => {
       return '/pms/settlements'
     }
     if (role === ROLE.PROJECT_COORDINATOR) {
-      return '/pms/merged-reports'
+      return '/pms/pa/dashboard'
     }
     return '/pms/dashboard'
   }

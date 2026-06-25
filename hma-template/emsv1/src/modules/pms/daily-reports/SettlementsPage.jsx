@@ -50,14 +50,12 @@ import CIcon from '@coreui/icons-react'
 import {
   cilSearch,
   cilCheckCircle,
-  cilSend,
   cilMoney,
   cilClock,
   cilFile,
 } from '@coreui/icons'
 
-import { localReports, localMergedReports, REPORT_STATUS } from '../../../services/localReports'
-import CreateMergedReportModal from './components/CreateMergedReportModal'
+import { localReports, REPORT_STATUS } from '../../../services/localReports'
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -89,8 +87,6 @@ const SettlementsPage = () => {
   const [settleModalVisible, setSettleModalVisible] = useState(false)
   const [settleTargetId, setSettleTargetId] = useState(null)
   const [settleLoading, setSettleLoading] = useState(false)
-  const [mergedModalVisible, setMergedModalVisible] = useState(false)
-  const [mergedLoading, setMergedLoading] = useState(false)
 
   const [toast, setToast] = useState(null)
 
@@ -134,26 +130,7 @@ const SettlementsPage = () => {
     setSettleLoading(false)
   }
 
-  // ── Create merged report ──────────────────────────────────────────────────
-  const handleMergedSubmit = ({ title, notes, billIds, bills }) => {
-    setMergedLoading(true)
-    try {
-      localMergedReports.create({
-        title,
-        notes,
-        billIds,
-        bills,
-        createdBy: 'backend_team',
-        createdByName: 'Backend Team',
-      })
-      setToast({ color: 'success', message: '📤 Merged report sent to Project Coordinator!' })
-      setMergedModalVisible(false)
-      loadData()
-    } catch (err) {
-      setToast({ color: 'danger', message: err.message })
-    }
-    setMergedLoading(false)
-  }
+
 
   const totalApprovedAmt = approvedBills.reduce((s, b) => s + (b.amount || 0), 0)
   const totalSettledAmt = settledBills.reduce((s, b) => s + (b.amount || 0), 0)
@@ -260,22 +237,9 @@ const SettlementsPage = () => {
         <div>
           <h4 className="fw-semibold mb-1">Settlements</h4>
           <p className="text-body-secondary mb-0 small">
-            Process approved field bills and create merged reports for the Project Coordinator
+            Process and settle approved field bills
           </p>
         </div>
-        <CButton
-          color="primary"
-          onClick={() => setMergedModalVisible(true)}
-          disabled={settledBills.length === 0}
-        >
-          <CIcon icon={cilSend} className="me-2" />
-          Create Merged Report
-          {settledBills.length > 0 && (
-            <CBadge color="light" textColor="primary" className="ms-2">
-              {settledBills.length}
-            </CBadge>
-          )}
-        </CButton>
       </div>
 
       {/* Summary cards */}
@@ -308,7 +272,7 @@ const SettlementsPage = () => {
               </div>
               <div>
                 <div className="fs-4 fw-bold">{settledBills.length}</div>
-                <div className="small text-body-secondary">Settled (Ready for Report)</div>
+                <div className="small text-body-secondary">Settled Bills</div>
                 <div className="small fw-semibold text-primary">{formatCurrency(totalSettledAmt)}</div>
               </div>
             </CCardBody>
@@ -401,8 +365,7 @@ const SettlementsPage = () => {
         </CModalHeader>
         <CModalBody>
           <p>
-            Mark this bill as <strong>Settled</strong>? It will be moved to the Settled tab and
-            can then be included in a Merged Report for the Project Coordinator.
+            Mark this bill as <strong>Settled</strong>? It will be moved to the Settled tab.
           </p>
         </CModalBody>
         <CModalFooter>
@@ -429,14 +392,7 @@ const SettlementsPage = () => {
         </CModalFooter>
       </CModal>
 
-      {/* Merged report modal */}
-      <CreateMergedReportModal
-        visible={mergedModalVisible}
-        onClose={() => setMergedModalVisible(false)}
-        settledBills={settledBills}
-        onSubmit={handleMergedSubmit}
-        loading={mergedLoading}
-      />
+
 
       {/* Toast */}
       <CToaster placement="top-end">

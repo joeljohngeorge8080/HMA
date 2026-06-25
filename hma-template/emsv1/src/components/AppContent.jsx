@@ -42,7 +42,7 @@ const AppContent = () => {
         return '/pms/settlements'
       }
       if (role === ROLE.PROJECT_COORDINATOR) {
-        return '/pms/merged-reports'
+        return '/pms/pa/dashboard'
       }
       return '/pms/dashboard'
     }
