@@ -11,6 +11,7 @@ export const MODULE = {
 
   INTERNSHIP: 'internship',
   RECRUITMENT: 'recruitment',
+  HR_POOL: 'hr_pool',
 
   MY_PROFILE: 'my_profile',
 
