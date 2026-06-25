@@ -28,9 +28,10 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus } from '@coreui/icons'
+import { cilPencil, cilPlus } from '@coreui/icons'
 
 import api from '../../../../services/api'
+import { localEmployees } from '../../../../services/localEmployees'
 
 const ALLOWED_INCREMENTS = [
   { value: '3', label: '3%' },
@@ -49,6 +50,14 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
   const [effectiveDate, setEffectiveDate] = useState('')
   const [remarks, setRemarks] = useState('')
 
+  // Direct salary edit state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editSalary, setEditSalary] = useState('')
+  const [editEffectiveDate, setEditEffectiveDate] = useState('')
+  const [editRemarks, setEditRemarks] = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editFormError, setEditFormError] = useState('')
+
   const salary = Number(currentSalary)
   const preview = incrementPct
     ? {
@@ -58,18 +67,23 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
       }
     : null
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true)
-      try {
-        const { data } = await api.get(`/employees/${employeeId}/salary-history`)
-        setHistory(data)
-      } catch {
-        // show empty
-      } finally {
-        setLoading(false)
-      }
+  const editNewSalary = parseFloat(editSalary) || 0
+  const editDiff = editNewSalary - salary
+
+  const fetchHistory = async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get(`/employees/${employeeId}/salary-history`)
+      setHistory(data)
+    } catch {
+      const local = localEmployees.getById(employeeId)
+      setHistory(local?.salary_history || [])
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchHistory()
   }, [employeeId])
 
@@ -87,18 +101,66 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
         effective_date: effectiveDate,
         remarks: remarks || undefined,
       })
-      const { data } = await api.get(`/employees/${employeeId}/salary-history`)
-      setHistory(data)
-      setShowModal(false)
-      setRemarks('')
-      setEffectiveDate('')
-      setIncrementPct('3')
-      onSave()
-    } catch (err) {
-      setFormError(err.response?.data?.detail || 'Failed to apply increment')
-    } finally {
-      setSubmitting(false)
+    } catch {
+      try {
+        localEmployees.applySalaryIncrement(employeeId, {
+          increment_percentage: Number(incrementPct),
+          effective_date: effectiveDate,
+          remarks: remarks || undefined,
+        })
+      } catch (localErr) {
+        setFormError(localErr.message || 'Failed to apply increment')
+        setSubmitting(false)
+        return
+      }
     }
+    await fetchHistory()
+    setShowModal(false)
+    setRemarks('')
+    setEffectiveDate('')
+    setIncrementPct('3')
+    onSave()
+    setSubmitting(false)
+  }
+
+  const handleDirectSalaryEdit = async (e) => {
+    e.preventDefault()
+    setEditFormError('')
+    if (!editSalary || editNewSalary <= 0) {
+      setEditFormError('Please enter a valid salary amount')
+      return
+    }
+    if (!editEffectiveDate) {
+      setEditFormError('Effective date is required')
+      return
+    }
+    setEditSubmitting(true)
+    try {
+      await api.post(`/employees/${employeeId}/salary-update`, {
+        new_salary: editNewSalary,
+        effective_date: editEffectiveDate,
+        remarks: editRemarks || undefined,
+      })
+    } catch {
+      try {
+        localEmployees.updateSalaryDirect(employeeId, {
+          new_salary: editNewSalary,
+          effective_date: editEffectiveDate,
+          remarks: editRemarks || undefined,
+        })
+      } catch (localErr) {
+        setEditFormError(localErr.message || 'Failed to update salary')
+        setEditSubmitting(false)
+        return
+      }
+    }
+    await fetchHistory()
+    setShowEditModal(false)
+    setEditSalary('')
+    setEditEffectiveDate('')
+    setEditRemarks('')
+    onSave()
+    setEditSubmitting(false)
   }
 
   return (
@@ -114,7 +176,17 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
               </h3>
             </CCol>
             {canEdit && (
-              <CCol xs="auto">
+              <CCol xs="auto" className="d-flex gap-2">
+                <CButton
+                  color="secondary"
+                  onClick={() => {
+                    setEditSalary(String(salary))
+                    setShowEditModal(true)
+                  }}
+                >
+                  <CIcon icon={cilPencil} className="me-1" />
+                  Edit Salary
+                </CButton>
                 <CButton color="primary" onClick={() => setShowModal(true)}>
                   <CIcon icon={cilPlus} className="me-1" />
                   Apply Increment
@@ -177,6 +249,92 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
           )}
         </CCardBody>
       </CCard>
+
+      {/* Direct Salary Edit Modal */}
+      <CModal visible={showEditModal} onClose={() => setShowEditModal(false)} backdrop="static">
+        <CModalHeader>
+          <CModalTitle>Edit Salary</CModalTitle>
+        </CModalHeader>
+        <CForm onSubmit={handleDirectSalaryEdit}>
+          <CModalBody>
+            {editFormError && <CAlert color="danger">{editFormError}</CAlert>}
+
+            <div className="mb-3">
+              <CFormLabel>Current Salary</CFormLabel>
+              <p className="fw-bold text-success">
+                ₹{salary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="mb-3">
+              <CFormLabel htmlFor="editSalary">New Salary (₹) *</CFormLabel>
+              <CFormInput
+                id="editSalary"
+                type="number"
+                min="0"
+                step="0.01"
+                value={editSalary}
+                onChange={(e) => setEditSalary(e.target.value)}
+                placeholder="Enter new salary amount"
+                required
+              />
+            </div>
+
+            {editNewSalary > 0 && editNewSalary !== salary && (
+              <CCard className="mb-3 border-0 bg-body-secondary">
+                <CCardBody className="py-2">
+                  <CRow>
+                    <CCol xs={6}>
+                      <small className="text-body-secondary">Difference</small>
+                      <p className={`mb-0 fw-semibold ${editDiff >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {editDiff >= 0 ? '+' : ''}₹{Math.abs(editDiff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    </CCol>
+                    <CCol xs={6}>
+                      <small className="text-body-secondary">New Salary</small>
+                      <p className="mb-0 fw-bold">
+                        ₹{editNewSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    </CCol>
+                  </CRow>
+                </CCardBody>
+              </CCard>
+            )}
+
+            <div className="mb-3">
+              <CFormLabel htmlFor="editEffDate">Effective Date *</CFormLabel>
+              <CFormInput
+                id="editEffDate"
+                type="date"
+                value={editEffectiveDate}
+                onChange={(e) => setEditEffectiveDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                required
+              />
+            </div>
+
+            <div className="mb-3">
+              <CFormLabel htmlFor="editRemarks">Remarks</CFormLabel>
+              <CFormTextarea
+                id="editRemarks"
+                rows={3}
+                value={editRemarks}
+                onChange={(e) => setEditRemarks(e.target.value)}
+                placeholder="Optional remarks for this salary change"
+              />
+            </div>
+          </CModalBody>
+          <CModalFooter>
+            <CButton color="secondary" onClick={() => setShowEditModal(false)} disabled={editSubmitting}>
+              Cancel
+            </CButton>
+            <CButton color="primary" type="submit" disabled={editSubmitting}>
+              {editSubmitting && <CSpinner size="sm" className="me-2" />}
+              Save Salary
+            </CButton>
+          </CModalFooter>
+        </CForm>
+      </CModal>
 
       {/* Increment Modal */}
       <CModal visible={showModal} onClose={() => setShowModal(false)} backdrop="static">

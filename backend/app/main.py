@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import employees
+from app.routers import auth, employees, general_expenses
 
 app = FastAPI(
     title='HMA IEMS API',
@@ -19,7 +19,9 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+app.include_router(auth.router)
 app.include_router(employees.router)
+app.include_router(general_expenses.router)
 
 
 @app.get('/health')

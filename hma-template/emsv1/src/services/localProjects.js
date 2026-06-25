@@ -4,7 +4,7 @@
  */
 
 const PROJECTS_KEY = 'hma_projects_v9'
-const OFFICERS_KEY = 'hma_project_officers_v5'
+const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 

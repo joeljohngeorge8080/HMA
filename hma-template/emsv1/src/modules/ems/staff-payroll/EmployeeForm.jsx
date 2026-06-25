@@ -22,7 +22,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilPlus, cilTrash } from '@coreui/icons'
+import { cilArrowLeft, cilPeople, cilPlus, cilTrash } from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
@@ -33,6 +33,7 @@ import ProfilePhotoUpload from './components/ProfilePhotoUpload'
 // ─── option lists ─────────────────────────────────────────────────────────────
 
 const DEPARTMENTS = ['SDP', 'FINANCE', 'HR', 'HLL MANAGEMENT', 'UTILITY STAFF', 'OTHER']
+const USER_ROLES = ['CEO', 'Heads', 'HR', 'Finance', 'Project Officer']
 
 const GENDERS = ['Male', 'Female', 'Other']
 const CATEGORIES = ['Permanent', 'FTC', 'TPC']
@@ -88,6 +89,12 @@ const DEFAULT = {
   initial_project: '',
   initial_project_date: '',
   initial_project_remarks: '',
+  account: {
+    google_email: '',
+    default_password: '',
+    confirm_password: '',
+    user_role: 'Project Officer',
+  },
 }
 
 // ─── tiny helpers ─────────────────────────────────────────────────────────────
@@ -285,13 +292,17 @@ const EmployeeForm = () => {
         }
         navigate(`/ems/staff-payroll/${id}`)
       } else {
-        // Map form project fields to local store's expected keys
         const withProject = {
           ...payload,
+          // flatten account fields into the top-level payload for the API
+          google_email: form.account?.google_email?.trim().toLowerCase(),
+          default_password: form.account?.default_password,
+          user_role: form.account?.user_role || 'Project Officer',
           initial_project: form.initial_project || undefined,
           initial_project_date: form.initial_project_date || undefined,
           initial_project_remarks: form.initial_project_remarks || undefined,
         }
+        delete withProject.account
         try {
           const { data } = await api.post('/employees', withProject)
           saved = data
@@ -528,6 +539,105 @@ const EmployeeForm = () => {
         </CCardBody>
       </CCard>
 
+      {/* ══ SECTION 2: System Access (create mode only) ════════════════════ */}
+      {!isEdit && (
+        <CCard className="mb-3 border-top border-top-warning border-3">
+          <CCardHeader className="d-flex align-items-center gap-2">
+            <CIcon icon={cilPeople} />
+            <strong>System Account Access</strong>
+            <span className="text-body-secondary small ms-auto">
+              Creates the employee&apos;s login account
+            </span>
+          </CCardHeader>
+          <CCardBody>
+            <CRow className="g-3">
+              <CCol md={12}>
+                <div className="p-3 rounded bg-body-secondary small text-body-secondary">
+                  The employee can sign in with <strong>Employee ID + Password</strong> or with
+                  their assigned <strong>Google (Gmail)</strong> account.
+                </div>
+              </CCol>
+
+              {/* Google email */}
+              <CCol md={6}>
+                <F
+                  label="Google Account (Gmail)"
+                  required
+                  error={errors.account?.google_email}
+                  hint="Used for Google Sign-In"
+                >
+                  <CFormInput
+                    type="email"
+                    autoComplete="off"
+                    placeholder="employee@gmail.com"
+                    {...register('account.google_email', {
+                      required: 'Google account (Gmail) is required',
+                      pattern: {
+                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                        message: 'Invalid email address',
+                      },
+                    })}
+                    className={errors.account?.google_email ? 'is-invalid' : ''}
+                  />
+                </F>
+              </CCol>
+
+              {/* Role */}
+              <CCol md={6}>
+                <F label="User Role" required error={errors.account?.user_role}>
+                  <CFormSelect
+                    {...register('account.user_role', { required: 'Role is required' })}
+                    className={errors.account?.user_role ? 'is-invalid' : ''}
+                  >
+                    {USER_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </F>
+              </CCol>
+
+              {/* Default password */}
+              <CCol md={6}>
+                <F
+                  label="Default Password"
+                  required
+                  error={errors.account?.default_password}
+                  hint="Min 8 characters — for Employee ID login"
+                >
+                  <CFormInput
+                    type="password"
+                    autoComplete="new-password"
+                    {...register('account.default_password', {
+                      required: 'Default password is required',
+                      minLength: { value: 8, message: 'Must be at least 8 characters' },
+                    })}
+                    className={errors.account?.default_password ? 'is-invalid' : ''}
+                  />
+                </F>
+              </CCol>
+
+              {/* Confirm password */}
+              <CCol md={6}>
+                <F label="Confirm Password" required error={errors.account?.confirm_password}>
+                  <CFormInput
+                    type="password"
+                    autoComplete="new-password"
+                    {...register('account.confirm_password', {
+                      required: 'Please confirm the password',
+                      validate: (val) =>
+                        val === watch('account.default_password') || 'Passwords do not match',
+                    })}
+                    className={errors.account?.confirm_password ? 'is-invalid' : ''}
+                  />
+                </F>
+              </CCol>
+            </CRow>
+          </CCardBody>
+        </CCard>
+      )}
+
       {/* ══ OPTIONAL DETAILS ═════════════════════════════════════════════════ */}
       <CAccordion alwaysOpen className="mb-3">
         {/* 1 — Contact Information */}
@@ -538,10 +648,16 @@ const EmployeeForm = () => {
           <CAccordionBody>
             <CRow className="g-3">
               <CCol md={4}>
-                <F label="Working Email" error={errors.contact?.working_email}>
+                <F
+                  label="Working Email"
+                  required={!isEdit}
+                  error={errors.contact?.working_email}
+                  hint={!isEdit ? 'Official work email address' : undefined}
+                >
                   <CFormInput
                     type="email"
                     {...register('contact.working_email', {
+                      required: !isEdit ? 'Working email is required for account creation' : false,
                       pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
                     })}
                     className={errors.contact?.working_email ? 'is-invalid' : ''}

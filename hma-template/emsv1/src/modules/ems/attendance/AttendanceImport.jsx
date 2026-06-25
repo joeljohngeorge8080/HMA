@@ -33,7 +33,7 @@ import api from '../../../services/api'
 // ─── Business Rules constants (03_Business_Rules.md) ─────────────────────────
 const FREE_LATE_UNITS = 7 // free units per month
 const LATE_UNIT_MIN = 15 // 1 unit = 15 minutes
-const HALF_DAY_THRESHOLD_MIN = 60 // ≥60 min late → Half Day (priority rule)
+const HALF_DAY_THRESHOLD_MIN = 60 // >60 min late → Half Day (priority rule; docs: "more than one hour")
 const HALF_DAY_DEDUCTION_HOURS = 4 // Half Day = 4 hrs deduction
 const CL_MONTHLY_LIMIT = 1 // Casual Leave: 1 per month
 
@@ -160,10 +160,11 @@ const buildEmployeeSummaries = (rows) => {
         weekly_off: 0,
         holiday: 0,
         on_leave: 0,
-        // Late split: normal (<60 min) vs half-day (≥60 min, priority rule applies)
+        // Late split: normal (≤60 min) vs half-day (>60 min, priority rule applies)
         normal_late_days: 0,
-        normal_late_minutes: 0, // <60 min late days → contribute to units
-        hd_violations: [], // ≥60 min late but Pace marked Present → HD rule
+        normal_late_minutes: 0, // ≤60 min late days → contribute to units
+        normal_late_units: 0,   // per-day ceil(min/15) summed — correct unit count
+        hd_violations: [], // >60 min late but Pace marked Present → HD rule
         total_work_minutes: 0,
         work_days_with_duration: 0,
       }
@@ -195,13 +196,14 @@ const buildEmployeeSummaries = (rows) => {
     if (r.late_by) {
       const lateMin = toMin(r.late_by)
       if (lateMin > 0) {
-        if (lateMin >= HALF_DAY_THRESHOLD_MIN && r.status === 'Present') {
-          // Priority Rule: ≥60 min late → Half Day; these minutes do NOT count as late units
+        if (lateMin > HALF_DAY_THRESHOLD_MIN && r.status === 'Present') {
+          // Priority Rule: >60 min late → Half Day; these minutes do NOT count as late units
           e.hd_violations.push({ date: r.date, late_by: r.late_by, lateMin })
         } else {
-          // Normal late entry <60 min → counts toward 7 free units
+          // Normal late entry ≤60 min → counts toward 7 free units (per-day ceiling)
           e.normal_late_days++
           e.normal_late_minutes += lateMin
+          e.normal_late_units += Math.ceil(lateMin / LATE_UNIT_MIN)
         }
       }
     }
@@ -217,7 +219,7 @@ const buildEmployeeSummaries = (rows) => {
 
   return Object.values(map)
     .map((e) => {
-      const totalLateUnits = Math.ceil(e.normal_late_minutes / LATE_UNIT_MIN)
+      const totalLateUnits = e.normal_late_units
       const excessUnits = Math.max(0, totalLateUnits - FREE_LATE_UNITS)
       const avgWorkMin =
         e.work_days_with_duration > 0

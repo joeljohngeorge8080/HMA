@@ -29,6 +29,8 @@ from app.schemas.employee import (
     DocumentResponse,
     DocumentUploadRequest,
     DocumentUploadResponse,
+    EmployeeAccountResponse,
+    EmployeeAccountUpdate,
     EmployeeCreate,
     EmployeeListResponse,
     EmployeeListRow,
@@ -39,6 +41,7 @@ from app.schemas.employee import (
     FamilyMemberResponse,
     IdentificationResponse,
     IdentificationUpdate,
+    SalaryDirectUpdateRequest,
     SalaryIncrementRequest,
     SalaryIncrementResponse,
 )
@@ -371,6 +374,65 @@ def apply_salary_increment(
     emp = svc.get_employee_or_404(session, employee_id)
     hist = svc.apply_salary_increment(session, emp, data, current_user, get_client_ip(request))
     return SalaryIncrementResponse.model_validate(hist)
+
+
+@router.post('/{employee_id}/salary-update', response_model=SalaryIncrementResponse, status_code=201)
+def direct_salary_update(
+    request: Request,
+    employee_id: uuid.UUID,
+    data: SalaryDirectUpdateRequest,
+    session: SessionDep,
+    _: Annotated[None, Depends(require_hr)],
+    current_user: CurrentUser,
+):
+    emp = svc.get_employee_or_404(session, employee_id)
+    hist = svc.apply_salary_direct_update(session, emp, data, current_user, get_client_ip(request))
+    return SalaryIncrementResponse.model_validate(hist)
+
+
+# ─── Account Management (Google account + role) ────────────────────────────────
+
+@router.get('/{employee_id}/account', response_model=EmployeeAccountResponse)
+def get_account(
+    employee_id: uuid.UUID,
+    session: SessionDep,
+    _: Annotated[None, Depends(require_hr)],
+    current_user: CurrentUser,
+):
+    from sqlmodel import select as sql_select
+    from app.models.user import User
+    emp = svc.get_employee_or_404(session, employee_id)
+    user_account = session.exec(
+        sql_select(User).where(User.employee_id == emp.employee_id)
+    ).first()
+    if not user_account:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail='No login account found for this employee')
+    return EmployeeAccountResponse(
+        employee_id=user_account.employee_id,
+        google_email=user_account.google_email,
+        role=user_account.role,
+        is_active=user_account.is_active,
+    )
+
+
+@router.patch('/{employee_id}/account', response_model=EmployeeAccountResponse)
+def update_account(
+    request: Request,
+    employee_id: uuid.UUID,
+    data: EmployeeAccountUpdate,
+    session: SessionDep,
+    _: Annotated[None, Depends(require_hr)],
+    current_user: CurrentUser,
+):
+    emp = svc.get_employee_or_404(session, employee_id)
+    user_account = svc.update_employee_account(session, emp, data, current_user, get_client_ip(request))
+    return EmployeeAccountResponse(
+        employee_id=user_account.employee_id,
+        google_email=user_account.google_email,
+        role=user_account.role,
+        is_active=user_account.is_active,
+    )
 
 
 # ─── Department History ────────────────────────────────────────────────────────

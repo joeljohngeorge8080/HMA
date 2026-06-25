@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, col, select
 
 from app.core.s3 import generate_presigned_download_url, generate_presigned_upload_url, generate_s3_key
+from app.core.security import hash_password
 from app.models.audit import ActionType
 from app.models.employee import (
     Employee,
@@ -29,11 +30,13 @@ from app.schemas.employee import (
     DepartmentChangeRequest,
     DocumentUploadRequest,
     DocumentUploadResponse,
+    EmployeeAccountUpdate,
     EmployeeCreate,
     EmployeeStatusUpdate,
     EmployeeUpdate,
     FamilyMemberCreate,
     IdentificationUpdate,
+    SalaryDirectUpdateRequest,
     SalaryIncrementRequest,
 )
 from app.services.audit_service import write_audit
@@ -57,10 +60,19 @@ def create_employee(
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Employee ID {data.employee_id} already exists')
 
+    existing_user = session.exec(select(User).where(User.employee_id == data.employee_id)).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'Login account for {data.employee_id} already exists')
+
+    email_conflict = session.exec(select(User).where(User.google_email == data.google_email)).first()
+    if email_conflict:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f'{data.google_email} is already assigned to another account')
+
     now = _now()
     emp = Employee(
         **{k: v for k, v in data.model_dump().items() if k not in {
             'working_email', 'personal_email', 'mobile_number', 'phone_number', 'emergency_contact',
+            'google_email', 'default_password', 'user_role',
         }},
         created_by=actor.id,
         created_at=now,
@@ -81,10 +93,26 @@ def create_employee(
     )
     session.add(contact)
 
+    user_account = User(
+        employee_id=emp.employee_id,
+        google_email=data.google_email,
+        password_hash=hash_password(data.default_password),
+        role=data.user_role,
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(user_account)
+
     write_audit(
         session, actor, MODULE, ActionType.CREATE,
         record_id=str(emp.id),
-        new_value={'employee_id': emp.employee_id, 'full_name': f'{emp.first_name} {emp.last_name}'},
+        new_value={
+            'employee_id': emp.employee_id,
+            'full_name': f'{emp.first_name} {emp.last_name}',
+            'google_email': data.google_email,
+            'user_role': str(data.user_role),
+        },
         ip_address=ip,
     )
     session.commit()
@@ -238,6 +266,52 @@ def apply_salary_increment(
         new_value={
             'salary': str(new_salary),
             'increment_pct': str(data.increment_percentage.value),
+            'increment_amount': str(increment_amount),
+            'effective_date': str(data.effective_date),
+        },
+        remarks=data.remarks,
+        ip_address=ip,
+    )
+    session.commit()
+    session.refresh(hist)
+    return hist
+
+
+def apply_salary_direct_update(
+    session: Session,
+    emp: Employee,
+    data: SalaryDirectUpdateRequest,
+    actor: User,
+    ip: Optional[str] = None,
+) -> EmployeeSalaryHistory:
+    previous_salary = emp.current_salary
+    new_salary = data.new_salary.quantize(Decimal('0.01'))
+    increment_amount = (new_salary - previous_salary).quantize(Decimal('0.01'))
+
+    hist = EmployeeSalaryHistory(
+        employee_id=emp.id,
+        previous_salary=previous_salary,
+        increment_percentage=Decimal('0'),
+        increment_amount=increment_amount,
+        new_salary=new_salary,
+        effective_date=data.effective_date,
+        remarks=data.remarks,
+        changed_by=actor.id,
+        created_at=_now(),
+    )
+
+    emp.current_salary = new_salary
+    emp.updated_at = _now()
+
+    session.add(hist)
+    session.add(emp)
+
+    write_audit(
+        session, actor, MODULE, ActionType.SALARY_UPDATE,
+        record_id=str(emp.id),
+        old_value={'salary': str(previous_salary)},
+        new_value={
+            'salary': str(new_salary),
             'increment_amount': str(increment_amount),
             'effective_date': str(data.effective_date),
         },
@@ -443,3 +517,67 @@ def get_documents(session: Session, employee_id: uuid.UUID) -> List[EmployeeDocu
             EmployeeDocument.is_deleted == False,  # noqa: E712
         )
     ).all()
+
+
+# ─── Account Management ───────────────────────────────────────────────────────
+
+def update_employee_account(
+    session: Session,
+    emp: Employee,
+    data: EmployeeAccountUpdate,
+    actor: User,
+    ip: Optional[str] = None,
+) -> User:
+    user_account = session.exec(
+        select(User).where(User.employee_id == emp.employee_id)
+    ).first()
+    if not user_account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='No login account found for this employee',
+        )
+
+    old_snapshot = {
+        'google_email': user_account.google_email,
+        'role': str(user_account.role),
+    }
+
+    new_snapshot: dict = {}
+
+    if data.google_email is not None:
+        conflict = session.exec(
+            select(User).where(
+                User.google_email == data.google_email,
+                User.id != user_account.id,
+            )
+        ).first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f'{data.google_email} is already assigned to another account',
+            )
+        user_account.google_email = data.google_email
+        new_snapshot['google_email'] = data.google_email
+
+    if data.new_password is not None:
+        user_account.password_hash = hash_password(data.new_password)
+        new_snapshot['password'] = 'changed'
+
+    if data.user_role is not None:
+        user_account.role = data.user_role
+        new_snapshot['role'] = str(data.user_role)
+
+    user_account.updated_at = _now()
+    new_snapshot['changed_by'] = actor.employee_id
+
+    write_audit(
+        session, actor, MODULE, ActionType.UPDATE,
+        record_id=str(emp.id),
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        ip_address=ip,
+    )
+    session.add(user_account)
+    session.commit()
+    session.refresh(user_account)
+    return user_account

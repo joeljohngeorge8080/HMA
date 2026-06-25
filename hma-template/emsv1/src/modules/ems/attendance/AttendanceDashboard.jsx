@@ -8,6 +8,9 @@ import {
   CCardHeader,
   CCol,
   CFormSelect,
+  CNav,
+  CNavItem,
+  CNavLink,
   CRow,
   CSpinner,
   CTable,
@@ -16,9 +19,12 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
+  CTabContent,
+  CTabPane,
+  CTooltip,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCalendar, cilCloudUpload, cilPencil, cilPeople } from '@coreui/icons'
+import { cilCalendar, cilCloudUpload, cilMoney, cilPencil, cilPeople } from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
@@ -26,6 +32,7 @@ import api from '../../../services/api'
 import { localAttendance } from '../../../services/localAttendance'
 import GeneralCalendar from './GeneralCalendar'
 import EmployeeCalendarModal from './EmployeeCalendarModal'
+import DeductionSummary from './DeductionSummary'
 
 const MONTHS = [
   'January',
@@ -61,6 +68,7 @@ const AttendanceDashboard = () => {
   const canEdit = usePermission(MODULE.ATTENDANCE, 'edit')
 
   // If navigated from import wizard, jump to the imported month/year
+  const [activeTab, setActiveTab] = useState('overview')
   const [year, setYear] = useState(location.state?.year || thisYear)
   const [month, setMonth] = useState(location.state?.month || thisMonth)
   const [agg, setAgg] = useState(null)
@@ -154,6 +162,36 @@ const AttendanceDashboard = () => {
         </CCardBody>
       </CCard>
 
+      {/* Tabs */}
+      <CNav variant="tabs" className="mb-3">
+        <CNavItem>
+          <CNavLink
+            active={activeTab === 'overview'}
+            onClick={() => setActiveTab('overview')}
+            style={{ cursor: 'pointer' }}
+          >
+            <CIcon icon={cilPeople} className="me-1" />
+            Overview
+          </CNavLink>
+        </CNavItem>
+        <CNavItem>
+          <CNavLink
+            active={activeTab === 'deductions'}
+            onClick={() => setActiveTab('deductions')}
+            style={{ cursor: 'pointer' }}
+          >
+            <CIcon icon={cilMoney} className="me-1" />
+            Deductions
+          </CNavLink>
+        </CNavItem>
+      </CNav>
+
+      <CTabContent>
+        <CTabPane visible={activeTab === 'deductions'}>
+          <DeductionSummary year={year} month={month} />
+        </CTabPane>
+
+        <CTabPane visible={activeTab === 'overview'}>
       {loading ? (
         <div className="text-center py-5">
           <CSpinner color="primary" />
@@ -293,14 +331,16 @@ const AttendanceDashboard = () => {
                           {s.avg_working_hours || '—'}
                         </CTableDataCell>
                         <CTableDataCell>
-                          <CButton
-                            color="info"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCalendarEmp(s.employee_id)}
-                          >
-                            <CIcon icon={cilCalendar} />
-                          </CButton>
+                          <CTooltip content="View Calendar">
+                            <CButton
+                              color="info"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCalendarEmp(s.employee_id)}
+                            >
+                              <CIcon icon={cilCalendar} />
+                            </CButton>
+                          </CTooltip>
                         </CTableDataCell>
                       </CTableRow>
                     ))}
@@ -316,6 +356,9 @@ const AttendanceDashboard = () => {
           </div>
         </>
       )}
+
+        </CTabPane>
+      </CTabContent>
 
       {/* Employee Personal Calendar Modal */}
       <EmployeeCalendarModal

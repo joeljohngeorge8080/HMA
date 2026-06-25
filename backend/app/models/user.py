@@ -19,7 +19,8 @@ class User(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     employee_id: str = Field(unique=True, nullable=False, index=True, max_length=20)
-    password_hash: str = Field(nullable=False)
+    google_email: str = Field(unique=True, nullable=False, index=True, max_length=255)
+    password_hash: Optional[str] = Field(default=None, nullable=True)
     role: UserRole = Field(nullable=False)
     is_active: bool = Field(default=True, nullable=False)
     created_at: datetime = Field(nullable=False)

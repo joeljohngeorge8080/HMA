@@ -1,0 +1,462 @@
+import React, { useEffect, useState } from 'react'
+import {
+  CAlert,
+  CBadge,
+  CButton,
+  CCard,
+  CCardBody,
+  CCol,
+  CFormInput,
+  CFormLabel,
+  CFormSelect,
+  CFormTextarea,
+  CRow,
+  CSpinner,
+  CTable,
+  CTableBody,
+  CTableDataCell,
+  CTableHead,
+  CTableHeaderCell,
+  CTableRow,
+} from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilPencil, cilPlus, cilTrash } from '@coreui/icons'
+import { usePermission } from '../../../hooks/usePermission'
+import { MODULE } from '../../../constants/modules'
+import { localRecruitments } from '../../../services/localRecruitments'
+
+const RECRUIT_STATUSES = ['Applied', 'Shortlisted', 'Selected', 'Rejected', 'Joined']
+const PAYMENT_STATUSES = ['Pending', 'Paid', 'NA']
+
+const STATUS_COLORS = {
+  Applied: 'secondary',
+  Shortlisted: 'warning',
+  Selected: 'info',
+  Rejected: 'danger',
+  Joined: 'success',
+}
+const PAY_COLORS = { Paid: 'success', Pending: 'warning', NA: 'secondary' }
+
+const currency = (n) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n || 0)
+
+const EMPTY_FORM = {
+  candidate_name: '',
+  position: '',
+  department: '',
+  date_applied: '',
+  interview_date: '',
+  status: 'Applied',
+  amount_received: '',
+  payment_status: 'Pending',
+  remarks: '',
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+const RecruitModal = ({ form, setForm, editTarget, onSave, onClose, saving, error }) => {
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  return (
+    <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">
+              {editTarget ? 'Edit Candidate' : 'Add Candidate'}
+            </h5>
+            <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
+          </div>
+          <div className="modal-body">
+            {error && <CAlert color="danger" className="py-2 mb-3">{error}</CAlert>}
+
+            {/* Basic Details */}
+            <p className="fw-semibold text-body-secondary small text-uppercase mb-2 mt-1">
+              Basic Details
+            </p>
+            <CRow className="g-3 mb-3">
+              <CCol md={6}>
+                <CFormLabel className="fw-semibold">
+                  Candidate Name <span className="text-danger">*</span>
+                </CFormLabel>
+                <CFormInput
+                  value={form.candidate_name}
+                  onChange={(e) => set('candidate_name', e.target.value)}
+                  placeholder="Full name"
+                />
+              </CCol>
+              <CCol md={6}>
+                <CFormLabel className="fw-semibold">Position Applied</CFormLabel>
+                <CFormInput
+                  value={form.position}
+                  onChange={(e) => set('position', e.target.value)}
+                  placeholder="e.g. Data Entry Operator"
+                />
+              </CCol>
+              <CCol md={4}>
+                <CFormLabel className="fw-semibold">Department</CFormLabel>
+                <CFormInput
+                  value={form.department}
+                  onChange={(e) => set('department', e.target.value)}
+                  placeholder="e.g. HR"
+                />
+              </CCol>
+              <CCol md={4}>
+                <CFormLabel className="fw-semibold">Date Applied</CFormLabel>
+                <CFormInput
+                  type="date"
+                  value={form.date_applied}
+                  onChange={(e) => set('date_applied', e.target.value)}
+                />
+              </CCol>
+              <CCol md={4}>
+                <CFormLabel className="fw-semibold">Interview Date</CFormLabel>
+                <CFormInput
+                  type="date"
+                  value={form.interview_date}
+                  onChange={(e) => set('interview_date', e.target.value)}
+                />
+              </CCol>
+              <CCol md={6}>
+                <CFormLabel className="fw-semibold">Status</CFormLabel>
+                <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  {RECRUIT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </CFormSelect>
+              </CCol>
+            </CRow>
+
+            <hr className="my-2" />
+
+            {/* Received Amount */}
+            <p className="fw-semibold text-body-secondary small text-uppercase mb-2 mt-3">
+              Received Amount
+            </p>
+            <CRow className="g-3">
+              <CCol md={4}>
+                <CFormLabel className="fw-semibold">Amount Received (₹)</CFormLabel>
+                <CFormInput
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.amount_received}
+                  onChange={(e) => set('amount_received', e.target.value)}
+                  placeholder="0"
+                />
+              </CCol>
+              <CCol md={4}>
+                <CFormLabel className="fw-semibold">Payment Status</CFormLabel>
+                <CFormSelect
+                  value={form.payment_status}
+                  onChange={(e) => set('payment_status', e.target.value)}
+                >
+                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </CFormSelect>
+              </CCol>
+              <CCol md={12}>
+                <CFormLabel>Remarks</CFormLabel>
+                <CFormTextarea
+                  rows={2}
+                  value={form.remarks}
+                  onChange={(e) => set('remarks', e.target.value)}
+                  placeholder="Optional notes"
+                />
+              </CCol>
+            </CRow>
+          </div>
+          <div className="modal-footer">
+            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="primary" onClick={onSave} disabled={saving}>
+              {saving && <CSpinner size="sm" className="me-1" />}
+              {editTarget ? 'Save Changes' : 'Add Candidate'}
+            </CButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Delete confirm ────────────────────────────────────────────────────────────
+const DeleteModal = ({ target, onConfirm, onClose }) => (
+  <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div className="modal-dialog">
+      <div className="modal-content">
+        <div className="modal-header"><h5 className="modal-title">Delete Candidate</h5></div>
+        <div className="modal-body">
+          Delete <strong>{target.candidate_name}</strong>? This cannot be undone.
+        </div>
+        <div className="modal-footer">
+          <CButton color="secondary" onClick={onClose}>Cancel</CButton>
+          <CButton color="danger" onClick={onConfirm}>Delete</CButton>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+const RecruitmentPage = () => {
+  const canEdit = usePermission(MODULE.RECRUITMENT, 'edit')
+
+  const [rows, setRows] = useState([])
+  const [search, setSearch] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const load = () =>
+    setRows(localRecruitments.list({ search, status: filterStatus }))
+
+  useEffect(() => { load() }, [search, filterStatus])
+
+  const openAdd = () => {
+    setEditTarget(null)
+    setForm(EMPTY_FORM)
+    setFormError('')
+    setShowModal(true)
+  }
+
+  const openEdit = (row) => {
+    setEditTarget(row)
+    setForm({
+      candidate_name: row.candidate_name,
+      position: row.position || '',
+      department: row.department || '',
+      date_applied: row.date_applied || '',
+      interview_date: row.interview_date || '',
+      status: row.status,
+      amount_received: row.amount_received || '',
+      payment_status: row.payment_status,
+      remarks: row.remarks || '',
+    })
+    setFormError('')
+    setShowModal(true)
+  }
+
+  const handleSave = () => {
+    if (!form.candidate_name.trim()) { setFormError('Candidate name is required'); return }
+    setSaving(true)
+    setFormError('')
+    try {
+      const payload = {
+        candidate_name: form.candidate_name.trim(),
+        position: form.position.trim() || null,
+        department: form.department.trim() || null,
+        date_applied: form.date_applied || null,
+        interview_date: form.interview_date || null,
+        status: form.status,
+        amount_received: parseFloat(form.amount_received) || 0,
+        payment_status: form.payment_status,
+        remarks: form.remarks.trim() || null,
+      }
+      if (editTarget) {
+        localRecruitments.update(editTarget.id, payload)
+      } else {
+        localRecruitments.create(payload)
+      }
+    } catch (e) {
+      setFormError(e.message || 'Save failed')
+      setSaving(false)
+      return
+    }
+    setSaving(false)
+    setShowModal(false)
+    load()
+  }
+
+  const handleDelete = () => {
+    if (!deleteTarget) return
+    localRecruitments.delete(deleteTarget.id)
+    setDeleteTarget(null)
+    load()
+  }
+
+  const joinedCount = rows.filter((r) => r.status === 'Joined').length
+  const selectedCount = rows.filter((r) => r.status === 'Selected').length
+  const activeCount = rows.filter((r) => !['Rejected'].includes(r.status)).length
+
+  return (
+    <>
+      {/* Header */}
+      <div className="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+          <h4 className="mb-1">Recruitment</h4>
+          <p className="text-body-secondary mb-0 small">
+            Track candidates, interview pipeline, and received amounts.
+          </p>
+        </div>
+        {canEdit && (
+          <CButton color="primary" size="sm" onClick={openAdd}>
+            <CIcon icon={cilPlus} className="me-1" /> Add Candidate
+          </CButton>
+        )}
+      </div>
+
+      {/* Stats */}
+      <CRow className="g-3 mb-4">
+        <CCol xs={6} md={3}>
+          <CCard className="border-top border-top-primary border-3 text-center">
+            <CCardBody className="py-3">
+              <div className="small text-body-secondary mb-1">Total</div>
+              <div className="fw-bold fs-5 text-primary">{rows.length}</div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+        <CCol xs={6} md={3}>
+          <CCard className="border-top border-top-warning border-3 text-center">
+            <CCardBody className="py-3">
+              <div className="small text-body-secondary mb-1">Active Pipeline</div>
+              <div className="fw-bold fs-5 text-warning">{activeCount}</div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+        <CCol xs={6} md={3}>
+          <CCard className="border-top border-top-info border-3 text-center">
+            <CCardBody className="py-3">
+              <div className="small text-body-secondary mb-1">Selected</div>
+              <div className="fw-bold fs-5 text-info">{selectedCount}</div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+        <CCol xs={6} md={3}>
+          <CCard className="border-top border-top-success border-3 text-center">
+            <CCardBody className="py-3">
+              <div className="small text-body-secondary mb-1">Joined</div>
+              <div className="fw-bold fs-5 text-success">{joinedCount}</div>
+            </CCardBody>
+          </CCard>
+        </CCol>
+      </CRow>
+
+      {/* Filters */}
+      <CCard className="mb-3">
+        <CCardBody>
+          <CRow className="g-2">
+            <CCol md={6}>
+              <CFormLabel className="small fw-semibold">Search</CFormLabel>
+              <CFormInput
+                size="sm"
+                placeholder="Name, position, department..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </CCol>
+            <CCol md={3}>
+              <CFormLabel className="small fw-semibold">Status</CFormLabel>
+              <CFormSelect
+                size="sm"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">All Status</option>
+                {RECRUIT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </CFormSelect>
+            </CCol>
+          </CRow>
+        </CCardBody>
+      </CCard>
+
+      {/* Table */}
+      <CCard>
+        <CCardBody className="p-0">
+          <CTable small hover responsive className="mb-0">
+            <CTableHead color="light">
+              <CTableRow>
+                <CTableHeaderCell style={{ width: 40 }}>#</CTableHeaderCell>
+                <CTableHeaderCell>Candidate Name</CTableHeaderCell>
+                <CTableHeaderCell>Position</CTableHeaderCell>
+                <CTableHeaderCell>Department</CTableHeaderCell>
+                <CTableHeaderCell>Date Applied</CTableHeaderCell>
+                <CTableHeaderCell>Interview Date</CTableHeaderCell>
+                <CTableHeaderCell>Status</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Amount Received</CTableHeaderCell>
+                <CTableHeaderCell>Payment</CTableHeaderCell>
+                {canEdit && <CTableHeaderCell>Actions</CTableHeaderCell>}
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {rows.length === 0 && (
+                <CTableRow>
+                  <CTableDataCell
+                    colSpan={canEdit ? 10 : 9}
+                    className="text-center text-body-secondary py-5"
+                  >
+                    No recruitment records found.
+                    {canEdit && ' Click "Add Candidate" to get started.'}
+                  </CTableDataCell>
+                </CTableRow>
+              )}
+              {rows.map((row, idx) => (
+                <CTableRow key={row.id}>
+                  <CTableDataCell className="text-body-secondary small">{idx + 1}</CTableDataCell>
+                  <CTableDataCell className="fw-semibold">{row.candidate_name}</CTableDataCell>
+                  <CTableDataCell className="small">{row.position || '—'}</CTableDataCell>
+                  <CTableDataCell className="small">{row.department || '—'}</CTableDataCell>
+                  <CTableDataCell className="small text-body-secondary">
+                    {row.date_applied || '—'}
+                  </CTableDataCell>
+                  <CTableDataCell className="small text-body-secondary">
+                    {row.interview_date || '—'}
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <CBadge color={STATUS_COLORS[row.status] || 'secondary'}>{row.status}</CBadge>
+                  </CTableDataCell>
+                  <CTableDataCell className="text-end fw-semibold">
+                    {currency(row.amount_received)}
+                  </CTableDataCell>
+                  <CTableDataCell>
+                    <CBadge color={PAY_COLORS[row.payment_status] || 'secondary'}>
+                      {row.payment_status}
+                    </CBadge>
+                  </CTableDataCell>
+                  {canEdit && (
+                    <CTableDataCell>
+                      <CButton
+                        color="secondary" variant="ghost" size="sm"
+                        className="me-1" onClick={() => openEdit(row)} title="Edit"
+                      >
+                        <CIcon icon={cilPencil} />
+                      </CButton>
+                      <CButton
+                        color="danger" variant="ghost" size="sm"
+                        onClick={() => setDeleteTarget(row)} title="Delete"
+                      >
+                        <CIcon icon={cilTrash} />
+                      </CButton>
+                    </CTableDataCell>
+                  )}
+                </CTableRow>
+              ))}
+            </CTableBody>
+          </CTable>
+        </CCardBody>
+      </CCard>
+
+      {showModal && (
+        <RecruitModal
+          form={form} setForm={setForm} editTarget={editTarget}
+          onSave={handleSave} onClose={() => setShowModal(false)}
+          saving={saving} error={formError}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteModal
+          target={deleteTarget}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+    </>
+  )
+}
+
+export default RecruitmentPage
