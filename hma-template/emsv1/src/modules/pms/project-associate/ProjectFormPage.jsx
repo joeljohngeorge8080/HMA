@@ -450,7 +450,7 @@ const ProjectFormPage = () => {
                       type="number"
                       step="0.1"
                       min="0"
-                      max="100"
+                      max="5"
                       value={form.hr_pct}
                       onChange={(e) => set('hr_pct', e.target.value)}
                     />
@@ -461,10 +461,30 @@ const ProjectFormPage = () => {
                       type="number"
                       step="0.1"
                       min="0"
-                      max="100"
+                      max="5"
                       value={form.core_pct}
                       onChange={(e) => set('core_pct', e.target.value)}
                     />
+                  </CCol>
+                  <CCol xs={12}>
+                    <div
+                      className="rounded-3 p-3"
+                      style={{ background: 'rgba(67,97,238,0.05)', border: '1.5px solid rgba(67,97,238,0.18)' }}
+                    >
+                      <div className="fw-semibold small mb-1" style={{ color: '#4361ee' }}>
+                        📐 Budget Distribution Rule
+                      </div>
+                      <div className="small text-body-secondary">
+                        Each installment received is automatically split as:
+                        <ul className="mb-0 mt-1 ps-3">
+                          <li><strong>HR Pool (Max 5%)</strong> — computed from total project value ÷ project duration months</li>
+                          <li><strong>Core Pool (Max 5%)</strong> — computed from total project value ÷ project duration months</li>
+                          <li><strong>Admin Overhead (5%)</strong> — per installment</li>
+                          <li><strong>Project Budget (Remaining)</strong> — designed by Project Officer after receipt</li>
+                        </ul>
+                        When project value is not set, HR &amp; Core fallback to the specified percentage of each installment ÷ installment months.
+                      </div>
+                    </div>
                   </CCol>
                   <CCol xs={12} md={6}>
                     <CFormLabel className="fw-semibold small">Total Beneficiaries (Predicted Target)</CFormLabel>
