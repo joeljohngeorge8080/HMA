@@ -5,8 +5,8 @@ const STORAGE_KEY = 'hma_registered_users'
 const defaultUsers = [
   {
     id: 'USR000',
-    full_name: 'System Admin',
-    google_email: 'admin@hma.com',
+    full_name: 'HMA Admin',
+    google_email: 'hllmangementacademyems@gmail.com',
     role: ROLE.ADMIN,
     added_by: 'system',
     added_at: new Date().toISOString(),
