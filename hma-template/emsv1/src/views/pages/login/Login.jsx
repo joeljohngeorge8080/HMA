@@ -205,6 +205,7 @@ const Login = () => {
                     <p className="text-body-secondary small mb-2">Dev quick-login</p>
                     <div className="d-grid gap-2">
                       {[
+                        { label: 'Admin',               role: 'Admin',               id: 'DEV000',     name: 'Dev Admin' },
                         { label: 'CEO',                 role: 'CEO',                 id: 'DEV001',     name: 'Dev CEO' },
                         { label: 'Heads',               role: 'Heads',               id: 'DEV002',     name: 'Dev Head' },
                         { label: 'HR',                  role: 'HR',                  id: 'DEV003',     name: 'Dev HR' },

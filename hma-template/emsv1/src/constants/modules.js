@@ -14,6 +14,7 @@ export const MODULE = {
   HR_POOL: 'hr_pool',
 
   MY_PROFILE: 'my_profile',
+  USER_MANAGEMENT: 'user_management',
 
   // PMS modules
   PMS_DASHBOARD: 'pms_dashboard',

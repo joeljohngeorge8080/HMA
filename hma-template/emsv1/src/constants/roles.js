@@ -8,6 +8,7 @@
  */
 
 export const ROLE = {
+  ADMIN: 'Admin',
   CEO: 'CEO',
   HEADS: 'Heads',
   HR: 'HR',
@@ -21,6 +22,7 @@ export const ROLE = {
 }
 
 export const ROLES = [
+  ROLE.ADMIN,
   ROLE.CEO,
   ROLE.HEADS,
   ROLE.HR,

@@ -2,6 +2,10 @@ import React from 'react'
 import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
+const UserManagementPage = React.lazy(
+  () => import('../modules/ems/user-management/UserManagementPage'),
+)
+
 const Dashboard = React.lazy(() => import('../modules/ems/dashboard/Dashboard'))
 const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyProfilePage'))
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
@@ -170,6 +174,30 @@ export const emsRoutes = [
     element: placeholder('Finance'),
     module: MODULE.FINANCE,
   },
+  {
+    path: '/ems/finance/detail-1',
+    name: 'Detail 1',
+    element: placeholder('Finance – Detail 1'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-2',
+    name: 'Detail 2',
+    element: placeholder('Finance – Detail 2'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-3',
+    name: 'Detail 3',
+    element: placeholder('Finance – Detail 3'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-4',
+    name: 'Detail 4',
+    element: placeholder('Finance – Detail 4'),
+    module: MODULE.FINANCE,
+  },
 
   {
     path: '/ems/reports-analysis',
@@ -195,6 +223,19 @@ export const emsRoutes = [
     name: 'Audit Logs',
     element: placeholder('Audit Logs'),
     module: MODULE.AUDIT_LOGS,
+  },
+
+  {
+    path: '/ems/user-management',
+    name: 'Registered Users',
+    element: UserManagementPage,
+    module: MODULE.USER_MANAGEMENT,
+  },
+  {
+    path: '/ems/user-management/add',
+    name: 'Add User',
+    element: UserManagementPage,
+    module: MODULE.USER_MANAGEMENT,
   },
 ]
 

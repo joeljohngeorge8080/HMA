@@ -105,6 +105,13 @@ export const PERMISSIONS = {
     [ROLE.EMPLOYEE]: ACCESS.VIEW,
   },
 
+  // Admin and HR can manage system users (register Google accounts + assign roles)
+  [MODULE.USER_MANAGEMENT]: {
+    [ROLE.ADMIN]: ACCESS.EDIT,
+    [ROLE.HR]: ACCESS.EDIT,
+    [ROLE.CEO]: ACCESS.VIEW,
+  },
+
   // ── PMS ─────────────────────────────────────────────────────────────
   [MODULE.PMS_DASHBOARD]: {
     [ROLE.CEO]: ACCESS.VIEW,

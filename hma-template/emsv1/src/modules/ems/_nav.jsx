@@ -12,12 +12,13 @@ import {
   cilTransfer,
   cilTags,
   cilUser,
+  cilSettings,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
 import { ROLE } from '../../constants/roles'
 
-const STAFF_ROLES = [ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
+const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
 
 const emsNav = [
   {
@@ -101,11 +102,28 @@ const emsNav = [
 
   // ── Other ──────────────────────────────────────────────────────────
   {
-    component: CNavItem,
+    component: CNavGroup,
     name: 'Finance',
-    to: '/ems/finance',
     icon: <CIcon icon={cilDollar} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
+    items: [
+      { component: CNavItem, name: 'Detail 1', to: '/ems/finance/detail-1' },
+      { component: CNavItem, name: 'Detail 2', to: '/ems/finance/detail-2' },
+      { component: CNavItem, name: 'Detail 3', to: '/ems/finance/detail-3' },
+      { component: CNavItem, name: 'Detail 4', to: '/ems/finance/detail-4' },
+    ],
+  },
+
+  // ── User Management (Admin + HR) ───────────────────────────────────
+  {
+    component: CNavGroup,
+    name: 'User Management',
+    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
+    roles: [ROLE.ADMIN, ROLE.HR],
+    items: [
+      { component: CNavItem, name: 'Registered Users', to: '/ems/user-management' },
+      { component: CNavItem, name: 'Add User', to: '/ems/user-management/add' },
+    ],
   },
   {
     component: CNavItem,

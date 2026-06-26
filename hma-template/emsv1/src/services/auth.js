@@ -1,6 +1,7 @@
 import api from './api'
 
 const DEV_USERS = {
+  DEV000: { employee_id: 'DEV000', full_name: 'Dev Admin',           role: 'Admin',          google_email: 'admin@hma.dev' },
   DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO',             role: 'CEO',            google_email: 'ceo@hma.dev' },
   DEV002: { employee_id: 'DEV002', full_name: 'Dev Head',            role: 'Heads',          google_email: 'head@hma.dev' },
   DEV003: { employee_id: 'DEV003', full_name: 'Dev HR',              role: 'HR',             google_email: 'hr@hma.dev' },
