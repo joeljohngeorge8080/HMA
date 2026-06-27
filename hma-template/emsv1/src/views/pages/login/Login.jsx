@@ -93,7 +93,7 @@ const Login = () => {
   const isLoading = loadingPass || loadingGoogle
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+    <div data-coreui-theme="light" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
 
       {/* ── Lightfall background ── */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
