@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.database import create_tables, engine
+from app.models import project  # noqa: F401 — registers Project table before create_all()
 from app.models.user import User, UserRole
 from app.routers import auth, employees, general_expenses
 
