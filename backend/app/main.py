@@ -37,9 +37,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    lifespan=lifespan,
     title='HMA IEMS API',
     version='1.0.0',
+    lifespan=lifespan,
     docs_url='/docs' if settings.ENVIRONMENT == 'development' else None,
     redoc_url='/redoc' if settings.ENVIRONMENT == 'development' else None,
 )
