@@ -42,7 +42,7 @@ def require_role(*roles: UserRole):
 
 
 def require_hr(user: CurrentUser) -> User:
-    if user.role != UserRole.HR:
+    if user.role not in (UserRole.ADMIN, UserRole.HR):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='HR role required')
     return user
 

@@ -38,6 +38,7 @@ def _build_session(user: User, session) -> dict:
         'access_token': token,
         'user': {
             'employee_id': user.employee_id,
+            'full_name': user.full_name,
             'google_email': user.google_email,
             'role': user.role,
         },
@@ -105,6 +106,7 @@ def google_login(
 def get_me(current_user: CurrentUser):
     return {
         'employee_id': current_user.employee_id,
+        'full_name': current_user.full_name,
         'google_email': current_user.google_email,
         'role': current_user.role,
         'is_active': current_user.is_active,
