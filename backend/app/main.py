@@ -1,10 +1,42 @@
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Session, select
 
 from app.core.config import settings
+from app.database import create_tables, engine
+from app.models.user import User, UserRole
 from app.routers import auth, employees, general_expenses
 
+
+def _seed_admin(session: Session):
+    admin_email = 'hllmangementacademyems@gmail.com'
+    exists = session.exec(select(User).where(User.google_email == admin_email)).first()
+    if not exists:
+        now = datetime.now(timezone.utc)
+        session.add(User(
+            google_email=admin_email,
+            full_name='HMA Admin',
+            role=UserRole.ADMIN,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        ))
+        session.commit()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_tables()
+    with Session(engine) as session:
+        _seed_admin(session)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title='HMA IEMS API',
     version='1.0.0',
     docs_url='/docs' if settings.ENVIRONMENT == 'development' else None,
