@@ -6,7 +6,7 @@ const MaintenanceIllustration = () => (
     viewBox="0 0 420 260"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    style={{ width: '100%', maxWidth: 380, height: 'auto' }}
+    style={{ width: '100%', maxWidth: 520, height: 'auto' }}
     aria-hidden="true"
   >
     {/* ── Monitor body ───────────────────────────────────────────── */}
@@ -115,12 +115,13 @@ const MaintenancePage = ({ message }) => (
     <div
       style={{
         background: '#fff',
-        borderRadius: 24,
-        padding: '52px 60px 44px',
-        maxWidth: 720,
+        borderRadius: 28,
+        border: '4px solid #1565c0',
+        padding: '64px 80px 56px',
+        maxWidth: 900,
         width: '100%',
         textAlign: 'center',
-        boxShadow: '0 24px 72px rgba(0,0,0,0.22)',
+        boxShadow: '0 28px 80px rgba(0,0,0,0.24)',
       }}
     >
       <MaintenanceIllustration />
