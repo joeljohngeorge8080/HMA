@@ -5,6 +5,12 @@ import Placeholder from '../views/Placeholder'
 const UserManagementPage = React.lazy(
   () => import('../modules/ems/user-management/UserManagementPage'),
 )
+const CeoAnnouncementsPage = React.lazy(
+  () => import('../modules/ems/announcements/CeoAnnouncementsPage'),
+)
+const AnnouncementsInboxPage = React.lazy(
+  () => import('../modules/ems/announcements/AnnouncementsInboxPage'),
+)
 
 const Dashboard = React.lazy(() => import('../modules/ems/dashboard/Dashboard'))
 const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyProfilePage'))
@@ -54,7 +60,12 @@ const placeholder = (title, message) => {
 export const emsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/ems/dashboard', name: 'Dashboard', element: Dashboard, module: MODULE.DASHBOARD },
-  { path: '/ems/my-profile', name: 'My Profile', element: MyProfilePage, module: MODULE.MY_PROFILE },
+  {
+    path: '/ems/my-profile',
+    name: 'My Profile',
+    element: MyProfilePage,
+    module: MODULE.MY_PROFILE,
+  },
 
   {
     path: '/ems/staff-payroll',
@@ -236,6 +247,34 @@ export const emsRoutes = [
     name: 'Add User',
     element: UserManagementPage,
     module: MODULE.USER_MANAGEMENT,
+  },
+
+  // CEO Announcements — all three nav links point here; tabs are managed internally
+  {
+    path: '/ems/announcements',
+    name: 'Announcements',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+  {
+    path: '/ems/announcements/compose',
+    name: 'Compose Announcement',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+  {
+    path: '/ems/announcements/sent',
+    name: 'Sent Announcements',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+
+  // Notifications inbox — all non-CEO/Admin roles
+  {
+    path: '/ems/notifications',
+    name: 'Notifications',
+    element: AnnouncementsInboxPage,
+    module: MODULE.NOTIFICATIONS,
   },
 ]
 

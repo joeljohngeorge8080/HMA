@@ -13,6 +13,8 @@ import {
   cilTags,
   cilUser,
   cilSettings,
+  cilBell,
+  cilNotes,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -139,6 +141,53 @@ const emsNav = [
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
+  // ── CEO Announcements (CEO only) ───────────────────────────────────────────
+  {
+    component: CNavGroup,
+    name: 'Announcements',
+    icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+    roles: [ROLE.CEO],
+    items: [
+      {
+        component: CNavItem,
+        name: 'Personal Notes',
+        to: '/ems/announcements',
+        icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Compose & Send',
+        to: '/ems/announcements/compose',
+        icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Sent Messages',
+        to: '/ems/announcements/sent',
+        icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
+      },
+    ],
+  },
+
+  // ── Notifications inbox (non-CEO, non-Admin staff) ─────────────────────────
+  {
+    component: CNavItem,
+    name: 'Notifications',
+    to: '/ems/notifications',
+    icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+    roles: [
+      ROLE.HEADS,
+      ROLE.HR,
+      ROLE.FINANCE,
+      ROLE.EMPLOYEE,
+      ROLE.PROJECT_ASSOCIATE,
+      ROLE.PROJECT_OFFICER,
+      ROLE.FIELD_PERSONNEL,
+      ROLE.BACKEND_TEAM,
+      ROLE.PROJECT_COORDINATOR,
+    ],
+  },
+
   {
     component: CNavItem,
     name: 'Switch to PMS',
