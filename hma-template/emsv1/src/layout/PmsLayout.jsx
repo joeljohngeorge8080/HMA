@@ -4,6 +4,7 @@ import { RoutesContext } from '../contexts/RoutesContext'
 import pmsNav from '../modules/pms/_nav'
 import { pmsRoutes } from '../routes/pms.routes'
 import { CButton, CBadge } from '@coreui/react'
+import FloatingCalculator from '../components/FloatingCalculator'
 
 const ROLE_NAV_MAP = {
   admin: (nav) => nav,
@@ -15,9 +16,7 @@ const ROLE_NAV_MAP = {
         item.name === 'Dashboard',
     ),
   project_officer: (nav) =>
-    nav.filter(
-      (item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'
-    ),
+    nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
   field_personnel: (nav) =>
     nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
 }
@@ -69,10 +68,10 @@ const PmsLayout = () => {
           </div>
           <AppFooter />
         </div>
+        <FloatingCalculator />
       </div>
     </RoutesContext.Provider>
   )
 }
 
 export default PmsLayout
-

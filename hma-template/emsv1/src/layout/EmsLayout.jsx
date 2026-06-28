@@ -4,6 +4,7 @@ import { RoutesContext } from '../contexts/RoutesContext'
 import emsNav from '../modules/ems/_nav'
 import { emsRoutes } from '../routes/ems.routes'
 import MaintenanceBanner from '../modules/ems/admin/MaintenanceBanner'
+import FloatingCalculator from '../components/FloatingCalculator'
 
 const EmsLayout = () => {
   return (
@@ -18,6 +19,7 @@ const EmsLayout = () => {
           </div>
           <AppFooter />
         </div>
+        <FloatingCalculator />
       </div>
     </RoutesContext.Provider>
   )
