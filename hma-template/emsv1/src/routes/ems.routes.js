@@ -5,6 +5,7 @@ import Placeholder from '../views/Placeholder'
 const UserManagementPage = React.lazy(
   () => import('../modules/ems/user-management/UserManagementPage'),
 )
+const AdminSettingsPage = React.lazy(() => import('../modules/ems/admin/AdminSettingsPage'))
 const CeoAnnouncementsPage = React.lazy(
   () => import('../modules/ems/announcements/CeoAnnouncementsPage'),
 )
@@ -247,6 +248,14 @@ export const emsRoutes = [
     name: 'Add User',
     element: UserManagementPage,
     module: MODULE.USER_MANAGEMENT,
+  },
+
+  // Admin Settings — Admin only
+  {
+    path: '/ems/admin-settings',
+    name: 'Admin Settings',
+    element: AdminSettingsPage,
+    module: MODULE.ADMIN_SETTINGS,
   },
 
   // CEO Announcements — all three nav links point here; tabs are managed internally

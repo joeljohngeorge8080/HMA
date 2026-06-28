@@ -112,6 +112,20 @@ export const PERMISSIONS = {
     [ROLE.CEO]: ACCESS.VIEW,
   },
 
+  // Admin-only settings page (Admin bypasses automatically; explicit NONE for all others)
+  [MODULE.ADMIN_SETTINGS]: {
+    [ROLE.CEO]: ACCESS.NONE,
+    [ROLE.HEADS]: ACCESS.NONE,
+    [ROLE.HR]: ACCESS.NONE,
+    [ROLE.FINANCE]: ACCESS.NONE,
+    [ROLE.EMPLOYEE]: ACCESS.NONE,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+    [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
+    [ROLE.BACKEND_TEAM]: ACCESS.NONE,
+    [ROLE.PROJECT_COORDINATOR]: ACCESS.NONE,
+  },
+
   // CEO (and Admin via bypass) can compose, send, manage notes & sent history
   [MODULE.CEO_ANNOUNCEMENTS]: {
     [ROLE.CEO]: ACCESS.EDIT,

@@ -17,6 +17,7 @@ export const MODULE = {
   USER_MANAGEMENT: 'user_management',
   CEO_ANNOUNCEMENTS: 'ceo_announcements',
   NOTIFICATIONS: 'notifications',
+  ADMIN_SETTINGS: 'admin_settings',
 
   // PMS modules
   PMS_DASHBOARD: 'pms_dashboard',

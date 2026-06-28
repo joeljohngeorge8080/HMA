@@ -15,6 +15,7 @@ import {
   cilSettings,
   cilBell,
   cilNotes,
+  cilOptions,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -141,6 +142,15 @@ const emsNav = [
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
+  // ── Admin Settings (Admin only) ───────────────────────────────────────────
+  {
+    component: CNavItem,
+    name: 'Admin Settings',
+    to: '/ems/admin-settings',
+    icon: <CIcon icon={cilOptions} customClassName="nav-icon" />,
+    roles: [ROLE.ADMIN],
+  },
+
   // ── CEO Announcements (CEO + Admin) ───────────────────────────────────────
   {
     component: CNavGroup,
