@@ -92,10 +92,10 @@ const MaintenanceIllustration = () => (
     })}
 
     {/* ── Small decorative dots ────────────────────────────────────── */}
-    <circle cx="60" cy="100" r="5" fill="#f5c842" opacity="0.7" />
-    <circle cx="48" cy="130" r="3" fill="#f5c842" opacity="0.5" />
-    <circle cx="375" cy="160" r="4" fill="#f5c842" opacity="0.6" />
-    <circle cx="388" cy="195" r="3" fill="#f5c842" opacity="0.4" />
+    <circle cx="60" cy="100" r="5" fill="#42a5f5" opacity="0.7" />
+    <circle cx="48" cy="130" r="3" fill="#42a5f5" opacity="0.5" />
+    <circle cx="375" cy="160" r="4" fill="#42a5f5" opacity="0.6" />
+    <circle cx="388" cy="195" r="3" fill="#42a5f5" opacity="0.4" />
   </svg>
 )
 
@@ -104,7 +104,7 @@ const MaintenancePage = ({ message }) => (
     style={{
       position: 'fixed',
       inset: 0,
-      background: 'linear-gradient(135deg, #f5a623 0%, #f7c94b 100%)',
+      background: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -115,12 +115,12 @@ const MaintenancePage = ({ message }) => (
     <div
       style={{
         background: '#fff',
-        borderRadius: 20,
-        padding: '36px 40px 32px',
-        maxWidth: 520,
+        borderRadius: 24,
+        padding: '52px 60px 44px',
+        maxWidth: 720,
         width: '100%',
         textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        boxShadow: '0 24px 72px rgba(0,0,0,0.22)',
       }}
     >
       <MaintenanceIllustration />
@@ -146,12 +146,12 @@ const MaintenancePage = ({ message }) => (
         <div
           style={{
             marginTop: 18,
-            background: '#fff8e1',
-            border: '1px solid #f5a623',
+            background: '#e3f0fb',
+            border: '1px solid #42a5f5',
             borderRadius: 10,
             padding: '11px 16px',
             fontSize: 13,
-            color: '#7a5200',
+            color: '#0d47a1',
             fontWeight: 500,
             lineHeight: 1.6,
           }}
