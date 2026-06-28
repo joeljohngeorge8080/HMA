@@ -141,12 +141,12 @@ const emsNav = [
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
-  // ── CEO Announcements (CEO only) ───────────────────────────────────────────
+  // ── CEO Announcements (CEO + Admin) ───────────────────────────────────────
   {
     component: CNavGroup,
     name: 'Announcements',
     icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
-    roles: [ROLE.CEO],
+    roles: [ROLE.CEO, ROLE.ADMIN],
     items: [
       {
         component: CNavItem,
