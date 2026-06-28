@@ -84,82 +84,312 @@ const SECTIONS = [
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MAINTENANCE CONFIRM MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MaintenanceConfirmModal = ({ onAccept, onCancel }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.55)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+    }}
+  >
+    <div
+      style={{
+        background: 'var(--cui-body-bg)',
+        border: '1px solid var(--cui-border-color)',
+        borderRadius: 12,
+        maxWidth: 460,
+        width: '100%',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.28)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Red header strip */}
+      <div
+        style={{
+          background: '#d93025',
+          padding: '18px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span style={{ fontSize: 28 }}>⚠️</span>
+        <div>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>
+            Enable Maintenance Mode?
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>
+            This is a high-impact system action
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '20px 24px' }}>
+        <p
+          style={{
+            fontSize: 14,
+            color: 'var(--cui-body-color)',
+            marginBottom: 12,
+            lineHeight: 1.6,
+          }}
+        >
+          Enabling maintenance mode will immediately:
+        </p>
+        <ul
+          style={{
+            fontSize: 14,
+            color: 'var(--cui-body-color)',
+            paddingLeft: 20,
+            marginBottom: 20,
+            lineHeight: 1.8,
+          }}
+        >
+          <li>Block all non-Admin users from accessing the system</li>
+          <li>Display the maintenance banner across all pages</li>
+          <li>Log out any currently active sessions (after page refresh)</li>
+        </ul>
+        <CAlert color="warning" className="py-2 mb-0 small d-flex align-items-center gap-2">
+          <CIcon icon={cilWarning} />
+          Only proceed if you are sure. Remember to disable maintenance mode once done.
+        </CAlert>
+      </div>
+
+      {/* Actions */}
+      <div
+        style={{
+          padding: '14px 24px 20px',
+          display: 'flex',
+          gap: 10,
+          justifyContent: 'flex-end',
+        }}
+      >
+        <CButton color="secondary" variant="outline" onClick={onCancel}>
+          Cancel
+        </CButton>
+        <CButton color="danger" onClick={onAccept} style={{ minWidth: 200 }}>
+          <CIcon icon={cilBan} className="me-2" />
+          Yes, Enable Maintenance Mode
+        </CButton>
+      </div>
+    </div>
+  </div>
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOM SLIDE TOGGLE
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SlideToggle = ({ checked, onChange, disabled = false }) => {
+  const [hovered, setHovered] = useState(false)
+
+  const trackColor = checked ? '#d93025' : hovered ? '#b0b8c1' : 'var(--cui-secondary-bg)'
+  const thumbLeft = checked ? 'calc(100% - 30px)' : '3px'
+
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        width: 60,
+        height: 30,
+        borderRadius: 15,
+        background: trackColor,
+        border: `2px solid ${checked ? '#b52820' : 'var(--cui-border-color)'}`,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'background 0.25s, border-color 0.25s',
+        flexShrink: 0,
+        padding: 0,
+        outline: 'none',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 3,
+          left: thumbLeft,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: '#fff',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          transition: 'left 0.25s cubic-bezier(.4,0,.2,1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+        }}
+      >
+        {checked ? '✕' : ''}
+      </span>
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SECTION: SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SystemSection = ({ settings, onChange, onSave, saved }) => (
-  <div>
-    <h5 className="fw-bold mb-1">System</h5>
-    <p className="text-body-secondary small mb-4">
-      Core application settings and maintenance controls
-    </p>
+const SystemSection = ({ settings, onChange, onSave, saved }) => {
+  const [showConfirm, setShowConfirm] = useState(false)
 
-    {/* Maintenance Mode */}
-    <CCard className="mb-4 border">
-      <CCardBody>
-        <div className="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <div className="fw-semibold mb-1 d-flex align-items-center gap-2">
-              <CIcon icon={cilBan} className="text-danger" />
-              Maintenance Mode
-              {settings.maintenance_mode && (
-                <CBadge color="danger" className="ms-1">
-                  ACTIVE
-                </CBadge>
-              )}
+  const handleToggle = (next) => {
+    if (next) {
+      // Turning ON — show warning first
+      setShowConfirm(true)
+    } else {
+      // Turning OFF — apply immediately
+      onChange('maintenance_mode', false)
+    }
+  }
+
+  const handleAccept = () => {
+    setShowConfirm(false)
+    onChange('maintenance_mode', true)
+  }
+
+  const handleCancel = () => setShowConfirm(false)
+
+  return (
+    <>
+      {showConfirm && <MaintenanceConfirmModal onAccept={handleAccept} onCancel={handleCancel} />}
+
+      <div>
+        <h5 className="fw-bold mb-1">System</h5>
+        <p className="text-body-secondary small mb-4">
+          Core application settings and maintenance controls
+        </p>
+
+        {/* Maintenance Mode */}
+        <CCard
+          className="mb-4"
+          style={{
+            border: settings.maintenance_mode
+              ? '2px solid #d93025'
+              : '1px solid var(--cui-border-color)',
+            transition: 'border-color 0.3s',
+          }}
+        >
+          <CCardBody>
+            {/* Toggle row */}
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <div className="fw-semibold mb-1 d-flex align-items-center gap-2">
+                  <CIcon
+                    icon={cilBan}
+                    className={settings.maintenance_mode ? 'text-danger' : 'text-body-secondary'}
+                  />
+                  Maintenance Mode
+                  {settings.maintenance_mode && (
+                    <CBadge color="danger" className="ms-1">
+                      ACTIVE
+                    </CBadge>
+                  )}
+                </div>
+                <div className="small text-body-secondary">
+                  Blocks all non-Admin users. Shows a maintenance banner site-wide.
+                </div>
+              </div>
+              <SlideToggle checked={settings.maintenance_mode} onChange={handleToggle} />
             </div>
-            <div className="small text-body-secondary">
-              When enabled, all users see a maintenance screen. Only Admins can log in.
+
+            {/* Status strip */}
+            {settings.maintenance_mode ? (
+              <div
+                style={{
+                  background: 'rgba(217,48,37,0.08)',
+                  border: '1px solid rgba(217,48,37,0.3)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  fontSize: 13,
+                  color: '#d93025',
+                  fontWeight: 600,
+                }}
+              >
+                <CIcon icon={cilWarning} />
+                Maintenance mode is ON — regular users cannot access the system.
+                <CButton
+                  size="sm"
+                  color="danger"
+                  variant="ghost"
+                  className="ms-auto"
+                  onClick={() => handleToggle(false)}
+                >
+                  Disable Now
+                </CButton>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: 'rgba(46,184,92,0.07)',
+                  border: '1px solid rgba(46,184,92,0.25)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  fontSize: 13,
+                  color: '#2eb85c',
+                  fontWeight: 600,
+                }}
+              >
+                <CIcon icon={cilCheckCircle} />
+                System is operating normally
+              </div>
+            )}
+
+            <CFormLabel className="fw-semibold small">Maintenance Banner Message</CFormLabel>
+            <CFormTextarea
+              rows={3}
+              value={settings.maintenance_message}
+              onChange={(e) => onChange('maintenance_message', e.target.value)}
+              placeholder="Message shown to users during maintenance…"
+            />
+            <div className="small text-body-secondary mt-1">
+              This message appears in the red banner at the top of all pages when active.
             </div>
-          </div>
-          <CFormCheck
-            type="switch"
-            id="maintenance-toggle"
-            checked={settings.maintenance_mode}
-            onChange={(e) => onChange('maintenance_mode', e.target.checked)}
-            className="ms-3 flex-shrink-0"
-          />
-        </div>
+          </CCardBody>
+        </CCard>
 
-        {settings.maintenance_mode && (
-          <CAlert color="warning" className="py-2 mb-3 d-flex align-items-center gap-2">
-            <CIcon icon={cilWarning} />
-            Maintenance mode is ON — regular users cannot access the system.
-          </CAlert>
-        )}
+        {/* App Display Name */}
+        <CCard className="mb-4 border">
+          <CCardBody>
+            <div className="fw-semibold mb-1">Application Display Name</div>
+            <div className="small text-body-secondary mb-3">
+              Shown in the browser tab and system emails.
+            </div>
+            <CFormInput
+              value={settings.app_display_name}
+              onChange={(e) => onChange('app_display_name', e.target.value)}
+              maxLength={60}
+              placeholder="HMA IEMS"
+            />
+          </CCardBody>
+        </CCard>
 
-        <CFormLabel className="fw-semibold small">Maintenance Banner Message</CFormLabel>
-        <CFormTextarea
-          rows={3}
-          value={settings.maintenance_message}
-          onChange={(e) => onChange('maintenance_message', e.target.value)}
-          placeholder="Message shown to users during maintenance…"
-        />
-        <div className="small text-body-secondary mt-1">
-          This message is shown on the maintenance screen.
-        </div>
-      </CCardBody>
-    </CCard>
-
-    {/* App Display Name */}
-    <CCard className="mb-4 border">
-      <CCardBody>
-        <div className="fw-semibold mb-1">Application Display Name</div>
-        <div className="small text-body-secondary mb-3">
-          Shown in the browser tab and system emails.
-        </div>
-        <CFormInput
-          value={settings.app_display_name}
-          onChange={(e) => onChange('app_display_name', e.target.value)}
-          maxLength={60}
-          placeholder="HMA IEMS"
-        />
-      </CCardBody>
-    </CCard>
-
-    <SaveBar onSave={onSave} saved={saved} />
-  </div>
-)
+        <SaveBar onSave={onSave} saved={saved} />
+      </div>
+    </>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION: SERVER HEALTH
