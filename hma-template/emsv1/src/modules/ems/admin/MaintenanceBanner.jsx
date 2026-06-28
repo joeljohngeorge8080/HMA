@@ -1,10 +1,16 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import CIcon from '@coreui/icons-react'
 import { cilWarning } from '@coreui/icons'
 import { localAdminSettings } from '../../../services/localAdminSettings'
 
 const MaintenanceBanner = () => {
-  const s = localAdminSettings.get()
+  const [s, setS] = useState(() => localAdminSettings.get())
+
+  useEffect(() => {
+    const id = setInterval(() => setS(localAdminSettings.get()), 2000)
+    return () => clearInterval(id)
+  }, [])
+
   if (!s.maintenance_mode) return null
   return (
     <div

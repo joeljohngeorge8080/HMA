@@ -243,22 +243,20 @@ const SlideToggle = ({ checked, onChange, disabled = false }) => {
 // SECTION: SYSTEM
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SystemSection = ({ settings, onChange, onSave, saved }) => {
+const SystemSection = ({ settings, onChange, onPersist, onSave, saved }) => {
   const [showConfirm, setShowConfirm] = useState(false)
 
   const handleToggle = (next) => {
     if (next) {
-      // Turning ON — show warning first
       setShowConfirm(true)
     } else {
-      // Turning OFF — apply immediately
-      onChange('maintenance_mode', false)
+      onPersist('maintenance_mode', false)
     }
   }
 
   const handleAccept = () => {
     setShowConfirm(false)
-    onChange('maintenance_mode', true)
+    onPersist('maintenance_mode', true)
   }
 
   const handleCancel = () => setShowConfirm(false)
@@ -956,6 +954,15 @@ const AdminSettingsPage = () => {
     setSettings((s) => ({ ...s, [key]: value }))
   }
 
+  // Immediately persists a single key — used for high-impact toggles like maintenance mode
+  const onPersist = (key, value) => {
+    setSettings((s) => {
+      const next = { ...s, [key]: value }
+      localAdminSettings.update(next)
+      return next
+    })
+  }
+
   const onSave = () => {
     localAdminSettings.update(settings)
     setSaved(true)
@@ -963,7 +970,7 @@ const AdminSettingsPage = () => {
     savedTimer.current = setTimeout(() => setSaved(false), 3000)
   }
 
-  const sectionProps = { settings, onChange, onSave, saved }
+  const sectionProps = { settings, onChange, onPersist, onSave, saved }
 
   return (
     <div>
