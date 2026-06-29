@@ -358,7 +358,7 @@ const ProjectDetailPage = () => {
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
 
   const role = useRole()
-  const isBudgetAdmin = role === ROLE.CEO || role === ROLE.FINANCE || role === ROLE.HR
+  const isBudgetAdmin = role === ROLE.CEO || role === ROLE.FINANCE || role === ROLE.HR || role === ROLE.PROJECT_COORDINATOR
 
   useEffect(() => {
     localProjects.seedDemoData()
@@ -1286,18 +1286,39 @@ const ProjectDetailPage = () => {
                     <CCard className="shadow-sm mb-4 border-top border-top-4 border-top-primary">
                       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
                         <span>🌐 Project Overheads</span>
-                        <div className="d-flex gap-3 flex-wrap">
+                        <div className="d-flex gap-3 flex-wrap align-items-end">
                           {[
                             { key: 'admin_pct', color: '#f7c948', label: 'Admin' },
                             { key: 'hr_pct', color: '#4361ee', label: 'HR' },
                             { key: 'core_pct', color: '#f72585', label: 'Core' }
-                          ].map(({ key, color, label }) => (
-                            <div key={key} className="d-flex align-items-center gap-2">
-                              <span className="small fw-semibold" style={{ color }}>{label}</span>
-                              <span className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center" style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}>{project[key] ?? 5}</span>
-                              <span className="small text-body-tertiary">%</span>
-                            </div>
-                          ))}
+                          ].map(({ key, color, label }) => {
+                            const pct = project[key] ?? 5
+                            const budgetAmt = (project.project_valuation || project.project_value || 0) * (pct / 100)
+                            return (
+                              <div key={key} className="d-flex flex-column align-items-center gap-1">
+                                <span className="small fw-semibold" style={{ color }}>{label}</span>
+                                {isBudgetAdmin ? (
+                                  <CInputGroup size="sm" style={{ width: 90 }}>
+                                    <CFormInput
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.5"
+                                      value={pct}
+                                      style={{ textAlign: 'center', fontWeight: 600, fontSize: '0.82rem' }}
+                                      onChange={(e) => updateProjectPct(key, e.target.value)}
+                                    />
+                                    <CInputGroupText style={{ fontSize: '0.75rem' }}>%</CInputGroupText>
+                                  </CInputGroup>
+                                ) : (
+                                  <span className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center" style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}>{pct}%</span>
+                                )}
+                                <span className="text-body-tertiary" style={{ fontSize: '0.68rem' }}>
+                                  {budgetAmt > 0 ? `₹${(budgetAmt / 1_00_000).toFixed(1)}L` : '—'}
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CCardHeader>
                       <CCardBody>
