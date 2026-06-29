@@ -27,8 +27,7 @@ import {
   useColorModes,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilContrast, cilMenu, cilMoon, cilSun, cilBell } from '@coreui/icons'
-import { localNotifications } from '../services/localNotifications'
+import { cilContrast, cilMenu, cilMoon, cilSun } from '@coreui/icons'
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
@@ -50,26 +49,6 @@ const AppHeader = () => {
 
   const dispatch = useDispatch()
   const sidebarShow = useSelector((state) => state.sidebarShow)
-  const user = useSelector((state) => state.user)
-
-  const [notifications, setNotifications] = React.useState([])
-  const [unreadCount, setUnreadCount] = React.useState(0)
-
-  useEffect(() => {
-    const fetchNotifs = () => {
-      if (user?.role) {
-        setNotifications(localNotifications.getNotifications(user.role))
-        setUnreadCount(localNotifications.getUnreadCount(user.role))
-      }
-    }
-    fetchNotifs()
-    window.addEventListener('hma_notifications_changed', fetchNotifs)
-    return () => window.removeEventListener('hma_notifications_changed', fetchNotifs)
-  }, [user?.role])
-
-  const handleMarkAsRead = (id) => {
-    localNotifications.markAsRead(id)
-  }
 
   useEffect(() => {
     const handleScroll = () => {

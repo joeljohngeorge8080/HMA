@@ -45,10 +45,10 @@ const GlobalHRPoolPage = () => {
   const fmtDate = (d) =>
     d
       ? new Date(d).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
       : ''
 
   const handlePreview = () => {
@@ -107,7 +107,7 @@ const GlobalHRPoolPage = () => {
           <p className="text-body-secondary mb-0 small">Organisation-wide HR expenses distributed across projects.</p>
         </div>
       </div>
-      
+
       <CCard className="shadow-sm border-top border-4 border-top-success mb-4">
         <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
           <span>Manage Organization-Wide HR Expenses</span>
@@ -174,7 +174,7 @@ const GlobalHRPoolPage = () => {
                   </CInputGroup>
                 </CCol>
               </CRow>
-              
+
               {previewAllocs.length > 0 && (
                 <div
                   className="mb-3 p-3 rounded bg-success bg-opacity-10 border border-success"
@@ -193,7 +193,7 @@ const GlobalHRPoolPage = () => {
                   </CRow>
                 </div>
               )}
-              
+
               <div className="d-flex gap-2">
                 <CButton size="sm" color="success" onClick={handleAdd}>
                   Add &amp; Distribute Expense
@@ -333,8 +333,8 @@ const GlobalHRPoolPage = () => {
               </CTable>
             </div>
           )}
-        </CCardBody>
-      </CCard>
+      </CCardBody>
+    </CCard >
     </>
   )
 }
