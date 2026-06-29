@@ -68,6 +68,7 @@ import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
 import { localPayroll } from '../../../services/localPayroll'
 import { localOrgPool } from '../../../services/localOrgPool'
+import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import useRole from '../../../hooks/useRole'
 import { ROLE } from '../../../constants/roles'
 
@@ -92,7 +93,7 @@ const RECURRING_TYPES = [
 ]
 
 // ── Expense Card ──────────────────────────────────────────────────────────────
-const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd, onRemove, onEdit }) => {
+const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd, onRemove, onEdit, isReadOnly = false }) => {
   const [form, setForm] = useState({ label: '', amount: '', date: '', notes: '', is_recurring: false, recurring_type: 'electricity' })
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -120,6 +121,10 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
   const fmtIN = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
 
+  // Separate org-level (EMS synced) from project-specific expenses
+  const orgExpenses = expenses.filter((e) => e.source === 'hr_admin')
+  const projExpenses = expenses.filter((e) => e.source !== 'hr_admin')
+
   return (
     <CCard className="shadow-sm h-100">
       <CCardHeader className={`bg-transparent fw-semibold pt-3 border-start border-4 border-start-${color}`}>{title}</CCardHeader>
@@ -134,54 +139,95 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
             {remaining >= 0 ? `${fmtShort(remaining)} remaining` : `${fmtShort(Math.abs(remaining))} over budget`}
           </div>
         </div>
-        {expenses.length === 0 ? (
-          <div className="text-center text-body-tertiary small py-3">No expenses added yet.</div>
-        ) : (
-          <div className="d-flex flex-column gap-2 mb-3">
-            {expenses.map((exp) =>
-              editId === exp.id ? (
-                <div key={exp.id} className="border rounded p-2 bg-body-secondary">
-                  <CRow className="g-1 mb-1">
-                    <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Label" value={editForm.label} onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
-                    <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
-                    <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
-                    {isAdmin && (
-                      <CCol xs={12}>
-                        <div className="d-flex align-items-center gap-2 mt-1">
-                          <CFormCheck label="Recurring" checked={!!editForm.is_recurring} onChange={(e) => setEditForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
-                          {editForm.is_recurring && (
-                            <CFormSelect size="sm" value={editForm.recurring_type} onChange={(e) => setEditForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 140 }}>
-                              {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                            </CFormSelect>
-                          )}
-                        </div>
-                      </CCol>
-                    )}
-                  </CRow>
-                  <div className="d-flex gap-1">
-                    <CButton size="sm" color="primary" onClick={handleEditSave}>Save</CButton>
-                    <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>Cancel</CButton>
-                  </div>
-                </div>
-              ) : (
-                <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2">
-                  <div>
-                    <div className="fw-semibold small">
-                      {exp.label}
-                      {exp.is_recurring && <CBadge color="info" className="ms-2" style={{ fontSize: '0.65rem' }}>{RECURRING_TYPES.find((r) => r.value === exp.recurring_type)?.label || 'Recurring'}</CBadge>}
+
+        {/* ── Org-level HR Admin expenses (synced from EMS) ── */}
+        {orgExpenses.length > 0 && (
+          <div className="mb-3">
+            <div className="d-flex align-items-center gap-2 mb-2">
+              <span className="small fw-semibold text-body-secondary text-uppercase" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>HR Admin (Org-level)</span>
+              <CBadge color="warning" textColor="dark" style={{ fontSize: '0.6rem' }}>Synced from EMS</CBadge>
+            </div>
+            <div className="d-flex flex-column gap-2">
+              {orgExpenses.map((exp) => (
+                <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2" style={{ background: 'rgba(247,201,72,0.06)', borderColor: 'rgba(247,201,72,0.3) !important' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="fw-semibold small d-flex align-items-center gap-1 flex-wrap">
+                      {exp.expense_category}
+                      <span className="text-body-secondary fw-normal">— {exp.vendor_name}</span>
+                      <CBadge color="secondary" style={{ fontSize: '0.58rem' }}>{exp.frequency}</CBadge>
                     </div>
-                    <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>{fmtDate(exp.date)}{exp.notes && ` · ${exp.notes}`}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      Monthly: {fmtShort(exp.amount)} · Annual: {fmtShort(exp.annual_amount)}
+                    </div>
                   </div>
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="fw-bold small">{fmtShort(exp.amount)}</span>
-                    <CButton color="secondary" variant="ghost" size="sm" onClick={() => startEdit(exp)}><CIcon icon={cilPencil} size="sm" /></CButton>
-                    <CButton color="danger" variant="ghost" size="sm" onClick={() => onRemove(exp.id)}><CIcon icon={cilTrash} size="sm" /></CButton>
-                  </div>
+                  <span className="fw-bold small ms-2 text-nowrap">{fmtShort(exp.amount)}/mo</span>
                 </div>
-              )
-            )}
+              ))}
+            </div>
           </div>
         )}
+
+        {/* ── Project-specific expenses ── */}
+        {projExpenses.length > 0 && (
+          <div className="mb-3">
+            {orgExpenses.length > 0 && (
+              <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>Project-Specific</div>
+            )}
+            <div className="d-flex flex-column gap-2">
+              {projExpenses.map((exp) =>
+                editId === exp.id ? (
+                  <div key={exp.id} className="border rounded p-2 bg-body-secondary">
+                    <CRow className="g-1 mb-1">
+                      <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Label" value={editForm.label} onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
+                      <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
+                      <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
+                      {isAdmin && (
+                        <CCol xs={12}>
+                          <div className="d-flex align-items-center gap-2 mt-1">
+                            <CFormCheck label="Recurring" checked={!!editForm.is_recurring} onChange={(e) => setEditForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
+                            {editForm.is_recurring && (
+                              <CFormSelect size="sm" value={editForm.recurring_type} onChange={(e) => setEditForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 140 }}>
+                                {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                              </CFormSelect>
+                            )}
+                          </div>
+                        </CCol>
+                      )}
+                    </CRow>
+                    <div className="d-flex gap-1">
+                      <CButton size="sm" color="primary" onClick={handleEditSave}>Save</CButton>
+                      <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>Cancel</CButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2">
+                    <div>
+                      <div className="fw-semibold small">
+                        {exp.label}
+                        {exp.is_recurring && <CBadge color="info" className="ms-2" style={{ fontSize: '0.65rem' }}>{RECURRING_TYPES.find((r) => r.value === exp.recurring_type)?.label || 'Recurring'}</CBadge>}
+                      </div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>{fmtDate(exp.date)}{exp.notes && ` · ${exp.notes}`}</div>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="fw-bold small">{fmtShort(exp.amount || exp.myAmount)}</span>
+                      {!isReadOnly && (
+                        <>
+                          <CButton color="secondary" variant="ghost" size="sm" onClick={() => startEdit(exp)}><CIcon icon={cilPencil} size="sm" /></CButton>
+                          <CButton color="danger" variant="ghost" size="sm" onClick={() => onRemove(exp.id)}><CIcon icon={cilTrash} size="sm" /></CButton>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+
+        {expenses.length === 0 && (
+          <div className="text-center text-body-tertiary small py-3">No expenses added yet.</div>
+        )}
+
         {adding ? (
           <div className="border rounded p-2 bg-body-secondary mt-auto">
             <CRow className="g-1 mb-1">
@@ -213,11 +259,11 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
               <CButton size="sm" color="secondary" variant="ghost" onClick={() => setAdding(false)}>Cancel</CButton>
             </div>
           </div>
-        ) : (
+        ) : !isReadOnly ? (
           <CButton size="sm" color={color} variant="outline" className="mt-auto" onClick={() => setAdding(true)}>
             <CIcon icon={cilPlus} className="me-1" />Add Expense
           </CButton>
-        )}
+        ) : null}
       </CCardBody>
     </CCard>
   )
@@ -1118,7 +1164,7 @@ const ProjectDetailPage = () => {
                                       <CCol xs={4}>
                                         <div><CIcon icon={cilWarning} className="me-1" /> Delay</div>
                                         {(() => {
-                                          const delay = getDelayDays(ms.target_date, ms.actual_date)
+                                          const delay = getDelayDays(inst.target_date, inst.actual_date)
                                           return (
                                             <div className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}>
                                               {delay > 0 ? `${delay} days` : 'No delay'}
@@ -1198,6 +1244,11 @@ const ProjectDetailPage = () => {
               {(() => {
                 const installments = project.installments || []
 
+                const hrSummary = localOrgPool.getProjectHRBudgetSummary(project.id)
+                const coreSummary = localOrgPool.getProjectCoreBudgetSummary(project.id)
+                const hrCharges = localOrgPool.getProjectHRCharges(project.id).map(c => ({...c, amount: c.myAmount}))
+                const coreCharges = localOrgPool.getProjectCoreCharges(project.id).map(c => ({...c, amount: c.myAmount}))
+
                 const saveActualDate = (instId) => {
                   const updated = localProjects.updateInstallment(project.id, instId, { actual_date: actualDateVal || null })
                   setProject(updated)
@@ -1234,9 +1285,13 @@ const ProjectDetailPage = () => {
                     {/* Admin Budget Section */}
                     <CCard className="shadow-sm mb-4 border-top border-top-4 border-top-primary">
                       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
-                        <span>Admin Budget</span>
+                        <span>🌐 Project Overheads</span>
                         <div className="d-flex gap-3 flex-wrap">
-                          {[{ key: 'admin_pct', color: '#f7c948', label: 'Admin' }].map(({ key, color, label }) => (
+                          {[
+                            { key: 'admin_pct', color: '#f7c948', label: 'Admin' },
+                            { key: 'hr_pct', color: '#4361ee', label: 'HR' },
+                            { key: 'core_pct', color: '#f72585', label: 'Core' }
+                          ].map(({ key, color, label }) => (
                             <div key={key} className="d-flex align-items-center gap-2">
                               <span className="small fw-semibold" style={{ color }}>{label}</span>
                               <span className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center" style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}>{project[key] ?? 5}</span>
@@ -1247,11 +1302,31 @@ const ProjectDetailPage = () => {
                       </CCardHeader>
                       <CCardBody>
                         <CRow className="g-3">
-                          <CCol xs={12}>
-                            <ExpenseCard title="🏛 Admin Expenses" color="warning" budget={(project.project_valuation || project.project_value || 0) * ((project.admin_pct ?? 5) / 100)} expenses={project.admin_expenses || []} isAdmin={true} projectId={project.id}
-                              onAdd={(exp) => handleAddExpense('admin', exp)}
-                              onRemove={(expId) => handleRemoveExpense('admin', expId)}
-                              onEdit={(expId, data) => handleEditExpense('admin', expId, data)} />
+                          <CCol xs={12} md={4}>
+                            {(() => {
+                              // Merge org-level EMS expenses (read-only) with project-specific admin expenses
+                              const orgAdminExpenses = localAdminExpenses.asProjectExpenses()
+                              const mergedAdminExpenses = [...orgAdminExpenses, ...(project.admin_expenses || [])]
+                              return (
+                                <ExpenseCard
+                                  title="🏛 Admin Expenses"
+                                  color="warning"
+                                  budget={(project.project_valuation || project.project_value || 0) * ((project.admin_pct ?? 5) / 100)}
+                                  expenses={mergedAdminExpenses}
+                                  isAdmin={true}
+                                  projectId={project.id}
+                                  onAdd={(exp) => handleAddExpense('admin', exp)}
+                                  onRemove={(expId) => handleRemoveExpense('admin', expId)}
+                                  onEdit={(expId, data) => handleEditExpense('admin', expId, data)}
+                                />
+                              )
+                            })()}
+                          </CCol>
+                          <CCol xs={12} md={4}>
+                            <ExpenseCard title="👥 HR Pool Charges" color="primary" budget={hrSummary.poolBudget} expenses={hrCharges} isAdmin={false} projectId={project.id} isReadOnly={true} />
+                          </CCol>
+                          <CCol xs={12} md={4}>
+                            <ExpenseCard title="⚡ Core Pool Charges" color="danger" budget={coreSummary.poolBudget} expenses={coreCharges} isAdmin={false} projectId={project.id} isReadOnly={true} />
                           </CCol>
                         </CRow>
                       </CCardBody>

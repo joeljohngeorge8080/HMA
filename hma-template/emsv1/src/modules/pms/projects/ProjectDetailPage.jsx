@@ -58,6 +58,7 @@ import {
 
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
 import { localTasks } from '../../../services/localTasks'
+import { localOrgPool } from '../../../services/localOrgPool'
 import TaskAssignModal from '../daily-reports/components/TaskAssignModal'
 
 const formatCurrency = (amount) =>
@@ -102,6 +103,7 @@ const ProjectDetailPage = () => {
 
   const [project, setProject] = useState(null)
   const [tasks, setTasks] = useState([])
+  const [hrBudgets, setHrBudgets] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState(null)
@@ -117,6 +119,8 @@ const ProjectDetailPage = () => {
     if (p) {
       const t = localTasks.getByProject(id)
       setTasks(t)
+      // getProjectInstallmentBudgets now returns all four budget components in one call
+      setHrBudgets(localOrgPool.getProjectInstallmentBudgets(id, 'hr'))
     }
     setLoading(false)
   }
@@ -308,6 +312,94 @@ const ProjectDetailPage = () => {
                         height={8}
                       />
                     </>
+                  )}
+                </CCardBody>
+              </CCard>
+              <CCard className="shadow-sm mt-4">
+                <CCardHeader className="bg-transparent fw-semibold pt-3">
+                  <CIcon icon={cilCalendar} className="me-2" />Budget Distribution per Installment
+                </CCardHeader>
+                <CCardBody>
+                  <p className="small text-body-secondary mb-1">
+                    Fixed allocation per installment received. HR &amp; Core monthly budgets are
+                    derived from the <strong>total project value</strong> spread equally across the
+                    full project duration.
+                  </p>
+                  {(!hrBudgets || hrBudgets.length === 0) ? (
+                    <div className="text-center small text-body-tertiary mt-3">No installments to show.</div>
+                  ) : (
+                    hrBudgets.map((row) => (
+                      <div key={row?.installmentId || Math.random()} className="mb-3 border rounded p-3">
+                        {/* Installment header */}
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <div className="fw-medium small">{row.installmentLabel}</div>
+                          <div className="d-flex align-items-center gap-2">
+                            {row.budgetNotForeseen && (
+                              <CBadge color="warning" shape="rounded-pill" style={{ fontSize: '0.68rem' }}>
+                                ⚠ Budget Not Foreseen
+                              </CBadge>
+                            )}
+                            <span className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                              {formatCurrency(row.installmentAmount)} · {row.instMonths || row.months || 1} mo
+                            </span>
+                          </div>
+                        </div>
+
+                        {row.budgetNotForeseen && (
+                          <div className="small text-warning mb-2" style={{ fontSize: '0.72rem' }}>
+                            Project value not set — HR &amp; Core are computed from installment amount as fallback.
+                          </div>
+                        )}
+
+                        <hr className="my-2" />
+
+                        {/* Four bands */}
+                        <div className="d-flex gap-2 flex-wrap">
+                          {/* Project Budget */}
+                          <div className="flex-grow-1 rounded p-2" style={{ background: 'rgba(67,97,238,0.07)', border: '1px solid rgba(67,97,238,0.2)' }}>
+                            <div className="small fw-semibold" style={{ color: '#4361ee' }}>{row.projectPct}% — Project Budget</div>
+                            <div className="fw-bold fs-6" style={{ color: '#4361ee' }}>{formatCurrency(row.projectBudget)}</div>
+                            <div className="text-body-secondary" style={{ fontSize: '0.68rem' }}>Budget designed by Project Officer upon receipt</div>
+                          </div>
+                        </div>
+
+                        <div className="d-flex gap-2 flex-wrap mt-2">
+                          <div className="flex-fill rounded p-2 text-center" style={{ background: 'rgba(67,164,238,0.08)', border: '1px solid rgba(67,164,238,0.2)', minWidth: '90px' }}>
+                            <div className="small fw-semibold text-primary">HR ({row.hrPct}%)</div>
+                            <div className="fw-bold text-primary">{formatCurrency(row.hrMonthlyBudget)}<span className="fw-normal" style={{ fontSize: '0.65rem' }}>/mo</span></div>
+                            <div className="text-body-tertiary" style={{ fontSize: '0.65rem' }}>
+                              {row.budgetNotForeseen ? 'from installment (fallback)' : `proj. value ÷ ${row.totalProjectMonths} mo`}
+                            </div>
+                          </div>
+                          <div className="flex-fill rounded p-2 text-center" style={{ background: 'rgba(46,196,182,0.08)', border: '1px solid rgba(46,196,182,0.2)', minWidth: '90px' }}>
+                            <div className="small fw-semibold text-success">Core ({row.corePct}%)</div>
+                            <div className="fw-bold text-success">{formatCurrency(row.coreMonthlyBudget)}<span className="fw-normal" style={{ fontSize: '0.65rem' }}>/mo</span></div>
+                            <div className="text-body-tertiary" style={{ fontSize: '0.65rem' }}>
+                              {row.budgetNotForeseen ? 'from installment (fallback)' : `proj. value ÷ ${row.totalProjectMonths} mo`}
+                            </div>
+                          </div>
+                          <div className="flex-fill rounded p-2 text-center" style={{ background: 'rgba(247,124,106,0.08)', border: '1px solid rgba(247,124,106,0.2)', minWidth: '90px' }}>
+                            <div className="small fw-semibold" style={{ color: '#f77c6a' }}>Admin ({row.adminPct}%)</div>
+                            <div className="fw-bold" style={{ color: '#f77c6a' }}>{formatCurrency(row.adminBudget)}</div>
+                            <div className="text-body-tertiary" style={{ fontSize: '0.65rem' }}>{row.adminPct}% of installment</div>
+                          </div>
+                        </div>
+
+                        {/* Distribution bar */}
+                        <div className="d-flex rounded overflow-hidden mt-2" style={{ height: 6 }}>
+                          <div style={{ width: `${row.projectPct}%`, background: 'rgba(67,97,238,0.55)' }} title={`Project: ${row.projectPct}%`} />
+                          <div style={{ width: `${row.hrPct}%`,      background: 'rgba(67,164,238,0.8)' }} title={`HR: ${row.hrPct}%`} />
+                          <div style={{ width: `${row.corePct}%`,    background: 'rgba(46,196,182,0.8)' }} title={`Core: ${row.corePct}%`} />
+                          <div style={{ width: `${row.adminPct}%`,   background: 'rgba(247,124,106,0.8)' }} title={`Admin: ${row.adminPct}%`} />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {hrBudgets && hrBudgets.length > 0 && !hrBudgets[0]?.budgetNotForeseen && (
+                    <div className="small text-body-secondary border-top pt-2 mt-1">
+                      HR &amp; Core total: <strong>{formatCurrency(hrBudgets[0]?.hrPoolTotal)}</strong> each over{' '}
+                      <strong>{hrBudgets[0]?.totalProjectMonths} project months</strong>
+                    </div>
                   )}
                 </CCardBody>
               </CCard>

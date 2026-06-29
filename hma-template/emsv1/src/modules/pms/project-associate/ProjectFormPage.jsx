@@ -63,6 +63,8 @@ const EMPTY_FORM = {
   beneficiaries_target: '',
   beneficiaries_completed: '',
   officer_id: '',
+  hr_pct: 5,
+  core_pct: 5,
 }
 
 const ProjectFormPage = () => {
@@ -123,6 +125,8 @@ const ProjectFormPage = () => {
           start_date: project.start_date || '',
           end_date: project.end_date || '',
           officer_id: project.officer_id || '',
+          hr_pct: project.hr_pct ?? 5,
+          core_pct: project.core_pct ?? 5,
         })
       }
     }
@@ -167,6 +171,8 @@ const ProjectFormPage = () => {
         committed_expense: Number(form.committed_expense) || 0,
         beneficiaries_target: Number(form.beneficiaries_target) || 0,
         beneficiaries_completed: Number(form.beneficiaries_completed) || 0,
+        hr_pct: Number(form.hr_pct) || 0,
+        core_pct: Number(form.core_pct) || 0,
         installments: enrichedInstallments,
       }
 
@@ -438,6 +444,48 @@ const ProjectFormPage = () => {
                       })()}
                     </CCol>
                   )}
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">HR Overhead (%)</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      value={form.hr_pct}
+                      onChange={(e) => set('hr_pct', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol xs={12} md={6}>
+                    <CFormLabel className="fw-semibold small">Core Overhead (%)</CFormLabel>
+                    <CFormInput
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      value={form.core_pct}
+                      onChange={(e) => set('core_pct', e.target.value)}
+                    />
+                  </CCol>
+                  <CCol xs={12}>
+                    <div
+                      className="rounded-3 p-3"
+                      style={{ background: 'rgba(67,97,238,0.05)', border: '1.5px solid rgba(67,97,238,0.18)' }}
+                    >
+                      <div className="fw-semibold small mb-1" style={{ color: '#4361ee' }}>
+                        📐 Budget Distribution Rule
+                      </div>
+                      <div className="small text-body-secondary">
+                        Each installment received is automatically split as:
+                        <ul className="mb-0 mt-1 ps-3">
+                          <li><strong>HR Pool (Max 5%)</strong> — computed from total project value ÷ project duration months</li>
+                          <li><strong>Core Pool (Max 5%)</strong> — computed from total project value ÷ project duration months</li>
+                          <li><strong>Admin Overhead (5%)</strong> — per installment</li>
+                          <li><strong>Project Budget (Remaining)</strong> — designed by Project Officer after receipt</li>
+                        </ul>
+                        When project value is not set, HR &amp; Core fallback to the specified percentage of each installment ÷ installment months.
+                      </div>
+                    </div>
+                  </CCol>
                   <CCol xs={12} md={6}>
                     <CFormLabel className="fw-semibold small">Total Beneficiaries (Predicted Target)</CFormLabel>
                     <CFormInput
