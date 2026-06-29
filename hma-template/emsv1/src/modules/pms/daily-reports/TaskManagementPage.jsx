@@ -6,7 +6,6 @@
  */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -22,7 +21,7 @@ import {
   CToastClose,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilSearch, cilFilterX } from '@coreui/icons'
+import { cilPlus, cilSearch, cilFilterX, cilNotes } from '@coreui/icons'
 
 import TaskCard from './components/TaskCard'
 import TaskAssignModal from './components/TaskAssignModal'
@@ -55,7 +54,7 @@ const TaskManagementPage = () => {
     setModalLoading(true)
     try {
       localTasks.create(formData)
-      setToast({ color: 'success', message: '✅ Task assigned successfully!' })
+      setToast({ color: 'success', message: 'Task assigned successfully' })
       setModalVisible(false)
       loadTasks()
     } catch (err) {
@@ -67,7 +66,7 @@ const TaskManagementPage = () => {
   const handleComplete = (id) => {
     try {
       localTasks.complete(id)
-      setToast({ color: 'success', message: '✅ Task marked as completed' })
+      setToast({ color: 'success', message: 'Task marked as completed' })
       loadTasks()
     } catch (err) {
       setToast({ color: 'danger', message: err.message })
@@ -77,7 +76,7 @@ const TaskManagementPage = () => {
   const handleCancel = (id) => {
     try {
       localTasks.cancel(id)
-      setToast({ color: 'warning', message: '⚠️ Task cancelled' })
+      setToast({ color: 'warning', message: 'Task cancelled' })
       loadTasks()
     } catch (err) {
       setToast({ color: 'danger', message: err.message })
@@ -97,7 +96,7 @@ const TaskManagementPage = () => {
   const completedCount = tasks.filter((t) => t.status === 'completed').length
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -177,8 +176,8 @@ const TaskManagementPage = () => {
       {tasks.length === 0 ? (
         <CCard className="shadow-sm">
           <CCardBody className="text-center py-5">
-            <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>
-              📋
+            <div className="mb-3 text-body-secondary">
+              <CIcon icon={cilNotes} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No tasks found</h5>
             <p className="text-body-tertiary mb-3">
@@ -234,7 +233,7 @@ const TaskManagementPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

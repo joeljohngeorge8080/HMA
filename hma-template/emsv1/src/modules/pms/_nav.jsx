@@ -189,16 +189,7 @@ const pmsNav = [
       { component: CNavItem, name: 'Approved Bills', to: '/pms/daily-reports/approved' },
     ],
   },
-  // ── Project Coordinator section ──
-  {
-    component: CNavGroup,
-    name: 'Coordinator',
-    icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
-    badge: { color: 'success', text: 'PC' },
-    items: [
-      { component: CNavItem, name: 'Merged Reports', to: '/pms/merged-reports' },
-    ],
-  },
+
   {
     component: CNavItem,
     name: 'Switch to EMS',

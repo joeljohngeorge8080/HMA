@@ -6,7 +6,6 @@
  */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CTable,
@@ -30,6 +29,8 @@ import {
   cilSpreadsheet,
   cilPaperclip,
   cilImage,
+  cilNotes,
+  cilCheckCircle,
 } from '@coreui/icons'
 
 import { localReports, REPORT_STATUS } from '../../../services/localReports'
@@ -142,7 +143,7 @@ const BackendReportsPage = () => {
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -200,8 +201,8 @@ const BackendReportsPage = () => {
         <CCardBody className="p-0">
           {reports.length === 0 ? (
             <div className="text-center py-5">
-              <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>
-                ✅
+              <div className="mb-3 text-body-secondary">
+                <CIcon icon={cilCheckCircle} style={{ width: 48, height: 48 }} />
               </div>
               <h5 className="text-body-secondary">No approved reports yet</h5>
               <p className="text-body-tertiary">
@@ -233,7 +234,10 @@ const BackendReportsPage = () => {
                           {report.bill_topic}
                         </div>
                         {report.task_title && (
-                          <div className="small text-info">📋 {report.task_title}</div>
+                          <div className="small text-info d-flex align-items-center gap-1">
+                            <CIcon icon={cilNotes} size="sm" />
+                            {report.task_title}
+                          </div>
                         )}
                         {report.notes && (
                           <div
@@ -298,7 +302,7 @@ const BackendReportsPage = () => {
           )}
         </CCardBody>
       </CCard>
-    </CContainer>
+    </>
   )
 }
 

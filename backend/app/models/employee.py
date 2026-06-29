@@ -89,7 +89,6 @@ class Employee(SQLModel, table=True):
 
     # Salary — never updated directly; always via salary_history transaction
     current_salary: Decimal = Field(
-        nullable=False,
         sa_column=Column(Numeric(12, 2), nullable=False),
     )
 
@@ -212,10 +211,10 @@ class EmployeeSalaryHistory(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     employee_id: uuid.UUID = Field(foreign_key='employees.id', nullable=False, index=True)
-    previous_salary: Decimal = Field(nullable=False, sa_column=Column(Numeric(12, 2), nullable=False))
-    increment_percentage: Decimal = Field(nullable=False, sa_column=Column(Numeric(5, 2), nullable=False))
-    increment_amount: Decimal = Field(nullable=False, sa_column=Column(Numeric(12, 2), nullable=False))
-    new_salary: Decimal = Field(nullable=False, sa_column=Column(Numeric(12, 2), nullable=False))
+    previous_salary: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    increment_percentage: Decimal = Field(sa_column=Column(Numeric(5, 2), nullable=False))
+    increment_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    new_salary: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     effective_date: date = Field(nullable=False)
     remarks: Optional[str] = Field(default=None)
     changed_by: uuid.UUID = Field(foreign_key='users.id', nullable=False)

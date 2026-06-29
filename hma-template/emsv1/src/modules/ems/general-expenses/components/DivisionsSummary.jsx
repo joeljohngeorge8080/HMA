@@ -420,7 +420,7 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
               </div>
 
               {/* Individual expense rows */}
-              <CTable small bordered hover responsive className="mb-0">
+              <CTable small hover responsive className="mb-0">
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Expense</CTableHeaderCell>

@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -104,7 +103,7 @@ const ProjectAssociateDashboard = () => {
   ]
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Hero Header */}
       <div
         className="rounded-4 mb-4 px-4 py-4 text-white position-relative overflow-hidden"
@@ -353,7 +352,7 @@ const ProjectAssociateDashboard = () => {
                                   style={{ fontSize: '0.7rem' }}
                                   title="Email sent via SES"
                                 >
-                                  ✉️ Invited
+                                  Invited
                                 </span>
                               )}
                             </div>
@@ -403,7 +402,7 @@ const ProjectAssociateDashboard = () => {
               </CTable>
               {recentProjects.length === 0 && (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>📁</div>
+                  <CIcon icon={cilFolder} style={{ width: 40, height: 40 }} className="mb-1" />
                   <div>No projects yet</div>
                 </div>
               )}
@@ -411,7 +410,7 @@ const ProjectAssociateDashboard = () => {
           </CCard>
         </CCol>
       </CRow>
-    </CContainer>
+    </>
   )
 }
 

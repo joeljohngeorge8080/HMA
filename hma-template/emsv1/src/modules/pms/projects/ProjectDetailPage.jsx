@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -54,6 +53,7 @@ import {
   cilPencil,
   cilTask,
   cilPlus,
+  cilNotes,
 } from '@coreui/icons'
 
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
@@ -138,7 +138,7 @@ const ProjectDetailPage = () => {
       setProject(updated)
       setToast({
         color: 'success',
-        message: `📧 Recruitment invitation sent to ${inviteForm.email}!`,
+        message: `Recruitment invitation sent to ${inviteForm.email}`,
       })
       setInviteForm({ name: '', email: '' })
     } catch (err) {
@@ -162,7 +162,7 @@ const ProjectDetailPage = () => {
     setTaskModalLoading(true)
     try {
       localTasks.create({ ...formData, project_id: id, project_name: project?.title })
-      setToast({ color: 'success', message: '✅ Task created for the project team!' })
+      setToast({ color: 'success', message: 'Task created for the project team' })
       setTaskModalVisible(false)
       reload()
     } catch (err) {
@@ -181,10 +181,10 @@ const ProjectDetailPage = () => {
 
   if (!project)
     return (
-      <CContainer lg className="py-3">
+      <>
         <CAlert color="danger">Project not found.</CAlert>
         <CButton color="primary" variant="outline" onClick={() => navigate(-1)}>Go Back</CButton>
-      </CContainer>
+      </>
     )
 
   const phase = PHASE_CONFIG[project.phase] || PHASE_CONFIG.pipeline
@@ -195,7 +195,7 @@ const ProjectDetailPage = () => {
   const completedTasks = tasks.filter((t) => t.status === 'completed')
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex align-items-center gap-3 mb-4">
         <CButton color="secondary" variant="ghost" onClick={() => navigate('/pms/projects/my-projects')}>
@@ -205,10 +205,10 @@ const ProjectDetailPage = () => {
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <h4 className="mb-0 fw-bold">{project.title}</h4>
             <CBadge color={phase.color} shape="rounded-pill" className="text-uppercase px-3 py-1">{phase.label}</CBadge>
-            {isOverdue && <CBadge color="danger" shape="rounded-pill">⚠ Overdue</CBadge>}
+            {isOverdue && <CBadge color="danger" shape="rounded-pill">Overdue</CBadge>}
           </div>
           <div className="small text-body-secondary mt-1">
-            📍 {project.location} · Created {formatDateTime(project.created_at)}
+            <CIcon icon={cilLocationPin} size="sm" className="me-1" />{project.location} · Created {formatDateTime(project.created_at)}
           </div>
         </div>
         <CButton color="primary" variant="outline" size="sm" onClick={() => navigate(`/pms/projects/${id}/edit`)}>
@@ -499,7 +499,7 @@ const ProjectDetailPage = () => {
           {tasks.length === 0 ? (
             <CCard className="shadow-sm">
               <CCardBody className="text-center py-5">
-                <div style={{ fontSize: '2.5rem' }}>📋</div>
+                <div className="mb-2 text-body-secondary"><CIcon icon={cilNotes} style={{ width: 40, height: 40 }} /></div>
                 <h6 className="text-body-secondary mt-2">No tasks yet</h6>
                 <p className="text-body-tertiary small mb-3">Add tasks for your project team to work on.</p>
                 <CButton color="primary" size="sm" onClick={() => setTaskModalVisible(true)}>
@@ -584,7 +584,7 @@ const ProjectDetailPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

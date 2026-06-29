@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -101,8 +100,13 @@ const GlobalHRPoolPage = () => {
   }
 
   return (
-    <CContainer lg className="py-4">
-      <h4 className="fw-bold mb-4">🌐 Global HR Expense Pool</h4>
+    <>
+      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+          <h4 className="mb-1 fw-bold">Global HR Expense Pool</h4>
+          <p className="text-body-secondary mb-0 small">Organisation-wide HR expenses distributed across projects.</p>
+        </div>
+      </div>
       
       <CCard className="shadow-sm border-top border-4 border-top-success mb-4">
         <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
@@ -176,11 +180,11 @@ const GlobalHRPoolPage = () => {
                   className="mb-3 p-3 rounded bg-success bg-opacity-10 border border-success"
                   style={{ fontSize: '0.85rem' }}
                 >
-                  <div className="fw-semibold text-success mb-2">📊 Allocation Preview Across Active Projects</div>
+                  <div className="fw-semibold text-success mb-2">Allocation Preview Across Active Projects</div>
                   <CRow className="g-2">
                     {previewAllocs.map((a) => (
                       <CCol xs={12} md={6} lg={4} key={a.projectId}>
-                        <div className="d-flex justify-content-between text-body-secondary bg-white p-2 rounded border">
+                        <div className="d-flex justify-content-between text-body-secondary bg-body-secondary p-2 rounded border">
                           <span className="fw-medium text-truncate me-2" title={a.projectName}>{a.projectName}</span>
                           <span className="text-nowrap">{a.sharePct}% → <strong className="text-success">{fmt2(a.amountCharged)}</strong></span>
                         </div>
@@ -331,7 +335,7 @@ const GlobalHRPoolPage = () => {
           )}
         </CCardBody>
       </CCard>
-    </CContainer>
+    </>
   )
 }
 

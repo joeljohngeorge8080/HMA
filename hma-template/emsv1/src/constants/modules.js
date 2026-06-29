@@ -11,8 +11,13 @@ export const MODULE = {
 
   INTERNSHIP: 'internship',
   RECRUITMENT: 'recruitment',
+  HR_POOL: 'hr_pool',
 
   MY_PROFILE: 'my_profile',
+  USER_MANAGEMENT: 'user_management',
+  CEO_ANNOUNCEMENTS: 'ceo_announcements',
+  NOTIFICATIONS: 'notifications',
+  ADMIN_SETTINGS: 'admin_settings',
 
   // PMS modules
   PMS_DASHBOARD: 'pms_dashboard',

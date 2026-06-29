@@ -6,7 +6,7 @@
  */
 import React, { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CContainer, CRow, CCol, CToaster, CToast, CToastBody, CToastClose } from '@coreui/react'
+import { CRow, CCol, CToaster, CToast, CToastBody, CToastClose } from '@coreui/react'
 
 import ReportForm from './components/ReportForm'
 import { localReports } from '../../../services/localReports'
@@ -21,7 +21,7 @@ const ReportSubmitPage = () => {
       setLoading(true)
       try {
         localReports.create(data)
-        setToast({ color: 'success', message: '✅ Report submitted successfully!' })
+        setToast({ color: 'success', message: 'Report submitted successfully' })
         setTimeout(() => navigate('/pms/daily-reports/history'), 1200)
       } catch (err) {
         setToast({ color: 'danger', message: err.message || 'Failed to submit' })
@@ -34,14 +34,14 @@ const ReportSubmitPage = () => {
   const handleSaveDraft = useCallback((data) => {
     try {
       localReports.saveDraft(data)
-      setToast({ color: 'info', message: '📝 Draft saved' })
+      setToast({ color: 'info', message: 'Draft saved' })
     } catch (err) {
       setToast({ color: 'danger', message: err.message || 'Failed to save draft' })
     }
   }, [])
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <CRow className="justify-content-center">
         <CCol xs={12} lg={8} xl={7}>
           <ReportForm
@@ -69,7 +69,7 @@ const ReportSubmitPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

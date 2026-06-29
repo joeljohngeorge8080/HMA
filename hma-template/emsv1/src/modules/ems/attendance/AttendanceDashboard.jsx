@@ -243,7 +243,7 @@ const AttendanceDashboard = () => {
               {uploads.length === 0 ? (
                 <p className="text-body-secondary small m-3">No uploads for this month.</p>
               ) : (
-                <CTable hover responsive bordered small className="mb-0">
+                <CTable hover responsive small className="mb-0">
                   <CTableHead color="light">
                     <CTableRow>
                       <CTableHeaderCell>File</CTableHeaderCell>
@@ -289,7 +289,7 @@ const AttendanceDashboard = () => {
                 </strong>
               </CCardHeader>
               <CCardBody className="p-0">
-                <CTable hover responsive bordered small className="mb-0">
+                <CTable hover responsive small className="mb-0">
                   <CTableHead color="light">
                     <CTableRow>
                       <CTableHeaderCell>Employee ID</CTableHeaderCell>

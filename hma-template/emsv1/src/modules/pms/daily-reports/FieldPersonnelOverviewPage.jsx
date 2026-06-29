@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -77,7 +76,7 @@ const FieldPersonnelOverviewPage = () => {
   }, [reports, selectedPersonnel])
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <div className="d-flex justify-content-between align-items-end mb-4">
         <div>
           <h4 className="mb-1 fw-semibold">My Team</h4>
@@ -102,7 +101,7 @@ const FieldPersonnelOverviewPage = () => {
                   className="d-flex justify-content-between align-items-center py-3 border-bottom"
                 >
                   <div className="d-flex align-items-center gap-3">
-                    <div className={`rounded-circle d-flex align-items-center justify-content-center ${selectedPersonnel?.id === fp.id ? 'bg-white text-primary' : 'bg-body-secondary text-body'}`} style={{ width: '40px', height: '40px' }}>
+                    <div className={`rounded-circle d-flex align-items-center justify-content-center ${selectedPersonnel?.id === fp.id ? 'bg-primary text-white' : 'bg-body-secondary text-body'}`} style={{ width: '40px', height: '40px' }}>
                       <CIcon icon={cilUser} />
                     </div>
                     <div className="text-start">
@@ -197,7 +196,7 @@ const FieldPersonnelOverviewPage = () => {
           )}
         </CCol>
       </CRow>
-    </CContainer>
+    </>
   )
 }
 

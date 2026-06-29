@@ -205,7 +205,7 @@ const DeductionSummary = ({ year, month }) => {
           </strong>
         </CCardHeader>
         <CCardBody className="p-0">
-          <CTable hover responsive bordered small className="mb-0">
+          <CTable hover responsive small className="mb-0">
             <CTableHead color="light">
               <CTableRow>
                 <CTableHeaderCell>Emp ID</CTableHeaderCell>

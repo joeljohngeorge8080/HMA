@@ -13,6 +13,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   CBadge,
   CContainer,
@@ -31,6 +32,9 @@ import { localNotifications } from '../services/localNotifications'
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
+import useRole from '../hooks/useRole'
+import useUnreadAnnouncements from '../hooks/useUnreadAnnouncements'
+import { ROLE } from '../constants/roles'
 
 /**
  * AppHeader functional component
@@ -41,6 +45,8 @@ import { AppHeaderDropdown } from './header/index'
 const AppHeader = () => {
   const headerRef = useRef()
   const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const dispatch = useDispatch()
   const sidebarShow = useSelector((state) => state.sidebarShow)
@@ -85,6 +91,34 @@ const AppHeader = () => {
           <CIcon icon={cilMenu} size="lg" />
         </CHeaderToggler>
         <CHeaderNav className="ms-auto">
+          {showBell && (
+            <li className="nav-item">
+              <button
+                className="nav-link position-relative px-2 btn btn-link border-0"
+                title="Announcements"
+                onClick={() => navigate(announcementsPath)}
+                style={{ color: 'inherit' }}
+              >
+                <CIcon icon={cilBell} size="lg" />
+                {unread > 0 && (
+                  <CBadge
+                    color="danger"
+                    shape="rounded-pill"
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 2,
+                      fontSize: 10,
+                      padding: '1px 5px',
+                      minWidth: 16,
+                    }}
+                  >
+                    {unread > 99 ? '99+' : unread}
+                  </CBadge>
+                )}
+              </button>
+            </li>
+          )}
           <CDropdown variant="nav-item" placement="bottom-end">
             <CDropdownToggle caret={false}>
               {colorMode === 'dark' ? (

@@ -176,7 +176,7 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
               </div>
 
               {/* Table */}
-              <CTable small bordered hover responsive className="mb-0">
+              <CTable small hover responsive className="mb-0">
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Employee</CTableHeaderCell>

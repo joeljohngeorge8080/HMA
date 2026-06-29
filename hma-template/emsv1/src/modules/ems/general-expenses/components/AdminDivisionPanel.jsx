@@ -293,7 +293,7 @@ const AdminDivisionPanel = ({ canEdit }) => {
               </CRow>
 
               {/* Entries table */}
-              <CTable small bordered hover responsive className="mb-0">
+              <CTable small hover responsive className="mb-0">
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Vendor</CTableHeaderCell>

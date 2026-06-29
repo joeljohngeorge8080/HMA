@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -376,13 +375,13 @@ const ProjectDetailPage = () => {
 
   if (!project) {
     return (
-      <CContainer lg className="py-4 text-center">
+      <>
         <div style={{ fontSize: '4rem' }}>🔍</div>
         <h5 className="text-body-secondary">Project not found</h5>
         <CButton color="primary" variant="outline" onClick={() => navigate('/pms/projects')}>
           Back to Projects
         </CButton>
-      </CContainer>
+      </>
     )
   }
 
@@ -399,13 +398,13 @@ const ProjectDetailPage = () => {
   const handleApprove = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'approved' } : a)))
     setApproveModal({ visible: false, item: null })
-    setToast({ color: 'success', message: '✅ Approval granted successfully' })
+    setToast({ color: 'success', message: 'Approval granted successfully' })
   }
 
   const handleReject = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'rejected' } : a)))
     setRejectModal({ visible: false, item: null })
-    setToast({ color: 'danger', message: '⚠️ Request rejected and sent back' })
+    setToast({ color: 'danger', message: 'Request rejected and sent back' })
   }
 
   const handleSubmitUc = (inst) => {
@@ -416,24 +415,24 @@ const ProjectDetailPage = () => {
     })
     setProject(updated)
     setUcModal({ visible: false, milestone: null })
-    setToast({ color: 'success', message: '✅ Utilisation Certificate submitted successfully' })
+    setToast({ color: 'success', message: 'Utilisation Certificate submitted' })
   }
 
   const handleActivateProject = () => {
     const updated = localProjects.activateProject(project.id)
     setProject(updated)
-    setToast({ color: 'success', message: '🟢 Project operations activated! HR & Core pool contributions are now live.' })
+    setToast({ color: 'success', message: 'Project operations activated — HR & Core pool contributions are now live' })
   }
 
   const handleUpdateBeneficiaries = () => {
     const val = parseInt(beneficiariesCompleted, 10) || 0
     const updated = localProjects.update(project.id, { beneficiaries_completed: val })
     setProject(updated)
-    setToast({ color: 'success', message: '✅ Beneficiaries completed count updated!' })
+    setToast({ color: 'success', message: 'Beneficiaries count updated' })
   }
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Back */}
       <CButton
         color="secondary"
@@ -492,7 +491,7 @@ const ProjectDetailPage = () => {
             </CButton>
           )}
           {project.is_operations_active && (
-            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>🟢 Operations Active</CBadge>
+            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>Operations Active</CBadge>
           )}
         </div>
       </div>
@@ -821,7 +820,7 @@ const ProjectDetailPage = () => {
                       return (
                         <div
                           key={i}
-                          className="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border shadow-sm"
+                          className="d-flex align-items-center gap-3 p-3 rounded-3 border shadow-sm"
                           style={{ fontSize: '0.875rem' }}
                         >
                           <div
@@ -880,7 +879,7 @@ const ProjectDetailPage = () => {
             <CTabPane visible={activeTab === 3}>
               {approvals.length === 0 ? (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>✅</div>
+                  <div className="mb-2 text-body-secondary"><CIcon icon={cilCheckCircle} style={{ width: 48, height: 48 }} /></div>
                   <h6>No pending approvals</h6>
                   <p className="small">All submissions are reviewed</p>
                 </div>
@@ -1139,7 +1138,7 @@ const ProjectDetailPage = () => {
                                 
                                 {/* Content Card */}
                                 <div className="ms-4 flex-grow-1">
-                                  <div className="p-3 rounded-3 border bg-white shadow-sm">
+                                  <div className="p-3 rounded-3 border shadow-sm">
                                     <div className="d-flex justify-content-between align-items-start mb-2">
                                       <div>
                                         <h6 className="fw-bold mb-1">{inst.label} <span className="text-body-secondary fw-normal small">({inst.percentage}%)</span></h6>
@@ -1482,7 +1481,7 @@ const ProjectDetailPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

@@ -32,7 +32,7 @@ import {
   CTableDataCell,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilSave, cilSend, cilWarning, cilTrash, cilPlus } from '@coreui/icons'
+import { cilSave, cilSend, cilWarning, cilTrash, cilPlus, cilLocationPin } from '@coreui/icons'
 
 import ImageUploadWithPreview from './ImageUploadWithPreview'
 
@@ -101,7 +101,7 @@ const ReportForm = ({
     <CCard className="daily-report-form-card shadow-sm">
       <CCardHeader className="bg-transparent border-bottom-0 pt-3">
         <h5 className="mb-0 fw-semibold">
-          {isResubmit ? '✏️ Resubmit Daily Report' : '📝 Submit Daily Report'}
+          {isResubmit ? 'Resubmit Daily Report' : 'Submit Daily Report'}
         </h5>
         {isResubmit && (
           <div className="small text-body-secondary mt-1">
@@ -286,7 +286,7 @@ const ReportForm = ({
 
           {/* Geo-tagged Photos Upload */}
           <div className="mb-3">
-            <CFormLabel className="fw-medium">📍 Geo-tagged Photos</CFormLabel>
+            <CFormLabel className="fw-medium"><CIcon icon={cilLocationPin} size="sm" className="me-1" />Geo-tagged Photos</CFormLabel>
             <div className="text-body-tertiary mb-2" style={{ fontSize: '0.75rem' }}>
               Upload site photos with embedded GPS location data
             </div>

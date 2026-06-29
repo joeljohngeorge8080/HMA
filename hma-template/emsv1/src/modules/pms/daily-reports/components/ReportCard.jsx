@@ -8,12 +8,16 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { CCard, CCardBody, CButton } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPaperclip, cilArrowRight, cilImage } from '@coreui/icons'
+import { cilPaperclip, cilArrowRight, cilImage, cilNotes } from '@coreui/icons'
 
 import StatusBadge from './StatusBadge'
 
 const formatCurrency = (amount) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount)
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
@@ -63,7 +67,10 @@ const ReportCard = ({
               <div className="small text-body-secondary">{report.submitted_by_name}</div>
             )}
             {report.task_title && (
-              <div className="small text-info">📋 {report.task_title}</div>
+              <div className="small text-body-secondary d-flex align-items-center gap-1 mt-1">
+                <CIcon icon={cilNotes} size="sm" />
+                {report.task_title}
+              </div>
             )}
           </div>
           <StatusBadge status={report.status} />
@@ -109,7 +116,7 @@ const ReportCard = ({
                 onApprove?.(report.id)
               }}
             >
-              ✓ Approve
+              Approve
             </CButton>
             <CButton
               color="danger"
@@ -120,7 +127,7 @@ const ReportCard = ({
                 onDecline?.(report.id)
               }}
             >
-              ✗ Decline
+              Decline
             </CButton>
           </div>
         )}

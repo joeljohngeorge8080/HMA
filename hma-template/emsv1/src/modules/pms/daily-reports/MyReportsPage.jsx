@@ -7,12 +7,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
   CCardBody,
-  CCardHeader,
   CFormInput,
   CFormSelect,
   CButton,
@@ -21,7 +19,7 @@ import {
   CInputGroupText,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilSearch, cilPlus, cilFilterX } from '@coreui/icons'
+import { cilSearch, cilPlus, cilFilterX, cilNotes } from '@coreui/icons'
 
 import ReportCard from './components/ReportCard'
 import { localReports, REPORT_STATUS } from '../../../services/localReports'
@@ -77,7 +75,7 @@ const MyReportsPage = () => {
   const declinedCount = reports.filter((r) => r.status === REPORT_STATUS.DECLINED).length
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -169,8 +167,8 @@ const MyReportsPage = () => {
       {reports.length === 0 ? (
         <CCard className="shadow-sm">
           <CCardBody className="text-center py-5">
-            <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>
-              📋
+            <div className="mb-3 text-body-secondary">
+              <CIcon icon={cilNotes} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No reports found</h5>
             <p className="text-body-tertiary mb-3">
@@ -198,7 +196,7 @@ const MyReportsPage = () => {
           ))}
         </div>
       )}
-    </CContainer>
+    </>
   )
 }
 

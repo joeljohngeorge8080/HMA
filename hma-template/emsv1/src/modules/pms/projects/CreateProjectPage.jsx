@@ -5,7 +5,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -136,7 +135,7 @@ const CreateProjectPage = () => {
         assigned_officer_id: OFFICER_ID,
         installments: enrichedInstallments,
       })
-      setToast({ color: 'success', message: '✅ Project created successfully!' })
+      setToast({ color: 'success', message: 'Project created successfully' })
       setTimeout(() => navigate(`/pms/projects/${project.id}`), 1200)
     } catch (err) {
       setToast({ color: 'danger', message: err.message || 'Failed to create project' })
@@ -145,7 +144,7 @@ const CreateProjectPage = () => {
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Page header */}
       <div className="d-flex align-items-center gap-3 mb-4">
         <CButton color="secondary" variant="ghost" onClick={() => navigate('/pms/projects/my-projects')}>
@@ -183,8 +182,8 @@ const CreateProjectPage = () => {
                   <CFormSelect value={form.phase} onChange={(e) => setField('phase', e.target.value)}>
                     <option value="pipeline">🔵 Pipeline</option>
                     <option value="approved">🟦 Approved</option>
-                    <option value="ongoing">🟢 Ongoing</option>
-                    <option value="completed">✅ Completed</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
                   </CFormSelect>
                 </div>
 
@@ -548,7 +547,7 @@ const CreateProjectPage = () => {
                     {/* % validation */}
                     {pctTotal > 0 && (
                       <div className={`small fw-semibold mt-2 ${pctValid ? 'text-success' : 'text-danger'}`}>
-                        {pctValid ? '✓ Percentages balance to 100%' : `⚠ Total ${pctTotal.toFixed(1)}% — must be 100%`}
+                        {pctValid ? 'Percentages balance to 100%' : `Total ${pctTotal.toFixed(1)}% — must equal 100%`}
                       </div>
                     )}
                   </div>
@@ -585,7 +584,7 @@ const CreateProjectPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

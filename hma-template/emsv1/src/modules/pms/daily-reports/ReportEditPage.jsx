@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CSpinner,
@@ -52,7 +51,7 @@ const ReportEditPage = () => {
         } else {
           localReports.resubmit(report.id, data)
         }
-        setToast({ color: 'success', message: '✅ Report resubmitted successfully!' })
+        setToast({ color: 'success', message: 'Report resubmitted successfully' })
         setTimeout(() => navigate('/pms/daily-reports/history'), 1200)
       } catch (err) {
         setToast({ color: 'danger', message: err.message || 'Failed to resubmit' })
@@ -72,17 +71,17 @@ const ReportEditPage = () => {
 
   if (error) {
     return (
-      <CContainer lg className="py-3">
+      <>
         <CAlert color="danger">{error}</CAlert>
         <CButton color="primary" variant="outline" onClick={() => navigate(-1)}>
           Go Back
         </CButton>
-      </CContainer>
+      </>
     )
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <CRow className="justify-content-center">
         <CCol xs={12} lg={8} xl={7}>
           <ReportForm
@@ -112,7 +111,7 @@ const ReportEditPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = 'hma-iems-documents'
 
     GOOGLE_CLIENT_ID: str = ''
+    ALLOWED_ORIGINS: str = 'http://localhost:3000,http://localhost:5173'
 
     ENVIRONMENT: str = 'development'
 

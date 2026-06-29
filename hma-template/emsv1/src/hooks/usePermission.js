@@ -13,12 +13,17 @@
  */
 
 import { PERMISSIONS, ACCESS } from '../constants/permissions'
+import { ROLE } from '../constants/roles'
 import useRole from './useRole'
 
 const usePermission = (moduleKey, action = 'view') => {
   const role = useRole()
   if (!role) {
     return false
+  }
+  // Admin has full access to everything
+  if (role === ROLE.ADMIN) {
+    return true
   }
 
   const access = PERMISSIONS[moduleKey]?.[role] ?? ACCESS.NONE

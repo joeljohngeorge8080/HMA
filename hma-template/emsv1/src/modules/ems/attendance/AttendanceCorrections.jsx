@@ -527,7 +527,7 @@ const AttendanceCorrections = () => {
               No attendance data for this month. Import attendance first.
             </p>
           ) : (
-            <CTable hover responsive bordered small className="mb-0">
+            <CTable hover responsive small className="mb-0">
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>
@@ -603,7 +603,7 @@ const AttendanceCorrections = () => {
               {dateFilter ? 'No records found for this date.' : 'No records found.'}
             </p>
           ) : (
-            <CTable hover responsive bordered small className="mb-0">
+            <CTable hover responsive small className="mb-0">
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>

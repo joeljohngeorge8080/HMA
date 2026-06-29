@@ -75,6 +75,14 @@ export const PERMISSIONS = {
     [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
   },
 
+  [MODULE.HR_POOL]: {
+    [ROLE.CEO]: ACCESS.VIEW,
+    [ROLE.HEADS]: ACCESS.VIEW,
+    [ROLE.HR]: ACCESS.EDIT,
+    [ROLE.FINANCE]: ACCESS.VIEW,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+  },
   [MODULE.INTERNSHIP]: {
     [ROLE.CEO]: ACCESS.VIEW,
     [ROLE.HEADS]: ACCESS.VIEW,
@@ -95,6 +103,55 @@ export const PERMISSIONS = {
   // Employee can only view their own profile — no access to any other EMS module
   [MODULE.MY_PROFILE]: {
     [ROLE.EMPLOYEE]: ACCESS.VIEW,
+  },
+
+  // Admin and HR can manage system users (register Google accounts + assign roles)
+  [MODULE.USER_MANAGEMENT]: {
+    [ROLE.ADMIN]: ACCESS.EDIT,
+    [ROLE.HR]: ACCESS.EDIT,
+    [ROLE.CEO]: ACCESS.VIEW,
+  },
+
+  // Admin-only settings page (Admin bypasses automatically; explicit NONE for all others)
+  [MODULE.ADMIN_SETTINGS]: {
+    [ROLE.CEO]: ACCESS.NONE,
+    [ROLE.HEADS]: ACCESS.NONE,
+    [ROLE.HR]: ACCESS.NONE,
+    [ROLE.FINANCE]: ACCESS.NONE,
+    [ROLE.EMPLOYEE]: ACCESS.NONE,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+    [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
+    [ROLE.BACKEND_TEAM]: ACCESS.NONE,
+    [ROLE.PROJECT_COORDINATOR]: ACCESS.NONE,
+  },
+
+  // CEO (and Admin via bypass) can compose, send, manage notes & sent history
+  [MODULE.CEO_ANNOUNCEMENTS]: {
+    [ROLE.CEO]: ACCESS.EDIT,
+    [ROLE.HEADS]: ACCESS.NONE,
+    [ROLE.HR]: ACCESS.NONE,
+    [ROLE.FINANCE]: ACCESS.NONE,
+    [ROLE.EMPLOYEE]: ACCESS.NONE,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+    [ROLE.FIELD_PERSONNEL]: ACCESS.NONE,
+    [ROLE.BACKEND_TEAM]: ACCESS.NONE,
+    [ROLE.PROJECT_COORDINATOR]: ACCESS.NONE,
+  },
+
+  // Every role except CEO receives announcements in their inbox
+  [MODULE.NOTIFICATIONS]: {
+    [ROLE.CEO]: ACCESS.NONE,
+    [ROLE.HEADS]: ACCESS.VIEW,
+    [ROLE.HR]: ACCESS.VIEW,
+    [ROLE.FINANCE]: ACCESS.VIEW,
+    [ROLE.EMPLOYEE]: ACCESS.VIEW,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.VIEW,
+    [ROLE.PROJECT_OFFICER]: ACCESS.VIEW,
+    [ROLE.FIELD_PERSONNEL]: ACCESS.VIEW,
+    [ROLE.BACKEND_TEAM]: ACCESS.VIEW,
+    [ROLE.PROJECT_COORDINATOR]: ACCESS.VIEW,
   },
 
   // ── PMS ─────────────────────────────────────────────────────────────

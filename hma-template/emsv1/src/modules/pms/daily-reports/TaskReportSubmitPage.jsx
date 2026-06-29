@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -65,7 +64,7 @@ const TaskReportSubmitPage = () => {
         bill_uploads: [],
       })
 
-      setToast({ color: 'success', message: '✅ Task report submitted for review!' })
+      setToast({ color: 'success', message: 'Task report submitted for review' })
       setTimeout(() => navigate('/pms/daily-reports/my-tasks'), 1500)
     } catch (err) {
       setToast({ color: 'danger', message: err.message || 'Failed to submit task report' })
@@ -83,17 +82,17 @@ const TaskReportSubmitPage = () => {
 
   if (!task) {
     return (
-      <CContainer lg className="py-3">
+      <>
         <CAlert color="danger">Task not found</CAlert>
         <CButton color="primary" variant="outline" onClick={() => navigate(-1)}>
           Go Back
         </CButton>
-      </CContainer>
+      </>
     )
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <div className="d-flex align-items-center gap-3 mb-3">
         <CButton
           color="secondary"
@@ -194,7 +193,7 @@ const TaskReportSubmitPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

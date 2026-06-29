@@ -154,7 +154,7 @@ const DocumentsTab = ({ employeeId, canEdit }) => {
           ) : documents.length === 0 ? (
             <p className="text-body-secondary">No documents uploaded yet.</p>
           ) : (
-            <CTable hover responsive bordered>
+            <CTable hover responsive>
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Document Name</CTableHeaderCell>

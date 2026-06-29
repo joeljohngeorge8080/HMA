@@ -5,7 +5,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -36,6 +35,7 @@ import {
   cilEnvelopeLetter,
   cilInfo,
   cilArrowLeft,
+  cilPhone,
 } from '@coreui/icons'
 import { localProjects, localOfficers } from '../../../services/localProjects'
 
@@ -183,19 +183,19 @@ const ProjectFormPage = () => {
         if (form.officer_id && form.officer_id !== localProjects.getById(id)?.officer_id) {
           localProjects.assignOfficer(id, form.officer_id)
         }
-        setToast({ color: 'success', message: '✅ Project updated successfully!' })
+        setToast({ color: 'success', message: 'Project updated successfully' })
       } else {
         savedProject = localProjects.create(data)
         // Assign officer if selected
         if (form.officer_id) {
           localProjects.assignOfficer(savedProject.id, form.officer_id)
         }
-        setToast({ color: 'success', message: '✅ Project created successfully!' })
+        setToast({ color: 'success', message: 'Project created successfully' })
       }
 
       setTimeout(() => navigate(`/pms/projects/${savedProject.id}`), 1200)
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ Error: ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setSaving(false)
   }
@@ -203,7 +203,7 @@ const ProjectFormPage = () => {
   const selectedOfficer = officers.find((o) => o.id === form.officer_id)
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Back + Title */}
       <div className="mb-4">
         <CButton
@@ -231,7 +231,7 @@ const ProjectFormPage = () => {
             {/* Project Details */}
             <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">📋 Project Details</h6>
+                <h6 className="fw-bold mb-0">Project Details</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -511,7 +511,7 @@ const ProjectFormPage = () => {
             {/* Status & Phase */}
             <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">📊 Status & Phase</h6>
+                <h6 className="fw-bold mb-0">Status & Phase</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -653,11 +653,13 @@ const ProjectFormPage = () => {
                       </div>
                     </div>
                     <div className="small">
-                      <div className="text-body-secondary mb-1">
-                        📧 {selectedOfficer.email}
+                      <div className="text-body-secondary mb-1 d-flex align-items-center gap-1">
+                        <CIcon icon={cilEnvelopeLetter} size="sm" />
+                        {selectedOfficer.email}
                       </div>
-                      <div className="text-body-secondary">
-                        📱 {selectedOfficer.phone}
+                      <div className="text-body-secondary d-flex align-items-center gap-1">
+                        <CIcon icon={cilPhone} size="sm" />
+                        {selectedOfficer.phone}
                       </div>
                     </div>
                     <div className="mt-2">
@@ -736,7 +738,7 @@ const ProjectFormPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 
