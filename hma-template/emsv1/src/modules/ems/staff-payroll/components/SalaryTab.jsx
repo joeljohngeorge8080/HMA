@@ -210,7 +210,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
           ) : history.length === 0 ? (
             <p className="text-body-secondary">No salary changes recorded.</p>
           ) : (
-            <CTable hover responsive bordered>
+            <CTable hover responsive>
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Date</CTableHeaderCell>

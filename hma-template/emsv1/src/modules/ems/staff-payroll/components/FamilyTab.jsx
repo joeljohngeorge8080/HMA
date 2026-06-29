@@ -78,7 +78,7 @@ const FamilyTab = ({ employeeId, familyMembers, canEdit, onSave }) => {
       {!familyMembers?.length ? (
         <p className="text-body-secondary">No family members added.</p>
       ) : (
-        <CTable hover responsive bordered>
+        <CTable hover responsive>
           <CTableHead color="light">
             <CTableRow>
               <CTableHeaderCell>Name</CTableHeaderCell>

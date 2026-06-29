@@ -347,7 +347,7 @@ const AttendanceSummaryTab = ({ employeeId }) => {
                 <strong>Daily Records</strong>
                 <span className="text-body-secondary small">{records.length} records</span>
               </div>
-              <CTable hover responsive bordered small>
+              <CTable hover responsive small>
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Date</CTableHeaderCell>
