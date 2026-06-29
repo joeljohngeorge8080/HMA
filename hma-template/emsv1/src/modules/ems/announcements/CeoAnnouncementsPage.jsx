@@ -91,7 +91,7 @@ const TypeBadge = ({ type }) => {
   const meta = MSG_TYPE_META[type] || MSG_TYPE_META[MSG_TYPE.INFO]
   return (
     <CBadge color={meta.color} className="me-1">
-      {meta.icon} {meta.label}
+      {meta.label}
     </CBadge>
   )
 }
@@ -231,7 +231,7 @@ const NotesTab = () => {
 
       {notes.length === 0 && !showForm && (
         <div className="text-center text-body-secondary py-5">
-          <div style={{ fontSize: 36 }}>📝</div>
+          <CIcon icon={cilNotes} style={{ width: 40, height: 40 }} className="mb-2 text-body-secondary" />
           <div className="mt-2">No personal notes yet. Create your first note above.</div>
         </div>
       )}

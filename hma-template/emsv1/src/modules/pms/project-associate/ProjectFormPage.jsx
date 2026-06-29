@@ -5,7 +5,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -197,7 +196,7 @@ const ProjectFormPage = () => {
   const selectedOfficer = officers.find((o) => o.id === form.officer_id)
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Back + Title */}
       <div className="mb-4">
         <CButton
@@ -225,7 +224,7 @@ const ProjectFormPage = () => {
             {/* Project Details */}
             <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">📋 Project Details</h6>
+                <h6 className="fw-bold mb-0">Project Details</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -463,7 +462,7 @@ const ProjectFormPage = () => {
             {/* Status & Phase */}
             <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
               <CCardHeader className="bg-transparent border-bottom py-3">
-                <h6 className="fw-bold mb-0">📊 Status & Phase</h6>
+                <h6 className="fw-bold mb-0">Status & Phase</h6>
               </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
@@ -688,7 +687,7 @@ const ProjectFormPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

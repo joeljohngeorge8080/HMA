@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -27,7 +26,7 @@ import {
   CFormInput,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBuilding, cilTask, cilFile, cilPlus, cilUser, cilCloudUpload } from '@coreui/icons'
+import { cilBuilding, cilTask, cilFile, cilPlus, cilUser, cilCloudUpload, cilNotes } from '@coreui/icons'
 
 import TaskCard from './components/TaskCard'
 import ReportCard from './components/ReportCard'
@@ -110,12 +109,12 @@ const PersonnelLogPage = () => {
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header Profile Section */}
       <CCard className="mb-4 border-0 shadow-sm overflow-hidden">
         <div className="bg-primary pt-4 pb-5 px-4 text-white">
           <div className="d-flex align-items-center gap-3">
-            <div className="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: '60px', height: '60px' }}>
+            <div className="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: '60px', height: '60px' }}>
               <CIcon icon={cilUser} size="xl" />
             </div>
             <div>
@@ -205,7 +204,7 @@ const PersonnelLogPage = () => {
           </CButton>
 
           <CCard className="shadow-sm border-top border-3 border-top-warning">
-            <CCardHeader className="bg-white pb-0 border-bottom">
+            <CCardHeader className="pb-0 border-bottom">
               <h6 className="fw-semibold mb-3">Upload Task Proof</h6>
             </CCardHeader>
             <CCardBody>
@@ -290,7 +289,7 @@ const PersonnelLogPage = () => {
                 <CTabPane role="tabpanel" visible={activeTab === 0}>
                   {tasks.filter(t => t.status === 'active').length === 0 ? (
                     <div className="text-center py-5">
-                      <div className="text-body-tertiary mb-2" style={{ fontSize: '2.5rem' }}>✅</div>
+                      <div className="text-body-tertiary mb-2"></div>
                       <h6 className="text-body-secondary">All caught up!</h6>
                       <p className="text-body-tertiary small">You have no active tasks at the moment.</p>
                     </div>
@@ -311,7 +310,9 @@ const PersonnelLogPage = () => {
                 <CTabPane role="tabpanel" visible={activeTab === 1}>
                   {reports.length === 0 ? (
                     <div className="text-center py-5">
-                      <div className="text-body-tertiary mb-2" style={{ fontSize: '2.5rem' }}>📝</div>
+                      <div className="text-body-tertiary mb-2">
+                        <CIcon icon={cilNotes} style={{ width: 36, height: 36 }} />
+                      </div>
                       <h6 className="text-body-secondary">No reports yet</h6>
                       <p className="text-body-tertiary small">Submit your first daily report to see it here.</p>
                       <CButton color="primary" variant="outline" size="sm" onClick={() => navigate('/pms/daily-reports/new')}>
@@ -334,7 +335,7 @@ const PersonnelLogPage = () => {
           </CCard>
         </CCol>
       </CRow>
-    </CContainer>
+    </>
   )
 }
 

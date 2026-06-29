@@ -10,7 +10,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -258,7 +257,7 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                         </div>
                         {p.pending_approvals > 0 && (
                           <CBadge color="warning" className="mt-1" style={{ fontSize: '0.65rem' }}>
-                            ⏳ {p.pending_approvals} pending
+                            {p.pending_approvals} pending
                           </CBadge>
                         )}
                       </CTableDataCell>
@@ -447,7 +446,7 @@ const TeamOverviewPage = () => {
   ]
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Hero */}
       <div
         className="rounded-4 mb-4 px-4 py-4 text-white position-relative overflow-hidden"
@@ -522,7 +521,7 @@ const TeamOverviewPage = () => {
           />
         ))
       )}
-    </CContainer>
+    </>
   )
 }
 

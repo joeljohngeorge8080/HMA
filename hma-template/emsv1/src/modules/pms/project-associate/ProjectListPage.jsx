@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CRow,
@@ -38,7 +37,7 @@ import {
   cilSearch,
   cilFilterX,
   cilPen,
-  cilEyedropper,
+  cilArrowRight,
   cilPeople,
   cilOptions,
   cilFolder,
@@ -86,7 +85,7 @@ const ProjectListPage = () => {
   const clearFilters = () => setFilters({ search: '', status: '', phase: '' })
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
@@ -123,7 +122,7 @@ const ProjectListPage = () => {
             {chip.label}
             <span
               className={`ms-2 badge rounded-pill ${
-                filters.status === chip.status ? 'bg-white text-primary' : 'bg-secondary text-white'
+                filters.status === chip.status ? 'text-white bg-primary-subtle' : 'bg-secondary text-white'
               }`}
             >
               {chip.value}
@@ -212,7 +211,7 @@ const ProjectListPage = () => {
                     </div>
                     {p.pending_approvals > 0 && (
                       <CBadge color="warning" shape="rounded-pill" className="mt-1" style={{ fontSize: '0.65rem' }}>
-                        ⏳ {p.pending_approvals} pending approval
+                        {p.pending_approvals} pending approval
                       </CBadge>
                     )}
                   </CTableDataCell>
@@ -228,7 +227,7 @@ const ProjectListPage = () => {
                         <div className="fw-medium">{p.officer_name}</div>
                         {p.email_sent && (
                           <span className="text-success" style={{ fontSize: '0.7rem' }}>
-                            ✉️ Emailed
+                            Emailed
                           </span>
                         )}
                       </div>
@@ -293,7 +292,7 @@ const ProjectListPage = () => {
                             navigate(`/pms/projects/${p.id}`)
                           }}
                         >
-                          <CIcon icon={cilEyedropper} className="me-2" />
+                          <CIcon icon={cilArrowRight} className="me-2" />
                           View Details
                         </CDropdownItem>
                         <CDropdownItem
@@ -325,8 +324,8 @@ const ProjectListPage = () => {
 
         {projects.length === 0 && (
           <div className="text-center py-5">
-            <div style={{ fontSize: '3.5rem' }} className="mb-2">
-              📁
+            <div className="mb-2 text-body-secondary">
+              <CIcon icon={cilFolder} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No projects found</h5>
             <p className="text-body-tertiary">
@@ -354,7 +353,7 @@ const ProjectListPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

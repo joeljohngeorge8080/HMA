@@ -91,7 +91,7 @@ const TaskCard = ({
                 size="sm"
                 onClick={() => onSubmitReport(task.id)}
               >
-                📝 Submit Report
+                Submit Report
               </CButton>
             )}
             {onComplete && (

@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -190,7 +189,7 @@ const MyProjectsPage = () => {
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -282,7 +281,7 @@ const MyProjectsPage = () => {
           ))}
         </CRow>
       )}
-    </CContainer>
+    </>
   )
 }
 

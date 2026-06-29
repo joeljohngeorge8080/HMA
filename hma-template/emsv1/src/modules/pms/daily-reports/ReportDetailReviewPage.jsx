@@ -7,7 +7,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -38,6 +37,7 @@ import {
   cilFile,
   cilPaperclip,
   cilImage,
+  cilNotes,
 } from '@coreui/icons'
 
 import StatusBadge from './components/StatusBadge'
@@ -143,7 +143,7 @@ const ReportDetailReviewPage = () => {
     try {
       const updated = localReports.approve(id)
       setReport(updated)
-      setToast({ color: 'success', message: '✅ Report approved!' })
+      setToast({ color: 'success', message: 'Report approved' })
       setApproveModalVisible(false)
       setTimeout(() => navigate('/pms/daily-reports/review'), 1500)
     } catch (err) {
@@ -176,12 +176,12 @@ const ReportDetailReviewPage = () => {
 
   if (error) {
     return (
-      <CContainer lg className="py-3">
+      <>
         <CAlert color="danger">{error}</CAlert>
         <CButton color="primary" variant="outline" onClick={() => navigate(-1)}>
           Go Back
         </CButton>
-      </CContainer>
+      </>
     )
   }
 
@@ -189,7 +189,7 @@ const ReportDetailReviewPage = () => {
     report.status === REPORT_STATUS.SUBMITTED || report.status === REPORT_STATUS.RESUBMITTED
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Back button + header */}
       <div className="d-flex align-items-center gap-3 mb-3">
         <CButton
@@ -208,7 +208,7 @@ const ReportDetailReviewPage = () => {
 
       {report.status === REPORT_STATUS.RESUBMITTED && (
         <CAlert color="info" className="mb-3">
-          📝 This report was <strong>resubmitted</strong> after a previous decline.
+          This report was <strong>resubmitted</strong> after a previous decline.
         </CAlert>
       )}
 
@@ -251,7 +251,10 @@ const ReportDetailReviewPage = () => {
                         <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
                           Task Name
                         </CTableDataCell>
-                        <CTableDataCell className="fw-semibold text-info">📋 {report.task_title}</CTableDataCell>
+                        <CTableDataCell className="fw-semibold text-info">
+                          <CIcon icon={cilNotes} size="sm" className="me-1" />
+                          {report.task_title}
+                        </CTableDataCell>
                       </CTableRow>
                       <CTableRow>
                         <CTableDataCell className="fw-medium text-body-secondary">Requested Status</CTableDataCell>
@@ -275,7 +278,10 @@ const ReportDetailReviewPage = () => {
                     <CTableRow>
                       <CTableDataCell className="fw-medium text-body-secondary">Linked Task</CTableDataCell>
                       <CTableDataCell>
-                        <span className="text-info">📋 {report.task_title}</span>
+                        <span className="text-info d-flex align-items-center gap-1">
+                          <CIcon icon={cilNotes} size="sm" />
+                          {report.task_title}
+                        </span>
                       </CTableDataCell>
                     </CTableRow>
                   )}
@@ -448,7 +454,7 @@ const ReportDetailReviewPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -330,13 +329,13 @@ const ProjectDetailPage = () => {
 
   if (!project) {
     return (
-      <CContainer lg className="py-4 text-center">
+      <>
         <div style={{ fontSize: '4rem' }}>🔍</div>
         <h5 className="text-body-secondary">Project not found</h5>
         <CButton color="primary" variant="outline" onClick={() => navigate('/pms/projects')}>
           Back to Projects
         </CButton>
-      </CContainer>
+      </>
     )
   }
 
@@ -387,7 +386,7 @@ const ProjectDetailPage = () => {
   }
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Back */}
       <CButton
         color="secondary"
@@ -775,7 +774,7 @@ const ProjectDetailPage = () => {
                       return (
                         <div
                           key={i}
-                          className="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border shadow-sm"
+                          className="d-flex align-items-center gap-3 p-3 rounded-3 border shadow-sm"
                           style={{ fontSize: '0.875rem' }}
                         >
                           <div
@@ -1093,7 +1092,7 @@ const ProjectDetailPage = () => {
                                 
                                 {/* Content Card */}
                                 <div className="ms-4 flex-grow-1">
-                                  <div className="p-3 rounded-3 border bg-white shadow-sm">
+                                  <div className="p-3 rounded-3 border shadow-sm">
                                     <div className="d-flex justify-content-between align-items-start mb-2">
                                       <div>
                                         <h6 className="fw-bold mb-1">{inst.label} <span className="text-body-secondary fw-normal small">({inst.percentage}%)</span></h6>
@@ -1235,7 +1234,7 @@ const ProjectDetailPage = () => {
                     {/* Admin Budget Section */}
                     <CCard className="shadow-sm mb-4 border-top border-top-4 border-top-primary">
                       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
-                        <span>🌐 Admin Budget</span>
+                        <span>Admin Budget</span>
                         <div className="d-flex gap-3 flex-wrap">
                           {[{ key: 'admin_pct', color: '#f7c948', label: 'Admin' }].map(({ key, color, label }) => (
                             <div key={key} className="d-flex align-items-center gap-2">
@@ -1407,7 +1406,7 @@ const ProjectDetailPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

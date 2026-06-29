@@ -372,7 +372,8 @@ const DeductionSummary = ({ summaries, month, year }) => {
       <CCardBody className="p-0">
         {missingCount > 0 && (
           <div className="px-3 py-2 border-bottom bg-warning-subtle small text-dark">
-            ⚠️ {missingCount} employee{missingCount > 1 ? 's' : ''} missing salary data — their
+            <CIcon icon={cilWarning} size="sm" className="me-1" />
+            {missingCount} employee{missingCount > 1 ? 's' : ''} missing salary data — their
             deductions are excluded from the total. Add salary via Staff → Employee Profile → Salary
             tab.
           </div>

@@ -101,7 +101,7 @@ const ReportForm = ({
     <CCard className="daily-report-form-card shadow-sm">
       <CCardHeader className="bg-transparent border-bottom-0 pt-3">
         <h5 className="mb-0 fw-semibold">
-          {isResubmit ? '✏️ Resubmit Daily Report' : '📝 Submit Daily Report'}
+          {isResubmit ? 'Resubmit Daily Report' : 'Submit Daily Report'}
         </h5>
         {isResubmit && (
           <div className="small text-body-secondary mt-1">

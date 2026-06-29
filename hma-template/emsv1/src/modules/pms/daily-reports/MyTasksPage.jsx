@@ -8,7 +8,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -19,7 +18,7 @@ import {
   CAlert,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBuilding } from '@coreui/icons'
+import { cilBuilding, cilTask } from '@coreui/icons'
 
 import TaskCard from './components/TaskCard'
 import { localTasks } from '../../../services/localTasks'
@@ -72,7 +71,7 @@ const MyTasksPage = () => {
   )
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -102,7 +101,9 @@ const MyTasksPage = () => {
       ) : Object.keys(tasksByProject).length === 0 ? (
         <CCard className="shadow-sm">
           <CCardBody className="text-center py-5">
-            <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>✅</div>
+            <div className="mb-3 text-body-secondary">
+              <CIcon icon={cilTask} style={{ width: 48, height: 48 }} />
+            </div>
             <h5 className="text-body-secondary">No tasks found</h5>
             <p className="text-body-tertiary">
               {statusFilter ? 'No tasks match this filter.' : 'Your project teams have no tasks yet.'}
@@ -142,7 +143,7 @@ const MyTasksPage = () => {
           ))}
         </div>
       )}
-    </CContainer>
+    </>
   )
 }
 

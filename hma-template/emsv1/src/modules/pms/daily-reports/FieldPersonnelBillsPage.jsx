@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  CContainer, CRow, CCol, CCard, CCardBody, CCardHeader,
+  CRow, CCol, CCard, CCardBody, CCardHeader,
   CForm, CFormInput, CFormTextarea, CButton,
   CTable, CTableHead, CTableRow, CTableHeaderCell, CTableBody, CTableDataCell,
   CBadge
@@ -30,7 +30,7 @@ const FieldPersonnelBillsPage = () => {
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="fw-semibold mb-0">My Bills & Expenses</h4>
         <CButton color="primary" onClick={() => setModalVisible(true)}>
@@ -43,7 +43,7 @@ const FieldPersonnelBillsPage = () => {
         {/* History Table */}
         <CCol xs={12}>
           <CCard className="shadow-sm h-100">
-            <CCardHeader className="bg-white pb-0 border-bottom">
+            <CCardHeader className="pb-0 border-bottom">
               <h6 className="fw-semibold mb-3">Submission History</h6>
             </CCardHeader>
             <CCardBody>
@@ -95,7 +95,7 @@ const FieldPersonnelBillsPage = () => {
         onClose={() => setModalVisible(false)}
         onConfirm={handleUploadBill}
       />
-    </CContainer>
+    </>
   )
 }
 

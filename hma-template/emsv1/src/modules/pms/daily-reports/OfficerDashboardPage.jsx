@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -28,7 +27,7 @@ import {
   CModalFooter,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilSearch, cilFilterX, cilCheckCircle, cilXCircle } from '@coreui/icons'
+import { cilSearch, cilFilterX, cilCheckCircle, cilXCircle, cilNotes } from '@coreui/icons'
 
 import ReportCard from './components/ReportCard'
 import DeclineReasonModal from './components/DeclineReasonModal'
@@ -96,7 +95,7 @@ const OfficerDashboardPage = () => {
     setApproveLoading(true)
     try {
       localReports.approve(approveTargetId)
-      setToast({ color: 'success', message: '✅ Report approved and forwarded to backend team' })
+      setToast({ color: 'success', message: 'Report approved and forwarded to backend team' })
       setApproveModalVisible(false)
       setApproveTargetId(null)
       loadReports()
@@ -116,7 +115,7 @@ const OfficerDashboardPage = () => {
     setDeclineLoading(true)
     try {
       localReports.decline(declineTargetId, 'project_officer', reason)
-      setToast({ color: 'warning', message: '⚠️ Report declined and sent back to field personnel' })
+      setToast({ color: 'warning', message: 'Report declined and sent back to field personnel' })
       setDeclineModalVisible(false)
       setDeclineTargetId(null)
       loadReports()
@@ -134,7 +133,7 @@ const OfficerDashboardPage = () => {
   const declinedCount = reports.filter((r) => r.status === REPORT_STATUS.DECLINED).length
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="mb-3">
         <h4 className="mb-1 fw-semibold">Review Reports</h4>
@@ -254,8 +253,8 @@ const OfficerDashboardPage = () => {
       {reports.length === 0 ? (
         <CCard className="shadow-sm">
           <CCardBody className="text-center py-5">
-            <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>
-              📑
+            <div className="mb-3 text-body-secondary">
+              <CIcon icon={cilNotes} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No reports to review</h5>
             <p className="text-body-tertiary">
@@ -332,7 +331,7 @@ const OfficerDashboardPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

@@ -13,7 +13,6 @@
  */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -53,6 +52,7 @@ import {
   cilMoney,
   cilClock,
   cilFile,
+  cilNotes,
 } from '@coreui/icons'
 
 import { localReports, REPORT_STATUS } from '../../../services/localReports'
@@ -120,7 +120,7 @@ const SettlementsPage = () => {
     setSettleLoading(true)
     try {
       localReports.markSettled(settleTargetId)
-      setToast({ color: 'success', message: '✅ Bill marked as Settled' })
+      setToast({ color: 'success', message: 'Bill marked as settled' })
       setSettleModalVisible(false)
       setSettleTargetId(null)
       loadData()
@@ -138,8 +138,8 @@ const SettlementsPage = () => {
   const BillTable = ({ bills, showSettleBtn }) => (
     bills.length === 0 ? (
       <div className="text-center py-5 text-body-secondary">
-        <div style={{ fontSize: '2.5rem' }} className="mb-2">
-          {showSettleBtn ? '📥' : '✅'}
+        <div className="mb-2 text-body-secondary">
+          <CIcon icon={showSettleBtn ? cilFile : cilCheckCircle} style={{ width: 40, height: 40 }} />
         </div>
         <h6 className="text-body-secondary">
           {showSettleBtn ? 'No pending bills' : 'No settled bills yet'}
@@ -179,7 +179,10 @@ const SettlementsPage = () => {
                     {bill.bill_topic}
                   </div>
                   {bill.task_title && (
-                    <div className="small text-info">📋 {bill.task_title}</div>
+                    <div className="small text-info d-flex align-items-center gap-1">
+                      <CIcon icon={cilNotes} size="sm" />
+                      {bill.task_title}
+                    </div>
                   )}
                 </CTableDataCell>
                 <CTableDataCell className="text-end fw-semibold">
@@ -231,7 +234,7 @@ const SettlementsPage = () => {
   )
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
@@ -314,7 +317,7 @@ const SettlementsPage = () => {
 
       {/* Tabs */}
       <CCard className="shadow-sm">
-        <CCardHeader className="bg-white pb-0">
+        <CCardHeader className="pb-0">
           <CNav variant="underline">
             <CNavItem>
               <CNavLink
@@ -412,7 +415,7 @@ const SettlementsPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CRow,
@@ -257,7 +256,7 @@ const ProjectOfficersPage = () => {
   const totalAssignments = officers.reduce((s, o) => s + o.projects_assigned.length, 0)
 
   return (
-    <CContainer lg className="py-4">
+    <>
 
       {/* PA Authority Banner */}
       <div
@@ -265,7 +264,7 @@ const ProjectOfficersPage = () => {
         style={{ background: 'linear-gradient(135deg, #06d6a0 0%, #0096c7 100%)', color: '#fff' }}
       >
         <div
-          className="rounded-circle bg-white d-flex align-items-center justify-content-center flex-shrink-0"
+          className="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center flex-shrink-0"
           style={{ width: 44, height: 44 }}
         >
           <CIcon icon={cilShieldAlt} style={{ color: '#06d6a0', width: 22, height: 22 }} />
@@ -509,7 +508,7 @@ const ProjectOfficersPage = () => {
                             {(officerProjects[officer.id] || []).map((p) => (
                               <div
                                 key={p.id}
-                                className="d-flex align-items-center gap-2 px-3 py-2 bg-white rounded-3 border"
+                                className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border"
                                 style={{ cursor: 'pointer', fontSize: '0.825rem' }}
                                 onClick={() => navigate(`/pms/projects/${p.id}`)}
                               >
@@ -640,7 +639,7 @@ const ProjectOfficersPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

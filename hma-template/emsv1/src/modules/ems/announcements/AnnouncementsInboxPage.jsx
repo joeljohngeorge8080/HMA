@@ -23,7 +23,7 @@ const TypeBadge = ({ type }) => {
   const meta = MSG_TYPE_META[type] || MSG_TYPE_META[MSG_TYPE.INFO]
   return (
     <CBadge color={meta.color} className="me-1">
-      {meta.icon} {meta.label}
+      {meta.label}
     </CBadge>
   )
 }
@@ -131,7 +131,7 @@ const AnnouncementsInboxPage = () => {
 
       {messages.length === 0 && (
         <div className="text-center text-body-secondary py-5">
-          <div style={{ fontSize: 40 }}>📬</div>
+          <CIcon icon={cilEnvelopeLetter} style={{ width: 48, height: 48 }} className="mb-2 text-body-secondary" />
           <div className="mt-2">
             {filter || readFilter !== 'all'
               ? 'No messages match your filters.'
