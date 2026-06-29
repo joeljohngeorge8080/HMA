@@ -121,7 +121,7 @@ const MaintenanceConfirmModal = ({ onAccept, onCancel }) => (
           gap: 12,
         }}
       >
-        <span style={{ fontSize: 28 }}>⚠️</span>
+        <CIcon icon={cilWarning} style={{ width: 26, height: 26, color: '#fff', flexShrink: 0 }} />
         <div>
           <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>
             Enable Maintenance Mode?
@@ -227,14 +227,8 @@ const SlideToggle = ({ checked, onChange, disabled = false }) => {
           background: '#fff',
           boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
           transition: 'left 0.25s cubic-bezier(.4,0,.2,1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 10,
         }}
-      >
-        {checked ? '✕' : ''}
-      </span>
+      />
     </button>
   )
 }

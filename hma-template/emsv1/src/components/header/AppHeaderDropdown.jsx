@@ -1,6 +1,6 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   CAvatar,
   CDropdown,
@@ -33,7 +33,11 @@ const pickColor = (name) => {
 const AppHeaderDropdown = () => {
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
+
+  // Resolve the profile path based on which system is active
+  const profilePath = location.pathname.startsWith('/ems') ? '/ems/my-profile' : null
 
   const handleLogout = async () => {
     await logoutApi()
@@ -56,10 +60,12 @@ const AppHeaderDropdown = () => {
         <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">
           {user ? `${user.full_name} · ${user.role}` : 'Account'}
         </CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilUser} className="me-2" />
-          Profile
-        </CDropdownItem>
+        {profilePath && (
+          <CDropdownItem as="button" type="button" onClick={() => navigate(profilePath)}>
+            <CIcon icon={cilUser} className="me-2" />
+            My Profile
+          </CDropdownItem>
+        )}
         <CDropdownDivider />
         <CDropdownItem as="button" type="button" onClick={handleLogout}>
           <CIcon icon={cilAccountLogout} className="me-2" />

@@ -90,21 +90,13 @@ const App = () => {
   useEffect(() => {
     if (!token) return
 
-    // Dev tokens are never sent to the real API — restore user from localStorage
+    // Dev tokens are in-memory only — they must not survive a page reload.
+    // Clear any stale dev token so the user is always routed to login on refresh.
     if (token.startsWith('dev-')) {
-      try {
-        const savedUser = JSON.parse(localStorage.getItem('hma_dev_user'))
-        if (savedUser) {
-          dispatch({ type: 'set', user: savedUser })
-        } else {
-          // No saved user — clear the stale dev token
-          localStorage.removeItem('hma_token')
-          dispatch({ type: 'set', user: null, token: null })
-        }
-      } catch {
-        dispatch({ type: 'set', user: null, token: null })
-      }
-      setIsInitializing(false)
+      localStorage.removeItem('hma_token')
+      localStorage.removeItem('hma_dev_user')
+      dispatch({ type: 'set', user: null, token: null })
+      setIsInitializing(false) // eslint-disable-line react-hooks/set-state-in-effect
       return
     }
 

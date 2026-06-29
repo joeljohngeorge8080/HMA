@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   CAlert,
   CBadge,
@@ -57,7 +57,7 @@ const UserManagementPage = () => {
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE.ADMIN
 
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState(() => getRegisteredUsers())
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -66,10 +66,6 @@ const UserManagementPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   const refresh = useCallback(() => setUsers(getRegisteredUsers()), [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
 
   const handleAdd = (e) => {
     e.preventDefault()
@@ -103,23 +99,24 @@ const UserManagementPage = () => {
 
   return (
     <>
-      <CRow className="mb-3 align-items-center">
-        <CCol>
-          <h4 className="mb-0 d-flex align-items-center gap-2">
-            <CIcon icon={cilPeople} size="lg" />
-            User Management
-          </h4>
-          <p className="text-body-secondary mb-0 small mt-1">
+      <div className="d-flex align-items-start justify-content-between mb-4 gap-3">
+        <div>
+          <h4 className="fw-semibold mb-1">User Management</h4>
+          <p className="text-body-secondary small mb-0">
             Only registered Google accounts can log in to HMA IEMS.
           </p>
-        </CCol>
-        <CCol xs="auto">
-          <CButton color="primary" onClick={() => { setShowModal(true); setError('') }}>
-            <CIcon icon={cilPlus} className="me-1" />
-            Add User
-          </CButton>
-        </CCol>
-      </CRow>
+        </div>
+        <CButton
+          color="primary"
+          onClick={() => {
+            setShowModal(true)
+            setError('')
+          }}
+        >
+          <CIcon icon={cilPlus} className="me-1" />
+          Add User
+        </CButton>
+      </div>
 
       {success && (
         <CAlert color="success" dismissible onClose={() => setSuccess('')} className="mb-3">
@@ -131,7 +128,7 @@ const UserManagementPage = () => {
         <CCardHeader className="fw-semibold">Registered Users ({users.length})</CCardHeader>
         <CCardBody className="p-0">
           <CTable hover responsive className="mb-0">
-            <CTableHead>
+            <CTableHead color="light">
               <CTableRow>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell>Google Email</CTableHeaderCell>
@@ -149,7 +146,9 @@ const UserManagementPage = () => {
                   <CTableDataCell>
                     <CBadge color={ROLE_COLORS[u.role] || 'secondary'}>{u.role}</CBadge>
                   </CTableDataCell>
-                  <CTableDataCell className="text-body-secondary small">{u.added_by}</CTableDataCell>
+                  <CTableDataCell className="text-body-secondary small">
+                    {u.added_by}
+                  </CTableDataCell>
                   <CTableDataCell className="text-body-secondary small">
                     {new Date(u.added_at).toLocaleDateString()}
                   </CTableDataCell>
@@ -169,8 +168,14 @@ const UserManagementPage = () => {
               ))}
               {users.length === 0 && (
                 <CTableRow>
-                  <CTableDataCell colSpan={6} className="text-center text-body-secondary py-4">
-                    No users registered yet.
+                  <CTableDataCell colSpan={6}>
+                    <div className="hma-empty-state">
+                      <CIcon icon={cilPeople} className="hma-empty-state__icon" />
+                      <p className="hma-empty-state__title">No users registered yet</p>
+                      <p className="hma-empty-state__desc">
+                        Add users to grant them access to HMA IEMS.
+                      </p>
+                    </div>
                   </CTableDataCell>
                 </CTableRow>
               )}
@@ -209,9 +214,7 @@ const UserManagementPage = () => {
                 onChange={(e) => setForm((f) => ({ ...f, google_email: e.target.value }))}
                 required
               />
-              <div className="form-text">
-                This must match the user's Google account exactly.
-              </div>
+              <div className="form-text">This must match the user's Google account exactly.</div>
             </div>
             <div className="mb-3">
               <CFormLabel>Role</CFormLabel>
@@ -246,8 +249,8 @@ const UserManagementPage = () => {
           <CModalTitle>Remove User</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          Remove <strong>{deleteTarget?.full_name}</strong> ({deleteTarget?.google_email}) from
-          the system? They will no longer be able to log in.
+          Remove <strong>{deleteTarget?.full_name}</strong> ({deleteTarget?.google_email}) from the
+          system? They will no longer be able to log in.
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" variant="ghost" onClick={() => setDeleteTarget(null)}>

@@ -1,193 +1,138 @@
 import React from 'react'
 
-// Construction-crane + monitor illustration — matches the reference design
-const MaintenanceIllustration = () => (
-  <svg
-    viewBox="0 0 420 260"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    style={{ width: '100%', maxWidth: 520, height: 'auto' }}
-    aria-hidden="true"
-  >
-    {/* ── Monitor body ───────────────────────────────────────────── */}
-    <rect x="80" y="60" width="220" height="148" rx="12" fill="#b8d4f0" />
-    <rect x="92" y="72" width="196" height="118" rx="6" fill="#e8f2fc" />
-    {/* Screen content – image placeholders */}
-    <rect x="104" y="84" width="80" height="54" rx="5" fill="#9ec5e8" />
-    <polygon points="124,110 144,88 164,110" fill="#6aaad6" />
-    <circle cx="150" cy="100" r="7" fill="#fff" opacity="0.6" />
-    <rect x="196" y="84" width="80" height="24" rx="4" fill="#9ec5e8" />
-    <rect x="196" y="114" width="80" height="12" rx="3" fill="#c5ddf5" />
-    <rect x="196" y="132" width="56" height="12" rx="3" fill="#c5ddf5" />
-    {/* Monitor stand */}
-    <rect x="172" y="208" width="36" height="14" rx="3" fill="#9ab8d4" />
-    <rect x="154" y="220" width="72" height="8" rx="4" fill="#8aafc9" />
+// Generates a gear SVG path centred at (cx, cy).
+// outerR = tip radius, innerR = root radius, holeR = centre hole radius, n = tooth count.
+const gearPath = (cx, cy, outerR, innerR, holeR, n) => {
+  const pts = []
+  const pitch = (Math.PI * 2) / n
+  const tw = pitch * 0.33 // angular half-width of each tooth
 
-    {/* ── Crane tower ─────────────────────────────────────────────── */}
-    {/* Vertical mast */}
-    <rect x="316" y="80" width="14" height="148" rx="3" fill="#6aaad6" />
-    {/* Horizontal boom */}
-    <rect x="240" y="80" width="90" height="12" rx="3" fill="#6aaad6" />
-    {/* Counter-weight arm */}
-    <rect x="316" y="80" width="40" height="10" rx="3" fill="#5b9bd5" />
-    <rect x="350" y="88" width="8" height="30" rx="2" fill="#5b9bd5" />
-    <rect x="346" y="116" width="16" height="20" rx="3" fill="#4a88c0" />
-    {/* Crane cabin */}
-    <rect x="300" y="86" width="22" height="20" rx="3" fill="#4a88c0" />
-    {/* Hook cable */}
-    <line x1="270" y1="92" x2="270" y2="136" stroke="#5b9bd5" strokeWidth="2.5" />
-    {/* Hook */}
-    <path
-      d="M266 136 Q270 148 274 136"
-      stroke="#4a88c0"
-      strokeWidth="2.5"
-      fill="none"
-      strokeLinecap="round"
-    />
-    {/* Crane legs / base */}
-    <rect x="310" y="224" width="26" height="10" rx="2" fill="#5b9bd5" />
-    <line
-      x1="312"
-      y1="228"
-      x2="304"
-      y2="234"
-      stroke="#5b9bd5"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
-    <line
-      x1="334"
-      y1="228"
-      x2="342"
-      y2="234"
-      stroke="#5b9bd5"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
+  for (let i = 0; i < n; i++) {
+    const a = i * pitch - Math.PI / 2
 
-    {/* ── Ground line ─────────────────────────────────────────────── */}
-    <rect x="60" y="234" width="300" height="6" rx="3" fill="#c5ddf5" />
+    const angles = [a - tw, a - tw * 0.38, a + tw * 0.38, a + tw]
+    const radii = [innerR, outerR, outerR, innerR]
+    const points = angles.map((angle, j) => [
+      (cx + radii[j] * Math.cos(angle)).toFixed(1),
+      (cy + radii[j] * Math.sin(angle)).toFixed(1),
+    ])
 
-    {/* ── Gear / cog on screen (maintenance hint) ─────────────────── */}
-    <circle cx="144" cy="152" r="16" fill="#9ec5e8" />
-    <circle cx="144" cy="152" r="9" fill="#e8f2fc" />
-    {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-      const rad = (deg * Math.PI) / 180
-      const x1 = 144 + 12 * Math.cos(rad)
-      const y1 = 152 + 12 * Math.sin(rad)
-      const x2 = 144 + 17 * Math.cos(rad)
-      const y2 = 152 + 17 * Math.sin(rad)
-      return (
-        <line
-          key={i}
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke="#6aaad6"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-      )
-    })}
+    if (i === 0) pts.push(`M ${points[0][0]},${points[0][1]}`)
+    else pts.push(`A ${innerR},${innerR} 0 0,1 ${points[0][0]},${points[0][1]}`)
 
-    {/* ── Small decorative dots ────────────────────────────────────── */}
-    <circle cx="60" cy="100" r="5" fill="#42a5f5" opacity="0.7" />
-    <circle cx="48" cy="130" r="3" fill="#42a5f5" opacity="0.5" />
-    <circle cx="375" cy="160" r="4" fill="#42a5f5" opacity="0.6" />
-    <circle cx="388" cy="195" r="3" fill="#42a5f5" opacity="0.4" />
-  </svg>
-)
+    pts.push(
+      `L ${points[1][0]},${points[1][1]}`,
+      `L ${points[2][0]},${points[2][1]}`,
+      `L ${points[3][0]},${points[3][1]}`,
+    )
+  }
+
+  pts.push('Z')
+
+  // Centre hole drawn counter-clockwise so fill-rule:evenodd punches it out
+  const hx = (cx + holeR).toFixed(1)
+  const hxn = (cx - holeR).toFixed(1)
+  pts.push(
+    `M ${hx},${cy}`,
+    `A ${holeR},${holeR} 0 1,0 ${hxn},${cy}`,
+    `A ${holeR},${holeR} 0 1,0 ${hx},${cy}`,
+    'Z',
+  )
+
+  return pts.join(' ')
+}
 
 const MaintenancePage = ({ message }) => (
-  <div
-    style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 99999,
-      padding: 24,
-    }}
-  >
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: 28,
-        border: '4px solid #1565c0',
-        padding: '64px 80px 56px',
-        maxWidth: 900,
-        width: '100%',
-        textAlign: 'center',
-        boxShadow: '0 28px 80px rgba(0,0,0,0.24)',
-      }}
-    >
-      <MaintenanceIllustration />
+  <div className="hma-maintenance__bg" role="alert" aria-live="assertive">
+    {/* Pulsing depth rings */}
+    <div className="hma-maintenance__ring hma-maintenance__ring--1" aria-hidden="true" />
+    <div className="hma-maintenance__ring hma-maintenance__ring--2" aria-hidden="true" />
+    <div className="hma-maintenance__ring hma-maintenance__ring--3" aria-hidden="true" />
 
-      <h2
-        style={{
-          fontSize: 26,
-          fontWeight: 800,
-          color: '#1a1a2e',
-          margin: '20px 0 10px',
-        }}
-      >
-        Website is under maintenance
-      </h2>
+    <div className="hma-maintenance__card">
+      {/* Brand eyebrow */}
+      <div className="hma-maintenance__brand">HMA IEMS</div>
 
-      <p style={{ fontSize: 14, color: '#777', lineHeight: 1.75, marginBottom: 0 }}>
-        Our website is currently undergoing scheduled maintenance.
+      {/* Animated gears */}
+      <div className="hma-maintenance__gears" aria-hidden="true">
+        {/*
+          Large gear:  centre (60, 58), outerR 38, innerR 26, holeR 10, 10 teeth
+          Small gear:  centre (122,63), outerR 25, innerR 17, holeR  7,  7 teeth
+          Center distance ≈ 63 ≈ 38 + 25  → teeth mesh visually
+          Speed ratio 7:4.9 ≈ 10/7 (correct for tooth counts)
+        */}
+        <svg viewBox="0 0 182 120" width="182" height="120" xmlns="http://www.w3.org/2000/svg">
+          {/* Large gear — clockwise */}
+          <g transform="translate(60,58)">
+            <g className="hma-maintenance__gear-cw">
+              <path d={gearPath(0, 0, 38, 26, 10, 10)} fill="#1d4ed8" fillRule="evenodd" />
+              {/* Spoke details */}
+              {[0, 72, 144, 216, 288].map((deg) => {
+                const r = (deg * Math.PI) / 180
+                return (
+                  <line
+                    key={deg}
+                    x1={(7 * Math.cos(r)).toFixed(1)}
+                    y1={(7 * Math.sin(r)).toFixed(1)}
+                    x2={(18 * Math.cos(r)).toFixed(1)}
+                    y2={(18 * Math.sin(r)).toFixed(1)}
+                    stroke="rgba(147,197,253,0.25)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                )
+              })}
+              <circle r="5" fill="#3b82f6" />
+              <circle r="2" fill="rgba(147,197,253,0.6)" />
+            </g>
+          </g>
+
+          {/* Small gear — counter-clockwise */}
+          <g transform="translate(122,63)">
+            <g className="hma-maintenance__gear-ccw">
+              <path d={gearPath(0, 0, 25, 17, 7, 7)} fill="#1e3a8a" fillRule="evenodd" />
+              {[0, 120, 240].map((deg) => {
+                const r = (deg * Math.PI) / 180
+                return (
+                  <line
+                    key={deg}
+                    x1={(5 * Math.cos(r)).toFixed(1)}
+                    y1={(5 * Math.sin(r)).toFixed(1)}
+                    x2={(12 * Math.cos(r)).toFixed(1)}
+                    y2={(12 * Math.sin(r)).toFixed(1)}
+                    stroke="rgba(147,197,253,0.2)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                )
+              })}
+              <circle r="3.5" fill="#2563eb" />
+              <circle r="1.5" fill="rgba(147,197,253,0.5)" />
+            </g>
+          </g>
+
+          {/* Subtle connection line at mesh point */}
+          <circle cx="97" cy="61" r="2.5" fill="rgba(59,130,246,0.18)" />
+        </svg>
+      </div>
+
+      <h2 className="hma-maintenance__title">System Under Maintenance</h2>
+      <p className="hma-maintenance__subtitle">
+        HMA IEMS is currently undergoing scheduled maintenance.
         <br />
-        We&rsquo;ll be right back in a few minutes. Thank you for your patience.
+        We&rsquo;ll be back shortly — thank you for your patience.
       </p>
 
-      {message && (
-        <div
-          style={{
-            marginTop: 18,
-            background: '#e3f0fb',
-            border: '1px solid #42a5f5',
-            borderRadius: 10,
-            padding: '11px 16px',
-            fontSize: 13,
-            color: '#0d47a1',
-            fontWeight: 500,
-            lineHeight: 1.6,
-          }}
-        >
-          {message}
-        </div>
-      )}
+      {message && <div className="hma-maintenance__message">{message}</div>}
 
-      <div
-        style={{
-          marginTop: 24,
-          display: 'inline-block',
-          background: '#1a2744',
-          color: '#fff',
-          borderRadius: 8,
-          padding: '10px 32px',
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: 0.4,
-        }}
-      >
-        Please check back later
+      {/* Animated loading dots */}
+      <div className="hma-maintenance__dots" aria-label="Please wait">
+        <div className="hma-maintenance__dot" />
+        <div className="hma-maintenance__dot" />
+        <div className="hma-maintenance__dot" />
       </div>
 
-      <div
-        style={{
-          marginTop: 20,
-          fontSize: 11,
-          color: '#bbb',
-          letterSpacing: 1,
-          textTransform: 'uppercase',
-        }}
-      >
-        HMA Internal Enterprise Management System
-      </div>
+      <div className="hma-maintenance__label">HMA Internal Enterprise Management System</div>
     </div>
   </div>
 )

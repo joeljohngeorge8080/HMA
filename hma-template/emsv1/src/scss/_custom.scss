@@ -1,12 +1,259 @@
 // HMA IEMS — Custom Brand Overrides
-//
-// HMA-specific theme variables and component overrides live here.
-// Populated during Phase 10 (Brand & QA). Intentionally empty for now.
-//
-// Example (Phase 10):
-// :root {
-//   --cui-primary: #0a4d8c;
-// }
+// Imported after CoreUI, so SCSS $variables cannot override compilation.
+// Use CSS custom properties (--cui-*) to override at runtime.
+
+// ─ Brand Tokens ───────────────────────────────────────────────────────────────
+:root {
+  // Primary — HMA enterprise blue
+  --cui-primary: #2563eb;
+  --cui-primary-rgb: 37, 99, 235;
+
+  // Inter replaces the CoreUI default type stack
+  --cui-body-font-family:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --cui-body-font-size: 0.875rem;
+  --cui-body-line-height: 1.6;
+
+  // Refined radii — softer than CoreUI defaults
+  --cui-border-radius: 0.5rem;
+  --cui-border-radius-sm: 0.375rem;
+  --cui-border-radius-lg: 0.75rem;
+
+  // Cards — rounded corners + subtle ambient shadow
+  --cui-card-border-radius: 0.75rem;
+  --hma-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --hma-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+  // Tables — slightly tighter vertical padding for data density
+  --cui-table-cell-padding-y: 0.6rem;
+  --cui-table-cell-padding-x: 0.875rem;
+}
+
+// ─ Sidebar ────────────────────────────────────────────────────────────────────
+// colorScheme="dark" on CSidebar renders as .sidebar-dark
+.sidebar-dark {
+  --cui-body-bg: #0f172a;
+  --cui-sidebar-bg: #0f172a;
+
+  // Border between items — barely visible line
+  --cui-border-color: rgba(255, 255, 255, 0.07);
+
+  // Nav links — restrained defaults, bolder when active
+  --cui-sidebar-nav-link-color: rgba(255, 255, 255, 0.65);
+  --cui-sidebar-nav-link-icon-color: rgba(255, 255, 255, 0.35);
+  --cui-sidebar-nav-link-hover-color: rgba(255, 255, 255, 0.92);
+  --cui-sidebar-nav-link-hover-bg: rgba(255, 255, 255, 0.06);
+  --cui-sidebar-nav-link-hover-icon-color: rgba(255, 255, 255, 0.7);
+  --cui-sidebar-nav-link-active-color: #fff;
+  --cui-sidebar-nav-link-active-bg: rgba(37, 99, 235, 0.28);
+  --cui-sidebar-nav-link-active-icon-color: #93c5fd;
+
+  // Group togglers inherit the link colour
+  --cui-sidebar-nav-group-toggle-show-color: rgba(255, 255, 255, 0.65);
+
+  // Logo: invert to white so it reads on the deep navy background
+  .sidebar-brand-full,
+  .sidebar-brand-narrow {
+    filter: brightness(0) invert(1);
+  }
+}
+
+// Brand area border — less jarring on deep navy
+.sidebar-dark .sidebar-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+// ─ Header ─────────────────────────────────────────────────────────────────────
+.header.header-sticky {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(var(--cui-body-bg-rgb, 255, 255, 255), 0.9);
+}
+
+// ─ Cards ──────────────────────────────────────────────────────────────────────
+.card {
+  box-shadow: var(--hma-card-shadow);
+  border-color: var(--cui-border-color);
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: var(--hma-card-shadow-hover);
+  }
+}
+
+.card-header {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+// ─ Buttons ────────────────────────────────────────────────────────────────────
+.btn {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  --cui-btn-bg: #2563eb;
+  --cui-btn-border-color: #2563eb;
+  --cui-btn-hover-bg: #1d4ed8;
+  --cui-btn-hover-border-color: #1d4ed8;
+  --cui-btn-active-bg: #1e40af;
+}
+
+// ─ Tables ─────────────────────────────────────────────────────────────────────
+.table {
+  font-size: 0.8125rem;
+}
+
+.table-hover > tbody > tr:hover > * {
+  --cui-table-accent-bg: rgba(37, 99, 235, 0.04);
+}
+
+// ─ System Selection Cards ─────────────────────────────────────────────────────
+.system-card {
+  background: var(--cui-body-bg);
+  border-radius: 1rem;
+  padding: 2.25rem 2rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  border: 1.5px solid var(--cui-border-color);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+  text-align: center;
+  width: 280px;
+  outline: none;
+
+  @media (max-width: 576px) {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  &__icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+  }
+
+  &__title {
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--cui-body-color);
+    margin-bottom: 0.5rem;
+  }
+
+  &__desc {
+    font-size: 0.8125rem;
+    color: var(--cui-secondary-color);
+    margin-bottom: 1.25rem;
+    line-height: 1.55;
+  }
+
+  &--ems:hover,
+  &--ems:focus-visible {
+    border-color: #2563eb;
+    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.14);
+    transform: translateY(-2px);
+  }
+
+  &--pms:hover,
+  &--pms:focus-visible {
+    border-color: #10b981;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.14);
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 3px;
+  }
+}
+
+// ─ Sidebar Clock ─────────────────────────────────────────────────────────────
+.sidebar-clock {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.75rem;
+  line-height: 1.6;
+
+  &__time {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: rgba(255, 255, 255, 0.88);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  &__ampm {
+    font-size: 0.6875rem;
+    opacity: 0.7;
+    margin-left: 1px;
+  }
+}
+
+// ─ Page Header ───────────────────────────────────────────────────────────────
+// Consistent h4 + subtitle pattern used across all module pages
+.hma-page-header {
+  margin-bottom: 1.5rem;
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cui-body-color);
+    margin-bottom: 0.2rem;
+  }
+
+  &__subtitle {
+    font-size: 0.8125rem;
+    color: var(--cui-secondary-color);
+    margin: 0;
+  }
+}
+
+// ─ Empty State ───────────────────────────────────────────────────────────────
+// Used inside table cells or card bodies when there is no data to show
+.hma-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    opacity: 0.18;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  &__title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--cui-body-color);
+    margin-bottom: 0.3rem;
+    text-align: center;
+  }
+
+  &__desc {
+    font-size: 0.8125rem;
+    color: var(--cui-secondary-color);
+    margin: 0;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.55;
+  }
+}
+
+// ─ Maintenance Banner ────────────────────────────────────────────────────────
+// (already styled inline — kept here for any future utility overrides)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daily Reports Feature Styles
@@ -22,11 +269,13 @@
   border: 2px dashed var(--cui-border-color);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 
   &:hover {
     border-color: var(--cui-primary);
-    background-color: var(--cui-primary-bg-subtle, rgba(0, 0, 0, 0.02));
+    background-color: rgba(37, 99, 235, 0.03);
   }
 }
 
@@ -84,7 +333,9 @@
 
 // Report card hover
 .daily-report-card {
-  transition: box-shadow 0.2s, transform 0.15s;
+  transition:
+    box-shadow 0.2s,
+    transform 0.15s;
   cursor: pointer;
 
   &:hover {
@@ -122,5 +373,449 @@
 
   &:hover {
     transform: scale(1.1);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Maintenance Page
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes hma-gear-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hma-gear-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes hma-pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes hma-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+@keyframes hma-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hma-maintenance {
+  &__bg {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 35%, #0d1b3e 0%, #060c1a 55%, #020408 100%);
+  }
+
+  &__ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    pointer-events: none;
+    animation: hma-pulse-ring 3.8s ease-out infinite;
+    &--1 {
+      width: 260px;
+      height: 260px;
+      animation-delay: 0s;
+    }
+    &--2 {
+      width: 480px;
+      height: 480px;
+      animation-delay: 1.2s;
+    }
+    &--3 {
+      width: 700px;
+      height: 700px;
+      animation-delay: 2.4s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
+  &__card {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 460px;
+    margin: 1rem;
+    background: rgba(8, 14, 32, 0.9);
+    border: 1px solid rgba(37, 99, 235, 0.22);
+    border-radius: 22px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding: 2.75rem 3rem;
+    text-align: center;
+    box-shadow:
+      0 40px 80px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 0 60px rgba(37, 99, 235, 0.08) inset;
+    animation: hma-card-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+    @media (max-width: 480px) {
+      padding: 2rem 1.5rem;
+    }
+  }
+
+  &__brand {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(147, 197, 253, 0.45);
+    margin-bottom: 1.5rem;
+  }
+
+  &__gears {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  &__gear-cw {
+    transform-origin: center center;
+    animation: hma-gear-cw 7s linear infinite;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &__gear-ccw {
+    transform-origin: center center;
+    animation: hma-gear-ccw 4.9s linear infinite;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &__title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #f1f5f9;
+    margin: 0 0 0.625rem;
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color: rgba(148, 163, 184, 0.8);
+    line-height: 1.75;
+    margin: 0;
+  }
+
+  &__message {
+    margin-top: 1.25rem;
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: #93c5fd;
+    font-weight: 500;
+    line-height: 1.65;
+  }
+
+  &__dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 1.75rem;
+  }
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.5);
+    animation: hma-dot-bounce 1.5s ease-in-out infinite;
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      opacity: 0.4;
+    }
+  }
+
+  &__label {
+    margin-top: 1.5rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.22);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System Selection Page
+// ─────────────────────────────────────────────────────────────────────────────
+
+@keyframes hma-sysselect-bg {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes hma-fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hma-sysselect {
+  &__bg {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0a0f1e 0%, #0f1d3a 40%, #091428 70%, #0a0f1e 100%);
+    background-size: 300% 300%;
+    animation: hma-sysselect-bg 10s ease infinite;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &__grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(37, 99, 235, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37, 99, 235, 0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  &__brand {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2.75rem;
+    animation: hma-fadeup 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &__logo {
+    height: 50px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    margin-bottom: 0.875rem;
+    opacity: 0.92;
+  }
+
+  &__title {
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #f1f5f9;
+    margin-bottom: 0.3rem;
+  }
+
+  &__subtitle {
+    font-size: 0.9375rem;
+    color: rgba(148, 163, 184, 0.65);
+    margin: 0;
+  }
+
+  &__cards {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  &__card {
+    background: rgba(12, 20, 44, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    padding: 2.25rem 2rem;
+    width: 280px;
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.22s ease,
+      transform 0.22s ease;
+    animation: hma-fadeup 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+    @media (max-width: 576px) {
+      width: 100%;
+      max-width: 340px;
+    }
+
+    &:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+
+    &--ems:hover,
+    &--ems:focus-visible {
+      border-color: rgba(37, 99, 235, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(37, 99, 235, 0.2),
+        0 20px 48px rgba(37, 99, 235, 0.18);
+      transform: translateY(-3px);
+    }
+    &--pms:hover,
+    &--pms:focus-visible {
+      border-color: rgba(16, 185, 129, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(16, 185, 129, 0.2),
+        0 20px 48px rgba(16, 185, 129, 0.18);
+      transform: translateY(-3px);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--cui-primary);
+      outline-offset: 3px;
+    }
+  }
+
+  &__icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+  }
+
+  &__card-title {
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: #f1f5f9;
+    margin-bottom: 0.5rem;
+  }
+
+  &__card-desc {
+    font-size: 0.8125rem;
+    color: rgba(148, 163, 184, 0.7);
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+
+  &__user {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2.5rem;
+    font-size: 0.8125rem;
+    color: rgba(148, 163, 184, 0.45);
+  }
+
+  &__footer {
+    position: relative;
+    z-index: 2;
+    margin-top: 1rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.2);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Login Page card polish
+// ─────────────────────────────────────────────────────────────────────────────
+.hma-login-card {
+  border-radius: 18px !important;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+}
+
+.hma-login-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  margin: 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interface micro-polish
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Header: sharper brand feel
+.header.header-sticky {
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+// Form inputs: slightly taller touch target
+.form-control,
+.form-select {
+  min-height: 2.375rem;
+}
+
+// Input group toggle buttons
+.input-group-text[role='button'],
+button.input-group-text {
+  cursor: pointer;
+  transition: background-color 0.15s;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
   }
 }

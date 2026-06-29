@@ -17,11 +17,12 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilLockLocked, cilUser } from '@coreui/icons'
+import { cilLockLocked, cilLowVision, cilUser } from '@coreui/icons'
 
 import { loginWithGoogle } from '../../../services/auth'
 import api from '../../../services/api'
 import Lightfall from './Lightfall'
+import hmaLogo from '../../../assets/brand/hma-logo.png'
 
 const Login = () => {
   const dispatch = useDispatch()
@@ -30,6 +31,7 @@ const Login = () => {
 
   const [employeeId, setEmployeeId] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loadingPass, setLoadingPass] = useState(false)
   const [loadingGoogle, setLoadingGoogle] = useState(false)
   const [error, setError] = useState('')
@@ -84,8 +86,8 @@ const Login = () => {
 
   const handleDevLogin = (key, user, redirect) => {
     const devToken = `dev-token-${key}`
-    localStorage.setItem('hma_token', devToken)
-    localStorage.setItem('hma_dev_user', JSON.stringify(user))
+    // Dev sessions are in-memory only — don't persist to localStorage
+    // so the app always starts at login on page reload
     dispatch({ type: 'set', user, token: devToken })
     navigate(redirect || '/select-system')
   }
@@ -93,8 +95,10 @@ const Login = () => {
   const isLoading = loadingPass || loadingGoogle
 
   return (
-    <div data-coreui-theme="light" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
-
+    <div
+      data-coreui-theme="light"
+      style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}
+    >
       {/* ── Lightfall background ── */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
         <Lightfall
@@ -117,131 +121,207 @@ const Login = () => {
       </div>
 
       {/* ── Login card ── */}
-      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={5} lg={4}>
-            <CCard className="p-4" style={{ backdropFilter: 'blur(12px)', background: 'rgba(255,255,255,0.92)' }}>
-              <CCardBody>
-                <h2 className="fw-bold mb-0">HMA IEMS</h2>
-                <p className="text-body-secondary mb-4">Internal Enterprise Management System</p>
-
-                {error && (
-                  <CAlert color="danger" dismissible onClose={() => setError('')} className="mb-3">
-                    {error}
-                  </CAlert>
-                )}
-
-                {/* ── Employee ID + Password ── */}
-                <CForm onSubmit={handlePasswordLogin}>
-                  <CInputGroup className="mb-3">
-                    <CInputGroupText>
-                      <CIcon icon={cilUser} />
-                    </CInputGroupText>
-                    <CFormInput
-                      placeholder="Employee ID"
-                      autoComplete="username"
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
-                  </CInputGroup>
-
-                  <CInputGroup className="mb-3">
-                    <CInputGroupText>
-                      <CIcon icon={cilLockLocked} />
-                    </CInputGroupText>
-                    <CFormInput
-                      type="password"
-                      placeholder="Password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
-                  </CInputGroup>
-
-                  <div className="d-grid mb-3">
-                    <CButton color="primary" type="submit" disabled={isLoading}>
-                      {loadingPass && <CSpinner size="sm" className="me-2" />}
-                      Login
-                    </CButton>
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <CContainer>
+          <CRow className="justify-content-center">
+            <CCol md={5} lg={4}>
+              <CCard
+                className="hma-login-card p-4"
+                style={{ backdropFilter: 'blur(16px)', background: 'rgba(255,255,255,0.94)' }}
+              >
+                <CCardBody>
+                  <div className="d-flex align-items-center gap-2 mb-1">
+                    <img src={hmaLogo} alt="HMA" style={{ height: 28, objectFit: 'contain' }} />
+                    <h2 className="fw-bold mb-0" style={{ fontSize: '1.375rem' }}>
+                      HMA IEMS
+                    </h2>
                   </div>
-                </CForm>
+                  <p className="text-body-secondary mb-4" style={{ fontSize: '0.8125rem' }}>
+                    Internal Enterprise Management System
+                  </p>
 
-                {/* ── Divider ── */}
-                <div className="d-flex align-items-center gap-2 mb-3">
-                  <hr className="flex-grow-1 my-0" />
-                  <span className="text-body-secondary small">or</span>
-                  <hr className="flex-grow-1 my-0" />
-                </div>
+                  {error && (
+                    <CAlert
+                      color="danger"
+                      dismissible
+                      onClose={() => setError('')}
+                      className="mb-3"
+                    >
+                      {error}
+                    </CAlert>
+                  )}
 
-                {/* ── Google Sign-In ── */}
-                {loadingGoogle ? (
-                  <div className="d-flex align-items-center justify-content-center gap-2 py-1">
-                    <CSpinner size="sm" />
-                    <span className="text-body-secondary small">Signing in with Google…</span>
-                  </div>
-                ) : (
-                  <div className="d-flex justify-content-center">
-                    <GoogleLogin
-                      onSuccess={handleGoogleSuccess}
-                      onError={handleGoogleError}
-                      useOneTap={false}
-                      theme="outline"
-                      size="large"
-                      text="signin_with"
-                      disabled={isLoading}
-                    />
-                  </div>
-                )}
+                  {/* ── Employee ID + Password ── */}
+                  <CForm onSubmit={handlePasswordLogin}>
+                    <CInputGroup className="mb-3">
+                      <CInputGroupText>
+                        <CIcon icon={cilUser} />
+                      </CInputGroupText>
+                      <CFormInput
+                        placeholder="Employee ID"
+                        autoComplete="username"
+                        value={employeeId}
+                        onChange={(e) => setEmployeeId(e.target.value)}
+                        disabled={isLoading}
+                        required
+                      />
+                    </CInputGroup>
 
-                {/* ── Dev shortcuts ── */}
-                {import.meta.env.DEV && (
-                  <>
-                    <hr className="mt-4" />
-                    <p className="text-body-secondary small mb-2">Dev quick-login</p>
-                    <div className="d-grid gap-2">
-                      {[
-                        { label: 'Admin',               role: 'Admin',               id: 'DEV000',     name: 'Dev Admin' },
-                        { label: 'CEO',                 role: 'CEO',                 id: 'DEV001',     name: 'Dev CEO' },
-                        { label: 'Heads',               role: 'Heads',               id: 'DEV002',     name: 'Dev Head' },
-                        { label: 'HR',                  role: 'HR',                  id: 'DEV003',     name: 'Dev HR' },
-                        { label: 'Finance',             role: 'Finance',             id: 'DEV004',     name: 'Dev Finance' },
-                        { label: 'Project Coordinator', role: 'Project Coordinator', id: 'DEV008',     name: 'Dev Project Coordinator', redirect: '/pms/pa/dashboard' },
-                        { label: 'Project Associate',   role: 'Project Associate',   id: 'DEV_PA_001', name: 'Dev Project Associate', redirect: '/pms/pa/dashboard' },
-                        { label: 'Project Officer',     role: 'Project Officer',     id: 'DEV005',     name: 'Dev Project Officer' },
-                        { label: 'Field Personnel',     role: 'Field Personnel',     id: 'DEV006',     name: 'Dev Field Personnel' },
-                        { label: 'Backend Team',        role: 'Backend Team',        id: 'DEV007',     name: 'Dev Backend Team',        redirect: '/pms/settlements' },
-                        { label: 'Employee',            role: 'Employee',            id: 'DEV009',     name: 'Titu S Jayan', employeeId: 'THLL2408' },
-                      ].map(({ label, id, role, name, redirect, employeeId }) => (
-                        <CButton
-                          key={id}
-                          color="secondary"
-                          variant="outline"
-                          size="sm"
-                          type="button"
-                          onClick={() =>
-                            handleDevLogin(
-                              id,
-                              { employee_id: employeeId || id, full_name: name, role, google_email: `${id.toLowerCase()}@hma.dev` },
-                              redirect,
-                            )
-                          }
-                        >
-                          {label}
-                        </CButton>
-                      ))}
+                    <CInputGroup className="mb-3">
+                      <CInputGroupText>
+                        <CIcon icon={cilLockLocked} />
+                      </CInputGroupText>
+                      <CFormInput
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isLoading}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="input-group-text"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPassword((v) => !v)}
+                        disabled={isLoading}
+                        style={{
+                          cursor: 'pointer',
+                          opacity: showPassword ? 1 : 0.55,
+                          transition: 'opacity 0.15s',
+                        }}
+                      >
+                        <CIcon icon={cilLowVision} />
+                      </button>
+                    </CInputGroup>
+
+                    <div className="d-grid mb-3">
+                      <CButton color="primary" type="submit" disabled={isLoading}>
+                        {loadingPass && <CSpinner size="sm" className="me-2" />}
+                        Login
+                      </CButton>
                     </div>
-                  </>
-                )}
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CContainer>
+                  </CForm>
+
+                  {/* ── Divider ── */}
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <hr className="flex-grow-1 my-0" />
+                    <span className="text-body-secondary small">or</span>
+                    <hr className="flex-grow-1 my-0" />
+                  </div>
+
+                  {/* ── Google Sign-In ── */}
+                  {loadingGoogle ? (
+                    <div className="d-flex align-items-center justify-content-center gap-2 py-1">
+                      <CSpinner size="sm" />
+                      <span className="text-body-secondary small">Signing in with Google…</span>
+                    </div>
+                  ) : (
+                    <div className="d-flex justify-content-center">
+                      <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={handleGoogleError}
+                        useOneTap={false}
+                        theme="outline"
+                        size="large"
+                        text="signin_with"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  )}
+
+                  {/* ── Dev shortcuts ── */}
+                  {import.meta.env.DEV && (
+                    <>
+                      <hr className="mt-4" />
+                      <p className="text-body-secondary small mb-2">Dev quick-login</p>
+                      <div className="d-grid gap-2">
+                        {[
+                          { label: 'Admin', role: 'Admin', id: 'DEV000', name: 'Dev Admin' },
+                          { label: 'CEO', role: 'CEO', id: 'DEV001', name: 'Dev CEO' },
+                          { label: 'Heads', role: 'Heads', id: 'DEV002', name: 'Dev Head' },
+                          { label: 'HR', role: 'HR', id: 'DEV003', name: 'Dev HR' },
+                          { label: 'Finance', role: 'Finance', id: 'DEV004', name: 'Dev Finance' },
+                          {
+                            label: 'Project Coordinator',
+                            role: 'Project Coordinator',
+                            id: 'DEV008',
+                            name: 'Dev Project Coordinator',
+                            redirect: '/pms/pa/dashboard',
+                          },
+                          {
+                            label: 'Project Associate',
+                            role: 'Project Associate',
+                            id: 'DEV_PA_001',
+                            name: 'Dev Project Associate',
+                            redirect: '/pms/pa/dashboard',
+                          },
+                          {
+                            label: 'Project Officer',
+                            role: 'Project Officer',
+                            id: 'DEV005',
+                            name: 'Dev Project Officer',
+                          },
+                          {
+                            label: 'Field Personnel',
+                            role: 'Field Personnel',
+                            id: 'DEV006',
+                            name: 'Dev Field Personnel',
+                          },
+                          {
+                            label: 'Backend Team',
+                            role: 'Backend Team',
+                            id: 'DEV007',
+                            name: 'Dev Backend Team',
+                            redirect: '/pms/settlements',
+                          },
+                          {
+                            label: 'Employee',
+                            role: 'Employee',
+                            id: 'DEV009',
+                            name: 'Titu S Jayan',
+                            employeeId: 'THLL2408',
+                          },
+                        ].map(({ label, id, role, name, redirect, employeeId }) => (
+                          <CButton
+                            key={id}
+                            color="secondary"
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={() =>
+                              handleDevLogin(
+                                id,
+                                {
+                                  employee_id: employeeId || id,
+                                  full_name: name,
+                                  role,
+                                  google_email: `${id.toLowerCase()}@hma.dev`,
+                                },
+                                redirect,
+                              )
+                            }
+                          >
+                            {label}
+                          </CButton>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CCardBody>
+              </CCard>
+            </CCol>
+          </CRow>
+        </CContainer>
       </div>
     </div>
   )
