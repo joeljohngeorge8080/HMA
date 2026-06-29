@@ -3,9 +3,9 @@ import { ROLES, ROLE } from '../constants/roles'
 const STORAGE_KEY = 'hma_registered_users'
 
 // These users are always present regardless of what's in localStorage.
-// To grant a developer admin access: replace the google_email with their
-// real Gmail address, then redeploy. The id must stay fixed so duplicates
-// are not created on subsequent loads.
+// The id must stay fixed so duplicates are not created on subsequent loads.
+// PASSWORD_LOGINS are checked before the backend — Employee ID + password
+// login works without a backend account for these entries.
 const SEEDED_USERS = [
   {
     id: 'USR000',
@@ -56,6 +56,31 @@ const SEEDED_USERS = [
     added_at: '2026-01-01T00:00:00.000Z',
   },
 ]
+
+// Local password accounts — checked before the backend on Employee ID login.
+// These bypass the backend entirely (all app data is localStorage-based).
+const PASSWORD_LOGINS = [
+  { employee_id: 'ADMIN001', password: 'HmaAdmin@1', user_id: 'DEV_ADMIN_001' },
+  { employee_id: 'ADMIN002', password: 'HmaAdmin@2', user_id: 'DEV_ADMIN_002' },
+  { employee_id: 'ADMIN003', password: 'HmaAdmin@3', user_id: 'DEV_ADMIN_003' },
+  { employee_id: 'ADMIN004', password: 'HmaAdmin@4', user_id: 'DEV_ADMIN_004' },
+  { employee_id: 'ADMIN005', password: 'HmaAdmin@5', user_id: 'DEV_ADMIN_005' },
+]
+
+export const verifyPasswordLogin = (employeeId, password) => {
+  const entry = PASSWORD_LOGINS.find(
+    (p) => p.employee_id === employeeId && p.password === password,
+  )
+  if (!entry) return null
+  const seeded = SEEDED_USERS.find((u) => u.id === entry.user_id)
+  if (!seeded) return null
+  return {
+    employee_id: entry.employee_id,
+    full_name: seeded.full_name,
+    role: seeded.role,
+    google_email: seeded.google_email,
+  }
+}
 
 const load = () => {
   try {

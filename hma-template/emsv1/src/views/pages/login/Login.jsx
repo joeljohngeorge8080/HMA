@@ -20,6 +20,7 @@ import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilLowVision, cilUser } from '@coreui/icons'
 
 import { loginWithGoogle } from '../../../services/auth'
+import { verifyPasswordLogin } from '../../../services/localUsers'
 import api from '../../../services/api'
 import Lightfall from './Lightfall'
 import hmaLogo from '../../../assets/brand/hma-logo.png'
@@ -51,6 +52,16 @@ const Login = () => {
     setError('')
     setLoadingPass(true)
     try {
+      // Check local seeded accounts first — works without a backend account
+      const localUser = verifyPasswordLogin(employeeId, password)
+      if (localUser) {
+        const token = `local-${Date.now()}`
+        localStorage.setItem('hma_token', token)
+        localStorage.setItem('hma_local_user', JSON.stringify(localUser))
+        dispatch({ type: 'set', user: localUser, token })
+        navigate(from, { replace: true })
+        return
+      }
       const { data } = await api.post('/auth/login', { employee_id: employeeId, password })
       storeSession(data)
     } catch (err) {
