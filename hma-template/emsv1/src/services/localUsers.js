@@ -2,23 +2,71 @@ import { ROLES, ROLE } from '../constants/roles'
 
 const STORAGE_KEY = 'hma_registered_users'
 
-const defaultUsers = [
+// These users are always present regardless of what's in localStorage.
+// To grant a developer admin access: replace the google_email with their
+// real Gmail address, then redeploy. The id must stay fixed so duplicates
+// are not created on subsequent loads.
+const SEEDED_USERS = [
   {
     id: 'USR000',
     full_name: 'HMA Admin',
     google_email: 'hllmangementacademyems@gmail.com',
     role: ROLE.ADMIN,
     added_by: 'system',
-    added_at: new Date().toISOString(),
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_001',
+    full_name: 'Developer Admin 1',
+    google_email: 'dev.admin1@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_002',
+    full_name: 'Developer Admin 2',
+    google_email: 'dev.admin2@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_003',
+    full_name: 'Developer Admin 3',
+    google_email: 'dev.admin3@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_004',
+    full_name: 'Developer Admin 4',
+    google_email: 'dev.admin4@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_005',
+    full_name: 'Developer Admin 5',
+    google_email: 'dev.admin5@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
   },
 ]
 
 const load = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : defaultUsers
+    const stored = raw ? JSON.parse(raw) : []
+    // Always merge seeded users so they survive localStorage clears and fresh deploys
+    const storedIds = new Set(stored.map((u) => u.id))
+    const missing = SEEDED_USERS.filter((u) => !storedIds.has(u.id))
+    return [...missing, ...stored]
   } catch {
-    return defaultUsers
+    return SEEDED_USERS
   }
 }
 
