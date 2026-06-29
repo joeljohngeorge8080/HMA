@@ -128,4 +128,28 @@ export const localAdminExpenses = {
     if (!rows.find((r) => r.id === id)) throw new Error('Expense not found')
     write(rows.filter((r) => r.id !== id))
   },
+
+  /**
+   * Returns active HR admin expenses converted to the PMS ExpenseCard format.
+   * Amount shown is the monthly equivalent (annual / 12).
+   * These entries are tagged with source: 'hr_admin' so PMS can render them
+   * as read-only org-level entries.
+   */
+  asProjectExpenses() {
+    _ensureSeeded()
+    return read()
+      .filter((r) => r.status === 'Active')
+      .map((r) => ({
+        id: r.id,
+        label: `${r.expense_category} — ${r.vendor_name}`,
+        amount: Math.round(parseFloat(r.annual_amount || 0) / 12),
+        date: r.updated_at || r.created_at || '',
+        notes: `${r.frequency} · HR Admin`,
+        source: 'hr_admin',
+        vendor_name: r.vendor_name,
+        expense_category: r.expense_category,
+        frequency: r.frequency,
+        annual_amount: r.annual_amount,
+      }))
+  },
 }

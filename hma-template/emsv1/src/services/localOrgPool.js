@@ -19,6 +19,8 @@
  *    The `budgetNotForeseen` flag is set to true so the UI can show a warning.
  */
 
+import { localNotifications } from './localNotifications'
+
 const PROJECTS_KEY = 'hma_projects_v9'
 const ORG_POOL_KEY = 'hma_org_pool_v1'
 
@@ -309,6 +311,28 @@ export const localOrgPool = {
     return readPool().hr_expenses || []
   },
 
+  checkHRBudgetThresholds() {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    budgets.forEach(b => {
+      const summary = this.getProjectHRBudgetSummary(b.projectId)
+      if (summary.isActive && summary.poolBudget > 0) {
+        const remainingPct = summary.remaining / summary.poolBudget
+        if (remainingPct <= 0.10) {
+          const existing = localNotifications.getNotifications('HR')
+            .find(n => n.relatedProjectId === b.projectId && !n.read && n.message.includes('nearing exhaustion'))
+          if (!existing) {
+            localNotifications.addNotification({
+              message: `HR Budget for project "${b.projectName}" is nearing exhaustion (${Math.round(remainingPct * 100)}% remaining).`,
+              roleTarget: 'HR',
+              relatedProjectId: b.projectId,
+              type: 'danger'
+            })
+          }
+        }
+      }
+    })
+  },
+
   addHRExpense(expense, enteredByProjectId) {
     const pool        = readPool()
     const allocations = this.computeAllocations('hr', parseFloat(expense.amount) || 0)
@@ -327,6 +351,7 @@ export const localOrgPool = {
     }
     pool.hr_expenses = [...(pool.hr_expenses || []), newExp]
     writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
     return newExp
   },
 
@@ -347,25 +372,30 @@ export const localOrgPool = {
       return updated
     })
     writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
   },
 
   /**
-   * Returns all HR expense records in which this project has an allocated charge,
-   * enriched with myAmount, mySharePct, isFromThisProject.
+   * Returns all HR expense records allocated to this project,
+   * with myAmount recomputed dynamically from current active project weights.
+   * This ensures newly added HR expenses always reflect in PMS regardless of
+   * when the expense was created or what project_allocations was stored.
    */
   getProjectHRCharges(projectId) {
-    return (readPool().hr_expenses || [])
-      .map((exp) => {
-        const alloc = (exp.project_allocations || []).find((a) => a.projectId === projectId)
-        if (!alloc) return null
-        return {
-          ...exp,
-          myAmount:          alloc.amountCharged,
-          mySharePct:        alloc.sharePct,
-          isFromThisProject: exp.entered_by_project_id === projectId,
-        }
-      })
-      .filter(Boolean)
+    // Recompute current share weights for all active projects
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const mine = budgets.find((b) => b.projectId === projectId)
+    if (!mine) return []   // project not active → no charges
+
+    const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    const mySharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
+
+    return (readPool().hr_expenses || []).map((exp) => ({
+      ...exp,
+      myAmount:          Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
+      mySharePct:        Math.round(mySharePct * 100) / 100,
+      isFromThisProject: exp.entered_by_project_id === projectId,
+    }))
   },
 
   /**
@@ -409,6 +439,56 @@ export const localOrgPool = {
   /** Returns all HR expenses in the org pool. */
   getAllHRExpenses() {
     return readPool().hr_expenses || []
+  },
+
+  getProjectCoreCharges(projectId) {
+    return (readPool().core_expenses || [])
+      .map((exp) => {
+        const alloc = (exp.project_allocations || []).find((a) => a.projectId === projectId)
+        if (!alloc) return null
+        return {
+          ...exp,
+          myAmount:          alloc.amountCharged,
+          mySharePct:        alloc.sharePct,
+          isFromThisProject: exp.entered_by_project_id === projectId,
+        }
+      })
+      .filter(Boolean)
+  },
+
+  getProjectCoreBudgetSummary(projectId) {
+    const budgets = this.getActiveProjectMonthlyBudgets('core')
+    const mine    = budgets.find((b) => b.projectId === projectId)
+
+    const charges      = this.getProjectCoreCharges(projectId)
+    const totalCharged = charges.reduce((s, c) => s + (c.myAmount || 0), 0)
+
+    if (!mine) {
+      return {
+        isActive:           false,
+        monthlyBudget:      0,
+        poolBudget:         0,
+        sharePct:           0,
+        totalMonthlyPool:   0,
+        totalCharged:       Math.round(totalCharged * 100) / 100,
+        remaining:          0,
+        activeProjectCount: budgets.length,
+        budgetNotForeseen:  false,
+      }
+    }
+
+    return {
+      isActive:            true,
+      monthlyBudget:       mine.monthlyBudget,
+      poolBudget:          mine.poolBudget,
+      sharePct:            mine.sharePct,
+      totalMonthlyPool:    mine.totalMonthlyPool,
+      totalCharged:        Math.round(totalCharged * 100) / 100,
+      remaining:           Math.round((mine.poolBudget - totalCharged) * 100) / 100,
+      activeProjectCount:  budgets.length,
+      budgetNotForeseen:   mine.budgetNotForeseen,
+      totalProjectMonths:  mine.totalProjectMonths,
+    }
   },
 
   // ── Core Expense CRUD ──────────────────────────────────────────────────────
@@ -455,22 +535,23 @@ export const localOrgPool = {
   },
 
   /**
-   * Returns all Core expense records in which this project has an allocated charge,
-   * enriched with myAmount, mySharePct, isFromThisProject.
+   * Returns all Core expense records allocated to this project,
+   * with myAmount recomputed dynamically from current active project weights.
    */
   getProjectCoreCharges(projectId) {
-    return (readPool().core_expenses || [])
-      .map((exp) => {
-        const alloc = (exp.project_allocations || []).find((a) => a.projectId === projectId)
-        if (!alloc) return null
-        return {
-          ...exp,
-          myAmount:          alloc.amountCharged,
-          mySharePct:        alloc.sharePct,
-          isFromThisProject: exp.entered_by_project_id === projectId,
-        }
-      })
-      .filter(Boolean)
+    const budgets = this.getActiveProjectMonthlyBudgets('core')
+    const mine = budgets.find((b) => b.projectId === projectId)
+    if (!mine) return []
+
+    const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    const mySharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
+
+    return (readPool().core_expenses || []).map((exp) => ({
+      ...exp,
+      myAmount:          Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
+      mySharePct:        Math.round(mySharePct * 100) / 100,
+      isFromThisProject: exp.entered_by_project_id === projectId,
+    }))
   },
 
   /**
