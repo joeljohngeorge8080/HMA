@@ -1,10 +1,7 @@
 [build]
   base    = "hma-template/emsv1"
-  command = "npm run build"
+  command = ""
   publish = "build"
-
-[build.environment]
-  VITE_DEV_LOGIN = "false"
 
 [[redirects]]
   from   = "/*"
