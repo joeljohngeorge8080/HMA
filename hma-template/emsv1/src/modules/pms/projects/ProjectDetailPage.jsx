@@ -134,7 +134,7 @@ const ProjectDetailPage = () => {
       setProject(updated)
       setToast({
         color: 'success',
-        message: `📧 Recruitment invitation sent to ${inviteForm.email}!`,
+        message: `Recruitment invitation sent to ${inviteForm.email}`,
       })
       setInviteForm({ name: '', email: '' })
     } catch (err) {
@@ -158,7 +158,7 @@ const ProjectDetailPage = () => {
     setTaskModalLoading(true)
     try {
       localTasks.create({ ...formData, project_id: id, project_name: project?.title })
-      setToast({ color: 'success', message: '✅ Task created for the project team!' })
+      setToast({ color: 'success', message: 'Task created for the project team' })
       setTaskModalVisible(false)
       reload()
     } catch (err) {
@@ -201,10 +201,10 @@ const ProjectDetailPage = () => {
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <h4 className="mb-0 fw-bold">{project.title}</h4>
             <CBadge color={phase.color} shape="rounded-pill" className="text-uppercase px-3 py-1">{phase.label}</CBadge>
-            {isOverdue && <CBadge color="danger" shape="rounded-pill">⚠ Overdue</CBadge>}
+            {isOverdue && <CBadge color="danger" shape="rounded-pill">Overdue</CBadge>}
           </div>
           <div className="small text-body-secondary mt-1">
-            📍 {project.location} · Created {formatDateTime(project.created_at)}
+            <CIcon icon={cilLocationPin} size="sm" className="me-1" />{project.location} · Created {formatDateTime(project.created_at)}
           </div>
         </div>
         <CButton color="primary" variant="outline" size="sm" onClick={() => navigate(`/pms/projects/${id}/edit`)}>

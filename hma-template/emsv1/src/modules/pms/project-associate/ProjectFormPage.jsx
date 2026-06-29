@@ -35,6 +35,7 @@ import {
   cilEnvelopeLetter,
   cilInfo,
   cilArrowLeft,
+  cilPhone,
 } from '@coreui/icons'
 import { localProjects, localOfficers } from '../../../services/localProjects'
 
@@ -176,19 +177,19 @@ const ProjectFormPage = () => {
         if (form.officer_id && form.officer_id !== localProjects.getById(id)?.officer_id) {
           localProjects.assignOfficer(id, form.officer_id)
         }
-        setToast({ color: 'success', message: '✅ Project updated successfully!' })
+        setToast({ color: 'success', message: 'Project updated successfully' })
       } else {
         savedProject = localProjects.create(data)
         // Assign officer if selected
         if (form.officer_id) {
           localProjects.assignOfficer(savedProject.id, form.officer_id)
         }
-        setToast({ color: 'success', message: '✅ Project created successfully!' })
+        setToast({ color: 'success', message: 'Project created successfully' })
       }
 
       setTimeout(() => navigate(`/pms/projects/${savedProject.id}`), 1200)
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ Error: ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setSaving(false)
   }
@@ -604,11 +605,13 @@ const ProjectFormPage = () => {
                       </div>
                     </div>
                     <div className="small">
-                      <div className="text-body-secondary mb-1">
-                        📧 {selectedOfficer.email}
+                      <div className="text-body-secondary mb-1 d-flex align-items-center gap-1">
+                        <CIcon icon={cilEnvelopeLetter} size="sm" />
+                        {selectedOfficer.email}
                       </div>
-                      <div className="text-body-secondary">
-                        📱 {selectedOfficer.phone}
+                      <div className="text-body-secondary d-flex align-items-center gap-1">
+                        <CIcon icon={cilPhone} size="sm" />
+                        {selectedOfficer.phone}
                       </div>
                     </div>
                     <div className="mt-2">

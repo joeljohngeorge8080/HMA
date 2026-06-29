@@ -191,11 +191,11 @@ const ProjectOfficersPage = () => {
     setAddSaving(true)
     try {
       localOfficers.create(addForm)
-      setToast({ color: 'success', message: '✅ Officer added. Invite email sent via AWS SES.' })
+      setToast({ color: 'success', message: 'Officer added — invite email sent' })
       setAddVisible(false)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setAddSaving(false)
   }
@@ -219,12 +219,12 @@ const ProjectOfficersPage = () => {
     setEditSaving(true)
     try {
       localOfficers.update(editTarget.id, editForm)
-      setToast({ color: 'success', message: '✅ Officer details updated.' })
+      setToast({ color: 'success', message: 'Officer details updated' })
       setEditVisible(false)
       setEditTarget(null)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setEditSaving(false)
   }

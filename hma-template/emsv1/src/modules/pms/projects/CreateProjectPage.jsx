@@ -182,7 +182,7 @@ const CreateProjectPage = () => {
                   <CFormSelect value={form.phase} onChange={(e) => setField('phase', e.target.value)}>
                     <option value="pipeline">🔵 Pipeline</option>
                     <option value="approved">🟦 Approved</option>
-                    <option value="ongoing">🟢 Ongoing</option>
+                    <option value="ongoing">Ongoing</option>
                     <option value="completed">Completed</option>
                   </CFormSelect>
                 </div>
@@ -547,7 +547,7 @@ const CreateProjectPage = () => {
                     {/* % validation */}
                     {pctTotal > 0 && (
                       <div className={`small fw-semibold mt-2 ${pctValid ? 'text-success' : 'text-danger'}`}>
-                        {pctValid ? '✓ Percentages balance to 100%' : `⚠ Total ${pctTotal.toFixed(1)}% — must be 100%`}
+                        {pctValid ? 'Percentages balance to 100%' : `Total ${pctTotal.toFixed(1)}% — must equal 100%`}
                       </div>
                     )}
                   </div>

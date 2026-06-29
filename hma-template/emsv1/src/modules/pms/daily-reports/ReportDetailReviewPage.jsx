@@ -157,7 +157,7 @@ const ReportDetailReviewPage = () => {
     try {
       const updated = localReports.decline(id, 'project_officer', reason)
       setReport(updated)
-      setToast({ color: 'warning', message: '⚠️ Report declined' })
+      setToast({ color: 'warning', message: 'Report declined' })
       setDeclineModalVisible(false)
       setTimeout(() => navigate('/pms/daily-reports/review'), 1500)
     } catch (err) {
@@ -333,7 +333,7 @@ const ReportDetailReviewPage = () => {
 
           {/* Geo-tagged Photos */}
           <AttachmentSection
-            title="📍 Geo-tagged Photos"
+            title="Geo-tagged Photos"
             icon={cilImage}
             items={report.geo_photos}
           />

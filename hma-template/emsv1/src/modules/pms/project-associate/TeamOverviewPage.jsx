@@ -338,8 +338,9 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                           </span>
                         )}
                         {fp.lastReportDate ? (
-                          <span className={`text-body-secondary`} style={{ fontSize: '0.68rem' }}>
-                            {hasRecentReport ? '🟢' : '🟡'} {relativeDate(fp.lastReportDate)}
+                          <span className="text-body-secondary d-flex align-items-center gap-1" style={{ fontSize: '0.68rem' }}>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: hasRecentReport ? 'var(--cui-success)' : 'var(--cui-warning)', flexShrink: 0 }} />
+                            {relativeDate(fp.lastReportDate)}
                           </span>
                         ) : (
                           <span className="text-danger" style={{ fontSize: '0.68rem' }}>

@@ -352,13 +352,13 @@ const ProjectDetailPage = () => {
   const handleApprove = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'approved' } : a)))
     setApproveModal({ visible: false, item: null })
-    setToast({ color: 'success', message: '✅ Approval granted successfully' })
+    setToast({ color: 'success', message: 'Approval granted successfully' })
   }
 
   const handleReject = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'rejected' } : a)))
     setRejectModal({ visible: false, item: null })
-    setToast({ color: 'danger', message: '⚠️ Request rejected and sent back' })
+    setToast({ color: 'danger', message: 'Request rejected and sent back' })
   }
 
   const handleSubmitUc = (inst) => {
@@ -369,20 +369,20 @@ const ProjectDetailPage = () => {
     })
     setProject(updated)
     setUcModal({ visible: false, milestone: null })
-    setToast({ color: 'success', message: '✅ Utilisation Certificate submitted successfully' })
+    setToast({ color: 'success', message: 'Utilisation Certificate submitted' })
   }
 
   const handleActivateProject = () => {
     const updated = localProjects.activateProject(project.id)
     setProject(updated)
-    setToast({ color: 'success', message: '🟢 Project operations activated! HR & Core pool contributions are now live.' })
+    setToast({ color: 'success', message: 'Project operations activated — HR & Core pool contributions are now live' })
   }
 
   const handleUpdateBeneficiaries = () => {
     const val = parseInt(beneficiariesCompleted, 10) || 0
     const updated = localProjects.update(project.id, { beneficiaries_completed: val })
     setProject(updated)
-    setToast({ color: 'success', message: '✅ Beneficiaries completed count updated!' })
+    setToast({ color: 'success', message: 'Beneficiaries count updated' })
   }
 
   return (
@@ -445,7 +445,7 @@ const ProjectDetailPage = () => {
             </CButton>
           )}
           {project.is_operations_active && (
-            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>🟢 Operations Active</CBadge>
+            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>Operations Active</CBadge>
           )}
         </div>
       </div>
@@ -833,7 +833,7 @@ const ProjectDetailPage = () => {
             <CTabPane visible={activeTab === 3}>
               {approvals.length === 0 ? (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>✅</div>
+                  <div className="mb-2 text-body-secondary"><CIcon icon={cilCheckCircle} style={{ width: 48, height: 48 }} /></div>
                   <h6>No pending approvals</h6>
                   <p className="small">All submissions are reviewed</p>
                 </div>

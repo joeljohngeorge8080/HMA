@@ -22,7 +22,7 @@ import {
   CAlert,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilTask } from '@coreui/icons'
+import { cilTask, cilLocationPin } from '@coreui/icons'
 
 import { localProjects } from '../../../../services/localProjects'
 
@@ -123,7 +123,7 @@ const TaskAssignModal = ({
           {errors.project_id && <CFormFeedback invalid>{errors.project_id}</CFormFeedback>}
           {selectedProject && (
             <div className="text-body-secondary mt-1" style={{ fontSize: '0.75rem' }}>
-              📍 {selectedProject.location} · Team: {selectedProject.field_personnel?.length || 0} member(s)
+              <CIcon icon={cilLocationPin} size="sm" className="me-1" />{selectedProject.location} · Team: {selectedProject.field_personnel?.length || 0} member(s)
             </div>
           )}
         </div>
