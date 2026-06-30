@@ -56,6 +56,7 @@ const ExpenseManagementPage = React.lazy(
 )
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
+const BeneficiaryPage = React.lazy(() => import('../modules/ems/beneficiary/BeneficiaryPage'))
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -127,6 +128,12 @@ export const emsRoutes = [
     name: 'Recruitment',
     element: RecruitmentPage,
     module: MODULE.RECRUITMENT,
+  },
+  {
+    path: '/ems/beneficiary',
+    name: 'Beneficiary Records',
+    element: BeneficiaryPage,
+    module: MODULE.BENEFICIARY,
   },
 
   {
