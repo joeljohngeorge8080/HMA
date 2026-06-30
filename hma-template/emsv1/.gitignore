@@ -8,9 +8,6 @@ yarn.lock
 # testing
 /coverage
 
-# production
-# /build — committed to repo so Netlify serves pre-built output directly
-
 # misc
 .eslintcache
 .DS_Store
