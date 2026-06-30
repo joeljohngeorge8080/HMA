@@ -33,10 +33,10 @@ const ProjectOverheadView = () => {
 
   const [project, setProject] = useState(null)
   const [activeTab, setActiveTab] = useState(0)
-  
+
   const [hrSummary, setHrSummary] = useState(null)
   const [coreSummary, setCoreSummary] = useState(null)
-  
+
   const [hrCharges, setHrCharges] = useState([])
   const [coreCharges, setCoreCharges] = useState([])
 
@@ -52,9 +52,16 @@ const ProjectOverheadView = () => {
   }, [id])
 
   const formatCurrency = (amt) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amt || 0)
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amt || 0)
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
+  const formatDate = (d) =>
+    d
+      ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : ''
 
   if (!project) return <div className="p-5 text-center">Loading...</div>
 
@@ -80,15 +87,21 @@ const ProjectOverheadView = () => {
         <CCardBody>
           <CRow className="g-3 mb-3 text-center">
             <CCol xs={4}>
-              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>Monthly Pool Budget</div>
+              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                Monthly Pool Budget
+              </div>
               <div className={`fw-bold text-${color}`}>{formatCurrency(summary.monthlyBudget)}</div>
             </CCol>
             <CCol xs={4}>
-              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>Total Pool Budget</div>
+              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                Total Pool Budget
+              </div>
               <div className="fw-bold">{formatCurrency(summary.poolBudget)}</div>
             </CCol>
             <CCol xs={4}>
-              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>Charged Till Date</div>
+              <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                Charged Till Date
+              </div>
               <div className="fw-bold text-danger">{formatCurrency(summary.totalCharged)}</div>
             </CCol>
           </CRow>
@@ -96,9 +109,14 @@ const ProjectOverheadView = () => {
             <span>Utilization</span>
             <span className="fw-medium">{utilPct.toFixed(1)}%</span>
           </div>
-          <CProgress value={utilPct} color={utilPct > 90 ? 'danger' : utilPct > 70 ? 'warning' : 'success'} height={8} />
+          <CProgress
+            value={utilPct}
+            color={utilPct > 90 ? 'danger' : utilPct > 70 ? 'warning' : 'success'}
+            height={8}
+          />
           <div className="mt-3 text-center small text-body-secondary">
-            Pool Share: <strong>{summary.sharePct}%</strong> of {formatCurrency(summary.totalMonthlyPool)} global pool.
+            Pool Share: <strong>{summary.sharePct}%</strong> of{' '}
+            {formatCurrency(summary.totalMonthlyPool)} global pool.
           </div>
         </CCardBody>
       </CCard>
@@ -107,7 +125,11 @@ const ProjectOverheadView = () => {
 
   const renderChargesTable = (charges, poolName) => {
     if (charges.length === 0) {
-      return <div className="text-center py-4 text-body-tertiary small border rounded bg-light">No {poolName} charges assigned to this project yet.</div>
+      return (
+        <div className="text-center py-4 text-body-tertiary small border rounded bg-light">
+          No {poolName} charges assigned to this project yet.
+        </div>
+      )
     }
 
     return (
@@ -128,8 +150,12 @@ const ProjectOverheadView = () => {
                 <div className="fw-medium">{c.label}</div>
                 {c.notes && <div className="text-body-tertiary small mt-1">{c.notes}</div>}
               </CTableDataCell>
-              <CTableDataCell className="text-body-secondary">{formatCurrency(c.amount)}</CTableDataCell>
-              <CTableDataCell className="fw-semibold text-danger">{formatCurrency(c.myAmount)}</CTableDataCell>
+              <CTableDataCell className="text-body-secondary">
+                {formatCurrency(c.amount)}
+              </CTableDataCell>
+              <CTableDataCell className="fw-semibold text-danger">
+                {formatCurrency(c.myAmount)}
+              </CTableDataCell>
             </CTableRow>
           ))}
         </CTableBody>
@@ -140,12 +166,18 @@ const ProjectOverheadView = () => {
   return (
     <CContainer lg className="py-4">
       <div className="d-flex align-items-center gap-3 mb-4">
-        <CButton color="secondary" variant="ghost" onClick={() => navigate('/ems/projects/overheads')}>
+        <CButton
+          color="secondary"
+          variant="ghost"
+          onClick={() => navigate('/ems/projects/overheads')}
+        >
           <CIcon icon={cilArrowLeft} />
         </CButton>
         <div>
           <h4 className="fw-bold mb-0">Project Overheads: {project.title || project.name}</h4>
-          <div className="text-body-secondary small mt-1">{project.project_code} • {project.status}</div>
+          <div className="text-body-secondary small mt-1">
+            {project.project_code} • {project.status}
+          </div>
         </div>
       </div>
 
@@ -176,12 +208,8 @@ const ProjectOverheadView = () => {
             </CNavItem>
           </CNav>
           <CTabContent>
-            <CTabPane visible={activeTab === 0}>
-              {renderChargesTable(hrCharges, 'HR')}
-            </CTabPane>
-            <CTabPane visible={activeTab === 1}>
-              {renderChargesTable(coreCharges, 'Core')}
-            </CTabPane>
+            <CTabPane visible={activeTab === 0}>{renderChargesTable(hrCharges, 'HR')}</CTabPane>
+            <CTabPane visible={activeTab === 1}>{renderChargesTable(coreCharges, 'Core')}</CTabPane>
           </CTabContent>
         </CCardBody>
       </CCard>

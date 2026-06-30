@@ -64,7 +64,11 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">
-            {error && <CAlert color="danger" className="py-2 mb-3">{error}</CAlert>}
+            {error && (
+              <CAlert color="danger" className="py-2 mb-3">
+                {error}
+              </CAlert>
+            )}
             <CRow className="g-3">
               <CCol md={6}>
                 <CFormLabel className="fw-semibold">
@@ -90,8 +94,15 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
 
               <CCol md={4}>
                 <CFormLabel className="fw-semibold">Frequency</CFormLabel>
-                <CFormSelect value={form.frequency} onChange={(e) => set('frequency', e.target.value)}>
-                  {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                <CFormSelect
+                  value={form.frequency}
+                  onChange={(e) => set('frequency', e.target.value)}
+                >
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -120,7 +131,11 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
               <CCol md={4}>
                 <CFormLabel className="fw-semibold">Status</CFormLabel>
                 <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -136,11 +151,18 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             </CRow>
           </div>
           <div className="modal-footer">
-            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </CButton>
             <CButton
               color="primary"
               onClick={onSave}
-              disabled={saving || !form.vendor_name.trim() || !form.expense_category.trim() || form.annual_amount === ''}
+              disabled={
+                saving ||
+                !form.vendor_name.trim() ||
+                !form.expense_category.trim() ||
+                form.annual_amount === ''
+              }
             >
               {saving && <CSpinner size="sm" className="me-1" />}
               {editTarget ? 'Save Changes' : 'Add Entry'}
@@ -179,7 +201,9 @@ const AdminDivisionPanel = ({ canEdit }) => {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   const activeEntries = useMemo(() => entries.filter((e) => e.status === 'Active'), [entries])
   const totalMonthly = useMemo(
@@ -213,10 +237,17 @@ const AdminDivisionPanel = ({ canEdit }) => {
   }
 
   const handleSave = () => {
-    if (!form.vendor_name.trim()) { setError('Vendor name is required'); return }
-    if (!form.expense_category.trim()) { setError('Expense category is required'); return }
+    if (!form.vendor_name.trim()) {
+      setError('Vendor name is required')
+      return
+    }
+    if (!form.expense_category.trim()) {
+      setError('Expense category is required')
+      return
+    }
     if (form.annual_amount === '' || isNaN(parseFloat(form.annual_amount))) {
-      setError('Annual amount is required'); return
+      setError('Annual amount is required')
+      return
     }
     setSaving(true)
     setError('')
@@ -269,7 +300,9 @@ const AdminDivisionPanel = ({ canEdit }) => {
         </CCardHeader>
         <CCardBody>
           {loading ? (
-            <div className="text-center py-4"><CSpinner color="primary" /></div>
+            <div className="text-center py-4">
+              <CSpinner color="primary" />
+            </div>
           ) : entries.length === 0 ? (
             <p className="text-body-secondary small mb-0">
               No admin expense entries.{canEdit && ' Click "Add" to create one.'}
@@ -308,7 +341,9 @@ const AdminDivisionPanel = ({ canEdit }) => {
                 <CTableBody>
                   {entries.map((entry) => (
                     <CTableRow key={entry.id}>
-                      <CTableDataCell className="fw-semibold small">{entry.vendor_name}</CTableDataCell>
+                      <CTableDataCell className="fw-semibold small">
+                        {entry.vendor_name}
+                      </CTableDataCell>
                       <CTableDataCell className="small">{entry.expense_category}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color="info" textColor="dark" className="small">
@@ -322,7 +357,10 @@ const AdminDivisionPanel = ({ canEdit }) => {
                         {currency(monthlyEquiv(entry.annual_amount))}
                       </CTableDataCell>
                       <CTableDataCell>
-                        <CBadge color={STATUS_COLORS[entry.status] || 'secondary'} className="small">
+                        <CBadge
+                          color={STATUS_COLORS[entry.status] || 'secondary'}
+                          className="small"
+                        >
                           {entry.status}
                         </CBadge>
                       </CTableDataCell>

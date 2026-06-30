@@ -68,9 +68,7 @@ const PASSWORD_LOGINS = [
 ]
 
 export const verifyPasswordLogin = (employeeId, password) => {
-  const entry = PASSWORD_LOGINS.find(
-    (p) => p.employee_id === employeeId && p.password === password,
-  )
+  const entry = PASSWORD_LOGINS.find((p) => p.employee_id === employeeId && p.password === password)
   if (!entry) return null
   const seeded = SEEDED_USERS.find((u) => u.id === entry.user_id)
   if (!seeded) return null
@@ -101,9 +99,7 @@ export const getRegisteredUsers = () => load()
 
 export const addRegisteredUser = (user) => {
   const users = load()
-  const exists = users.some(
-    (u) => u.google_email.toLowerCase() === user.google_email.toLowerCase(),
-  )
+  const exists = users.some((u) => u.google_email.toLowerCase() === user.google_email.toLowerCase())
   if (exists) throw new Error('A user with this Google email is already registered.')
   const newUser = {
     id: `USR${Date.now()}`,

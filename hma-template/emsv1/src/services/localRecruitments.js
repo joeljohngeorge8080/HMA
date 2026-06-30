@@ -6,7 +6,11 @@ const uid = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 const read = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 const write = (data) => localStorage.setItem(KEY, JSON.stringify(data))
 

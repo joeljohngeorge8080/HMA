@@ -34,7 +34,11 @@ import {
 import { localProjects } from '../../../services/localProjects'
 
 const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n)
 
 const STATUS_META = {
   pipeline: { label: 'Pipeline', color: 'secondary' },
@@ -44,9 +48,9 @@ const STATUS_META = {
 }
 
 const PHASE_META = {
-  design_and_initiation:      { label: 'Design and Initiation',      color: '#5bc0de' },
-  implementation:             { label: 'Implementation',             color: '#337ab7' },
-  monitoring_and_evaluation:  { label: 'Monitoring and Evaluation',  color: '#06d6a0' },
+  design_and_initiation: { label: 'Design and Initiation', color: '#5bc0de' },
+  implementation: { label: 'Implementation', color: '#337ab7' },
+  monitoring_and_evaluation: { label: 'Monitoring and Evaluation', color: '#06d6a0' },
 }
 
 const ProjectAssociateDashboard = () => {
@@ -271,10 +275,17 @@ const ProjectAssociateDashboard = () => {
                       background: `${action.color}15`,
                     }}
                   >
-                    <CIcon icon={action.icon} style={{ color: action.color, width: 16, height: 16 }} />
+                    <CIcon
+                      icon={action.icon}
+                      style={{ color: action.color, width: 16, height: 16 }}
+                    />
                   </div>
                   <span className="fw-medium small">{action.label}</span>
-                  <CIcon icon={cilArrowRight} className="ms-auto text-body-secondary" style={{ width: 14, height: 14 }} />
+                  <CIcon
+                    icon={cilArrowRight}
+                    className="ms-auto text-body-secondary"
+                    style={{ width: 14, height: 14 }}
+                  />
                 </button>
               ))}
             </CCardBody>
@@ -312,10 +323,11 @@ const ProjectAssociateDashboard = () => {
                 <CTableBody>
                   {recentProjects.map((p) => {
                     const progress =
-                      p.tasks_count > 0
-                        ? Math.round((p.tasks_completed / p.tasks_count) * 100)
-                        : 0
-                    const statusMeta = STATUS_META[p.status] || { label: p.status, color: 'secondary' }
+                      p.tasks_count > 0 ? Math.round((p.tasks_completed / p.tasks_count) * 100) : 0
+                    const statusMeta = STATUS_META[p.status] || {
+                      label: p.status,
+                      color: 'secondary',
+                    }
                     return (
                       <CTableRow
                         key={p.id}
@@ -330,14 +342,23 @@ const ProjectAssociateDashboard = () => {
                             {p.location}
                           </div>
                           {p.pending_approvals > 0 && (
-                            <CBadge color="warning" className="mt-1" style={{ fontSize: '0.65rem' }}>
+                            <CBadge
+                              color="warning"
+                              className="mt-1"
+                              style={{ fontSize: '0.65rem' }}
+                            >
                               <CIcon icon={cilWarning} style={{ width: 10 }} className="me-1" />
                               {p.pending_approvals} pending
                             </CBadge>
                           )}
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
-                          <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                          <span
+                            className="fw-medium text-body-secondary small"
+                            style={{ letterSpacing: '0.5px' }}
+                          >
+                            {p.project_code || '—'}
+                          </span>
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
                           <span className="text-body-secondary small">{p.project_type || '—'}</span>

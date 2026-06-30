@@ -77,8 +77,8 @@ const ChangePasswordModal = ({ visible, onClose, employeeId, employeeName }) => 
           ) : (
             <>
               <p className="text-body-secondary small mb-3">
-                Setting a new password for <strong>{employeeName}</strong>. This action is logged
-                in the audit trail.
+                Setting a new password for <strong>{employeeName}</strong>. This action is logged in
+                the audit trail.
               </p>
               <div className="mb-3">
                 <CFormLabel className="fw-semibold">

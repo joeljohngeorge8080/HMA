@@ -76,25 +76,52 @@ import { ROLE } from '../../../constants/roles'
 const fmtShort = (n) => {
   if (!n && n !== 0) return '—'
   if (Math.abs(n) >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(2)} Cr`
-  if (Math.abs(n) >= 1_00_000)    return `₹${(n / 1_00_000).toFixed(2)} L`
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  if (Math.abs(n) >= 1_00_000) return `₹${(n / 1_00_000).toFixed(2)} L`
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n)
 }
 
 const formatMonth = (m) => {
   if (!m) return '—'
-  try { const [y, mo] = m.split('-'); return new Date(y, mo - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) } catch { return m }
+  try {
+    const [y, mo] = m.split('-')
+    return new Date(y, mo - 1, 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+  } catch {
+    return m
+  }
 }
 
 const RECURRING_TYPES = [
   { value: 'electricity', label: '⚡ Electricity' },
-  { value: 'water',       label: '💧 Water' },
-  { value: 'internet',    label: '🌐 Internet' },
-  { value: 'other',       label: '📦 Other' },
+  { value: 'water', label: '💧 Water' },
+  { value: 'internet', label: '🌐 Internet' },
+  { value: 'other', label: '📦 Other' },
 ]
 
 // ── Expense Card ──────────────────────────────────────────────────────────────
-const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd, onRemove, onEdit, isReadOnly = false }) => {
-  const [form, setForm] = useState({ label: '', amount: '', date: '', notes: '', is_recurring: false, recurring_type: 'electricity' })
+const ExpenseCard = ({
+  title,
+  color,
+  budget,
+  expenses,
+  isAdmin,
+  projectId,
+  onAdd,
+  onRemove,
+  onEdit,
+  isReadOnly = false,
+}) => {
+  const [form, setForm] = useState({
+    label: '',
+    amount: '',
+    date: '',
+    notes: '',
+    is_recurring: false,
+    recurring_type: 'electricity',
+  })
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -111,15 +138,36 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
   const handleAdd = () => {
     if (!form.label || !form.amount) return
     onAdd({ ...form, amount: parseFloat(form.amount) })
-    setForm({ label: '', amount: '', date: '', notes: '', is_recurring: false, recurring_type: 'electricity' })
+    setForm({
+      label: '',
+      amount: '',
+      date: '',
+      notes: '',
+      is_recurring: false,
+      recurring_type: 'electricity',
+    })
     setAdding(false)
   }
 
-  const startEdit = (exp) => { setEditId(exp.id); setEditForm({ ...exp }) }
-  const handleEditSave = () => { onEdit(editId, editForm); setEditId(null) }
+  const startEdit = (exp) => {
+    setEditId(exp.id)
+    setEditForm({ ...exp })
+  }
+  const handleEditSave = () => {
+    onEdit(editId, editForm)
+    setEditId(null)
+  }
 
-  const fmtIN = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
+  const fmtIN = (n) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(n || 0)
+  const fmtDate = (d) =>
+    d
+      ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : ''
 
   // Separate org-level (EMS synced) from project-specific expenses
   const orgExpenses = expenses.filter((e) => e.source === 'hr_admin')
@@ -127,16 +175,28 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
 
   return (
     <CCard className="shadow-sm h-100">
-      <CCardHeader className={`bg-transparent fw-semibold pt-3 border-start border-4 border-start-${color}`}>{title}</CCardHeader>
+      <CCardHeader
+        className={`bg-transparent fw-semibold pt-3 border-start border-4 border-start-${color}`}
+      >
+        {title}
+      </CCardHeader>
       <CCardBody className="d-flex flex-column">
         <div className="mb-3">
           <div className="d-flex justify-content-between small text-body-secondary mb-1">
             <span>Used: {fmtShort(totalUsed)}</span>
             <span>Budget: {fmtShort(budget)}</span>
           </div>
-          <CProgress value={Math.min(pct, 100)} color={pct > 90 ? 'danger' : pct > 70 ? 'warning' : color} height={6} />
-          <div className={`small fw-semibold mt-1 ${remaining < 0 ? 'text-danger' : 'text-success'}`}>
-            {remaining >= 0 ? `${fmtShort(remaining)} remaining` : `${fmtShort(Math.abs(remaining))} over budget`}
+          <CProgress
+            value={Math.min(pct, 100)}
+            color={pct > 90 ? 'danger' : pct > 70 ? 'warning' : color}
+            height={6}
+          />
+          <div
+            className={`small fw-semibold mt-1 ${remaining < 0 ? 'text-danger' : 'text-success'}`}
+          >
+            {remaining >= 0
+              ? `${fmtShort(remaining)} remaining`
+              : `${fmtShort(Math.abs(remaining))} over budget`}
           </div>
         </div>
 
@@ -144,17 +204,33 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
         {orgExpenses.length > 0 && (
           <div className="mb-3">
             <div className="d-flex align-items-center gap-2 mb-2">
-              <span className="small fw-semibold text-body-secondary text-uppercase" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>HR Admin (Org-level)</span>
-              <CBadge color="warning" textColor="dark" style={{ fontSize: '0.6rem' }}>Synced from EMS</CBadge>
+              <span
+                className="small fw-semibold text-body-secondary text-uppercase"
+                style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}
+              >
+                HR Admin (Org-level)
+              </span>
+              <CBadge color="warning" textColor="dark" style={{ fontSize: '0.6rem' }}>
+                Synced from EMS
+              </CBadge>
             </div>
             <div className="d-flex flex-column gap-2">
               {orgExpenses.map((exp) => (
-                <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2" style={{ background: 'rgba(247,201,72,0.06)', borderColor: 'rgba(247,201,72,0.3) !important' }}>
+                <div
+                  key={exp.id}
+                  className="d-flex align-items-start justify-content-between border rounded px-3 py-2"
+                  style={{
+                    background: 'rgba(247,201,72,0.06)',
+                    borderColor: 'rgba(247,201,72,0.3) !important',
+                  }}
+                >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="fw-semibold small d-flex align-items-center gap-1 flex-wrap">
                       {exp.expense_category}
                       <span className="text-body-secondary fw-normal">— {exp.vendor_name}</span>
-                      <CBadge color="secondary" style={{ fontSize: '0.58rem' }}>{exp.frequency}</CBadge>
+                      <CBadge color="secondary" style={{ fontSize: '0.58rem' }}>
+                        {exp.frequency}
+                      </CBadge>
                     </div>
                     <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
                       Monthly: {fmtShort(exp.amount)} · Annual: {fmtShort(exp.annual_amount)}
@@ -171,23 +247,68 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
         {projExpenses.length > 0 && (
           <div className="mb-3">
             {orgExpenses.length > 0 && (
-              <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}>Project-Specific</div>
+              <div
+                className="small fw-semibold text-body-secondary text-uppercase mb-2"
+                style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}
+              >
+                Project-Specific
+              </div>
             )}
             <div className="d-flex flex-column gap-2">
               {projExpenses.map((exp) =>
                 editId === exp.id ? (
                   <div key={exp.id} className="border rounded p-2 bg-body-secondary">
                     <CRow className="g-1 mb-1">
-                      <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Label" value={editForm.label} onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
-                      <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
-                      <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
+                      <CCol xs={12} md={5}>
+                        <CFormInput
+                          size="sm"
+                          placeholder="Label"
+                          value={editForm.label}
+                          onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
+                        />
+                      </CCol>
+                      <CCol xs={6} md={3}>
+                        <CInputGroup size="sm">
+                          <CInputGroupText>₹</CInputGroupText>
+                          <CFormInput
+                            type="number"
+                            value={editForm.amount}
+                            onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
+                          />
+                        </CInputGroup>
+                      </CCol>
+                      <CCol xs={6} md={4}>
+                        <CFormInput
+                          size="sm"
+                          type="date"
+                          value={editForm.date}
+                          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+                        />
+                      </CCol>
                       {isAdmin && (
                         <CCol xs={12}>
                           <div className="d-flex align-items-center gap-2 mt-1">
-                            <CFormCheck label="Recurring" checked={!!editForm.is_recurring} onChange={(e) => setEditForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
+                            <CFormCheck
+                              label="Recurring"
+                              checked={!!editForm.is_recurring}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, is_recurring: e.target.checked }))
+                              }
+                            />
                             {editForm.is_recurring && (
-                              <CFormSelect size="sm" value={editForm.recurring_type} onChange={(e) => setEditForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 140 }}>
-                                {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                              <CFormSelect
+                                size="sm"
+                                value={editForm.recurring_type}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, recurring_type: e.target.value }))
+                                }
+                                style={{ maxWidth: 140 }}
+                              >
+                                {RECURRING_TYPES.map((r) => (
+                                  <option key={r.value} value={r.value}>
+                                    {r.label}
+                                  </option>
+                                ))}
                               </CFormSelect>
                             )}
                           </div>
@@ -195,30 +316,64 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
                       )}
                     </CRow>
                     <div className="d-flex gap-1">
-                      <CButton size="sm" color="primary" onClick={handleEditSave}>Save</CButton>
-                      <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>Cancel</CButton>
+                      <CButton size="sm" color="primary" onClick={handleEditSave}>
+                        Save
+                      </CButton>
+                      <CButton
+                        size="sm"
+                        color="secondary"
+                        variant="ghost"
+                        onClick={() => setEditId(null)}
+                      >
+                        Cancel
+                      </CButton>
                     </div>
                   </div>
                 ) : (
-                  <div key={exp.id} className="d-flex align-items-start justify-content-between border rounded px-3 py-2">
+                  <div
+                    key={exp.id}
+                    className="d-flex align-items-start justify-content-between border rounded px-3 py-2"
+                  >
                     <div>
                       <div className="fw-semibold small">
                         {exp.label}
-                        {exp.is_recurring && <CBadge color="info" className="ms-2" style={{ fontSize: '0.65rem' }}>{RECURRING_TYPES.find((r) => r.value === exp.recurring_type)?.label || 'Recurring'}</CBadge>}
+                        {exp.is_recurring && (
+                          <CBadge color="info" className="ms-2" style={{ fontSize: '0.65rem' }}>
+                            {RECURRING_TYPES.find((r) => r.value === exp.recurring_type)?.label ||
+                              'Recurring'}
+                          </CBadge>
+                        )}
                       </div>
-                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>{fmtDate(exp.date)}{exp.notes && ` · ${exp.notes}`}</div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
+                        {fmtDate(exp.date)}
+                        {exp.notes && ` · ${exp.notes}`}
+                      </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
                       <span className="fw-bold small">{fmtShort(exp.amount || exp.myAmount)}</span>
                       {!isReadOnly && (
                         <>
-                          <CButton color="secondary" variant="ghost" size="sm" onClick={() => startEdit(exp)}><CIcon icon={cilPencil} size="sm" /></CButton>
-                          <CButton color="danger" variant="ghost" size="sm" onClick={() => onRemove(exp.id)}><CIcon icon={cilTrash} size="sm" /></CButton>
+                          <CButton
+                            color="secondary"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEdit(exp)}
+                          >
+                            <CIcon icon={cilPencil} size="sm" />
+                          </CButton>
+                          <CButton
+                            color="danger"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onRemove(exp.id)}
+                          >
+                            <CIcon icon={cilTrash} size="sm" />
+                          </CButton>
                         </>
                       )}
                     </div>
                   </div>
-                )
+                ),
               )}
             </div>
           </div>
@@ -231,44 +386,110 @@ const ExpenseCard = ({ title, color, budget, expenses, isAdmin, projectId, onAdd
         {adding ? (
           <div className="border rounded p-2 bg-body-secondary mt-auto">
             <CRow className="g-1 mb-1">
-              <CCol xs={12} md={5}><CFormInput size="sm" placeholder="Expense label *" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} /></CCol>
-              <CCol xs={6} md={3}><CInputGroup size="sm"><CInputGroupText>₹</CInputGroupText><CFormInput type="number" min="0" placeholder="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></CInputGroup></CCol>
-              <CCol xs={6} md={4}><CFormInput size="sm" type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></CCol>
-              <CCol xs={12}><CFormInput size="sm" placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></CCol>
+              <CCol xs={12} md={5}>
+                <CFormInput
+                  size="sm"
+                  placeholder="Expense label *"
+                  value={form.label}
+                  onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                />
+              </CCol>
+              <CCol xs={6} md={3}>
+                <CInputGroup size="sm">
+                  <CInputGroupText>₹</CInputGroupText>
+                  <CFormInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form.amount}
+                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  />
+                </CInputGroup>
+              </CCol>
+              <CCol xs={6} md={4}>
+                <CFormInput
+                  size="sm"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </CCol>
+              <CCol xs={12}>
+                <CFormInput
+                  size="sm"
+                  placeholder="Notes (optional)"
+                  value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                />
+              </CCol>
               {isAdmin && (
                 <CCol xs={12}>
                   <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
-                    <CFormCheck label="Recurring / Fixed expense" checked={form.is_recurring} onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))} />
+                    <CFormCheck
+                      label="Recurring / Fixed expense"
+                      checked={form.is_recurring}
+                      onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))}
+                    />
                     {form.is_recurring && (
-                      <CFormSelect size="sm" value={form.recurring_type} onChange={(e) => setForm((f) => ({ ...f, recurring_type: e.target.value }))} style={{ maxWidth: 150 }}>
-                        {RECURRING_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      <CFormSelect
+                        size="sm"
+                        value={form.recurring_type}
+                        onChange={(e) => setForm((f) => ({ ...f, recurring_type: e.target.value }))}
+                        style={{ maxWidth: 150 }}
+                      >
+                        {RECURRING_TYPES.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
                       </CFormSelect>
                     )}
                   </div>
                   {form.is_recurring && suggestion?.suggested && (
                     <div className="small text-info mt-1 d-flex align-items-center gap-2">
-                      💡 Previous: ₹{suggestion.prevAmount?.toLocaleString('en-IN')} → Suggested: ₹{suggestion.suggested?.toLocaleString('en-IN')} (+5%)
-                      <CButton size="sm" color="info" variant="ghost" style={{ padding: '0 6px' }} onClick={() => setForm((f) => ({ ...f, amount: String(suggestion.suggested) }))}>Use</CButton>
+                      💡 Previous: ₹{suggestion.prevAmount?.toLocaleString('en-IN')} → Suggested: ₹
+                      {suggestion.suggested?.toLocaleString('en-IN')} (+5%)
+                      <CButton
+                        size="sm"
+                        color="info"
+                        variant="ghost"
+                        style={{ padding: '0 6px' }}
+                        onClick={() =>
+                          setForm((f) => ({ ...f, amount: String(suggestion.suggested) }))
+                        }
+                      >
+                        Use
+                      </CButton>
                     </div>
                   )}
                 </CCol>
               )}
             </CRow>
             <div className="d-flex gap-1 mt-1">
-              <CButton size="sm" color="primary" onClick={handleAdd}>Add</CButton>
-              <CButton size="sm" color="secondary" variant="ghost" onClick={() => setAdding(false)}>Cancel</CButton>
+              <CButton size="sm" color="primary" onClick={handleAdd}>
+                Add
+              </CButton>
+              <CButton size="sm" color="secondary" variant="ghost" onClick={() => setAdding(false)}>
+                Cancel
+              </CButton>
             </div>
           </div>
         ) : !isReadOnly ? (
-          <CButton size="sm" color={color} variant="outline" className="mt-auto" onClick={() => setAdding(true)}>
-            <CIcon icon={cilPlus} className="me-1" />Add Expense
+          <CButton
+            size="sm"
+            color={color}
+            variant="outline"
+            className="mt-auto"
+            onClick={() => setAdding(true)}
+          >
+            <CIcon icon={cilPlus} className="me-1" />
+            Add Expense
           </CButton>
         ) : null}
       </CCardBody>
     </CCard>
   )
 }
-
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -278,13 +499,15 @@ const fmt = (n) =>
   }).format(n || 0)
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  d
+    ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—'
 
 const getDelayDays = (targetDateStr, actualDateStr) => {
   if (!targetDateStr) return 0
   const [ty, tm, td] = targetDateStr.split('-').map(Number)
   const target = new Date(ty, tm - 1, td)
-  
+
   let actual
   if (actualDateStr) {
     const [ay, am, ad] = actualDateStr.split('-').map(Number)
@@ -292,10 +515,10 @@ const getDelayDays = (targetDateStr, actualDateStr) => {
   } else {
     actual = new Date()
   }
-  
+
   target.setHours(0, 0, 0, 0)
   actual.setHours(0, 0, 0, 0)
-  
+
   const diffTime = actual.getTime() - target.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   return diffDays > 0 ? diffDays : 0
@@ -331,14 +554,62 @@ const DEMO_APPROVALS = [
 ]
 
 const DEMO_TASKS = [
-  { title: 'Site survey & soil testing', status: 'completed', assignee: 'Field Team A', target_date: '2024-04-01', actual_date: '2024-04-05' },
-  { title: 'Pipeline route mapping', status: 'completed', assignee: 'Arjun Sharma', target_date: '2024-04-15', actual_date: '2024-04-12' },
-  { title: 'Procurement of pipes & fittings', status: 'completed', assignee: 'Procurement Team', target_date: '2024-05-10', actual_date: '2024-05-10' },
-  { title: 'Excavation — Phase 1 (Villages 1–4)', status: 'completed', assignee: 'Field Team A', target_date: '2024-06-01', actual_date: '2024-06-15' },
-  { title: 'Excavation — Phase 2 (Villages 5–8)', status: 'completed', assignee: 'Field Team B', target_date: '2024-07-15', actual_date: '2024-07-10' },
-  { title: 'Pipeline laying — Phase 1', status: 'active', assignee: 'Field Team A', target_date: '2024-09-01', actual_date: null },
-  { title: 'Storage tank construction', status: 'active', assignee: 'Civil Contractor', target_date: '2024-10-01', actual_date: null },
-  { title: 'Final commissioning & testing', status: 'active', assignee: 'Arjun Sharma', target_date: '2025-01-15', actual_date: null },
+  {
+    title: 'Site survey & soil testing',
+    status: 'completed',
+    assignee: 'Field Team A',
+    target_date: '2024-04-01',
+    actual_date: '2024-04-05',
+  },
+  {
+    title: 'Pipeline route mapping',
+    status: 'completed',
+    assignee: 'Arjun Sharma',
+    target_date: '2024-04-15',
+    actual_date: '2024-04-12',
+  },
+  {
+    title: 'Procurement of pipes & fittings',
+    status: 'completed',
+    assignee: 'Procurement Team',
+    target_date: '2024-05-10',
+    actual_date: '2024-05-10',
+  },
+  {
+    title: 'Excavation — Phase 1 (Villages 1–4)',
+    status: 'completed',
+    assignee: 'Field Team A',
+    target_date: '2024-06-01',
+    actual_date: '2024-06-15',
+  },
+  {
+    title: 'Excavation — Phase 2 (Villages 5–8)',
+    status: 'completed',
+    assignee: 'Field Team B',
+    target_date: '2024-07-15',
+    actual_date: '2024-07-10',
+  },
+  {
+    title: 'Pipeline laying — Phase 1',
+    status: 'active',
+    assignee: 'Field Team A',
+    target_date: '2024-09-01',
+    actual_date: null,
+  },
+  {
+    title: 'Storage tank construction',
+    status: 'active',
+    assignee: 'Civil Contractor',
+    target_date: '2024-10-01',
+    actual_date: null,
+  },
+  {
+    title: 'Final commissioning & testing',
+    status: 'active',
+    assignee: 'Arjun Sharma',
+    target_date: '2025-01-15',
+    actual_date: null,
+  },
 ]
 
 const ProjectDetailPage = () => {
@@ -358,7 +629,11 @@ const ProjectDetailPage = () => {
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
 
   const role = useRole()
-  const isBudgetAdmin = role === ROLE.CEO || role === ROLE.FINANCE || role === ROLE.HR || role === ROLE.PROJECT_COORDINATOR
+  const isBudgetAdmin =
+    role === ROLE.CEO ||
+    role === ROLE.FINANCE ||
+    role === ROLE.HR ||
+    role === ROLE.PROJECT_COORDINATOR
 
   useEffect(() => {
     localProjects.seedDemoData()
@@ -386,9 +661,7 @@ const ProjectDetailPage = () => {
   }
 
   const progressPct =
-    project.tasks_count > 0
-      ? Math.round((project.tasks_completed / project.tasks_count) * 100)
-      : 0
+    project.tasks_count > 0 ? Math.round((project.tasks_completed / project.tasks_count) * 100) : 0
   const receivedPct =
     project.project_value > 0
       ? Math.round((project.amount_received / project.project_value) * 100)
@@ -421,7 +694,10 @@ const ProjectDetailPage = () => {
   const handleActivateProject = () => {
     const updated = localProjects.activateProject(project.id)
     setProject(updated)
-    setToast({ color: 'success', message: 'Project operations activated — HR & Core pool contributions are now live' })
+    setToast({
+      color: 'success',
+      message: 'Project operations activated — HR & Core pool contributions are now live',
+    })
   }
 
   const handleUpdateBeneficiaries = () => {
@@ -450,7 +726,10 @@ const ProjectDetailPage = () => {
         className="rounded-4 mb-4 p-4 text-white position-relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%)' }}
       >
-        <div className="position-absolute end-0 top-0 opacity-10" style={{ fontSize: '8rem', lineHeight: 1 }}>
+        <div
+          className="position-absolute end-0 top-0 opacity-10"
+          style={{ fontSize: '8rem', lineHeight: 1 }}
+        >
           🏗️
         </div>
         <div className="position-relative d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -465,8 +744,14 @@ const ProjectDetailPage = () => {
             </div>
             <h4 className="fw-bold mb-2">{project.name}</h4>
             <div className="d-flex flex-wrap gap-3 opacity-75 small">
-              <span><CIcon icon={cilLocationPin} className="me-1" />{project.location}</span>
-              <span><CIcon icon={cilBuilding} className="me-1" />{project.funding_agency}</span>
+              <span>
+                <CIcon icon={cilLocationPin} className="me-1" />
+                {project.location}
+              </span>
+              <span>
+                <CIcon icon={cilBuilding} className="me-1" />
+                {project.funding_agency}
+              </span>
               <span>
                 <CIcon icon={cilCalendar} className="me-1" />
                 {fmtDate(project.start_date)} → {fmtDate(project.end_date)}
@@ -491,7 +776,13 @@ const ProjectDetailPage = () => {
             </CButton>
           )}
           {project.is_operations_active && (
-            <CBadge color="success" className="px-3 py-2 d-flex align-items-center" style={{ fontSize: '0.8rem' }}>Operations Active</CBadge>
+            <CBadge
+              color="success"
+              className="px-3 py-2 d-flex align-items-center"
+              style={{ fontSize: '0.8rem' }}
+            >
+              Operations Active
+            </CBadge>
           )}
         </div>
       </div>
@@ -525,7 +816,11 @@ const ProjectDetailPage = () => {
                 isBeneficiaries: true,
               },
             ].map((kpi, i) => (
-              <CCard key={i} className="border-0 shadow-sm flex-grow-1" style={{ borderRadius: '12px' }}>
+              <CCard
+                key={i}
+                className="border-0 shadow-sm flex-grow-1"
+                style={{ borderRadius: '12px' }}
+              >
                 <CCardBody className="py-3">
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
@@ -538,16 +833,32 @@ const ProjectDetailPage = () => {
                   </div>
                   {kpi.isBeneficiaries && (
                     <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
-                      <CFormInput type="number" size="sm" style={{ width: '90px', fontSize: '0.75rem' }} 
-                        value={beneficiariesCompleted} 
-                        onChange={(e) => setBeneficiariesCompleted(e.target.value)} 
+                      <CFormInput
+                        type="number"
+                        size="sm"
+                        style={{ width: '90px', fontSize: '0.75rem' }}
+                        value={beneficiariesCompleted}
+                        onChange={(e) => setBeneficiariesCompleted(e.target.value)}
                         placeholder="Completed"
                       />
-                      <CButton size="sm" color="danger" variant="outline" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }} onClick={handleUpdateBeneficiaries}>Save</CButton>
+                      <CButton
+                        size="sm"
+                        color="danger"
+                        variant="outline"
+                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                        onClick={handleUpdateBeneficiaries}
+                      >
+                        Save
+                      </CButton>
                     </div>
                   )}
                   {kpi.label === 'Task Progress' && (
-                    <CProgress value={progressPct} height={4} color="success" className="mt-2 rounded-pill" />
+                    <CProgress
+                      value={progressPct}
+                      height={4}
+                      color="success"
+                      className="mt-2 rounded-pill"
+                    />
                   )}
                 </CCardBody>
               </CCard>
@@ -574,7 +885,11 @@ const ProjectDetailPage = () => {
                 bg: 'rgba(247,127,0,0.06)',
               },
             ].map((kpi, i) => (
-              <CCard key={i} className="border-0 shadow-sm flex-grow-1" style={{ borderRadius: '12px' }}>
+              <CCard
+                key={i}
+                className="border-0 shadow-sm flex-grow-1"
+                style={{ borderRadius: '12px' }}
+              >
                 <CCardBody className="py-3">
                   <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: kpi.color }}>
                     {kpi.value}
@@ -593,7 +908,15 @@ const ProjectDetailPage = () => {
       <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
         <CCardHeader className="bg-transparent border-bottom-0 px-4 pt-3">
           <CNav variant="underline" role="tablist">
-            {['Overview', 'Project Officer', 'Tasks & Procurement', 'Approvals', 'Project Financials', 'Project Milestones', 'Budget & Payroll'].map((tab, i) => (
+            {[
+              'Overview',
+              'Project Officer',
+              'Tasks & Procurement',
+              'Approvals',
+              'Project Financials',
+              'Project Milestones',
+              'Budget & Payroll',
+            ].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
                   active={activeTab === i}
@@ -610,7 +933,10 @@ const ProjectDetailPage = () => {
                   {i === 4 && (
                     <CBadge
                       color={
-                        (project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)) >= 0
+                        project.project_value -
+                          (project.expense_accounted || 0) -
+                          (project.committed_expense || 0) >=
+                        0
                           ? 'success'
                           : 'danger'
                       }
@@ -618,7 +944,10 @@ const ProjectDetailPage = () => {
                       className="ms-2"
                     >
                       {(() => {
-                        const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
+                        const bal =
+                          project.project_value -
+                          (project.expense_accounted || 0) -
+                          (project.committed_expense || 0)
                         return bal >= 0 ? '✓' : '!'
                       })()}
                     </CBadge>
@@ -637,7 +966,9 @@ const ProjectDetailPage = () => {
                 <CCol xs={12} md={6}>
                   <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
                     <CCardBody>
-                      <h6 className="fw-bold mb-3 text-body-secondary text-uppercase small">Project Info</h6>
+                      <h6 className="fw-bold mb-3 text-body-secondary text-uppercase small">
+                        Project Info
+                      </h6>
                       {[
                         { label: 'Project Code', value: project.project_code },
                         { label: 'Project Type', value: project.project_type },
@@ -648,7 +979,10 @@ const ProjectDetailPage = () => {
                         { label: 'End Date', value: fmtDate(project.end_date) },
                         { label: 'Last Updated', value: fmtDate(project.updated_at) },
                       ].map((row, i) => (
-                        <div key={i} className="d-flex justify-content-between py-2 border-bottom small">
+                        <div
+                          key={i}
+                          className="d-flex justify-content-between py-2 border-bottom small"
+                        >
                           <span className="text-body-secondary">{row.label}</span>
                           <span className="fw-medium">{row.value || '—'}</span>
                         </div>
@@ -659,13 +993,20 @@ const ProjectDetailPage = () => {
                 <CCol xs={12} md={6}>
                   <CCard className="border-0 shadow-sm" style={{ borderRadius: '10px' }}>
                     <CCardBody>
-                      <h6 className="fw-bold mb-3 text-body-secondary text-uppercase small">Fund Utilization</h6>
+                      <h6 className="fw-bold mb-3 text-body-secondary text-uppercase small">
+                        Fund Utilization
+                      </h6>
                       <div className="mb-3">
                         <div className="d-flex justify-content-between mb-1 small">
                           <span className="text-body-secondary">Received</span>
                           <span className="fw-semibold">{receivedPct}%</span>
                         </div>
-                        <CProgress value={receivedPct} height={8} color="success" className="rounded-pill" />
+                        <CProgress
+                          value={receivedPct}
+                          height={8}
+                          color="success"
+                          className="rounded-pill"
+                        />
                       </div>
                       <div className="mb-3">
                         <div className="d-flex justify-content-between mb-1 small">
@@ -673,7 +1014,8 @@ const ProjectDetailPage = () => {
                           <span className="fw-semibold">
                             {project.amount_received > 0
                               ? Math.round((project.amount_spent / project.amount_received) * 100)
-                              : 0}%
+                              : 0}
+                            %
                           </span>
                         </div>
                         <CProgress
@@ -703,7 +1045,10 @@ const ProjectDetailPage = () => {
             {/* Project Officer Tab */}
             <CTabPane visible={activeTab === 1}>
               {project.officer_id ? (
-                <CCard className="border-0 shadow-sm" style={{ borderRadius: '10px', maxWidth: '500px' }}>
+                <CCard
+                  className="border-0 shadow-sm"
+                  style={{ borderRadius: '10px', maxWidth: '500px' }}
+                >
                   <CCardBody>
                     <div className="d-flex align-items-center gap-3 mb-4">
                       <div
@@ -717,18 +1062,21 @@ const ProjectDetailPage = () => {
                         <div className="text-body-secondary small">Project Officer</div>
                       </div>
                     </div>
-                    {[
-                      { icon: cilEnvelopeLetter, label: project.officer_email },
-                    ].map((row, i) => (
+                    {[{ icon: cilEnvelopeLetter, label: project.officer_email }].map((row, i) => (
                       <div key={i} className="d-flex align-items-center gap-2 mb-2 small">
                         <CIcon icon={row.icon} className="text-primary" />
                         <span>{row.label}</span>
                       </div>
                     ))}
                     {project.email_sent && (
-                      <CAlert color="success" className="mt-3 py-2 px-3 d-flex align-items-center gap-2 small mb-0">
+                      <CAlert
+                        color="success"
+                        className="mt-3 py-2 px-3 d-flex align-items-center gap-2 small mb-0"
+                      >
                         <CIcon icon={cilEnvelopeLetter} />
-                        <div>Access email sent via <strong>AWS SES</strong></div>
+                        <div>
+                          Access email sent via <strong>AWS SES</strong>
+                        </div>
                       </CAlert>
                     )}
                     <div className="mt-3">
@@ -766,18 +1114,24 @@ const ProjectDetailPage = () => {
             <CTabPane visible={activeTab === 2}>
               <CRow className="g-4">
                 <CCol xs={12} lg={4}>
-                  <CCard className="border-0 shadow-sm bg-body-tertiary h-100" style={{ borderRadius: '12px' }}>
+                  <CCard
+                    className="border-0 shadow-sm bg-body-tertiary h-100"
+                    style={{ borderRadius: '12px' }}
+                  >
                     <CCardBody className="text-center p-4">
-                      <h6 className="fw-bold mb-4 small text-uppercase text-body-secondary">Schedule Status</h6>
+                      <h6 className="fw-bold mb-4 small text-uppercase text-body-secondary">
+                        Schedule Status
+                      </h6>
                       {(() => {
                         const today = new Date().toISOString().split('T')[0]
-                        const tasksStats = DEMO_TASKS.map(t => {
-                          const isDelayed = t.status === 'completed' 
-                            ? (t.actual_date > t.target_date) 
-                            : (today > t.target_date)
+                        const tasksStats = DEMO_TASKS.map((t) => {
+                          const isDelayed =
+                            t.status === 'completed'
+                              ? t.actual_date > t.target_date
+                              : today > t.target_date
                           return { ...t, isDelayed }
                         })
-                        const delayedCount = tasksStats.filter(t => t.isDelayed).length
+                        const delayedCount = tasksStats.filter((t) => t.isDelayed).length
                         const onTrackCount = tasksStats.length - delayedCount
 
                         return (
@@ -795,13 +1149,21 @@ const ProjectDetailPage = () => {
                               }}
                               options={{
                                 plugins: {
-                                  legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } } }
+                                  legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                      usePointStyle: true,
+                                      boxWidth: 8,
+                                      font: { size: 12 },
+                                    },
+                                  },
                                 },
                                 cutout: '75%',
                               }}
                             />
                             <div className="mt-3 small text-body-secondary">
-                              <strong>{delayedCount}</strong> out of {tasksStats.length} tasks are experiencing delays.
+                              <strong>{delayedCount}</strong> out of {tasksStats.length} tasks are
+                              experiencing delays.
                             </div>
                           </div>
                         )
@@ -814,9 +1176,10 @@ const ProjectDetailPage = () => {
                   <div className="d-flex flex-column gap-2">
                     {DEMO_TASKS.map((task, i) => {
                       const today = new Date().toISOString().split('T')[0]
-                      const isDelayed = task.status === 'completed' 
-                        ? (task.actual_date > task.target_date) 
-                        : (today > task.target_date)
+                      const isDelayed =
+                        task.status === 'completed'
+                          ? task.actual_date > task.target_date
+                          : today > task.target_date
                       return (
                         <div
                           key={i}
@@ -842,21 +1205,39 @@ const ProjectDetailPage = () => {
                           </div>
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center gap-2 mb-1">
-                              <span className="fw-bold" style={{ fontSize: '0.95rem' }}>{task.title}</span>
+                              <span className="fw-bold" style={{ fontSize: '0.95rem' }}>
+                                {task.title}
+                              </span>
                               {isDelayed && (
-                                <CBadge color="danger" shape="rounded-pill" className="small" style={{ fontSize: '0.65rem' }}>Delayed</CBadge>
+                                <CBadge
+                                  color="danger"
+                                  shape="rounded-pill"
+                                  className="small"
+                                  style={{ fontSize: '0.65rem' }}
+                                >
+                                  Delayed
+                                </CBadge>
                               )}
                             </div>
-                            <CRow className="g-2 text-body-secondary mt-1" style={{ fontSize: '0.75rem' }}>
+                            <CRow
+                              className="g-2 text-body-secondary mt-1"
+                              style={{ fontSize: '0.75rem' }}
+                            >
                               <CCol xs={12} sm={4}>
                                 <CIcon icon={cilPeople} className="me-1 opacity-75" />
                                 {task.assignee}
                               </CCol>
                               <CCol xs={6} sm={4}>
-                                Target: <span className="fw-medium text-body">{fmtDate(task.target_date)}</span>
+                                Target:{' '}
+                                <span className="fw-medium text-body">
+                                  {fmtDate(task.target_date)}
+                                </span>
                               </CCol>
                               <CCol xs={6} sm={4}>
-                                Actual: <span className="fw-medium text-body">{task.actual_date ? fmtDate(task.actual_date) : '—'}</span>
+                                Actual:{' '}
+                                <span className="fw-medium text-body">
+                                  {task.actual_date ? fmtDate(task.actual_date) : '—'}
+                                </span>
                               </CCol>
                             </CRow>
                           </div>
@@ -879,7 +1260,9 @@ const ProjectDetailPage = () => {
             <CTabPane visible={activeTab === 3}>
               {approvals.length === 0 ? (
                 <div className="text-center py-5 text-body-secondary">
-                  <div className="mb-2 text-body-secondary"><CIcon icon={cilCheckCircle} style={{ width: 48, height: 48 }} /></div>
+                  <div className="mb-2 text-body-secondary">
+                    <CIcon icon={cilCheckCircle} style={{ width: 48, height: 48 }} />
+                  </div>
                   <h6>No pending approvals</h6>
                   <p className="small">All submissions are reviewed</p>
                 </div>
@@ -906,8 +1289,8 @@ const ProjectDetailPage = () => {
                                   item.status === 'pending'
                                     ? 'warning'
                                     : item.status === 'approved'
-                                    ? 'success'
-                                    : 'danger'
+                                      ? 'success'
+                                      : 'danger'
                                 }
                                 shape="rounded-pill"
                                 className="small text-capitalize"
@@ -982,7 +1365,10 @@ const ProjectDetailPage = () => {
                     icon: '🔒',
                   },
                   (() => {
-                    const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
+                    const bal =
+                      project.project_value -
+                      (project.expense_accounted || 0) -
+                      (project.committed_expense || 0)
                     return {
                       label: 'Fund Balance',
                       value: fmt(bal),
@@ -1002,7 +1388,10 @@ const ProjectDetailPage = () => {
                         <span style={{ fontSize: '1.25rem' }}>{kpi.icon}</span>
                         <span className="small fw-semibold text-body-secondary">{kpi.label}</span>
                       </div>
-                      <div className="fw-bold lh-1 mb-2" style={{ color: kpi.color, fontSize: '1.35rem' }}>
+                      <div
+                        className="fw-bold lh-1 mb-2"
+                        style={{ color: kpi.color, fontSize: '1.35rem' }}
+                      >
                         {kpi.value}
                       </div>
                       <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
@@ -1016,17 +1405,30 @@ const ProjectDetailPage = () => {
               {/* Utilisation breakdown card */}
               <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
                 <CCardBody className="px-4 py-3">
-                  <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Utilisation Breakdown</h6>
+                  <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
+                    Utilisation Breakdown
+                  </h6>
                   <CRow className="g-4">
                     <CCol xs={12} md={4}>
                       <div className="d-flex justify-content-between mb-1 small">
                         <span className="text-body-secondary">Expense Accounted</span>
                         <span className="fw-semibold">
-                          {project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}%
+                          {project.project_value > 0
+                            ? Math.round(
+                                ((project.expense_accounted || 0) / project.project_value) * 100,
+                              )
+                            : 0}
+                          %
                         </span>
                       </div>
                       <CProgress
-                        value={project.project_value > 0 ? Math.round(((project.expense_accounted || 0) / project.project_value) * 100) : 0}
+                        value={
+                          project.project_value > 0
+                            ? Math.round(
+                                ((project.expense_accounted || 0) / project.project_value) * 100,
+                              )
+                            : 0
+                        }
                         height={10}
                         color="warning"
                         className="rounded-pill"
@@ -1039,11 +1441,22 @@ const ProjectDetailPage = () => {
                       <div className="d-flex justify-content-between mb-1 small">
                         <span className="text-body-secondary">Committed Expense</span>
                         <span className="fw-semibold">
-                          {project.project_value > 0 ? Math.round(((project.committed_expense || 0) / project.project_value) * 100) : 0}%
+                          {project.project_value > 0
+                            ? Math.round(
+                                ((project.committed_expense || 0) / project.project_value) * 100,
+                              )
+                            : 0}
+                          %
                         </span>
                       </div>
                       <CProgress
-                        value={project.project_value > 0 ? Math.round(((project.committed_expense || 0) / project.project_value) * 100) : 0}
+                        value={
+                          project.project_value > 0
+                            ? Math.round(
+                                ((project.committed_expense || 0) / project.project_value) * 100,
+                              )
+                            : 0
+                        }
                         height={10}
                         color="info"
                         className="rounded-pill"
@@ -1054,13 +1467,22 @@ const ProjectDetailPage = () => {
                     </CCol>
                     <CCol xs={12} md={4}>
                       {(() => {
-                        const bal = project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)
-                        const balPct = project.project_value > 0 ? Math.round((bal / project.project_value) * 100) : 0
+                        const bal =
+                          project.project_value -
+                          (project.expense_accounted || 0) -
+                          (project.committed_expense || 0)
+                        const balPct =
+                          project.project_value > 0
+                            ? Math.round((bal / project.project_value) * 100)
+                            : 0
                         return (
                           <>
                             <div className="d-flex justify-content-between mb-1 small">
                               <span className="text-body-secondary">Fund Balance</span>
-                              <span className="fw-semibold" style={{ color: bal >= 0 ? '#06d6a0' : '#e74c3c' }}>
+                              <span
+                                className="fw-semibold"
+                                style={{ color: bal >= 0 ? '#06d6a0' : '#e74c3c' }}
+                              >
                                 {balPct}%
                               </span>
                             </div>
@@ -1070,7 +1492,10 @@ const ProjectDetailPage = () => {
                               color={bal >= 0 ? 'success' : 'danger'}
                               className="rounded-pill"
                             />
-                            <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                            <div
+                              className="text-body-secondary mt-1"
+                              style={{ fontSize: '0.72rem' }}
+                            >
                               {fmt(bal)} remaining
                             </div>
                           </>
@@ -1083,13 +1508,39 @@ const ProjectDetailPage = () => {
                   <hr className="mt-4 mb-3" />
                   <CRow className="g-2 text-center">
                     {[
-                      { label: 'Total Sanctioned', value: fmt(project.project_value), color: '#4361ee' },
-                      { label: 'Total Utilised', value: fmt((project.expense_accounted || 0) + (project.committed_expense || 0)), color: '#f77f00' },
-                      { label: 'Available Balance', value: fmt(project.project_value - (project.expense_accounted || 0) - (project.committed_expense || 0)), color: '#06d6a0' },
+                      {
+                        label: 'Total Sanctioned',
+                        value: fmt(project.project_value),
+                        color: '#4361ee',
+                      },
+                      {
+                        label: 'Total Utilised',
+                        value: fmt(
+                          (project.expense_accounted || 0) + (project.committed_expense || 0),
+                        ),
+                        color: '#f77f00',
+                      },
+                      {
+                        label: 'Available Balance',
+                        value: fmt(
+                          project.project_value -
+                            (project.expense_accounted || 0) -
+                            (project.committed_expense || 0),
+                        ),
+                        color: '#06d6a0',
+                      },
                     ].map((item, i) => (
                       <CCol key={i} xs={12} md={4}>
-                        <div className="py-2 px-3 rounded-3" style={{ background: 'var(--cui-body-bg)' }}>
-                          <div className="fw-bold" style={{ color: item.color, fontSize: '1.1rem' }}>{item.value}</div>
+                        <div
+                          className="py-2 px-3 rounded-3"
+                          style={{ background: 'var(--cui-body-bg)' }}
+                        >
+                          <div
+                            className="fw-bold"
+                            style={{ color: item.color, fontSize: '1.1rem' }}
+                          >
+                            {item.value}
+                          </div>
                           <div className="text-body-secondary small">{item.label}</div>
                         </div>
                       </CCol>
@@ -1107,9 +1558,11 @@ const ProjectDetailPage = () => {
                   <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
                     <CCardBody className="p-4">
                       <div className="d-flex align-items-center justify-content-between mb-4">
-                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">Fund Installments & UCs</h6>
+                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">
+                          Fund Installments & UCs
+                        </h6>
                       </div>
-                      
+
                       {project.installments && project.installments.length > 0 ? (
                         <div className="position-relative">
                           {/* Vertical timeline line */}
@@ -1117,7 +1570,7 @@ const ProjectDetailPage = () => {
                             className="position-absolute bg-secondary opacity-25"
                             style={{ left: '16px', top: '10px', bottom: '10px', width: '2px' }}
                           ></div>
-                          
+
                           <div className="d-flex flex-column gap-4">
                             {project.installments.map((inst, i) => (
                               <div key={inst.id} className="d-flex position-relative">
@@ -1127,56 +1580,95 @@ const ProjectDetailPage = () => {
                                   style={{
                                     width: 34,
                                     height: 34,
-                                    background: inst.uc_status === 'Approved' ? '#06d6a0' : inst.uc_status === 'Submitted' ? '#4361ee' : '#fff',
+                                    background:
+                                      inst.uc_status === 'Approved'
+                                        ? '#06d6a0'
+                                        : inst.uc_status === 'Submitted'
+                                          ? '#4361ee'
+                                          : '#fff',
                                     border: `2px solid ${inst.uc_status === 'Approved' ? '#06d6a0' : inst.uc_status === 'Submitted' ? '#4361ee' : '#dee2e6'}`,
                                     color: inst.uc_status === 'Pending' ? '#adb5bd' : '#fff',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                                   }}
                                 >
                                   {inst.uc_status === 'Approved' ? '✓' : i + 1}
                                 </div>
-                                
+
                                 {/* Content Card */}
                                 <div className="ms-4 flex-grow-1">
                                   <div className="p-3 rounded-3 border shadow-sm">
                                     <div className="d-flex justify-content-between align-items-start mb-2">
                                       <div>
-                                        <h6 className="fw-bold mb-1">{inst.label} <span className="text-body-secondary fw-normal small">({inst.percentage}%)</span></h6>
-                                        <div className="text-primary fw-bold fs-5">{fmt(inst.amount)}</div>
+                                        <h6 className="fw-bold mb-1">
+                                          {inst.label}{' '}
+                                          <span className="text-body-secondary fw-normal small">
+                                            ({inst.percentage}%)
+                                          </span>
+                                        </h6>
+                                        <div className="text-primary fw-bold fs-5">
+                                          {fmt(inst.amount)}
+                                        </div>
                                       </div>
                                       <CBadge
-                                        color={inst.uc_status === 'Approved' ? 'success' : inst.uc_status === 'Submitted' ? 'primary' : 'warning'}
+                                        color={
+                                          inst.uc_status === 'Approved'
+                                            ? 'success'
+                                            : inst.uc_status === 'Submitted'
+                                              ? 'primary'
+                                              : 'warning'
+                                        }
                                         shape="rounded-pill"
                                       >
                                         UC: {inst.uc_status || 'Pending'}
                                       </CBadge>
                                     </div>
-                                    
+
                                     <CRow className="g-2 small text-body-secondary mt-2">
                                       <CCol xs={4}>
-                                        <div><CIcon icon={cilFolder} className="me-1" /> Target Date</div>
-                                        <div className="fw-medium text-body">{fmtDate(inst.target_date)}</div>
+                                        <div>
+                                          <CIcon icon={cilFolder} className="me-1" /> Target Date
+                                        </div>
+                                        <div className="fw-medium text-body">
+                                          {fmtDate(inst.target_date)}
+                                        </div>
                                       </CCol>
                                       <CCol xs={4}>
-                                        <div><CIcon icon={cilFolder} className="me-1" /> Actual Date</div>
-                                        <div className="fw-medium text-body">{inst.actual_date ? fmtDate(inst.actual_date) : '—'}</div>
+                                        <div>
+                                          <CIcon icon={cilFolder} className="me-1" /> Actual Date
+                                        </div>
+                                        <div className="fw-medium text-body">
+                                          {inst.actual_date ? fmtDate(inst.actual_date) : '—'}
+                                        </div>
                                       </CCol>
                                       <CCol xs={4}>
-                                        <div><CIcon icon={cilWarning} className="me-1" /> Delay</div>
+                                        <div>
+                                          <CIcon icon={cilWarning} className="me-1" /> Delay
+                                        </div>
                                         {(() => {
-                                          const delay = getDelayDays(inst.target_date, inst.actual_date)
+                                          const delay = getDelayDays(
+                                            inst.target_date,
+                                            inst.actual_date,
+                                          )
                                           return (
-                                            <div className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}>
+                                            <div
+                                              className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}
+                                            >
                                               {delay > 0 ? `${delay} days` : 'No delay'}
                                             </div>
                                           )
                                         })()}
                                       </CCol>
                                     </CRow>
-                                    
+
                                     {(inst.uc_status === 'Pending' || !inst.uc_status) && (
                                       <div className="mt-3 pt-3 border-top text-end">
-                                        <CButton color="primary" size="sm" onClick={() => setUcModal({ visible: true, milestone: inst })}>
+                                        <CButton
+                                          color="primary"
+                                          size="sm"
+                                          onClick={() =>
+                                            setUcModal({ visible: true, milestone: inst })
+                                          }
+                                        >
                                           <CIcon icon={cilFile} className="me-1" />
                                           Submit UC
                                         </CButton>
@@ -1196,34 +1688,40 @@ const ProjectDetailPage = () => {
                     </CCardBody>
                   </CCard>
                 </CCol>
-                
+
                 {/* Project Risks */}
                 <CCol xs={12} lg={4}>
                   <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
                     <CCardBody className="p-4">
                       <div className="d-flex align-items-center justify-content-between mb-4">
-                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">Project Risks</h6>
+                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">
+                          Project Risks
+                        </h6>
                         <CButton color="secondary" variant="ghost" size="sm">
                           Add Risk
                         </CButton>
                       </div>
-                      
+
                       {project.risks && project.risks.length > 0 ? (
                         <div className="d-flex flex-column gap-3">
                           {project.risks.map((risk) => (
                             <div key={risk.id} className="p-3 rounded-3 border bg-body-tertiary">
                               <div className="d-flex justify-content-between mb-2">
                                 <CBadge
-                                  color={risk.severity === 'High' ? 'danger' : risk.severity === 'Medium' ? 'warning' : 'info'}
+                                  color={
+                                    risk.severity === 'High'
+                                      ? 'danger'
+                                      : risk.severity === 'Medium'
+                                        ? 'warning'
+                                        : 'info'
+                                  }
                                   shape="rounded-pill"
                                 >
                                   {risk.severity} Risk
                                 </CBadge>
                                 <span className="small text-body-secondary">{risk.status}</span>
                               </div>
-                              <div className="fw-medium text-body small">
-                                {risk.title}
-                              </div>
+                              <div className="fw-medium text-body small">{risk.title}</div>
                             </div>
                           ))}
                         </div>
@@ -1246,18 +1744,26 @@ const ProjectDetailPage = () => {
 
                 const hrSummary = localOrgPool.getProjectHRBudgetSummary(project.id)
                 const coreSummary = localOrgPool.getProjectCoreBudgetSummary(project.id)
-                const hrCharges = localOrgPool.getProjectHRCharges(project.id).map(c => ({...c, amount: c.myAmount}))
-                const coreCharges = localOrgPool.getProjectCoreCharges(project.id).map(c => ({...c, amount: c.myAmount}))
+                const hrCharges = localOrgPool
+                  .getProjectHRCharges(project.id)
+                  .map((c) => ({ ...c, amount: c.myAmount }))
+                const coreCharges = localOrgPool
+                  .getProjectCoreCharges(project.id)
+                  .map((c) => ({ ...c, amount: c.myAmount }))
 
                 const saveActualDate = (instId) => {
-                  const updated = localProjects.updateInstallment(project.id, instId, { actual_date: actualDateVal || null })
+                  const updated = localProjects.updateInstallment(project.id, instId, {
+                    actual_date: actualDateVal || null,
+                  })
                   setProject(updated)
                   setActualDateEditing(null)
                   setToast({ color: 'success', message: 'Actual date updated.' })
                 }
 
                 const updateProjectPct = (field, val) => {
-                  const updated = localProjects.update(project.id, { [field]: parseFloat(val) || 0 })
+                  const updated = localProjects.update(project.id, {
+                    [field]: parseFloat(val) || 0,
+                  })
                   setProject(updated)
                 }
 
@@ -1277,8 +1783,19 @@ const ProjectDetailPage = () => {
                   setProject(updated)
                 }
 
-                const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
-                const UC_COLORS = { Pending: 'secondary', Submitted: 'warning', Approved: 'success' }
+                const fmtD = (d) =>
+                  d
+                    ? new Date(d).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : '—'
+                const UC_COLORS = {
+                  Pending: 'secondary',
+                  Submitted: 'warning',
+                  Approved: 'success',
+                }
 
                 return (
                   <div>
@@ -1290,13 +1807,20 @@ const ProjectDetailPage = () => {
                           {[
                             { key: 'admin_pct', color: '#f7c948', label: 'Admin' },
                             { key: 'hr_pct', color: '#4361ee', label: 'HR' },
-                            { key: 'core_pct', color: '#f72585', label: 'Core' }
+                            { key: 'core_pct', color: '#f72585', label: 'Core' },
                           ].map(({ key, color, label }) => {
                             const pct = project[key] ?? 5
-                            const budgetAmt = (project.project_valuation || project.project_value || 0) * (pct / 100)
+                            const budgetAmt =
+                              (project.project_valuation || project.project_value || 0) *
+                              (pct / 100)
                             return (
-                              <div key={key} className="d-flex flex-column align-items-center gap-1">
-                                <span className="small fw-semibold" style={{ color }}>{label}</span>
+                              <div
+                                key={key}
+                                className="d-flex flex-column align-items-center gap-1"
+                              >
+                                <span className="small fw-semibold" style={{ color }}>
+                                  {label}
+                                </span>
                                 {isBudgetAdmin ? (
                                   <CInputGroup size="sm" style={{ width: 90 }}>
                                     <CFormInput
@@ -1305,15 +1829,29 @@ const ProjectDetailPage = () => {
                                       max="100"
                                       step="0.5"
                                       value={pct}
-                                      style={{ textAlign: 'center', fontWeight: 600, fontSize: '0.82rem' }}
+                                      style={{
+                                        textAlign: 'center',
+                                        fontWeight: 600,
+                                        fontSize: '0.82rem',
+                                      }}
                                       onChange={(e) => updateProjectPct(key, e.target.value)}
                                     />
-                                    <CInputGroupText style={{ fontSize: '0.75rem' }}>%</CInputGroupText>
+                                    <CInputGroupText style={{ fontSize: '0.75rem' }}>
+                                      %
+                                    </CInputGroupText>
                                   </CInputGroup>
                                 ) : (
-                                  <span className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center" style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}>{pct}%</span>
+                                  <span
+                                    className="fw-semibold text-body-secondary border rounded bg-body-tertiary d-inline-block text-center"
+                                    style={{ width: 65, padding: '2px 6px', fontSize: '0.8rem' }}
+                                  >
+                                    {pct}%
+                                  </span>
                                 )}
-                                <span className="text-body-tertiary" style={{ fontSize: '0.68rem' }}>
+                                <span
+                                  className="text-body-tertiary"
+                                  style={{ fontSize: '0.68rem' }}
+                                >
                                   {budgetAmt > 0 ? `₹${(budgetAmt / 1_00_000).toFixed(1)}L` : '—'}
                                 </span>
                               </div>
@@ -1327,12 +1865,18 @@ const ProjectDetailPage = () => {
                             {(() => {
                               // Merge org-level EMS expenses (read-only) with project-specific admin expenses
                               const orgAdminExpenses = localAdminExpenses.asProjectExpenses()
-                              const mergedAdminExpenses = [...orgAdminExpenses, ...(project.admin_expenses || [])]
+                              const mergedAdminExpenses = [
+                                ...orgAdminExpenses,
+                                ...(project.admin_expenses || []),
+                              ]
                               return (
                                 <ExpenseCard
                                   title="🏛 Admin Expenses"
                                   color="warning"
-                                  budget={(project.project_valuation || project.project_value || 0) * ((project.admin_pct ?? 5) / 100)}
+                                  budget={
+                                    (project.project_valuation || project.project_value || 0) *
+                                    ((project.admin_pct ?? 5) / 100)
+                                  }
                                   expenses={mergedAdminExpenses}
                                   isAdmin={true}
                                   projectId={project.id}
@@ -1344,10 +1888,26 @@ const ProjectDetailPage = () => {
                             })()}
                           </CCol>
                           <CCol xs={12} md={4}>
-                            <ExpenseCard title="👥 HR Pool Charges" color="primary" budget={hrSummary.poolBudget} expenses={hrCharges} isAdmin={false} projectId={project.id} isReadOnly={true} />
+                            <ExpenseCard
+                              title="👥 HR Pool Charges"
+                              color="primary"
+                              budget={hrSummary.poolBudget}
+                              expenses={hrCharges}
+                              isAdmin={false}
+                              projectId={project.id}
+                              isReadOnly={true}
+                            />
                           </CCol>
                           <CCol xs={12} md={4}>
-                            <ExpenseCard title="⚡ Core Pool Charges" color="danger" budget={coreSummary.poolBudget} expenses={coreCharges} isAdmin={false} projectId={project.id} isReadOnly={true} />
+                            <ExpenseCard
+                              title="⚡ Core Pool Charges"
+                              color="danger"
+                              budget={coreSummary.poolBudget}
+                              expenses={coreCharges}
+                              isAdmin={false}
+                              projectId={project.id}
+                              isReadOnly={true}
+                            />
                           </CCol>
                         </CRow>
                       </CCardBody>
@@ -1357,14 +1917,23 @@ const ProjectDetailPage = () => {
                     <CCard className="shadow-sm mb-4">
                       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
                         <span>📅 Installment Schedule</span>
-                        <CBadge color="primary" shape="rounded-pill">{installments.length} installments</CBadge>
+                        <CBadge color="primary" shape="rounded-pill">
+                          {installments.length} installments
+                        </CBadge>
                       </CCardHeader>
                       <CCardBody className="p-0">
                         {installments.length === 0 ? (
-                          <div className="text-center text-body-tertiary small py-4">No installments defined. Edit the project to add installments.</div>
+                          <div className="text-center text-body-tertiary small py-4">
+                            No installments defined. Edit the project to add installments.
+                          </div>
                         ) : (
                           <div style={{ overflowX: 'auto' }}>
-                            <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
+                            <CTable
+                              hover
+                              align="middle"
+                              className="mb-0"
+                              style={{ fontSize: '0.82rem' }}
+                            >
                               <CTableHead color="light">
                                 <CTableRow>
                                   <CTableHeaderCell>Installment</CTableHeaderCell>
@@ -1372,36 +1941,91 @@ const ProjectDetailPage = () => {
                                   <CTableHeaderCell className="text-end">Amount</CTableHeaderCell>
                                   <CTableHeaderCell>Period (Start – End/Target)</CTableHeaderCell>
                                   <CTableHeaderCell>Actual Date</CTableHeaderCell>
-                                  <CTableHeaderCell className="text-center">UC Status</CTableHeaderCell>
+                                  <CTableHeaderCell className="text-center">
+                                    UC Status
+                                  </CTableHeaderCell>
                                 </CTableRow>
                               </CTableHead>
                               <CTableBody>
                                 {installments.map((inst, instIdx) => (
                                   <React.Fragment key={inst.id}>
                                     <CTableRow>
-                                      <CTableDataCell className="fw-semibold">{inst.label}</CTableDataCell>
-                                      <CTableDataCell className="text-center"><CBadge color="secondary">{inst.percentage}%</CBadge></CTableDataCell>
-                                      <CTableDataCell className="text-end fw-bold text-primary">{fmtShort(inst.amount)}</CTableDataCell>
-                                      <CTableDataCell className="text-body-secondary">{fmtD(inst.start_date)} – {fmtD(inst.end_date)}</CTableDataCell>
+                                      <CTableDataCell className="fw-semibold">
+                                        {inst.label}
+                                      </CTableDataCell>
+                                      <CTableDataCell className="text-center">
+                                        <CBadge color="secondary">{inst.percentage}%</CBadge>
+                                      </CTableDataCell>
+                                      <CTableDataCell className="text-end fw-bold text-primary">
+                                        {fmtShort(inst.amount)}
+                                      </CTableDataCell>
+                                      <CTableDataCell className="text-body-secondary">
+                                        {fmtD(inst.start_date)} – {fmtD(inst.end_date)}
+                                      </CTableDataCell>
                                       <CTableDataCell>
                                         {actualDateEditing === inst.id ? (
-                                          <div className="d-flex gap-1 align-items-center" onClick={(e) => e.stopPropagation()}>
-                                            <CFormInput type="date" size="sm" value={actualDateVal} style={{ maxWidth: 150 }} onChange={(e) => setActualDateVal(e.target.value)} />
-                                            <CButton size="sm" color="success" onClick={() => saveActualDate(inst.id)}>✓</CButton>
-                                            <CButton size="sm" color="secondary" variant="ghost" onClick={() => setActualDateEditing(null)}>✕</CButton>
+                                          <div
+                                            className="d-flex gap-1 align-items-center"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <CFormInput
+                                              type="date"
+                                              size="sm"
+                                              value={actualDateVal}
+                                              style={{ maxWidth: 150 }}
+                                              onChange={(e) => setActualDateVal(e.target.value)}
+                                            />
+                                            <CButton
+                                              size="sm"
+                                              color="success"
+                                              onClick={() => saveActualDate(inst.id)}
+                                            >
+                                              ✓
+                                            </CButton>
+                                            <CButton
+                                              size="sm"
+                                              color="secondary"
+                                              variant="ghost"
+                                              onClick={() => setActualDateEditing(null)}
+                                            >
+                                              ✕
+                                            </CButton>
                                           </div>
                                         ) : (
-                                          <div className="d-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                            <span className={inst.actual_date ? 'text-success fw-semibold' : 'text-body-tertiary fst-italic'}>
-                                              {inst.actual_date ? fmtD(inst.actual_date) : 'Not received'}
+                                          <div
+                                            className="d-flex align-items-center gap-2"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <span
+                                              className={
+                                                inst.actual_date
+                                                  ? 'text-success fw-semibold'
+                                                  : 'text-body-tertiary fst-italic'
+                                              }
+                                            >
+                                              {inst.actual_date
+                                                ? fmtD(inst.actual_date)
+                                                : 'Not received'}
                                             </span>
-                                            <CButton size="sm" color="secondary" variant="ghost" onClick={() => { setActualDateEditing(inst.id); setActualDateVal(inst.actual_date || '') }}>
+                                            <CButton
+                                              size="sm"
+                                              color="secondary"
+                                              variant="ghost"
+                                              onClick={() => {
+                                                setActualDateEditing(inst.id)
+                                                setActualDateVal(inst.actual_date || '')
+                                              }}
+                                            >
                                               <CIcon icon={cilPencil} size="sm" />
                                             </CButton>
                                           </div>
                                         )}
                                       </CTableDataCell>
-                                      <CTableDataCell className="text-center"><CBadge color={UC_COLORS[inst.uc_status] || 'secondary'}>{inst.uc_status || 'Pending'}</CBadge></CTableDataCell>
+                                      <CTableDataCell className="text-center">
+                                        <CBadge color={UC_COLORS[inst.uc_status] || 'secondary'}>
+                                          {inst.uc_status || 'Pending'}
+                                        </CBadge>
+                                      </CTableDataCell>
                                     </CTableRow>
                                   </React.Fragment>
                                 ))}
@@ -1420,7 +2044,11 @@ const ProjectDetailPage = () => {
       </CCard>
 
       {/* Approve Modal */}
-      <CModal visible={approveModal.visible} onClose={() => setApproveModal({ visible: false, item: null })} alignment="center">
+      <CModal
+        visible={approveModal.visible}
+        onClose={() => setApproveModal({ visible: false, item: null })}
+        alignment="center"
+      >
         <CModalHeader>
           <CModalTitle>Confirm Approval</CModalTitle>
         </CModalHeader>
@@ -1431,7 +2059,11 @@ const ProjectDetailPage = () => {
           </p>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => setApproveModal({ visible: false, item: null })}>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            onClick={() => setApproveModal({ visible: false, item: null })}
+          >
             Cancel
           </CButton>
           <CButton color="success" onClick={() => handleApprove(approveModal.item)}>
@@ -1442,17 +2074,26 @@ const ProjectDetailPage = () => {
       </CModal>
 
       {/* Reject Modal */}
-      <CModal visible={rejectModal.visible} onClose={() => setRejectModal({ visible: false, item: null })} alignment="center">
+      <CModal
+        visible={rejectModal.visible}
+        onClose={() => setRejectModal({ visible: false, item: null })}
+        alignment="center"
+      >
         <CModalHeader>
           <CModalTitle>Reject Request</CModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>
-            Reject <strong>{rejectModal.item?.title}</strong>? This will send it back to the Project Officer.
+            Reject <strong>{rejectModal.item?.title}</strong>? This will send it back to the Project
+            Officer.
           </p>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => setRejectModal({ visible: false, item: null })}>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            onClick={() => setRejectModal({ visible: false, item: null })}
+          >
             Cancel
           </CButton>
           <CButton color="danger" onClick={() => handleReject(rejectModal.item)}>
@@ -1463,14 +2104,20 @@ const ProjectDetailPage = () => {
       </CModal>
 
       {/* UC Submission Modal */}
-      <CModal visible={ucModal.visible} onClose={() => setUcModal({ visible: false, milestone: null })} alignment="center">
+      <CModal
+        visible={ucModal.visible}
+        onClose={() => setUcModal({ visible: false, milestone: null })}
+        alignment="center"
+      >
         <CModalHeader>
           <CModalTitle>Submit Utilisation Certificate (UC)</CModalTitle>
         </CModalHeader>
         <CModalBody>
           <div className="mb-3">
             <label className="form-label small text-body-secondary">Installment</label>
-            <div className="fw-medium">{ucModal.milestone?.title} — {fmt(ucModal.milestone?.amount)}</div>
+            <div className="fw-medium">
+              {ucModal.milestone?.title} — {fmt(ucModal.milestone?.amount)}
+            </div>
           </div>
           <div className="mb-3">
             <label className="form-label small text-body-secondary">Upload UC Document (PDF)</label>
@@ -1478,11 +2125,19 @@ const ProjectDetailPage = () => {
           </div>
           <div className="mb-0">
             <label className="form-label small text-body-secondary">Remarks</label>
-            <textarea className="form-control" rows="3" placeholder="Any comments regarding the fund utilisation..."></textarea>
+            <textarea
+              className="form-control"
+              rows="3"
+              placeholder="Any comments regarding the fund utilisation..."
+            ></textarea>
           </div>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => setUcModal({ visible: false, milestone: null })}>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            onClick={() => setUcModal({ visible: false, milestone: null })}
+          >
             Cancel
           </CButton>
           <CButton color="primary" onClick={() => handleSubmitUc(ucModal.milestone)}>
@@ -1494,7 +2149,14 @@ const ProjectDetailPage = () => {
 
       <CToaster placement="top-end">
         {toast && (
-          <CToast autohide delay={3000} visible color={toast.color} className="text-white" onClose={() => setToast(null)}>
+          <CToast
+            autohide
+            delay={3000}
+            visible
+            color={toast.color}
+            className="text-white"
+            onClose={() => setToast(null)}
+          >
             <div className="d-flex">
               <CToastBody>{toast.message}</CToastBody>
               <CToastClose className="me-2 m-auto" white />

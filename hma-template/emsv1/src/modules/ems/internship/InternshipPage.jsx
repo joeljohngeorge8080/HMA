@@ -68,7 +68,11 @@ const InternModal = ({ form, setForm, editTarget, onSave, onClose, saving, error
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">
-            {error && <CAlert color="danger" className="py-2 mb-3">{error}</CAlert>}
+            {error && (
+              <CAlert color="danger" className="py-2 mb-3">
+                {error}
+              </CAlert>
+            )}
 
             {/* Basic Details */}
             <p className="fw-semibold text-body-secondary small text-uppercase mb-2 mt-1">
@@ -128,7 +132,11 @@ const InternModal = ({ form, setForm, editTarget, onSave, onClose, saving, error
               <CCol md={6}>
                 <CFormLabel className="fw-semibold">Status</CFormLabel>
                 <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {INTERN_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {INTERN_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
             </CRow>
@@ -157,7 +165,11 @@ const InternModal = ({ form, setForm, editTarget, onSave, onClose, saving, error
                   value={form.payment_status}
                   onChange={(e) => set('payment_status', e.target.value)}
                 >
-                  {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {PAYMENT_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
               <CCol md={12}>
@@ -172,7 +184,9 @@ const InternModal = ({ form, setForm, editTarget, onSave, onClose, saving, error
             </CRow>
           </div>
           <div className="modal-footer">
-            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </CButton>
             <CButton color="primary" onClick={onSave} disabled={saving}>
               {saving && <CSpinner size="sm" className="me-1" />}
               {editTarget ? 'Save Changes' : 'Add Intern'}
@@ -189,13 +203,19 @@ const DeleteModal = ({ target, onConfirm, onClose }) => (
   <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
     <div className="modal-dialog">
       <div className="modal-content">
-        <div className="modal-header"><h5 className="modal-title">Delete Intern</h5></div>
+        <div className="modal-header">
+          <h5 className="modal-title">Delete Intern</h5>
+        </div>
         <div className="modal-body">
           Delete <strong>{target.name}</strong>? This cannot be undone.
         </div>
         <div className="modal-footer">
-          <CButton color="secondary" onClick={onClose}>Cancel</CButton>
-          <CButton color="danger" onClick={onConfirm}>Delete</CButton>
+          <CButton color="secondary" onClick={onClose}>
+            Cancel
+          </CButton>
+          <CButton color="danger" onClick={onConfirm}>
+            Delete
+          </CButton>
         </div>
       </div>
     </div>
@@ -218,10 +238,11 @@ const InternshipPage = () => {
 
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const load = () =>
-    setRows(localInternships.list({ search, status: filterStatus }))
+  const load = () => setRows(localInternships.list({ search, status: filterStatus }))
 
-  useEffect(() => { load() }, [search, filterStatus])
+  useEffect(() => {
+    load()
+  }, [search, filterStatus])
 
   const openAdd = () => {
     setEditTarget(null)
@@ -249,7 +270,10 @@ const InternshipPage = () => {
   }
 
   const handleSave = () => {
-    if (!form.name.trim()) { setFormError('Intern name is required'); return }
+    if (!form.name.trim()) {
+      setFormError('Intern name is required')
+      return
+    }
     setSaving(true)
     setFormError('')
     try {
@@ -356,7 +380,11 @@ const InternshipPage = () => {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="">All Status</option>
-                {INTERN_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {INTERN_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </CFormSelect>
             </CCol>
           </CRow>
@@ -399,7 +427,9 @@ const InternshipPage = () => {
                   <CTableDataCell className="small">{row.institution || '—'}</CTableDataCell>
                   <CTableDataCell className="small">{row.department || '—'}</CTableDataCell>
                   <CTableDataCell className="small text-body-secondary">
-                    {row.start_date || '—'}{row.start_date && row.end_date ? ' → ' : ''}{row.end_date || ''}
+                    {row.start_date || '—'}
+                    {row.start_date && row.end_date ? ' → ' : ''}
+                    {row.end_date || ''}
                   </CTableDataCell>
                   <CTableDataCell className="small">{row.supervisor || '—'}</CTableDataCell>
                   <CTableDataCell>
@@ -416,14 +446,21 @@ const InternshipPage = () => {
                   {canEdit && (
                     <CTableDataCell>
                       <CButton
-                        color="secondary" variant="ghost" size="sm"
-                        className="me-1" onClick={() => openEdit(row)} title="Edit"
+                        color="secondary"
+                        variant="ghost"
+                        size="sm"
+                        className="me-1"
+                        onClick={() => openEdit(row)}
+                        title="Edit"
                       >
                         <CIcon icon={cilPencil} />
                       </CButton>
                       <CButton
-                        color="danger" variant="ghost" size="sm"
-                        onClick={() => setDeleteTarget(row)} title="Delete"
+                        color="danger"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteTarget(row)}
+                        title="Delete"
                       >
                         <CIcon icon={cilTrash} />
                       </CButton>
@@ -438,9 +475,13 @@ const InternshipPage = () => {
 
       {showModal && (
         <InternModal
-          form={form} setForm={setForm} editTarget={editTarget}
-          onSave={handleSave} onClose={() => setShowModal(false)}
-          saving={saving} error={formError}
+          form={form}
+          setForm={setForm}
+          editTarget={editTarget}
+          onSave={handleSave}
+          onClose={() => setShowModal(false)}
+          saving={saving}
+          error={formError}
         />
       )}
       {deleteTarget && (

@@ -131,7 +131,11 @@ const AnnouncementsInboxPage = () => {
 
       {messages.length === 0 && (
         <div className="text-center text-body-secondary py-5">
-          <CIcon icon={cilEnvelopeLetter} style={{ width: 48, height: 48 }} className="mb-2 text-body-secondary" />
+          <CIcon
+            icon={cilEnvelopeLetter}
+            style={{ width: 48, height: 48 }}
+            className="mb-2 text-body-secondary"
+          />
           <div className="mt-2">
             {filter || readFilter !== 'all'
               ? 'No messages match your filters.'

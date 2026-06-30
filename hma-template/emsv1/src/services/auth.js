@@ -2,13 +2,38 @@ import api from './api'
 import { getUserByEmail } from './localUsers'
 
 const DEV_USERS = {
-  DEV000: { employee_id: 'DEV000', full_name: 'Dev Admin',           role: 'Admin',          google_email: 'admin@hma.dev' },
-  DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO',             role: 'CEO',            google_email: 'ceo@hma.dev' },
-  DEV002: { employee_id: 'DEV002', full_name: 'Dev Head',            role: 'Heads',          google_email: 'head@hma.dev' },
-  DEV003: { employee_id: 'DEV003', full_name: 'Dev HR',              role: 'HR',             google_email: 'hr@hma.dev' },
-  DEV004: { employee_id: 'DEV004', full_name: 'Dev Finance',         role: 'Finance',        google_email: 'finance@hma.dev' },
-  DEV005: { employee_id: 'DEV005', full_name: 'Dev Project Officer', role: 'Project Officer',google_email: 'po@hma.dev' },
-  DEV009: { employee_id: 'THLL2408', full_name: 'Titu S Jayan',      role: 'Employee',       google_email: 'dev009@hma.dev' },
+  DEV000: {
+    employee_id: 'DEV000',
+    full_name: 'Dev Admin',
+    role: 'Admin',
+    google_email: 'admin@hma.dev',
+  },
+  DEV001: { employee_id: 'DEV001', full_name: 'Dev CEO', role: 'CEO', google_email: 'ceo@hma.dev' },
+  DEV002: {
+    employee_id: 'DEV002',
+    full_name: 'Dev Head',
+    role: 'Heads',
+    google_email: 'head@hma.dev',
+  },
+  DEV003: { employee_id: 'DEV003', full_name: 'Dev HR', role: 'HR', google_email: 'hr@hma.dev' },
+  DEV004: {
+    employee_id: 'DEV004',
+    full_name: 'Dev Finance',
+    role: 'Finance',
+    google_email: 'finance@hma.dev',
+  },
+  DEV005: {
+    employee_id: 'DEV005',
+    full_name: 'Dev Project Officer',
+    role: 'Project Officer',
+    google_email: 'po@hma.dev',
+  },
+  DEV009: {
+    employee_id: 'THLL2408',
+    full_name: 'Titu S Jayan',
+    role: 'Employee',
+    google_email: 'dev009@hma.dev',
+  },
 }
 
 const isDevMode = () => import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'
@@ -66,9 +91,7 @@ export const getMeApi = () => {
 
   if (isDevMode() && token?.startsWith('dev-token-')) {
     const user = DEV_USERS[token.replace('dev-token-', '')]
-    return user
-      ? Promise.resolve({ data: user })
-      : Promise.reject(new Error('Invalid dev token'))
+    return user ? Promise.resolve({ data: user }) : Promise.reject(new Error('Invalid dev token'))
   }
 
   if (token?.startsWith('local-')) {

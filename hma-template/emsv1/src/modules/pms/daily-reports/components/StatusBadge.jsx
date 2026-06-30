@@ -10,13 +10,13 @@ import PropTypes from 'prop-types'
 import { CBadge } from '@coreui/react'
 
 const STATUS_CONFIG = {
-  draft:            { color: 'secondary', label: 'Draft' },
-  submitted:        { color: 'warning',   label: 'Pending' },
-  declined:         { color: 'danger',    label: 'Declined' },
-  resubmitted:      { color: 'info',      label: 'Resubmitted' },
-  approved:         { color: 'success',   label: 'Approved' },
-  settled:          { color: 'primary',   label: 'Settled' },
-  report_submitted: { color: 'dark',      label: 'In Report' },
+  draft: { color: 'secondary', label: 'Draft' },
+  submitted: { color: 'warning', label: 'Pending' },
+  declined: { color: 'danger', label: 'Declined' },
+  resubmitted: { color: 'info', label: 'Resubmitted' },
+  approved: { color: 'success', label: 'Approved' },
+  settled: { color: 'primary', label: 'Settled' },
+  report_submitted: { color: 'dark', label: 'In Report' },
 }
 
 const StatusBadge = ({ status, className = '' }) => {
@@ -34,7 +34,13 @@ const StatusBadge = ({ status, className = '' }) => {
 
 StatusBadge.propTypes = {
   status: PropTypes.oneOf([
-    'draft', 'submitted', 'declined', 'resubmitted', 'approved', 'settled', 'report_submitted',
+    'draft',
+    'submitted',
+    'declined',
+    'resubmitted',
+    'approved',
+    'settled',
+    'report_submitted',
   ]).isRequired,
   className: PropTypes.string,
 }

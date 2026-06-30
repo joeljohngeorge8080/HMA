@@ -17,12 +17,8 @@ const placeholder = (title, message) => {
 const ProjectAssociateDashboard = React.lazy(
   () => import('../modules/pms/project-associate/ProjectAssociateDashboard'),
 )
-const ProjectListPage = React.lazy(
-  () => import('../modules/pms/project-associate/ProjectListPage'),
-)
-const ProjectFormPage = React.lazy(
-  () => import('../modules/pms/project-associate/ProjectFormPage'),
-)
+const ProjectListPage = React.lazy(() => import('../modules/pms/project-associate/ProjectListPage'))
+const ProjectFormPage = React.lazy(() => import('../modules/pms/project-associate/ProjectFormPage'))
 const PAProjectDetailPage = React.lazy(
   () => import('../modules/pms/project-associate/ProjectDetailPage'),
 )
@@ -49,12 +45,20 @@ const BackendReportsPage = React.lazy(
 const TaskManagementPage = React.lazy(
   () => import('../modules/pms/daily-reports/TaskManagementPage'),
 )
-const FieldPersonnelOverviewPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'))
+const FieldPersonnelOverviewPage = React.lazy(
+  () => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'),
+)
 const MyTasksPage = React.lazy(() => import('../modules/pms/daily-reports/MyTasksPage'))
-const TaskReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportSubmitPage'))
-const TaskReportEditPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportEditPage'))
+const TaskReportSubmitPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskReportSubmitPage'),
+)
+const TaskReportEditPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskReportEditPage'),
+)
 const PersonnelLogPage = React.lazy(() => import('../modules/pms/daily-reports/PersonnelLogPage'))
-const FieldPersonnelBillsPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'))
+const FieldPersonnelBillsPage = React.lazy(
+  () => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'),
+)
 const SettlementsPage = React.lazy(() => import('../modules/pms/daily-reports/SettlementsPage'))
 const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
 

@@ -45,9 +45,7 @@ const TaskCard = ({
   const overdue = task.status === 'active' && isOverdue(task.due_date)
 
   return (
-    <CCard
-      className={`daily-report-card mb-2 border-start border-4 border-start-${config.color}`}
-    >
+    <CCard className={`daily-report-card mb-2 border-start border-4 border-start-${config.color}`}>
       <CCardBody className="py-3 px-3">
         <div className="d-flex justify-content-between align-items-start mb-2">
           <div className="flex-grow-1 me-2">
@@ -56,12 +54,20 @@ const TaskCard = ({
               🏢 {task.project_name || 'General Project'}
             </div>
             {task.description && (
-              <div className="small text-body-secondary text-truncate" style={{ maxWidth: '400px' }}>
+              <div
+                className="small text-body-secondary text-truncate"
+                style={{ maxWidth: '400px' }}
+              >
                 {task.description}
               </div>
             )}
           </div>
-          <CBadge color={config.color} shape="rounded-pill" className="px-3 py-1 text-uppercase" style={{ fontSize: '0.7rem', fontWeight: 600 }}>
+          <CBadge
+            color={config.color}
+            shape="rounded-pill"
+            className="px-3 py-1 text-uppercase"
+            style={{ fontSize: '0.7rem', fontWeight: 600 }}
+          >
             {config.label}
           </CBadge>
         </div>
@@ -74,7 +80,9 @@ const TaskCard = ({
             </span>
           )}
           {task.due_date && (
-            <span className={`d-flex align-items-center gap-1 ${overdue ? 'text-danger fw-medium' : ''}`}>
+            <span
+              className={`d-flex align-items-center gap-1 ${overdue ? 'text-danger fw-medium' : ''}`}
+            >
               <CIcon icon={cilCalendar} size="sm" />
               {formatDate(task.due_date)}
               {overdue && ' (overdue)'}
@@ -86,11 +94,7 @@ const TaskCard = ({
         {showActions && task.status === 'active' && (
           <div className="d-flex gap-2 mt-3 pt-2 border-top">
             {onSubmitReport && (
-              <CButton
-                color="primary"
-                size="sm"
-                onClick={() => onSubmitReport(task.id)}
-              >
+              <CButton color="primary" size="sm" onClick={() => onSubmitReport(task.id)}>
                 Submit Report
               </CButton>
             )}
@@ -106,12 +110,7 @@ const TaskCard = ({
               </CButton>
             )}
             {onCancel && (
-              <CButton
-                color="danger"
-                variant="ghost"
-                size="sm"
-                onClick={() => onCancel(task.id)}
-              >
+              <CButton color="danger" variant="ghost" size="sm" onClick={() => onCancel(task.id)}>
                 <CIcon icon={cilXCircle} size="sm" className="me-1" />
                 Cancel
               </CButton>

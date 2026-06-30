@@ -20,8 +20,18 @@ import { localAttendance } from '../../../services/localAttendance'
 import { localEmployees } from '../../../services/localEmployees'
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const fmt = (n) =>
@@ -73,8 +83,8 @@ const DeductionSummary = ({ year, month }) => {
       const salary = info.salary
 
       const absentCount = s.absent_count || 0
-      const halfDayCount = s.half_day_count || 0  // already counted inside present_count
-      const excessLateUnits = s.excess_late_units || 0  // units beyond 7 free
+      const halfDayCount = s.half_day_count || 0 // already counted inside present_count
+      const excessLateUnits = s.excess_late_units || 0 // units beyond 7 free
 
       // Daily Salary = Monthly Salary / Total Days in Month (per business rules)
       const daysInMonth = new Date(year, month, 0).getDate()
@@ -193,9 +203,9 @@ const DeductionSummary = ({ year, month }) => {
         <strong>Per-day rate</strong> = monthly salary ÷ total days in month.&nbsp;
         <strong>Absent deduction</strong> = absent days × per-day rate.&nbsp;
         <strong>Half-day deduction</strong> = half-day count × ½ per-day rate.&nbsp;
-        <strong>Late deduction</strong> = excess units (beyond 7 free) × per-day rate ÷ 32
-        (1 unit = 15 min; hourly rate = per-day ÷ 8; 15-min = hourly ÷ 4).&nbsp;
-        Paid leave (CL/SL/OD/COFF) is not deducted.
+        <strong>Late deduction</strong> = excess units (beyond 7 free) × per-day rate ÷ 32 (1 unit =
+        15 min; hourly rate = per-day ÷ 8; 15-min = hourly ÷ 4).&nbsp; Paid leave (CL/SL/OD/COFF) is
+        not deducted.
       </p>
 
       <CCard>

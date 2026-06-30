@@ -123,7 +123,9 @@ const TaskAssignModal = ({
           {errors.project_id && <CFormFeedback invalid>{errors.project_id}</CFormFeedback>}
           {selectedProject && (
             <div className="text-body-secondary mt-1" style={{ fontSize: '0.75rem' }}>
-              <CIcon icon={cilLocationPin} size="sm" className="me-1" />{selectedProject.location} · Team: {selectedProject.field_personnel?.length || 0} member(s)
+              <CIcon icon={cilLocationPin} size="sm" className="me-1" />
+              {selectedProject.location} · Team: {selectedProject.field_personnel?.length || 0}{' '}
+              member(s)
             </div>
           )}
         </div>
@@ -186,7 +188,11 @@ const TaskAssignModal = ({
         <CButton color="secondary" variant="ghost" onClick={handleClose} disabled={loading}>
           Cancel
         </CButton>
-        <CButton color="primary" onClick={handleSubmit} disabled={loading || officerProjects.length === 0}>
+        <CButton
+          color="primary"
+          onClick={handleSubmit}
+          disabled={loading || officerProjects.length === 0}
+        >
           {loading ? (
             <>
               <CSpinner size="sm" className="me-1" />

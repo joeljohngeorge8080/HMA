@@ -29,12 +29,12 @@ import TaskCard from './components/TaskCard'
 const TaskReportSubmitPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  
+
   const [task, setTask] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState(null)
-  
+
   // Form state
   const [status, setStatus] = useState('active')
   const [notes, setNotes] = useState('')
@@ -103,7 +103,9 @@ const TaskReportSubmitPage = () => {
         </CButton>
         <div className="flex-grow-1">
           <h4 className="mb-0 fw-semibold">Submit Task Report</h4>
-          <div className="small text-body-secondary">Update progress and status for assigned task</div>
+          <div className="small text-body-secondary">
+            Update progress and status for assigned task
+          </div>
         </div>
       </div>
 
@@ -123,10 +125,7 @@ const TaskReportSubmitPage = () => {
                 {/* Status Dropdown */}
                 <div className="mb-3">
                   <CFormLabel className="fw-medium">Task Status</CFormLabel>
-                  <CFormSelect
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
+                  <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="active">Active (In Progress)</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
