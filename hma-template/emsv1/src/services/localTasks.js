@@ -93,6 +93,13 @@ export const localTasks = {
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   },
 
+  // ── getByAssignee ────────────────────────────────────────────────────────────
+  getByAssignee(assigneeId) {
+    return readAll()
+      .filter((t) => t.assignee === assigneeId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  },
+
   // ── getActiveTasks (legacy compat) ──────────────────────────────────────────
   getActiveTasks(projectId = '') {
     let rows = readAll().filter((t) => t.status === TASK_STATUS.ACTIVE)
