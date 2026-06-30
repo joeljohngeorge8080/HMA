@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -89,7 +89,7 @@ const AppSidebar = ({ nav = [] }) => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to={dashboardPath}>
+        <CSidebarBrand as={Link} to={dashboardPath}>
           <img
             src={hmaLogo}
             alt="HMA"
