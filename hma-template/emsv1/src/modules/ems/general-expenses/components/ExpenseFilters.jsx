@@ -2,8 +2,19 @@ import React from 'react'
 import { CCol, CFormSelect, CRow } from '@coreui/react'
 
 const MONTHS = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const thisYear = new Date().getFullYear()
@@ -44,10 +55,7 @@ const ExpenseFilters = ({ year, month, categoryId, status, categories, onChange 
       </CCol>
 
       <CCol sm={3}>
-        <CFormSelect
-          value={categoryId}
-          onChange={(e) => set('categoryId', e.target.value)}
-        >
+        <CFormSelect value={categoryId} onChange={(e) => set('categoryId', e.target.value)}>
           <option value="">All Categories</option>
           {(categories || []).map((c) => (
             <option key={c.id} value={c.id}>

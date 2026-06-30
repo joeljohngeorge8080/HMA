@@ -46,14 +46,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import {
-  cilSearch,
-  cilCheckCircle,
-  cilMoney,
-  cilClock,
-  cilFile,
-  cilNotes,
-} from '@coreui/icons'
+import { cilSearch, cilCheckCircle, cilMoney, cilClock, cilFile, cilNotes } from '@coreui/icons'
 
 import { localReports, REPORT_STATUS } from '../../../services/localReports'
 
@@ -130,16 +123,17 @@ const SettlementsPage = () => {
     setSettleLoading(false)
   }
 
-
-
   const totalApprovedAmt = approvedBills.reduce((s, b) => s + (b.amount || 0), 0)
   const totalSettledAmt = settledBills.reduce((s, b) => s + (b.amount || 0), 0)
 
-  const BillTable = ({ bills, showSettleBtn }) => (
+  const BillTable = ({ bills, showSettleBtn }) =>
     bills.length === 0 ? (
       <div className="text-center py-5 text-body-secondary">
         <div className="mb-2 text-body-secondary">
-          <CIcon icon={showSettleBtn ? cilFile : cilCheckCircle} style={{ width: 40, height: 40 }} />
+          <CIcon
+            icon={showSettleBtn ? cilFile : cilCheckCircle}
+            style={{ width: 40, height: 40 }}
+          />
         </div>
         <h6 className="text-body-secondary">
           {showSettleBtn ? 'No pending bills' : 'No settled bills yet'}
@@ -160,9 +154,7 @@ const SettlementsPage = () => {
               <CTableHeaderCell className="text-end">Amount</CTableHeaderCell>
               <CTableHeaderCell>Date</CTableHeaderCell>
               <CTableHeaderCell>Approved At</CTableHeaderCell>
-              {showSettleBtn && (
-                <CTableHeaderCell className="text-center">Action</CTableHeaderCell>
-              )}
+              {showSettleBtn && <CTableHeaderCell className="text-center">Action</CTableHeaderCell>}
               {!showSettleBtn && (
                 <CTableHeaderCell className="text-center">Settled At</CTableHeaderCell>
               )}
@@ -188,9 +180,7 @@ const SettlementsPage = () => {
                 <CTableDataCell className="text-end fw-semibold">
                   {formatCurrency(bill.amount)}
                 </CTableDataCell>
-                <CTableDataCell className="small">
-                  {formatDate(bill.report_date)}
-                </CTableDataCell>
+                <CTableDataCell className="small">{formatDate(bill.report_date)}</CTableDataCell>
                 <CTableDataCell className="small text-body-secondary">
                   {bill.reviewed_at
                     ? new Date(bill.reviewed_at).toLocaleString('en-IN', {
@@ -203,11 +193,7 @@ const SettlementsPage = () => {
                 </CTableDataCell>
                 {showSettleBtn && (
                   <CTableDataCell className="text-center">
-                    <CButton
-                      color="primary"
-                      size="sm"
-                      onClick={() => handleSettleClick(bill.id)}
-                    >
+                    <CButton color="primary" size="sm" onClick={() => handleSettleClick(bill.id)}>
                       <CIcon icon={cilCheckCircle} className="me-1" size="sm" />
                       Mark Settled
                     </CButton>
@@ -231,7 +217,6 @@ const SettlementsPage = () => {
         </CTable>
       </div>
     )
-  )
 
   return (
     <>
@@ -239,9 +224,7 @@ const SettlementsPage = () => {
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h4 className="fw-semibold mb-1">Settlements</h4>
-          <p className="text-body-secondary mb-0 small">
-            Process and settle approved field bills
-          </p>
+          <p className="text-body-secondary mb-0 small">Process and settle approved field bills</p>
         </div>
       </div>
 
@@ -259,7 +242,9 @@ const SettlementsPage = () => {
               <div>
                 <div className="fs-4 fw-bold">{approvedBills.length}</div>
                 <div className="small text-body-secondary">Pending Settlement</div>
-                <div className="small fw-semibold text-warning">{formatCurrency(totalApprovedAmt)}</div>
+                <div className="small fw-semibold text-warning">
+                  {formatCurrency(totalApprovedAmt)}
+                </div>
               </div>
             </CCardBody>
           </CCard>
@@ -276,7 +261,9 @@ const SettlementsPage = () => {
               <div>
                 <div className="fs-4 fw-bold">{settledBills.length}</div>
                 <div className="small text-body-secondary">Settled Bills</div>
-                <div className="small fw-semibold text-primary">{formatCurrency(totalSettledAmt)}</div>
+                <div className="small fw-semibold text-primary">
+                  {formatCurrency(totalSettledAmt)}
+                </div>
               </div>
             </CCardBody>
           </CCard>
@@ -291,7 +278,9 @@ const SettlementsPage = () => {
                 <CIcon icon={cilFile} className="text-success" />
               </div>
               <div>
-                <div className="fs-4 fw-bold">{formatCurrency(totalApprovedAmt + totalSettledAmt)}</div>
+                <div className="fs-4 fw-bold">
+                  {formatCurrency(totalApprovedAmt + totalSettledAmt)}
+                </div>
                 <div className="small text-body-secondary">Total in Pipeline</div>
               </div>
             </CCardBody>
@@ -327,7 +316,9 @@ const SettlementsPage = () => {
               >
                 Pending Settlement
                 {approvedBills.length > 0 && (
-                  <CBadge color="warning" className="ms-2">{approvedBills.length}</CBadge>
+                  <CBadge color="warning" className="ms-2">
+                    {approvedBills.length}
+                  </CBadge>
                 )}
               </CNavLink>
             </CNavItem>
@@ -339,7 +330,9 @@ const SettlementsPage = () => {
               >
                 Settled
                 {settledBills.length > 0 && (
-                  <CBadge color="primary" className="ms-2">{settledBills.length}</CBadge>
+                  <CBadge color="primary" className="ms-2">
+                    {settledBills.length}
+                  </CBadge>
                 )}
               </CNavLink>
             </CNavItem>
@@ -394,8 +387,6 @@ const SettlementsPage = () => {
           </CButton>
         </CModalFooter>
       </CModal>
-
-
 
       {/* Toast */}
       <CToaster placement="top-end">

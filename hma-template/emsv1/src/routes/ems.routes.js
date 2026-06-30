@@ -26,6 +26,11 @@ const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
 const GlobalHRPoolPage = React.lazy(() => import('../modules/ems/hr-pool/GlobalHRPoolPage'))
+const CorePoolPage = React.lazy(() => import('../modules/ems/core-pool/CorePoolPage'))
+const ProjectOverheadsList = React.lazy(
+  () => import('../modules/ems/projects/ProjectOverheadsList'),
+)
+const ProjectOverheadView = React.lazy(() => import('../modules/ems/projects/ProjectOverheadView'))
 
 const GeneralExpenseList = React.lazy(
   () => import('../modules/ems/general-expenses/GeneralExpenseList'),
@@ -46,8 +51,8 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 
-const AdminExpensePage = React.lazy(
-  () => import('../modules/ems/expense-management/AdminExpensePage'),
+const ExpenseManagementPage = React.lazy(
+  () => import('../modules/ems/expense-management/ExpenseManagementPage'),
 )
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
@@ -126,14 +131,32 @@ export const emsRoutes = [
 
   {
     path: '/ems/hr-pool/global',
-    name: 'Global HR & Core Pool',
+    name: 'Global HR Pool',
     element: GlobalHRPoolPage,
+    module: MODULE.HR_POOL,
+  },
+  {
+    path: '/ems/core-pool/global',
+    name: 'Global Core Pool',
+    element: CorePoolPage,
+    module: MODULE.HR_POOL, // We can reuse HR_POOL or create a CORE_POOL module if it existed.
+  },
+  {
+    path: '/ems/projects/overheads',
+    name: 'Project Overheads',
+    element: ProjectOverheadsList,
+    module: MODULE.HR_POOL,
+  },
+  {
+    path: '/ems/projects/:id/overheads',
+    name: 'Project Overhead Details',
+    element: ProjectOverheadView,
     module: MODULE.HR_POOL,
   },
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
-    element: AdminExpensePage,
+    element: ExpenseManagementPage,
     module: MODULE.EXPENSE_MANAGEMENT,
   },
 

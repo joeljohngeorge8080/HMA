@@ -104,9 +104,7 @@ const ReportForm = ({
           {isResubmit ? 'Resubmit Daily Report' : 'Submit Daily Report'}
         </h5>
         {isResubmit && (
-          <div className="small text-body-secondary mt-1">
-            Editing a previously declined report
-          </div>
+          <div className="small text-body-secondary mt-1">Editing a previously declined report</div>
         )}
       </CCardHeader>
       <CCardBody className="pt-2">
@@ -212,12 +210,17 @@ const ReportForm = ({
               <CTable align="middle" className="mb-0" hover>
                 <CTableHead color="light">
                   <CTableRow>
-                    <CTableHeaderCell className="text-center" style={{ width: '60px' }}>Sl. No</CTableHeaderCell>
+                    <CTableHeaderCell className="text-center" style={{ width: '60px' }}>
+                      Sl. No
+                    </CTableHeaderCell>
                     <CTableHeaderCell>Particulars</CTableHeaderCell>
                     <CTableHeaderCell>Venue Address</CTableHeaderCell>
                     <CTableHeaderCell>Local Point of Contact (Name, Contact No)</CTableHeaderCell>
                     <CTableHeaderCell>Remarks</CTableHeaderCell>
-                    <CTableHeaderCell className="text-center" style={{ width: '60px' }}></CTableHeaderCell>
+                    <CTableHeaderCell
+                      className="text-center"
+                      style={{ width: '60px' }}
+                    ></CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
@@ -258,7 +261,12 @@ const ReportForm = ({
                         />
                       </CTableDataCell>
                       <CTableDataCell className="text-center">
-                        <CButton color="danger" variant="ghost" size="sm" onClick={() => remove(index)}>
+                        <CButton
+                          color="danger"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => remove(index)}
+                        >
                           <CIcon icon={cilTrash} />
                         </CButton>
                       </CTableDataCell>
@@ -278,7 +286,9 @@ const ReportForm = ({
               color="secondary"
               variant="outline"
               size="sm"
-              onClick={() => append({ particulars: '', venue_address: '', local_contact: '', remarks: '' })}
+              onClick={() =>
+                append({ particulars: '', venue_address: '', local_contact: '', remarks: '' })
+              }
             >
               <CIcon icon={cilPlus} className="me-1" /> Add Meeting
             </CButton>
@@ -286,7 +296,10 @@ const ReportForm = ({
 
           {/* Geo-tagged Photos Upload */}
           <div className="mb-3">
-            <CFormLabel className="fw-medium"><CIcon icon={cilLocationPin} size="sm" className="me-1" />Geo-tagged Photos</CFormLabel>
+            <CFormLabel className="fw-medium">
+              <CIcon icon={cilLocationPin} size="sm" className="me-1" />
+              Geo-tagged Photos
+            </CFormLabel>
             <div className="text-body-tertiary mb-2" style={{ fontSize: '0.75rem' }}>
               Upload site photos with embedded GPS location data
             </div>
@@ -337,7 +350,12 @@ const ReportForm = ({
                   Save Draft
                 </CButton>
               )}
-              <CButton color="primary" type="submit" disabled={loading} className="flex-grow-1 flex-md-grow-0">
+              <CButton
+                color="primary"
+                type="submit"
+                disabled={loading}
+                className="flex-grow-1 flex-md-grow-0"
+              >
                 {loading ? (
                   <>
                     <CSpinner size="sm" className="me-2" />

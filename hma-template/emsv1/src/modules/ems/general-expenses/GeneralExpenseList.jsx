@@ -7,10 +7,18 @@ const THIS_MONTH = new Date().getMonth() + 1
 
 const MONTHS_OPT = [
   { v: 0, l: 'All Months' },
-  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' },
-  { v: 4, l: 'April' }, { v: 5, l: 'May' }, { v: 6, l: 'June' },
-  { v: 7, l: 'July' }, { v: 8, l: 'August' }, { v: 9, l: 'September' },
-  { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+  { v: 1, l: 'January' },
+  { v: 2, l: 'February' },
+  { v: 3, l: 'March' },
+  { v: 4, l: 'April' },
+  { v: 5, l: 'May' },
+  { v: 6, l: 'June' },
+  { v: 7, l: 'July' },
+  { v: 8, l: 'August' },
+  { v: 9, l: 'September' },
+  { v: 10, l: 'October' },
+  { v: 11, l: 'November' },
+  { v: 12, l: 'December' },
 ]
 const YEARS = [THIS_YEAR - 2, THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
 
@@ -24,7 +32,9 @@ const GeneralExpenseList = () => {
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">General Expenses</h4>
-          <p className="text-body-secondary mb-0 small">Divisions overview — HR, Admin and Core salary.</p>
+          <p className="text-body-secondary mb-0 small">
+            Divisions overview — HR, Admin and Core salary.
+          </p>
         </div>
 
         {/* Period filter */}
@@ -38,7 +48,9 @@ const GeneralExpenseList = () => {
               style={{ minWidth: 130 }}
             >
               {MONTHS_OPT.map((m) => (
-                <option key={m.v} value={m.v}>{m.l}</option>
+                <option key={m.v} value={m.v}>
+                  {m.l}
+                </option>
               ))}
             </CFormSelect>
           </CCol>
@@ -51,7 +63,9 @@ const GeneralExpenseList = () => {
               style={{ minWidth: 90 }}
             >
               {YEARS.map((y) => (
-                <option key={y} value={y}>{y}</option>
+                <option key={y} value={y}>
+                  {y}
+                </option>
               ))}
             </CFormSelect>
           </CCol>

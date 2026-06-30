@@ -51,8 +51,16 @@ const DEFAULT_INSTALLMENT = (idx, valuation) => ({
 })
 
 const PERCENTAGE_COLORS = [
-  '#4f9ef8', '#7c6af7', '#2ec4b6', '#f77c6a', '#f7c948',
-  '#56c89a', '#f77cb5', '#a2c4f0', '#f7a84c', '#9a6af7',
+  '#4f9ef8',
+  '#7c6af7',
+  '#2ec4b6',
+  '#f77c6a',
+  '#f7c948',
+  '#56c89a',
+  '#f77cb5',
+  '#a2c4f0',
+  '#f7a84c',
+  '#9a6af7',
 ]
 
 const CreateProjectPage = () => {
@@ -114,7 +122,10 @@ const CreateProjectPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!pctValid) {
-      setToast({ color: 'danger', message: `Installment percentages must sum to 100%. Current total: ${pctTotal.toFixed(1)}%` })
+      setToast({
+        color: 'danger',
+        message: `Installment percentages must sum to 100%. Current total: ${pctTotal.toFixed(1)}%`,
+      })
       return
     }
     setSaving(true)
@@ -147,7 +158,11 @@ const CreateProjectPage = () => {
     <>
       {/* Page header */}
       <div className="d-flex align-items-center gap-3 mb-4">
-        <CButton color="secondary" variant="ghost" onClick={() => navigate('/pms/projects/my-projects')}>
+        <CButton
+          color="secondary"
+          variant="ghost"
+          onClick={() => navigate('/pms/projects/my-projects')}
+        >
           <CIcon icon={cilArrowLeft} />
         </CButton>
         <div>
@@ -160,10 +175,11 @@ const CreateProjectPage = () => {
         <CRow className="g-4">
           {/* ── Left column ─────────────────────────────────────────────────── */}
           <CCol xs={12} lg={8}>
-
             {/* Basic Info */}
             <CCard className="shadow-sm mb-4">
-              <CCardHeader className="bg-transparent fw-semibold pt-3">Project Information</CCardHeader>
+              <CCardHeader className="bg-transparent fw-semibold pt-3">
+                Project Information
+              </CCardHeader>
               <CCardBody>
                 <div className="mb-3">
                   <CFormLabel className="fw-medium">
@@ -179,7 +195,10 @@ const CreateProjectPage = () => {
 
                 <div className="mb-3">
                   <CFormLabel className="fw-medium">Project Phase</CFormLabel>
-                  <CFormSelect value={form.phase} onChange={(e) => setField('phase', e.target.value)}>
+                  <CFormSelect
+                    value={form.phase}
+                    onChange={(e) => setField('phase', e.target.value)}
+                  >
                     <option value="pipeline">🔵 Pipeline</option>
                     <option value="approved">🟦 Approved</option>
                     <option value="ongoing">Ongoing</option>
@@ -221,7 +240,12 @@ const CreateProjectPage = () => {
                       type="number"
                       placeholder="e.g. 5000"
                       value={form.beneficiaries_target}
-                      onChange={(e) => setField('beneficiaries_target', e.target.value ? parseInt(e.target.value, 10) : '')}
+                      onChange={(e) =>
+                        setField(
+                          'beneficiaries_target',
+                          e.target.value ? parseInt(e.target.value, 10) : '',
+                        )
+                      }
                     />
                   </CCol>
                 </CRow>
@@ -258,7 +282,9 @@ const CreateProjectPage = () => {
 
             {/* Financial Details */}
             <CCard className="shadow-sm mb-4">
-              <CCardHeader className="bg-transparent fw-semibold pt-3">Financial Details</CCardHeader>
+              <CCardHeader className="bg-transparent fw-semibold pt-3">
+                Financial Details
+              </CCardHeader>
               <CCardBody>
                 <CRow className="g-3">
                   <CCol xs={12} md={6}>
@@ -268,7 +294,9 @@ const CreateProjectPage = () => {
                     <CInputGroup>
                       <CInputGroupText>₹</CInputGroupText>
                       <CFormInput
-                        type="number" min="0" placeholder="0"
+                        type="number"
+                        min="0"
+                        placeholder="0"
                         value={form.project_valuation}
                         onChange={(e) => setField('project_valuation', e.target.value)}
                         required
@@ -280,7 +308,9 @@ const CreateProjectPage = () => {
                     <CInputGroup>
                       <CInputGroupText>₹</CInputGroupText>
                       <CFormInput
-                        type="number" min="0" placeholder="0"
+                        type="number"
+                        min="0"
+                        placeholder="0"
                         value={form.amount_sanctioned}
                         onChange={(e) => setField('amount_sanctioned', e.target.value)}
                       />
@@ -291,7 +321,9 @@ const CreateProjectPage = () => {
                     <CInputGroup>
                       <CInputGroupText>₹</CInputGroupText>
                       <CFormInput
-                        type="number" min="0" placeholder="0"
+                        type="number"
+                        min="0"
+                        placeholder="0"
                         value={form.amount_released}
                         onChange={(e) => setField('amount_released', e.target.value)}
                       />
@@ -302,7 +334,9 @@ const CreateProjectPage = () => {
                     <CInputGroup>
                       <CInputGroupText>₹</CInputGroupText>
                       <CFormInput
-                        type="number" min="0" placeholder="0"
+                        type="number"
+                        min="0"
+                        placeholder="0"
                         value={form.amount_utilized}
                         onChange={(e) => setField('amount_utilized', e.target.value)}
                       />
@@ -317,7 +351,9 @@ const CreateProjectPage = () => {
               <CCardHeader className="bg-transparent pt-3 d-flex justify-content-between align-items-center">
                 <span className="fw-semibold">Installments</span>
                 {/* % total badge */}
-                <span className={`small fw-bold ${pctTotal === 0 ? 'text-body-secondary' : pctValid ? 'text-success' : 'text-danger'}`}>
+                <span
+                  className={`small fw-bold ${pctTotal === 0 ? 'text-body-secondary' : pctValid ? 'text-success' : 'text-danger'}`}
+                >
                   Total: {pctTotal.toFixed(1)}% {pctTotal > 0 && (pctValid ? '✓' : '≠ 100%')}
                 </span>
               </CCardHeader>
@@ -327,21 +363,31 @@ const CreateProjectPage = () => {
                   <CFormLabel className="fw-medium">Number of Installments</CFormLabel>
                   <div className="d-flex align-items-center gap-2" style={{ maxWidth: 180 }}>
                     <CButton
-                      color="secondary" variant="outline" size="sm"
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleNumChange(numInstallments - 1)}
                       disabled={numInstallments <= 1}
-                    >−</CButton>
+                    >
+                      −
+                    </CButton>
                     <CFormInput
-                      type="number" min="1" max="10"
+                      type="number"
+                      min="1"
+                      max="10"
                       className="text-center fw-bold"
                       value={numInstallments}
                       onChange={(e) => handleNumChange(e.target.value)}
                     />
                     <CButton
-                      color="secondary" variant="outline" size="sm"
+                      color="secondary"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleNumChange(numInstallments + 1)}
                       disabled={numInstallments >= 10}
-                    >+</CButton>
+                    >
+                      +
+                    </CButton>
                   </div>
                   <div className="small text-body-secondary mt-1">1 – 10 installments allowed</div>
                 </div>
@@ -373,10 +419,16 @@ const CreateProjectPage = () => {
                         <CRow className="g-2">
                           {/* Percentage */}
                           <CCol xs={12} md={2}>
-                            <CFormLabel className="small fw-medium mb-1">% Share <span className="text-danger">*</span></CFormLabel>
+                            <CFormLabel className="small fw-medium mb-1">
+                              % Share <span className="text-danger">*</span>
+                            </CFormLabel>
                             <CInputGroup size="sm">
                               <CFormInput
-                                type="number" min="0" max="100" step="0.1" placeholder="0"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                placeholder="0"
                                 value={inst.percentage}
                                 onChange={(e) => setInstField(idx, 'percentage', e.target.value)}
                               />
@@ -387,16 +439,20 @@ const CreateProjectPage = () => {
                           <CCol xs={12} md={5}>
                             <CFormLabel className="small fw-medium mb-1">Start Date</CFormLabel>
                             <CFormInput
-                              type="date" size="sm"
+                              type="date"
+                              size="sm"
                               value={inst.start_date}
                               onChange={(e) => setInstField(idx, 'start_date', e.target.value)}
                             />
                           </CCol>
                           {/* End Date (Target) */}
                           <CCol xs={12} md={5}>
-                            <CFormLabel className="small fw-medium mb-1">End Date (Target Release)</CFormLabel>
+                            <CFormLabel className="small fw-medium mb-1">
+                              End Date (Target Release)
+                            </CFormLabel>
                             <CFormInput
-                              type="date" size="sm"
+                              type="date"
+                              size="sm"
                               value={inst.end_date}
                               onChange={(e) => setInstField(idx, 'end_date', e.target.value)}
                             />
@@ -409,26 +465,36 @@ const CreateProjectPage = () => {
                             Overhead allocation (editable, default 5% each):
                           </div>
                           <CRow className="g-2">
-                            {[
-                              { key: 'admin_pct', label: 'Admin %', color: 'text-warning' },
-                            ].map(({ key, label, color: tc }) => (
-                              <CCol xs={4} key={key}>
-                                <CFormLabel className={`small fw-medium mb-1 ${tc}`}>{label}</CFormLabel>
-                                <CInputGroup size="sm">
-                                  <CFormInput
-                                    type="number" min="0" max="100" step="0.1"
-                                    value={inst[key]}
-                                    onChange={(e) => setInstField(idx, key, parseFloat(e.target.value) || 0)}
-                                  />
-                                  <CInputGroupText>%</CInputGroupText>
-                                </CInputGroup>
-                                {pct > 0 && valuation > 0 && (
-                                  <div className="small text-body-tertiary mt-1">
-                                    ≈ ₹{(amt * (inst[key] / 100)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                  </div>
-                                )}
-                              </CCol>
-                            ))}
+                            {[{ key: 'admin_pct', label: 'Admin %', color: 'text-warning' }].map(
+                              ({ key, label, color: tc }) => (
+                                <CCol xs={4} key={key}>
+                                  <CFormLabel className={`small fw-medium mb-1 ${tc}`}>
+                                    {label}
+                                  </CFormLabel>
+                                  <CInputGroup size="sm">
+                                    <CFormInput
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.1"
+                                      value={inst[key]}
+                                      onChange={(e) =>
+                                        setInstField(idx, key, parseFloat(e.target.value) || 0)
+                                      }
+                                    />
+                                    <CInputGroupText>%</CInputGroupText>
+                                  </CInputGroup>
+                                  {pct > 0 && valuation > 0 && (
+                                    <div className="small text-body-tertiary mt-1">
+                                      ≈ ₹
+                                      {(amt * (inst[key] / 100)).toLocaleString('en-IN', {
+                                        maximumFractionDigits: 0,
+                                      })}
+                                    </div>
+                                  )}
+                                </CCol>
+                              ),
+                            )}
                           </CRow>
                         </div>
                       </div>
@@ -468,10 +534,15 @@ const CreateProjectPage = () => {
                         if (pct <= 0) return null
                         return (
                           <div key={inst._key} className="d-flex align-items-center gap-1 small">
-                            <span style={{
-                              display: 'inline-block', width: 10, height: 10, borderRadius: 2,
-                              background: PERCENTAGE_COLORS[idx % PERCENTAGE_COLORS.length],
-                            }} />
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2,
+                                background: PERCENTAGE_COLORS[idx % PERCENTAGE_COLORS.length],
+                              }}
+                            />
                             {inst.label}: {pct}%
                           </div>
                         )
@@ -481,7 +552,6 @@ const CreateProjectPage = () => {
                 )}
               </CCardBody>
             </CCard>
-
           </CCol>
 
           {/* ── Right sidebar ─────────────────────────────────────────────── */}
@@ -522,12 +592,20 @@ const CreateProjectPage = () => {
                       const pct = parseFloat(inst.percentage) || 0
                       const amt = valuation * (pct / 100)
                       return (
-                        <div key={inst._key} className="d-flex justify-content-between align-items-center mb-2 small">
+                        <div
+                          key={inst._key}
+                          className="d-flex justify-content-between align-items-center mb-2 small"
+                        >
                           <div className="d-flex align-items-center gap-2">
-                            <span style={{
-                              display: 'inline-block', width: 8, height: 8, borderRadius: 2,
-                              background: PERCENTAGE_COLORS[idx % PERCENTAGE_COLORS.length],
-                            }} />
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 8,
+                                height: 8,
+                                borderRadius: 2,
+                                background: PERCENTAGE_COLORS[idx % PERCENTAGE_COLORS.length],
+                              }}
+                            />
                             <span>{inst.label}</span>
                           </div>
                           <div className="text-end">
@@ -546,8 +624,12 @@ const CreateProjectPage = () => {
 
                     {/* % validation */}
                     {pctTotal > 0 && (
-                      <div className={`small fw-semibold mt-2 ${pctValid ? 'text-success' : 'text-danger'}`}>
-                        {pctValid ? 'Percentages balance to 100%' : `Total ${pctTotal.toFixed(1)}% — must equal 100%`}
+                      <div
+                        className={`small fw-semibold mt-2 ${pctValid ? 'text-success' : 'text-danger'}`}
+                      >
+                        {pctValid
+                          ? 'Percentages balance to 100%'
+                          : `Total ${pctTotal.toFixed(1)}% — must equal 100%`}
                       </div>
                     )}
                   </div>
@@ -556,13 +638,20 @@ const CreateProjectPage = () => {
                 <div className="d-grid gap-2">
                   <CButton color="primary" type="submit" disabled={saving}>
                     {saving ? (
-                      <><CSpinner size="sm" className="me-2" />Creating...</>
+                      <>
+                        <CSpinner size="sm" className="me-2" />
+                        Creating...
+                      </>
                     ) : (
-                      <><CIcon icon={cilSave} className="me-1" />Create Project</>
+                      <>
+                        <CIcon icon={cilSave} className="me-1" />
+                        Create Project
+                      </>
                     )}
                   </CButton>
                   <CButton
-                    color="secondary" variant="ghost"
+                    color="secondary"
+                    variant="ghost"
                     onClick={() => navigate('/pms/projects/my-projects')}
                   >
                     Cancel
@@ -576,7 +665,14 @@ const CreateProjectPage = () => {
 
       <CToaster placement="top-end">
         {toast && (
-          <CToast autohide delay={4000} visible color={toast.color} className="text-white" onClose={() => setToast(null)}>
+          <CToast
+            autohide
+            delay={4000}
+            visible
+            color={toast.color}
+            className="text-white"
+            onClose={() => setToast(null)}
+          >
             <div className="d-flex">
               <CToastBody>{toast.message}</CToastBody>
               <CToastClose className="me-2 m-auto" white />

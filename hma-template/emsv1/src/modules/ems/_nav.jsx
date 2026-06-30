@@ -79,10 +79,25 @@ const emsNav = [
     ],
   },
 
+  // ── Overheads & Pools ──────────────────────────────────────────────
+  {
+    component: CNavItem,
+    name: 'Global HR Pool',
+    to: '/ems/hr-pool/global',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+  },
+  {
+    component: CNavItem,
+    name: 'Global Core Pool',
+    to: '/ems/core-pool/global',
+    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+  },
   // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
-    name: 'Admin Expenses',
+    name: 'Expense Management',
     to: '/ems/expense-management',
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,

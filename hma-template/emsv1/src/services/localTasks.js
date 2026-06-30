@@ -111,9 +111,16 @@ export const localTasks = {
       description: data.description || '',
       project_id: data.project_id || null,
       project_name: data.project_name || 'General Project',
+      // installment_id links this task to a specific project milestone/installment
+      installment_id: data.installment_id || null,
+      // task_type: 'task' | 'procurement'
+      task_type: data.task_type || 'task',
+      assignee: data.assignee || '',
       assigned_by: data.assigned_by || 'project_officer',
       assigned_at: ts,
       due_date: data.due_date || null,
+      target_date: data.due_date || null,
+      actual_date: data.actual_date || null,
       status: TASK_STATUS.ACTIVE,
       created_at: ts,
       updated_at: ts,
@@ -121,6 +128,27 @@ export const localTasks = {
 
     writeAll([...rows, task])
     return task
+  },
+
+  // ── getByInstallment ─────────────────────────────────────────────────────────
+  // Returns all tasks for a specific installment of a project
+  getByInstallment(projectId, installmentId) {
+    return readAll().filter(
+      (t) => t.project_id === projectId && t.installment_id === installmentId,
+    )
+  },
+
+  // ── getByProjectGrouped ──────────────────────────────────────────────────────
+  // Returns tasks for a project grouped by installment_id
+  getByProjectGrouped(projectId) {
+    const rows = readAll().filter((t) => t.project_id === projectId)
+    const grouped = {}
+    rows.forEach((task) => {
+      const key = task.installment_id || 'unassigned'
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(task)
+    })
+    return grouped
   },
 
   // ── update ──────────────────────────────────────────────────────────────────
@@ -182,14 +210,16 @@ export const localTasks = {
     const demoTasks = [
       {
         title: 'Plot A3 Foundation Survey',
-        description: 'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos.',
+        description:
+          'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos.',
         project_id: proj0,
         project_name: projects[0]?.title || 'Medical College Construction',
         due_date: '2026-06-25',
       },
       {
         title: 'Block C Excavation Oversight',
-        description: 'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
+        description:
+          'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
         project_id: proj0,
         project_name: projects[0]?.title || 'Medical College Construction',
         due_date: '2026-06-28',

@@ -50,7 +50,11 @@ import { localReports, REPORT_STATUS } from '../../../services/localReports'
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n)
 
 const relativeDate = (iso) => {
   if (!iso) return null
@@ -94,7 +98,13 @@ const OfficerCard = ({ officer, projects, allReports }) => {
   projects.forEach((p) => {
     ;(p.field_personnel || []).forEach((fp) => {
       if (!personnelMap[fp.email]) {
-        personnelMap[fp.email] = { ...fp, projects: [], lastReportDate: null, pendingCount: 0, approvedCount: 0 }
+        personnelMap[fp.email] = {
+          ...fp,
+          projects: [],
+          lastReportDate: null,
+          pendingCount: 0,
+          approvedCount: 0,
+        }
       }
       personnelMap[fp.email].projects.push(p.name || p.title)
     })
@@ -149,7 +159,9 @@ const OfficerCard = ({ officer, projects, allReports }) => {
               <div className="fw-bold" style={{ fontSize: '1rem' }}>
                 {officer.name}
               </div>
-              <div className="text-body-secondary small">{officer.designation || 'Project Officer'}</div>
+              <div className="text-body-secondary small">
+                {officer.designation || 'Project Officer'}
+              </div>
               <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
                 {officer.email}
               </div>
@@ -231,7 +243,10 @@ const OfficerCard = ({ officer, projects, allReports }) => {
         {/* Projects table */}
         {totalProjects > 0 && (
           <div className="px-3 pt-3 pb-1">
-            <p className="small fw-semibold text-uppercase text-body-secondary mb-2" style={{ letterSpacing: '0.06em' }}>
+            <p
+              className="small fw-semibold text-uppercase text-body-secondary mb-2"
+              style={{ letterSpacing: '0.06em' }}
+            >
               Assigned Projects
             </p>
             <CTable hover responsive className="mb-2" style={{ fontSize: '0.82rem' }}>
@@ -246,10 +261,15 @@ const OfficerCard = ({ officer, projects, allReports }) => {
               </CTableHead>
               <CTableBody>
                 {projects.map((p) => {
-                  const pct = p.tasks_count > 0 ? Math.round((p.tasks_completed / p.tasks_count) * 100) : 0
+                  const pct =
+                    p.tasks_count > 0 ? Math.round((p.tasks_completed / p.tasks_count) * 100) : 0
                   const sm = STATUS_META[p.status] || { label: p.status, color: 'secondary' }
                   return (
-                    <CTableRow key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/pms/projects/${p.id}`)}>
+                    <CTableRow
+                      key={p.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/pms/projects/${p.id}`)}
+                    >
                       <CTableDataCell className="py-2 ps-3">
                         <div className="fw-medium">{p.name || p.title}</div>
                         <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
@@ -263,8 +283,18 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                       </CTableDataCell>
                       <CTableDataCell className="py-2" style={{ minWidth: '110px' }}>
                         <div className="d-flex align-items-center gap-2">
-                          <CProgress value={pct} height={5} className="flex-grow-1 rounded-pill" color={pct === 100 ? 'success' : 'primary'} />
-                          <span className="text-body-secondary" style={{ minWidth: '28px', fontSize: '0.75rem' }}>{pct}%</span>
+                          <CProgress
+                            value={pct}
+                            height={5}
+                            className="flex-grow-1 rounded-pill"
+                            color={pct === 100 ? 'success' : 'primary'}
+                          />
+                          <span
+                            className="text-body-secondary"
+                            style={{ minWidth: '28px', fontSize: '0.75rem' }}
+                          >
+                            {pct}%
+                          </span>
                         </div>
                         <div className="text-body-secondary" style={{ fontSize: '0.68rem' }}>
                           {p.tasks_completed}/{p.tasks_count} tasks
@@ -275,13 +305,18 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                           {sm.label}
                         </CBadge>
                       </CTableDataCell>
-                      <CTableDataCell className="py-2 fw-semibold">{fmt(p.project_value || p.project_valuation)}</CTableDataCell>
+                      <CTableDataCell className="py-2 fw-semibold">
+                        {fmt(p.project_value || p.project_valuation)}
+                      </CTableDataCell>
                       <CTableDataCell className="py-2 pe-3 text-end">
                         <CButton
                           color="primary"
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/pms/projects/${p.id}`) }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/pms/projects/${p.id}`)
+                          }}
                         >
                           <CIcon icon={cilArrowRight} />
                         </CButton>
@@ -296,16 +331,23 @@ const OfficerCard = ({ officer, projects, allReports }) => {
 
         {/* Field Personnel */}
         <div className="px-3 pt-1 pb-3">
-          <p className="small fw-semibold text-uppercase text-body-secondary mb-2" style={{ letterSpacing: '0.06em' }}>
+          <p
+            className="small fw-semibold text-uppercase text-body-secondary mb-2"
+            style={{ letterSpacing: '0.06em' }}
+          >
             Field Personnel ({totalPersonnel})
           </p>
           {totalPersonnel === 0 ? (
-            <div className="text-body-secondary small py-2 fst-italic">No field personnel assigned to this officer's projects.</div>
+            <div className="text-body-secondary small py-2 fst-italic">
+              No field personnel assigned to this officer's projects.
+            </div>
           ) : (
             <div className="d-flex flex-wrap gap-2">
               {personnel.map((fp) => {
                 const isActive = fp.status === 'active'
-                const hasRecentReport = fp.lastReportDate && (Date.now() - new Date(fp.lastReportDate).getTime()) < 7 * 86400000
+                const hasRecentReport =
+                  fp.lastReportDate &&
+                  Date.now() - new Date(fp.lastReportDate).getTime() < 7 * 86400000
                 return (
                   <div
                     key={fp.email}
@@ -320,7 +362,9 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                       style={{
                         width: 30,
                         height: 30,
-                        background: isActive ? 'linear-gradient(135deg,#06d6a0,#2ec4b6)' : '#adb5bd',
+                        background: isActive
+                          ? 'linear-gradient(135deg,#06d6a0,#2ec4b6)'
+                          : '#adb5bd',
                         fontSize: '0.75rem',
                       }}
                     >
@@ -338,8 +382,22 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                           </span>
                         )}
                         {fp.lastReportDate ? (
-                          <span className="text-body-secondary d-flex align-items-center gap-1" style={{ fontSize: '0.68rem' }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: hasRecentReport ? 'var(--cui-success)' : 'var(--cui-warning)', flexShrink: 0 }} />
+                          <span
+                            className="text-body-secondary d-flex align-items-center gap-1"
+                            style={{ fontSize: '0.68rem' }}
+                          >
+                            <span
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                display: 'inline-block',
+                                background: hasRecentReport
+                                  ? 'var(--cui-success)'
+                                  : 'var(--cui-warning)',
+                                flexShrink: 0,
+                              }}
+                            />
                             {relativeDate(fp.lastReportDate)}
                           </span>
                         ) : (
@@ -381,15 +439,11 @@ const TeamOverviewPage = () => {
     // Build officer → projects map
     const map = {}
     officerList.forEach((o) => {
-      map[o.id] = allProjects.filter(
-        (p) => p.officer_id === o.id || p.assigned_officer_id === o.id,
-      )
+      map[o.id] = allProjects.filter((p) => p.officer_id === o.id || p.assigned_officer_id === o.id)
     })
 
     // Also capture projects with no assigned officer (unassigned)
-    const unassignedProjects = allProjects.filter(
-      (p) => !p.officer_id && !p.assigned_officer_id,
-    )
+    const unassignedProjects = allProjects.filter((p) => !p.officer_id && !p.assigned_officer_id)
     if (unassignedProjects.length) {
       map['__unassigned__'] = unassignedProjects
     }
@@ -427,7 +481,9 @@ const TeamOverviewPage = () => {
     .flat()
     .reduce((s, p) => s + (p.pending_approvals || 0), 0)
 
-  const allProjectsList = Object.values(projectsMap).flat().filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
+  const allProjectsList = Object.values(projectsMap)
+    .flat()
+    .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
   const avgProgress =
     allProjectsList.length > 0
       ? Math.round(
@@ -439,11 +495,41 @@ const TeamOverviewPage = () => {
       : 0
 
   const kpis = [
-    { label: 'Project Officers', value: officers.length, icon: cilUser, color: '#4361ee', bg: 'rgba(67,97,238,0.08)' },
-    { label: 'Total Projects', value: totalProjects, icon: cilFolder, color: '#2ec4b6', bg: 'rgba(46,196,182,0.08)' },
-    { label: 'Field Personnel', value: totalPersonnel, icon: cilPeople, color: '#06d6a0', bg: 'rgba(6,214,160,0.08)' },
-    { label: 'Pending Approvals', value: totalPending, icon: cilBell, color: '#f77f00', bg: 'rgba(247,127,0,0.08)' },
-    { label: 'Avg Progress', value: `${avgProgress}%`, icon: cilCheckCircle, color: '#6f42c1', bg: 'rgba(111,66,193,0.08)' },
+    {
+      label: 'Project Officers',
+      value: officers.length,
+      icon: cilUser,
+      color: '#4361ee',
+      bg: 'rgba(67,97,238,0.08)',
+    },
+    {
+      label: 'Total Projects',
+      value: totalProjects,
+      icon: cilFolder,
+      color: '#2ec4b6',
+      bg: 'rgba(46,196,182,0.08)',
+    },
+    {
+      label: 'Field Personnel',
+      value: totalPersonnel,
+      icon: cilPeople,
+      color: '#06d6a0',
+      bg: 'rgba(6,214,160,0.08)',
+    },
+    {
+      label: 'Pending Approvals',
+      value: totalPending,
+      icon: cilBell,
+      color: '#f77f00',
+      bg: 'rgba(247,127,0,0.08)',
+    },
+    {
+      label: 'Avg Progress',
+      value: `${avgProgress}%`,
+      icon: cilCheckCircle,
+      color: '#6f42c1',
+      bg: 'rgba(111,66,193,0.08)',
+    },
   ]
 
   return (
@@ -451,9 +537,15 @@ const TeamOverviewPage = () => {
       {/* Hero */}
       <div
         className="rounded-4 mb-4 px-4 py-4 text-white position-relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #3a0ca3 0%, #4361ee 60%, #2ec4b6 100%)', minHeight: '110px' }}
+        style={{
+          background: 'linear-gradient(135deg, #3a0ca3 0%, #4361ee 60%, #2ec4b6 100%)',
+          minHeight: '110px',
+        }}
       >
-        <div className="position-absolute top-0 end-0 opacity-10" style={{ fontSize: '8rem', lineHeight: 1, marginTop: '-1rem' }}>
+        <div
+          className="position-absolute top-0 end-0 opacity-10"
+          style={{ fontSize: '8rem', lineHeight: 1, marginTop: '-1rem' }}
+        >
           👥
         </div>
         <div className="position-relative">
@@ -507,7 +599,9 @@ const TeamOverviewPage = () => {
         <div className="text-center py-5 text-body-secondary">
           <div style={{ fontSize: '3rem' }}>👤</div>
           <h5>No officers found</h5>
-          <p className="small">Try adjusting your search, or add officers via Project Officers page.</p>
+          <p className="small">
+            Try adjusting your search, or add officers via Project Officers page.
+          </p>
           <CButton color="primary" onClick={() => navigate('/pms/project-teams/officers')}>
             Manage Officers
           </CButton>

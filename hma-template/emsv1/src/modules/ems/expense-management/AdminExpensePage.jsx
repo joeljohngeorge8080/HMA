@@ -75,7 +75,11 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">
-            {error && <CAlert color="danger" className="py-2 mb-3">{error}</CAlert>}
+            {error && (
+              <CAlert color="danger" className="py-2 mb-3">
+                {error}
+              </CAlert>
+            )}
             <CRow className="g-3">
               <CCol md={6}>
                 <CFormLabel className="fw-semibold">
@@ -105,7 +109,11 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
                   value={form.frequency}
                   onChange={(e) => set('frequency', e.target.value)}
                 >
-                  {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -134,7 +142,11 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
               <CCol md={4}>
                 <CFormLabel className="fw-semibold">Status</CFormLabel>
                 <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -150,7 +162,9 @@ const ExpenseModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             </CRow>
           </div>
           <div className="modal-footer">
-            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </CButton>
             <CButton color="primary" onClick={onSave} disabled={saving}>
               {saving && <CSpinner size="sm" className="me-1" />}
               {editTarget ? 'Save Changes' : 'Add Entry'}
@@ -171,11 +185,16 @@ const DeleteModal = ({ target, onConfirm, onClose }) => (
           <h5 className="modal-title">Delete Expense Entry</h5>
         </div>
         <div className="modal-body">
-          Delete <strong>{target.expense_category}</strong> — {target.vendor_name}? This cannot be undone.
+          Delete <strong>{target.expense_category}</strong> — {target.vendor_name}? This cannot be
+          undone.
         </div>
         <div className="modal-footer">
-          <CButton color="secondary" onClick={onClose}>Cancel</CButton>
-          <CButton color="danger" onClick={onConfirm}>Delete</CButton>
+          <CButton color="secondary" onClick={onClose}>
+            Cancel
+          </CButton>
+          <CButton color="danger" onClick={onConfirm}>
+            Delete
+          </CButton>
         </div>
       </div>
     </div>
@@ -203,7 +222,9 @@ const AdminExpensePage = () => {
     setAllCategories(localAdminExpenses.categories())
   }
 
-  useEffect(() => { load() }, [filters])
+  useEffect(() => {
+    load()
+  }, [filters])
 
   const setFilter = (k, v) => setFilters((f) => ({ ...f, [k]: v }))
 
@@ -258,8 +279,14 @@ const AdminExpensePage = () => {
   }
 
   const handleSave = () => {
-    if (!form.vendor_name.trim()) { setFormError('Vendor name is required'); return }
-    if (!form.expense_category.trim()) { setFormError('Expense category is required'); return }
+    if (!form.vendor_name.trim()) {
+      setFormError('Vendor name is required')
+      return
+    }
+    if (!form.expense_category.trim()) {
+      setFormError('Expense category is required')
+      return
+    }
     if (form.annual_amount === '' || isNaN(parseFloat(form.annual_amount))) {
       setFormError('Annual amount is required')
       return
@@ -316,25 +343,13 @@ const AdminExpensePage = () => {
       {/* Stats */}
       <CRow className="g-3 mb-4">
         <CCol xs={6} md={3}>
-          <StatCard
-            label="Total Monthly Expense"
-            value={currency(totalMonthly)}
-            color="primary"
-          />
+          <StatCard label="Total Monthly Expense" value={currency(totalMonthly)} color="primary" />
         </CCol>
         <CCol xs={6} md={3}>
-          <StatCard
-            label="Total Annual Expense"
-            value={currency(totalAnnual)}
-            color="info"
-          />
+          <StatCard label="Total Annual Expense" value={currency(totalAnnual)} color="info" />
         </CCol>
         <CCol xs={6} md={3}>
-          <StatCard
-            label="Active Vendors"
-            value={activeVendors}
-            color="success"
-          />
+          <StatCard label="Active Vendors" value={activeVendors} color="success" />
         </CCol>
         <CCol xs={6} md={3}>
           <StatCard
@@ -368,7 +383,9 @@ const AdminExpensePage = () => {
               >
                 <option value="">All Categories</option>
                 {allCategories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </CFormSelect>
             </CCol>
@@ -380,7 +397,11 @@ const AdminExpensePage = () => {
                 onChange={(e) => setFilter('frequency', e.target.value)}
               >
                 <option value="">All Frequencies</option>
-                {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                {FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
               </CFormSelect>
             </CCol>
             <CCol md={3}>
@@ -391,7 +412,11 @@ const AdminExpensePage = () => {
                 onChange={(e) => setFilter('status', e.target.value)}
               >
                 <option value="">All Status</option>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </CFormSelect>
             </CCol>
           </CRow>
@@ -426,7 +451,10 @@ const AdminExpensePage = () => {
             <CTableBody>
               {rows.length === 0 && (
                 <CTableRow>
-                  <CTableDataCell colSpan={canEdit ? 8 : 7} className="text-center text-body-secondary py-5">
+                  <CTableDataCell
+                    colSpan={canEdit ? 8 : 7}
+                    className="text-center text-body-secondary py-5"
+                  >
                     No expense records found.
                     {canEdit && ' Click "Add Expense" to create one.'}
                   </CTableDataCell>
@@ -437,13 +465,13 @@ const AdminExpensePage = () => {
                   <CTableDataCell className="text-body-secondary small">{idx + 1}</CTableDataCell>
                   <CTableDataCell>
                     <span className="fw-semibold">{row.vendor_name}</span>
-                    {row.remarks && (
-                      <div className="small text-body-secondary">{row.remarks}</div>
-                    )}
+                    {row.remarks && <div className="small text-body-secondary">{row.remarks}</div>}
                   </CTableDataCell>
                   <CTableDataCell>{row.expense_category}</CTableDataCell>
                   <CTableDataCell>
-                    <CBadge color="info" textColor="dark">{row.frequency}</CBadge>
+                    <CBadge color="info" textColor="dark">
+                      {row.frequency}
+                    </CBadge>
                   </CTableDataCell>
                   <CTableDataCell className="text-end fw-semibold">
                     {currency(row.annual_amount)}
@@ -452,9 +480,7 @@ const AdminExpensePage = () => {
                     {currency(monthlyEquiv(row.annual_amount))}
                   </CTableDataCell>
                   <CTableDataCell>
-                    <CBadge color={STATUS_COLORS[row.status] || 'secondary'}>
-                      {row.status}
-                    </CBadge>
+                    <CBadge color={STATUS_COLORS[row.status] || 'secondary'}>{row.status}</CBadge>
                   </CTableDataCell>
                   {canEdit && (
                     <CTableDataCell>
