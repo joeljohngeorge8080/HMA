@@ -57,7 +57,7 @@ const PmsLayout = () => {
       <div>
         <AppSidebar nav={filteredNav} />
         <div className="wrapper d-flex flex-column min-vh-100">
-          <AppHeader />
+          <AppHeader nav={filteredNav} />
           {/* Demo Role Switcher */}
           <div
             className="p-2 border-bottom d-flex justify-content-end align-items-center gap-2 flex-wrap"
