@@ -19,11 +19,28 @@ const ROLE_NAV_MAP = {
         item.name === 'Dashboard',
     ),
   [ROLE.PROJECT_OFFICER]: (nav) =>
-    nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
+    nav.filter(
+      (item) =>
+        item.name !== 'Field Personnel' &&
+        item.name !== 'Project Associate' &&
+        item.name !== 'Settlements',
+    ),
   [ROLE.PROJECT_COORDINATOR]: (nav) =>
-    nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
+    nav.filter(
+      (item) =>
+        item.name !== 'Field Personnel' &&
+        item.name !== 'Project Associate' &&
+        item.name !== 'Settlements',
+    ),
   [ROLE.FIELD_PERSONNEL]: (nav) =>
     nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
+  [ROLE.BACKEND_TEAM]: (nav) =>
+    nav.filter(
+      (item) =>
+        item.name === 'Dashboard' ||
+        item.name === 'Settlements' ||
+        item.name === 'Switch to EMS',
+    ),
 }
 
 const PmsLayout = () => {
@@ -39,7 +56,7 @@ const PmsLayout = () => {
     return <MaintenancePage message={maintenance.maintenance_message} />
   }
 
-  const filterFn = ROLE_NAV_MAP[role] || ROLE_NAV_MAP.admin
+  const filterFn = ROLE_NAV_MAP[role] || ROLE_NAV_MAP[ROLE.ADMIN]
   const filteredNav = filterFn(pmsNav)
 
   return (
