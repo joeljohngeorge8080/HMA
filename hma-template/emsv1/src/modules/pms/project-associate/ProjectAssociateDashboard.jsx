@@ -1,7 +1,3 @@
-/**
- * ProjectAssociateDashboard.jsx — Project Associate main dashboard.
- * Route: /pms/pa/dashboard
- */
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -29,9 +25,50 @@ import {
   cilWarning,
   cilClock,
   cilArrowRight,
-  cilBell,
+  cilSettings,
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import useDashboardWidgets from '../../../components/dashboard/useDashboardWidgets'
+import WidgetCatalog from '../../../components/dashboard/WidgetCatalog'
+import DailyReportsSummaryWidget from '../dashboard/widgets/DailyReportsSummaryWidget'
+import FieldPersonnelWidget from '../dashboard/widgets/FieldPersonnelWidget'
+import SettlementsWidget from '../dashboard/widgets/SettlementsWidget'
+import ProjectsByPhaseWidget from '../dashboard/widgets/ProjectsByPhaseWidget'
+
+const EXTRA_WIDGETS = [
+  {
+    id: 'daily_reports',
+    title: 'Daily Reports Summary',
+    description: 'Pending, approved, declined, and settled report counts',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Reports', color: 'warning' },
+    component: DailyReportsSummaryWidget,
+  },
+  {
+    id: 'field_personnel',
+    title: 'Field Personnel',
+    description: 'Active personnel, task counts, completion rate',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Teams', color: 'info' },
+    component: FieldPersonnelWidget,
+  },
+  {
+    id: 'settlements',
+    title: 'Settlements',
+    description: 'Pending vs settled reports and financial amounts',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: SettlementsWidget,
+  },
+  {
+    id: 'projects_by_phase',
+    title: 'Projects by Phase & Status',
+    description: 'Lifecycle phase breakdown and status distribution',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Projects', color: 'primary' },
+    component: ProjectsByPhaseWidget,
+  },
+]
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -57,6 +94,11 @@ const ProjectAssociateDashboard = () => {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentProjects, setRecentProjects] = useState([])
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const { activeIds, activeWidgets, toggleWidget, resetWidgets } = useDashboardWidgets(
+    'pms_pa',
+    EXTRA_WIDGETS,
+  )
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
@@ -144,6 +186,16 @@ const ProjectAssociateDashboard = () => {
             >
               <CIcon icon={cilPeople} className="me-1" />
               Project Officers
+            </CButton>
+            <CButton
+              color="light"
+              variant="outline"
+              size="sm"
+              className="text-white border-white ms-auto"
+              onClick={() => setCatalogOpen(true)}
+            >
+              <CIcon icon={cilSettings} className="me-1" />
+              Customize
             </CButton>
           </div>
         </div>
@@ -431,6 +483,29 @@ const ProjectAssociateDashboard = () => {
           </CCard>
         </CCol>
       </CRow>
+
+      {/* Extra customizable widgets */}
+      {activeWidgets.length > 0 && (
+        <CRow className="g-3 mt-1">
+          {activeWidgets.map((widget) => {
+            const Component = widget.component
+            return (
+              <CCol key={widget.id} {...widget.colProps}>
+                <Component />
+              </CCol>
+            )
+          })}
+        </CRow>
+      )}
+
+      <WidgetCatalog
+        visible={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        allWidgets={EXTRA_WIDGETS}
+        activeIds={activeIds}
+        onToggle={toggleWidget}
+        onReset={resetWidgets}
+      />
     </>
   )
 }

@@ -2,6 +2,8 @@ import React from 'react'
 import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
+const PmsDashboard = React.lazy(() => import('../modules/pms/dashboard/PmsDashboard'))
+
 // Project management pages
 const MyProjectsPage = React.lazy(() => import('../modules/pms/projects/MyProjectsPage'))
 const CreateProjectPage = React.lazy(() => import('../modules/pms/projects/CreateProjectPage'))
@@ -67,7 +69,7 @@ export const pmsRoutes = [
   {
     path: '/pms/dashboard',
     name: 'Dashboard',
-    element: placeholder('PMS Dashboard'),
+    element: PmsDashboard,
     module: MODULE.PMS_DASHBOARD,
   },
 

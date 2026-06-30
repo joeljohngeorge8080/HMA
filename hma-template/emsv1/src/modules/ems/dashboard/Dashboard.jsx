@@ -1,29 +1,109 @@
-/**
- * Dashboard View — Placeholder
- *
- * The dashboard layout and widgets are not finalized and await stakeholder
- * validation (see HMA IEMS Architecture v2.0). This is an intentional empty
- * shell; KPI cards, charts, and summaries will be added once requirements
- * are confirmed.
- *
- * @component
- */
+import React, { useState } from 'react'
+import { CButton } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilSettings } from '@coreui/icons'
 
-import React from 'react'
-import { CCard, CCardBody, CCardHeader } from '@coreui/react'
+import useDashboardWidgets from '../../../components/dashboard/useDashboardWidgets'
+import DashboardGrid from '../../../components/dashboard/DashboardGrid'
+import WidgetCatalog from '../../../components/dashboard/WidgetCatalog'
+
+import EmployeeStatsWidget from './widgets/EmployeeStatsWidget'
+import AttendanceSummaryWidget from './widgets/AttendanceSummaryWidget'
+import GeneralExpenseWidget from './widgets/GeneralExpenseWidget'
+import ExpenseByCategoryWidget from './widgets/ExpenseByCategoryWidget'
+import PayrollSummaryWidget from './widgets/PayrollSummaryWidget'
+import AnnouncementsWidget from './widgets/AnnouncementsWidget'
+
+const ALL_WIDGETS = [
+  {
+    id: 'employee_stats',
+    title: 'Employee Overview',
+    description: 'Total, active, inactive, and on-project employee counts',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: EmployeeStatsWidget,
+  },
+  {
+    id: 'attendance_summary',
+    title: 'Attendance Summary',
+    description: 'Present / absent / late / leave counts for this month',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: AttendanceSummaryWidget,
+  },
+  {
+    id: 'payroll_summary',
+    title: 'Payroll Summary',
+    description: 'Monthly payroll total, average salary, breakdown by department',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: PayrollSummaryWidget,
+  },
+  {
+    id: 'general_expense',
+    title: 'General Expenses',
+    description: 'YTD planned vs actual spend, this month total, budget utilisation',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: GeneralExpenseWidget,
+  },
+  {
+    id: 'expense_by_category',
+    title: 'Expenses by Category',
+    description: 'Top expense categories with relative spend comparison',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpenseByCategoryWidget,
+  },
+  {
+    id: 'announcements',
+    title: 'Recent Announcements',
+    description: 'Latest announcements and notices from leadership',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'Comms', color: 'info' },
+    component: AnnouncementsWidget,
+  },
+]
 
 const Dashboard = () => {
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const { activeIds, activeWidgets, toggleWidget, resetWidgets } = useDashboardWidgets(
+    'ems',
+    ALL_WIDGETS,
+  )
+
   return (
-    <CCard className="mb-4">
-      <CCardHeader>
-        <strong>Dashboard</strong>
-      </CCardHeader>
-      <CCardBody>
-        <p className="text-body-secondary mb-0">
-          Dashboard widgets are pending stakeholder validation and will be added in a later phase.
-        </p>
-      </CCardBody>
-    </CCard>
+    <>
+      {/* Header */}
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <div>
+          <h4 className="fw-bold mb-1">EMS Dashboard</h4>
+          <p className="text-body-secondary mb-0 small">
+            {activeWidgets.length} of {ALL_WIDGETS.length} widgets active
+          </p>
+        </div>
+        <CButton
+          color="secondary"
+          variant="outline"
+          size="sm"
+          onClick={() => setCatalogOpen(true)}
+        >
+          <CIcon icon={cilSettings} className="me-1" size="sm" />
+          Customize
+        </CButton>
+      </div>
+
+      <DashboardGrid activeWidgets={activeWidgets} />
+
+      <WidgetCatalog
+        visible={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        allWidgets={ALL_WIDGETS}
+        activeIds={activeIds}
+        onToggle={toggleWidget}
+        onReset={resetWidgets}
+      />
+    </>
   )
 }
 
