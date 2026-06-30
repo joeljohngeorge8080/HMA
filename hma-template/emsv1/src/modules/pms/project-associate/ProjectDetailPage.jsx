@@ -1118,7 +1118,7 @@ const ProjectDetailPage = () => {
                                       <CCol xs={4}>
                                         <div><CIcon icon={cilWarning} className="me-1" /> Delay</div>
                                         {(() => {
-                                          const delay = getDelayDays(ms.target_date, ms.actual_date)
+                                          const delay = getDelayDays(inst.target_date, inst.actual_date)
                                           return (
                                             <div className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}>
                                               {delay > 0 ? `${delay} days` : 'No delay'}

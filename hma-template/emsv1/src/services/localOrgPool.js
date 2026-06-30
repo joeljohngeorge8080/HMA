@@ -103,8 +103,10 @@ export const localOrgPool = {
   },
 
   /**
-   * Returns all installments for a project with their monthly HR/Core breakdown
-   * (for the budget visualiser).
+   * Returns all installments for a project with their monthly HR/Core breakdown.
+   *
+   * Monthly budget = (total project value × pool%) / total months across ALL installments.
+   * Every month gets an equal share regardless of installment size.
    *
    * @param {string} projectId
    * @param {'hr'|'core'} pool
@@ -115,12 +117,29 @@ export const localOrgPool = {
     if (!p) return []
     const pctKey = pool === 'hr' ? 'hr_pct' : 'core_pct'
     const pct = p[pctKey] ?? 5
+    const installments = p.installments || []
 
-    return (p.installments || []).map((inst) => {
+    // Total project value for pool budget (use best available field)
+    const totalProjectValue =
+      p.project_value || p.project_valuation || p.amount_sanctioned || 0
+    const totalHRBudget = totalProjectValue * (pct / 100)
+
+    // Count total months across ALL installments combined
+    const totalMonths = Math.max(
+      1,
+      installments.reduce((sum, inst) => {
+        const endField = inst.end_date || inst.target_date || ''
+        return sum + monthsBetween(inst.start_date, endField)
+      }, 0),
+    )
+
+    // Equal monthly share for every month of the project
+    const monthlyBudget = Math.round((totalHRBudget / totalMonths) * 100) / 100
+
+    return installments.map((inst) => {
       const endField = inst.end_date || inst.target_date || ''
       const months = monthsBetween(inst.start_date, endField)
-      const poolBudget = inst.amount * (pct / 100)
-      const monthlyBudget = poolBudget / months
+      const instPoolBudget = Math.round(monthlyBudget * months * 100) / 100
 
       // Build individual month labels within this installment
       const monthList = []
@@ -143,13 +162,16 @@ export const localOrgPool = {
         percentage: inst.percentage,
         pct,
         months,
-        poolBudget: Math.round(poolBudget * 100) / 100,
-        monthlyBudget: Math.round(monthlyBudget * 100) / 100,
+        poolBudget: instPoolBudget,
+        monthlyBudget,
+        totalHRBudget: Math.round(totalHRBudget * 100) / 100,
+        totalMonths,
         monthList,
         ucStatus: inst.uc_status,
       }
     })
   },
+
 
   /**
    * Splits a given expense amount proportionally across all activated projects.
