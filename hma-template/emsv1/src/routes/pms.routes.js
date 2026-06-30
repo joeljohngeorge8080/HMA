@@ -64,6 +64,11 @@ const FieldPersonnelBillsPage = React.lazy(
 const SettlementsPage = React.lazy(() => import('../modules/pms/daily-reports/SettlementsPage'))
 const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
 
+// LSGB pages
+const LsgbOverviewPage = React.lazy(() => import('../modules/pms/lsgb/LsgbOverviewPage'))
+const LsgbFundsPage = React.lazy(() => import('../modules/pms/lsgb/LsgbFundsPage'))
+const LsgbAnalysisPage = React.lazy(() => import('../modules/pms/lsgb/LsgbAnalysisPage'))
+
 export const pmsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   {
@@ -393,6 +398,26 @@ export const pmsRoutes = [
     name: 'Audit Logs',
     element: AuditLogsPage,
     module: MODULE.AUDIT_LOGS,
+  },
+
+  // ── LSGB Projects ─────────────────────────────────────────────────────────
+  {
+    path: '/pms/lsgb/overview',
+    name: 'LSGB Overview',
+    element: LsgbOverviewPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/lsgb/funds',
+    name: 'LSGB Fund Tracking',
+    element: LsgbFundsPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/lsgb/analysis',
+    name: 'LSGB Analysis',
+    element: LsgbAnalysisPage,
+    module: MODULE.PMS_PROJECTS,
   },
 ]
 

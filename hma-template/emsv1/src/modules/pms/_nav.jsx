@@ -17,6 +17,7 @@ import {
   cilBriefcase,
   cilMoney,
   cilTask,
+  cilChart,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -172,6 +173,34 @@ const pmsNav = [
       { component: CNavItem, name: 'Approved Reports', to: '/pms/daily-reports/approved' },
     ],
   },
+  // ── LSGB Projects ──
+  {
+    component: CNavGroup,
+    name: 'LSGB Projects',
+    icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+    badge: { color: 'info', text: 'LSGB' },
+    items: [
+      {
+        component: CNavItem,
+        name: 'Overview',
+        to: '/pms/lsgb/overview',
+        icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Fund Tracking',
+        to: '/pms/lsgb/funds',
+        icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Analysis',
+        to: '/pms/lsgb/analysis',
+        icon: <CIcon icon={cilChart} customClassName="nav-icon" />,
+      },
+    ],
+  },
+
   {
     component: CNavItem,
     name: 'Audit Logs',
