@@ -10,19 +10,19 @@ import useRole from '../hooks/useRole'
 import { ROLE } from '../constants/roles'
 
 const ROLE_NAV_MAP = {
-  admin: (nav) => nav,
-  project_associate: (nav) =>
+  [ROLE.ADMIN]: (nav) => nav,
+  [ROLE.PROJECT_ASSOCIATE]: (nav) =>
     nav.filter(
       (item) =>
         item.name === 'Project Associate' ||
         item.name === 'Switch to EMS' ||
         item.name === 'Dashboard',
     ),
-  project_officer: (nav) =>
+  [ROLE.PROJECT_OFFICER]: (nav) =>
     nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
-  project_coordinator: (nav) =>
+  [ROLE.PROJECT_COORDINATOR]: (nav) =>
     nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
-  field_personnel: (nav) =>
+  [ROLE.FIELD_PERSONNEL]: (nav) =>
     nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
 }
 
