@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -69,6 +70,8 @@ const AppSidebar = ({ nav = [] }) => {
   const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
   const role = useRole()
+  const { pathname } = useLocation()
+  const dashboardPath = pathname.startsWith('/pms') ? '/pms/dashboard' : '/ems/dashboard'
 
   const visibleNavigation = nav
     .filter((item) => !item.roles || !role || item.roles.includes(role))
@@ -86,7 +89,7 @@ const AppSidebar = ({ nav = [] }) => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
+        <CSidebarBrand to={dashboardPath}>
           <img
             src={hmaLogo}
             alt="HMA"
