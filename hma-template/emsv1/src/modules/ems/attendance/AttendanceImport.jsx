@@ -163,7 +163,7 @@ const buildEmployeeSummaries = (rows) => {
         // Late split: normal (≤60 min) vs half-day (>60 min, priority rule applies)
         normal_late_days: 0,
         normal_late_minutes: 0, // ≤60 min late days → contribute to units
-        normal_late_units: 0,   // per-day ceil(min/15) summed — correct unit count
+        normal_late_units: 0, // per-day ceil(min/15) summed — correct unit count
         hd_violations: [], // >60 min late but Pace marked Present → HD rule
         total_work_minutes: 0,
         work_days_with_duration: 0,
@@ -372,7 +372,8 @@ const DeductionSummary = ({ summaries, month, year }) => {
       <CCardBody className="p-0">
         {missingCount > 0 && (
           <div className="px-3 py-2 border-bottom bg-warning-subtle small text-dark">
-            ⚠️ {missingCount} employee{missingCount > 1 ? 's' : ''} missing salary data — their
+            <CIcon icon={cilWarning} size="sm" className="me-1" />
+            {missingCount} employee{missingCount > 1 ? 's' : ''} missing salary data — their
             deductions are excluded from the total. Add salary via Staff → Employee Profile → Salary
             tab.
           </div>
@@ -491,13 +492,7 @@ const DeductionSummary = ({ summaries, month, year }) => {
   )
 }
 
-const STEPS = [
-  'Select Period',
-  'Upload File',
-  'Preview Data',
-  'Review & Confirm',
-  'Complete',
-]
+const STEPS = ['Select Period', 'Upload File', 'Preview Data', 'Review & Confirm', 'Complete']
 
 // ─── Main component ───────────────────────────────────────────────────────────
 

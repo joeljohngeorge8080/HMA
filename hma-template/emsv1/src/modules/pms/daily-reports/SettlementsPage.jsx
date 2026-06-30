@@ -13,7 +13,6 @@
  */
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -47,17 +46,9 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import {
-  cilSearch,
-  cilCheckCircle,
-  cilSend,
-  cilMoney,
-  cilClock,
-  cilFile,
-} from '@coreui/icons'
+import { cilSearch, cilCheckCircle, cilMoney, cilClock, cilFile, cilNotes } from '@coreui/icons'
 
-import { localReports, localMergedReports, REPORT_STATUS } from '../../../services/localReports'
-import CreateMergedReportModal from './components/CreateMergedReportModal'
+import { localReports, REPORT_STATUS } from '../../../services/localReports'
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -89,8 +80,6 @@ const SettlementsPage = () => {
   const [settleModalVisible, setSettleModalVisible] = useState(false)
   const [settleTargetId, setSettleTargetId] = useState(null)
   const [settleLoading, setSettleLoading] = useState(false)
-  const [mergedModalVisible, setMergedModalVisible] = useState(false)
-  const [mergedLoading, setMergedLoading] = useState(false)
 
   const [toast, setToast] = useState(null)
 
@@ -124,7 +113,7 @@ const SettlementsPage = () => {
     setSettleLoading(true)
     try {
       localReports.markSettled(settleTargetId)
-      setToast({ color: 'success', message: '✅ Bill marked as Settled' })
+      setToast({ color: 'success', message: 'Bill marked as settled' })
       setSettleModalVisible(false)
       setSettleTargetId(null)
       loadData()
@@ -134,35 +123,17 @@ const SettlementsPage = () => {
     setSettleLoading(false)
   }
 
-  // ── Create merged report ──────────────────────────────────────────────────
-  const handleMergedSubmit = ({ title, notes, billIds, bills }) => {
-    setMergedLoading(true)
-    try {
-      localMergedReports.create({
-        title,
-        notes,
-        billIds,
-        bills,
-        createdBy: 'backend_team',
-        createdByName: 'Backend Team',
-      })
-      setToast({ color: 'success', message: '📤 Merged report sent to Project Coordinator!' })
-      setMergedModalVisible(false)
-      loadData()
-    } catch (err) {
-      setToast({ color: 'danger', message: err.message })
-    }
-    setMergedLoading(false)
-  }
-
   const totalApprovedAmt = approvedBills.reduce((s, b) => s + (b.amount || 0), 0)
   const totalSettledAmt = settledBills.reduce((s, b) => s + (b.amount || 0), 0)
 
-  const BillTable = ({ bills, showSettleBtn }) => (
+  const BillTable = ({ bills, showSettleBtn }) =>
     bills.length === 0 ? (
       <div className="text-center py-5 text-body-secondary">
-        <div style={{ fontSize: '2.5rem' }} className="mb-2">
-          {showSettleBtn ? '📥' : '✅'}
+        <div className="mb-2 text-body-secondary">
+          <CIcon
+            icon={showSettleBtn ? cilFile : cilCheckCircle}
+            style={{ width: 40, height: 40 }}
+          />
         </div>
         <h6 className="text-body-secondary">
           {showSettleBtn ? 'No pending bills' : 'No settled bills yet'}
@@ -183,9 +154,7 @@ const SettlementsPage = () => {
               <CTableHeaderCell className="text-end">Amount</CTableHeaderCell>
               <CTableHeaderCell>Date</CTableHeaderCell>
               <CTableHeaderCell>Approved At</CTableHeaderCell>
-              {showSettleBtn && (
-                <CTableHeaderCell className="text-center">Action</CTableHeaderCell>
-              )}
+              {showSettleBtn && <CTableHeaderCell className="text-center">Action</CTableHeaderCell>}
               {!showSettleBtn && (
                 <CTableHeaderCell className="text-center">Settled At</CTableHeaderCell>
               )}
@@ -202,15 +171,16 @@ const SettlementsPage = () => {
                     {bill.bill_topic}
                   </div>
                   {bill.task_title && (
-                    <div className="small text-info">📋 {bill.task_title}</div>
+                    <div className="small text-info d-flex align-items-center gap-1">
+                      <CIcon icon={cilNotes} size="sm" />
+                      {bill.task_title}
+                    </div>
                   )}
                 </CTableDataCell>
                 <CTableDataCell className="text-end fw-semibold">
                   {formatCurrency(bill.amount)}
                 </CTableDataCell>
-                <CTableDataCell className="small">
-                  {formatDate(bill.report_date)}
-                </CTableDataCell>
+                <CTableDataCell className="small">{formatDate(bill.report_date)}</CTableDataCell>
                 <CTableDataCell className="small text-body-secondary">
                   {bill.reviewed_at
                     ? new Date(bill.reviewed_at).toLocaleString('en-IN', {
@@ -223,11 +193,7 @@ const SettlementsPage = () => {
                 </CTableDataCell>
                 {showSettleBtn && (
                   <CTableDataCell className="text-center">
-                    <CButton
-                      color="primary"
-                      size="sm"
-                      onClick={() => handleSettleClick(bill.id)}
-                    >
+                    <CButton color="primary" size="sm" onClick={() => handleSettleClick(bill.id)}>
                       <CIcon icon={cilCheckCircle} className="me-1" size="sm" />
                       Mark Settled
                     </CButton>
@@ -251,31 +217,15 @@ const SettlementsPage = () => {
         </CTable>
       </div>
     )
-  )
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h4 className="fw-semibold mb-1">Settlements</h4>
-          <p className="text-body-secondary mb-0 small">
-            Process approved field bills and create merged reports for the Project Coordinator
-          </p>
+          <p className="text-body-secondary mb-0 small">Process and settle approved field bills</p>
         </div>
-        <CButton
-          color="primary"
-          onClick={() => setMergedModalVisible(true)}
-          disabled={settledBills.length === 0}
-        >
-          <CIcon icon={cilSend} className="me-2" />
-          Create Merged Report
-          {settledBills.length > 0 && (
-            <CBadge color="light" textColor="primary" className="ms-2">
-              {settledBills.length}
-            </CBadge>
-          )}
-        </CButton>
       </div>
 
       {/* Summary cards */}
@@ -292,7 +242,9 @@ const SettlementsPage = () => {
               <div>
                 <div className="fs-4 fw-bold">{approvedBills.length}</div>
                 <div className="small text-body-secondary">Pending Settlement</div>
-                <div className="small fw-semibold text-warning">{formatCurrency(totalApprovedAmt)}</div>
+                <div className="small fw-semibold text-warning">
+                  {formatCurrency(totalApprovedAmt)}
+                </div>
               </div>
             </CCardBody>
           </CCard>
@@ -308,8 +260,10 @@ const SettlementsPage = () => {
               </div>
               <div>
                 <div className="fs-4 fw-bold">{settledBills.length}</div>
-                <div className="small text-body-secondary">Settled (Ready for Report)</div>
-                <div className="small fw-semibold text-primary">{formatCurrency(totalSettledAmt)}</div>
+                <div className="small text-body-secondary">Settled Bills</div>
+                <div className="small fw-semibold text-primary">
+                  {formatCurrency(totalSettledAmt)}
+                </div>
               </div>
             </CCardBody>
           </CCard>
@@ -324,7 +278,9 @@ const SettlementsPage = () => {
                 <CIcon icon={cilFile} className="text-success" />
               </div>
               <div>
-                <div className="fs-4 fw-bold">{formatCurrency(totalApprovedAmt + totalSettledAmt)}</div>
+                <div className="fs-4 fw-bold">
+                  {formatCurrency(totalApprovedAmt + totalSettledAmt)}
+                </div>
                 <div className="small text-body-secondary">Total in Pipeline</div>
               </div>
             </CCardBody>
@@ -350,7 +306,7 @@ const SettlementsPage = () => {
 
       {/* Tabs */}
       <CCard className="shadow-sm">
-        <CCardHeader className="bg-white pb-0">
+        <CCardHeader className="pb-0">
           <CNav variant="underline">
             <CNavItem>
               <CNavLink
@@ -360,7 +316,9 @@ const SettlementsPage = () => {
               >
                 Pending Settlement
                 {approvedBills.length > 0 && (
-                  <CBadge color="warning" className="ms-2">{approvedBills.length}</CBadge>
+                  <CBadge color="warning" className="ms-2">
+                    {approvedBills.length}
+                  </CBadge>
                 )}
               </CNavLink>
             </CNavItem>
@@ -372,7 +330,9 @@ const SettlementsPage = () => {
               >
                 Settled
                 {settledBills.length > 0 && (
-                  <CBadge color="primary" className="ms-2">{settledBills.length}</CBadge>
+                  <CBadge color="primary" className="ms-2">
+                    {settledBills.length}
+                  </CBadge>
                 )}
               </CNavLink>
             </CNavItem>
@@ -401,8 +361,7 @@ const SettlementsPage = () => {
         </CModalHeader>
         <CModalBody>
           <p>
-            Mark this bill as <strong>Settled</strong>? It will be moved to the Settled tab and
-            can then be included in a Merged Report for the Project Coordinator.
+            Mark this bill as <strong>Settled</strong>? It will be moved to the Settled tab.
           </p>
         </CModalBody>
         <CModalFooter>
@@ -429,15 +388,6 @@ const SettlementsPage = () => {
         </CModalFooter>
       </CModal>
 
-      {/* Merged report modal */}
-      <CreateMergedReportModal
-        visible={mergedModalVisible}
-        onClose={() => setMergedModalVisible(false)}
-        settledBills={settledBills}
-        onSubmit={handleMergedSubmit}
-        loading={mergedLoading}
-      />
-
       {/* Toast */}
       <CToaster placement="top-end">
         {toast && (
@@ -456,7 +406,7 @@ const SettlementsPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

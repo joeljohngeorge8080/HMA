@@ -74,7 +74,10 @@ const CategoryManager = () => {
   }
 
   const handleSave = async () => {
-    if (!formName.trim()) { setError('Name is required'); return }
+    if (!formName.trim()) {
+      setError('Name is required')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -96,7 +99,10 @@ const CategoryManager = () => {
       // Fallback local
       try {
         if (editing) {
-          localGeneralExpenses.categories.update(editing.id, { name: formName.trim(), description: formDesc.trim() || null })
+          localGeneralExpenses.categories.update(editing.id, {
+            name: formName.trim(),
+            description: formDesc.trim() || null,
+          })
         } else {
           localGeneralExpenses.categories.create(formName.trim(), formDesc.trim() || null)
         }
@@ -151,7 +157,9 @@ const CategoryManager = () => {
         </CCardHeader>
         <CCardBody>
           {loading ? (
-            <div className="text-center py-4"><CSpinner /></div>
+            <div className="text-center py-4">
+              <CSpinner />
+            </div>
           ) : (
             <CTable small hover responsive>
               <CTableHead>
@@ -173,7 +181,9 @@ const CategoryManager = () => {
                 {categories.map((cat) => (
                   <CTableRow key={cat.id}>
                     <CTableDataCell className="fw-semibold">{cat.name}</CTableDataCell>
-                    <CTableDataCell className="text-body-secondary">{cat.description || '—'}</CTableDataCell>
+                    <CTableDataCell className="text-body-secondary">
+                      {cat.description || '—'}
+                    </CTableDataCell>
                     <CTableDataCell>
                       <CBadge color={cat.is_active ? 'success' : 'secondary'}>
                         {cat.is_active ? 'Active' : 'Inactive'}

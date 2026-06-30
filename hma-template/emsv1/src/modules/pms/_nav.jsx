@@ -17,6 +17,7 @@ import {
   cilBriefcase,
   cilMoney,
   cilTask,
+  cilChart,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -75,6 +76,7 @@ const pmsNav = [
       { component: CNavItem, name: 'Documents', to: '/pms/project-expenses/documents' },
     ],
   },
+
   {
     component: CNavGroup,
     name: 'General Expenses',
@@ -138,7 +140,7 @@ const pmsNav = [
   },
   {
     component: CNavItem,
-    name: 'Funding Agencies',
+    name: 'Donor Records',
     to: '/pms/funding-agencies',
     icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
   },
@@ -171,6 +173,34 @@ const pmsNav = [
       { component: CNavItem, name: 'Approved Reports', to: '/pms/daily-reports/approved' },
     ],
   },
+  // ── LSGB Projects ──
+  {
+    component: CNavGroup,
+    name: 'LSGB Projects',
+    icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+    badge: { color: 'info', text: 'LSGB' },
+    items: [
+      {
+        component: CNavItem,
+        name: 'Overview',
+        to: '/pms/lsgb/overview',
+        icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Fund Tracking',
+        to: '/pms/lsgb/funds',
+        icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Analysis',
+        to: '/pms/lsgb/analysis',
+        icon: <CIcon icon={cilChart} customClassName="nav-icon" />,
+      },
+    ],
+  },
+
   {
     component: CNavItem,
     name: 'Audit Logs',
@@ -188,16 +218,7 @@ const pmsNav = [
       { component: CNavItem, name: 'Approved Bills', to: '/pms/daily-reports/approved' },
     ],
   },
-  // ── Project Coordinator section ──
-  {
-    component: CNavGroup,
-    name: 'Coordinator',
-    icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
-    badge: { color: 'success', text: 'PC' },
-    items: [
-      { component: CNavItem, name: 'Merged Reports', to: '/pms/merged-reports' },
-    ],
-  },
+
   {
     component: CNavItem,
     name: 'Switch to EMS',

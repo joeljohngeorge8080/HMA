@@ -2,6 +2,17 @@ import React from 'react'
 import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
+const UserManagementPage = React.lazy(
+  () => import('../modules/ems/user-management/UserManagementPage'),
+)
+const AdminSettingsPage = React.lazy(() => import('../modules/ems/admin/AdminSettingsPage'))
+const CeoAnnouncementsPage = React.lazy(
+  () => import('../modules/ems/announcements/CeoAnnouncementsPage'),
+)
+const AnnouncementsInboxPage = React.lazy(
+  () => import('../modules/ems/announcements/AnnouncementsInboxPage'),
+)
+
 const Dashboard = React.lazy(() => import('../modules/ems/dashboard/Dashboard'))
 const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyProfilePage'))
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
@@ -14,6 +25,12 @@ const AttendanceImport = React.lazy(() => import('../modules/ems/attendance/Atte
 const AttendanceCorrections = React.lazy(
   () => import('../modules/ems/attendance/AttendanceCorrections'),
 )
+const GlobalHRPoolPage = React.lazy(() => import('../modules/ems/hr-pool/GlobalHRPoolPage'))
+const CorePoolPage = React.lazy(() => import('../modules/ems/core-pool/CorePoolPage'))
+const ProjectOverheadsList = React.lazy(
+  () => import('../modules/ems/projects/ProjectOverheadsList'),
+)
+const ProjectOverheadView = React.lazy(() => import('../modules/ems/projects/ProjectOverheadView'))
 
 const GeneralExpenseList = React.lazy(
   () => import('../modules/ems/general-expenses/GeneralExpenseList'),
@@ -34,9 +51,11 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 
-const AdminExpensePage = React.lazy(
-  () => import('../modules/ems/expense-management/AdminExpensePage'),
+const ExpenseManagementPage = React.lazy(
+  () => import('../modules/ems/expense-management/ExpenseManagementPage'),
 )
+const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
+const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -47,7 +66,12 @@ const placeholder = (title, message) => {
 export const emsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   { path: '/ems/dashboard', name: 'Dashboard', element: Dashboard, module: MODULE.DASHBOARD },
-  { path: '/ems/my-profile', name: 'My Profile', element: MyProfilePage, module: MODULE.MY_PROFILE },
+  {
+    path: '/ems/my-profile',
+    name: 'My Profile',
+    element: MyProfilePage,
+    module: MODULE.MY_PROFILE,
+  },
 
   {
     path: '/ems/staff-payroll',
@@ -92,11 +116,47 @@ export const emsRoutes = [
     element: AttendanceCorrections,
     module: MODULE.ATTENDANCE,
   },
+  {
+    path: '/ems/internship',
+    name: 'Internship',
+    element: InternshipPage,
+    module: MODULE.INTERNSHIP,
+  },
+  {
+    path: '/ems/recruitment',
+    name: 'Recruitment',
+    element: RecruitmentPage,
+    module: MODULE.RECRUITMENT,
+  },
 
+  {
+    path: '/ems/hr-pool/global',
+    name: 'Global HR Pool',
+    element: GlobalHRPoolPage,
+    module: MODULE.HR_POOL,
+  },
+  {
+    path: '/ems/core-pool/global',
+    name: 'Global Core Pool',
+    element: CorePoolPage,
+    module: MODULE.HR_POOL, // We can reuse HR_POOL or create a CORE_POOL module if it existed.
+  },
+  {
+    path: '/ems/projects/overheads',
+    name: 'Project Overheads',
+    element: ProjectOverheadsList,
+    module: MODULE.HR_POOL,
+  },
+  {
+    path: '/ems/projects/:id/overheads',
+    name: 'Project Overhead Details',
+    element: ProjectOverheadView,
+    module: MODULE.HR_POOL,
+  },
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
-    element: AdminExpensePage,
+    element: ExpenseManagementPage,
     module: MODULE.EXPENSE_MANAGEMENT,
   },
 
@@ -149,6 +209,30 @@ export const emsRoutes = [
     element: placeholder('Finance'),
     module: MODULE.FINANCE,
   },
+  {
+    path: '/ems/finance/detail-1',
+    name: 'Detail 1',
+    element: placeholder('Finance – Detail 1'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-2',
+    name: 'Detail 2',
+    element: placeholder('Finance – Detail 2'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-3',
+    name: 'Detail 3',
+    element: placeholder('Finance – Detail 3'),
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/detail-4',
+    name: 'Detail 4',
+    element: placeholder('Finance – Detail 4'),
+    module: MODULE.FINANCE,
+  },
 
   {
     path: '/ems/reports-analysis',
@@ -174,6 +258,55 @@ export const emsRoutes = [
     name: 'Audit Logs',
     element: placeholder('Audit Logs'),
     module: MODULE.AUDIT_LOGS,
+  },
+
+  {
+    path: '/ems/user-management',
+    name: 'Registered Users',
+    element: UserManagementPage,
+    module: MODULE.USER_MANAGEMENT,
+  },
+  {
+    path: '/ems/user-management/add',
+    name: 'Add User',
+    element: UserManagementPage,
+    module: MODULE.USER_MANAGEMENT,
+  },
+
+  // Admin Settings — Admin only
+  {
+    path: '/ems/admin-settings',
+    name: 'Admin Settings',
+    element: AdminSettingsPage,
+    module: MODULE.ADMIN_SETTINGS,
+  },
+
+  // CEO Announcements — all three nav links point here; tabs are managed internally
+  {
+    path: '/ems/announcements',
+    name: 'Announcements',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+  {
+    path: '/ems/announcements/compose',
+    name: 'Compose Announcement',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+  {
+    path: '/ems/announcements/sent',
+    name: 'Sent Announcements',
+    element: CeoAnnouncementsPage,
+    module: MODULE.CEO_ANNOUNCEMENTS,
+  },
+
+  // Notifications inbox — all non-CEO/Admin roles
+  {
+    path: '/ems/notifications',
+    name: 'Notifications',
+    element: AnnouncementsInboxPage,
+    module: MODULE.NOTIFICATIONS,
   },
 ]
 

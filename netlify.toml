@@ -1,0 +1,9 @@
+[build]
+  base    = "hma-template/emsv1"
+  command = ""
+  publish = "build"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

@@ -10,15 +10,18 @@ import {
   cilChartPie,
   cilListRich,
   cilTransfer,
-  cilCloudUpload,
   cilTags,
   cilUser,
+  cilSettings,
+  cilBell,
+  cilNotes,
+  cilOptions,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
 import { ROLE } from '../../constants/roles'
 
-const STAFF_ROLES = [ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
+const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
 
 const emsNav = [
   {
@@ -35,27 +38,66 @@ const emsNav = [
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
+
+  // ── HR Admin group ─────────────────────────────────────────────────
+  {
+    component: CNavGroup,
+    name: 'HR Admin',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+    items: [
+      {
+        component: CNavItem,
+        name: 'Staff & Payroll',
+        to: '/ems/staff-payroll',
+        icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavGroup,
+        name: 'Attendance',
+        icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+        items: [
+          { component: CNavItem, name: 'Overview', to: '/ems/attendance' },
+          { component: CNavItem, name: 'Import Excel', to: '/ems/attendance/import' },
+          { component: CNavItem, name: 'Corrections', to: '/ems/attendance/corrections' },
+        ],
+      },
+      {
+        component: CNavItem,
+        name: 'HR & Core Pool',
+        to: '/ems/hr-pool/global',
+        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavGroup,
+        name: 'Activity',
+        items: [
+          { component: CNavItem, name: 'Internship', to: '/ems/internship' },
+          { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
+        ],
+      },
+    ],
+  },
+
+  // ── Overheads & Pools ──────────────────────────────────────────────
   {
     component: CNavItem,
-    name: 'Staff & Payroll',
-    to: '/ems/staff-payroll',
+    name: 'Global HR Pool',
+    to: '/ems/hr-pool/global',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
   {
-    component: CNavGroup,
-    name: 'Attendance',
-    icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+    component: CNavItem,
+    name: 'Global Core Pool',
+    to: '/ems/core-pool/global',
+    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
-    items: [
-      { component: CNavItem, name: 'Overview', to: '/ems/attendance' },
-      { component: CNavItem, name: 'Import Excel', to: '/ems/attendance/import' },
-      { component: CNavItem, name: 'Corrections', to: '/ems/attendance/corrections' },
-    ],
   },
+  // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
-    name: 'Admin Expenses',
+    name: 'Expense Management',
     to: '/ems/expense-management',
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
@@ -66,19 +108,40 @@ const emsNav = [
     icon: <CIcon icon={cilCash} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
     items: [
-      { component: CNavItem, name: 'Overview', to: '/ems/general-expenses' },
-      { component: CNavItem, name: 'Add Expense', to: '/ems/general-expenses/new' },
-      { component: CNavItem, name: 'Categories', to: '/ems/general-expenses/categories', icon: <CIcon icon={cilTags} customClassName="nav-icon" /> },
-      { component: CNavItem, name: 'Upload Excel', to: '/ems/general-expenses/upload', icon: <CIcon icon={cilCloudUpload} customClassName="nav-icon" /> },
-      { component: CNavItem, name: 'Analysis', to: '/ems/general-expenses/analysis', icon: <CIcon icon={cilChartPie} customClassName="nav-icon" /> },
+      { component: CNavItem, name: 'Divisions', to: '/ems/general-expenses' },
+      {
+        component: CNavItem,
+        name: 'Categories',
+        to: '/ems/general-expenses/categories',
+        icon: <CIcon icon={cilTags} customClassName="nav-icon" />,
+      },
     ],
   },
+
+  // ── Other ──────────────────────────────────────────────────────────
   {
-    component: CNavItem,
+    component: CNavGroup,
     name: 'Finance',
-    to: '/ems/finance',
     icon: <CIcon icon={cilDollar} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
+    items: [
+      { component: CNavItem, name: 'Detail 1', to: '/ems/finance/detail-1' },
+      { component: CNavItem, name: 'Detail 2', to: '/ems/finance/detail-2' },
+      { component: CNavItem, name: 'Detail 3', to: '/ems/finance/detail-3' },
+      { component: CNavItem, name: 'Detail 4', to: '/ems/finance/detail-4' },
+    ],
+  },
+
+  // ── User Management (Admin + HR) ───────────────────────────────────
+  {
+    component: CNavGroup,
+    name: 'User Management',
+    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
+    roles: [ROLE.ADMIN, ROLE.HR],
+    items: [
+      { component: CNavItem, name: 'Registered Users', to: '/ems/user-management' },
+      { component: CNavItem, name: 'Add User', to: '/ems/user-management/add' },
+    ],
   },
   {
     component: CNavItem,
@@ -94,6 +157,62 @@ const emsNav = [
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
+  // ── Admin Settings (Admin only) ───────────────────────────────────────────
+  {
+    component: CNavItem,
+    name: 'Admin Settings',
+    to: '/ems/admin-settings',
+    icon: <CIcon icon={cilOptions} customClassName="nav-icon" />,
+    roles: [ROLE.ADMIN],
+  },
+
+  // ── CEO Announcements (CEO + Admin) ───────────────────────────────────────
+  {
+    component: CNavGroup,
+    name: 'Announcements',
+    icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+    roles: [ROLE.CEO, ROLE.ADMIN],
+    items: [
+      {
+        component: CNavItem,
+        name: 'Personal Notes',
+        to: '/ems/announcements',
+        icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Compose & Send',
+        to: '/ems/announcements/compose',
+        icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Sent Messages',
+        to: '/ems/announcements/sent',
+        icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
+      },
+    ],
+  },
+
+  // ── Notifications inbox (non-CEO, non-Admin staff) ─────────────────────────
+  {
+    component: CNavItem,
+    name: 'Notifications',
+    to: '/ems/notifications',
+    icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
+    roles: [
+      ROLE.HEADS,
+      ROLE.HR,
+      ROLE.FINANCE,
+      ROLE.EMPLOYEE,
+      ROLE.PROJECT_ASSOCIATE,
+      ROLE.PROJECT_OFFICER,
+      ROLE.FIELD_PERSONNEL,
+      ROLE.BACKEND_TEAM,
+      ROLE.PROJECT_COORDINATOR,
+    ],
+  },
+
   {
     component: CNavItem,
     name: 'Switch to PMS',

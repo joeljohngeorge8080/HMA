@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CRow,
@@ -58,13 +57,11 @@ import {
 import { localOfficers, localProjects } from '../../../services/localProjects'
 import useAuth from '../../../hooks/useAuth'
 
-const EMPTY_FORM = { name: '', email: '', phone: '', designation: '' }
+const EMPTY_FORM = { name: '', email: '', phone: '', designation: '', officer_type: '' }
 
-const DESIGNATIONS = [
-  'Senior Project Officer',
-  'Project Officer',
-  'Assistant Project Officer',
-]
+const DESIGNATIONS = ['Senior Project Officer', 'Project Officer', 'Assistant Project Officer']
+
+const OFFICER_TYPE_COLOR = { LSGB: 'info', CSR: 'warning', General: 'secondary' }
 
 // ─── Reusable officer form (used by both Add and Edit modals) ─────────────────
 const OfficerForm = ({ form, setField, formErrors }) => (
@@ -117,12 +114,36 @@ const OfficerForm = ({ form, setField, formErrors }) => (
         >
           <option value="">Select...</option>
           {DESIGNATIONS.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
         </CFormSelect>
         {formErrors.designation && (
           <div className="text-danger small mt-1">{formErrors.designation}</div>
         )}
+      </CCol>
+
+      <CCol xs={12}>
+        <CFormLabel className="fw-semibold small">
+          Project Type <span className="text-danger">*</span>
+        </CFormLabel>
+        <CFormSelect
+          value={form.officer_type || ''}
+          onChange={(e) => setField('officer_type', e.target.value)}
+          invalid={!!formErrors.officer_type}
+        >
+          <option value="">Select project type...</option>
+          <option value="General">General</option>
+          <option value="LSGB">LSGB — Local Self Government Body</option>
+          <option value="CSR">CSR — Corporate Social Responsibility</option>
+        </CFormSelect>
+        {formErrors.officer_type && (
+          <div className="text-danger small mt-1">{formErrors.officer_type}</div>
+        )}
+        <div className="text-body-secondary small mt-1">
+          LSGB officers handle projects funded by local government bodies (Panchayat / Municipality / Corporation).
+        </div>
       </CCol>
     </CRow>
   </CForm>
@@ -162,11 +183,12 @@ const ProjectOfficersPage = () => {
     setTotal(result.total)
   }, [filters])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  const handleFilterChange = (field, value) =>
-    setFilters((prev) => ({ ...prev, [field]: value }))
+  const handleFilterChange = (field, value) => setFilters((prev) => ({ ...prev, [field]: value }))
 
   const clearFilters = () => setFilters({ search: '', status: '' })
 
@@ -176,6 +198,7 @@ const ProjectOfficersPage = () => {
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = 'Valid email is required'
     if (!form.designation.trim()) e.designation = 'Designation is required'
+    if (!form.officer_type) e.officer_type = 'Project type is required'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -192,11 +215,11 @@ const ProjectOfficersPage = () => {
     setAddSaving(true)
     try {
       localOfficers.create(addForm)
-      setToast({ color: 'success', message: '✅ Officer added. Invite email sent via AWS SES.' })
+      setToast({ color: 'success', message: 'Officer added — invite email sent' })
       setAddVisible(false)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setAddSaving(false)
   }
@@ -210,6 +233,7 @@ const ProjectOfficersPage = () => {
       email: officer.email,
       phone: officer.phone || '',
       designation: officer.designation || '',
+      officer_type: officer.officer_type || '',
     })
     setEditErrors({})
     setEditVisible(true)
@@ -220,12 +244,12 @@ const ProjectOfficersPage = () => {
     setEditSaving(true)
     try {
       localOfficers.update(editTarget.id, editForm)
-      setToast({ color: 'success', message: '✅ Officer details updated.' })
+      setToast({ color: 'success', message: 'Officer details updated' })
       setEditVisible(false)
       setEditTarget(null)
       load()
     } catch (err) {
-      setToast({ color: 'danger', message: `❌ ${err.message}` })
+      setToast({ color: 'danger', message: err.message })
     }
     setEditSaving(false)
   }
@@ -241,7 +265,10 @@ const ProjectOfficersPage = () => {
 
   // ── Expand row ───────────────────────────────────────────────────────────────
   const toggleExpand = (officerId) => {
-    if (expandedId === officerId) { setExpandedId(null); return }
+    if (expandedId === officerId) {
+      setExpandedId(null)
+      return
+    }
     setExpandedId(officerId)
     if (!officerProjects[officerId]) {
       setOfficerProjects((prev) => ({
@@ -257,15 +284,14 @@ const ProjectOfficersPage = () => {
   const totalAssignments = officers.reduce((s, o) => s + o.projects_assigned.length, 0)
 
   return (
-    <CContainer lg className="py-4">
-
+    <>
       {/* PA Authority Banner */}
       <div
         className="rounded-4 mb-4 px-4 py-3 d-flex align-items-center gap-3 flex-wrap"
         style={{ background: 'linear-gradient(135deg, #06d6a0 0%, #0096c7 100%)', color: '#fff' }}
       >
         <div
-          className="rounded-circle bg-white d-flex align-items-center justify-content-center flex-shrink-0"
+          className="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center flex-shrink-0"
           style={{ width: 44, height: 44 }}
         >
           <CIcon icon={cilShieldAlt} style={{ color: '#06d6a0', width: 22, height: 22 }} />
@@ -273,19 +299,25 @@ const ProjectOfficersPage = () => {
         <div className="flex-grow-1">
           <div className="fw-bold fs-6">
             Project Associate Access&nbsp;
-            <CBadge color="light" className="text-dark ms-1" style={{ fontSize: '0.65rem', verticalAlign: 'middle' }}>
+            <CBadge
+              color="light"
+              className="text-dark ms-1"
+              style={{ fontSize: '0.65rem', verticalAlign: 'middle' }}
+            >
               Superior Role
             </CBadge>
           </div>
           <div className="opacity-75 small">
-            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong> — you can view, add and edit Project Officers
+            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong> — you can view,
+            add and edit Project Officers
           </div>
         </div>
         <div
           className="small opacity-75 d-none d-md-flex align-items-center gap-1 px-3 py-1 rounded-pill"
           style={{ background: 'rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}
         >
-          Admin &nbsp;›&nbsp; <strong>Project Associate</strong> &nbsp;›&nbsp; Project Officer &nbsp;›&nbsp; Field Personnel
+          Admin &nbsp;›&nbsp; <strong>Project Associate</strong> &nbsp;›&nbsp; Project Officer
+          &nbsp;›&nbsp; Field Personnel
         </div>
       </div>
 
@@ -306,10 +338,15 @@ const ProjectOfficersPage = () => {
       {/* Stat cards */}
       <CRow className="g-3 mb-4">
         {[
-          { label: 'Total Officers',     value: total,            color: '#4361ee', bg: 'rgba(67,97,238,0.08)' },
-          { label: 'Active',             value: activeCount,      color: '#06d6a0', bg: 'rgba(6,214,160,0.08)' },
-          { label: 'Inactive',           value: inactiveCount,    color: '#e74c3c', bg: 'rgba(231,76,60,0.08)' },
-          { label: 'Total Assignments',  value: totalAssignments, color: '#f77f00', bg: 'rgba(247,127,0,0.08)' },
+          { label: 'Total Officers', value: total, color: '#4361ee', bg: 'rgba(67,97,238,0.08)' },
+          { label: 'Active', value: activeCount, color: '#06d6a0', bg: 'rgba(6,214,160,0.08)' },
+          { label: 'Inactive', value: inactiveCount, color: '#e74c3c', bg: 'rgba(231,76,60,0.08)' },
+          {
+            label: 'Total Assignments',
+            value: totalAssignments,
+            color: '#f77f00',
+            bg: 'rgba(247,127,0,0.08)',
+          },
         ].map((card, i) => (
           <CCol key={i} xs={6} xl={3}>
             <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
@@ -355,7 +392,13 @@ const ProjectOfficersPage = () => {
               </CFormSelect>
             </CCol>
             <CCol xs={6} md={3}>
-              <CButton color="secondary" variant="ghost" size="sm" onClick={clearFilters} className="w-100">
+              <CButton
+                color="secondary"
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="w-100"
+              >
                 <CIcon icon={cilFilterX} size="sm" className="me-1" />
                 Clear
               </CButton>
@@ -372,6 +415,7 @@ const ProjectOfficersPage = () => {
               <CTableHeaderCell className="border-0 py-3 ps-4">Officer</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Contact</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Designation</CTableHeaderCell>
+              <CTableHeaderCell className="border-0 py-3">Type</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Projects</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Status</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3 text-end pe-4">Actions</CTableHeaderCell>
@@ -402,7 +446,11 @@ const ProjectOfficersPage = () => {
                   {/* Contact */}
                   <CTableDataCell className="py-3">
                     <div className="d-flex align-items-center gap-1 small">
-                      <CIcon icon={cilEnvelopeLetter} className="text-body-secondary" style={{ width: 14 }} />
+                      <CIcon
+                        icon={cilEnvelopeLetter}
+                        className="text-body-secondary"
+                        style={{ width: 14 }}
+                      />
                       <span>{officer.email}</span>
                     </div>
                     {officer.phone && (
@@ -417,14 +465,29 @@ const ProjectOfficersPage = () => {
                     <span className="fw-medium">{officer.designation || '—'}</span>
                   </CTableDataCell>
 
+                  {/* Officer Type */}
+                  <CTableDataCell className="py-3">
+                    <CBadge
+                      color={OFFICER_TYPE_COLOR[officer.officer_type] || 'secondary'}
+                      shape="rounded-pill"
+                      className="px-2"
+                    >
+                      {officer.officer_type || 'General'}
+                    </CBadge>
+                  </CTableDataCell>
+
                   {/* Projects count */}
                   <CTableDataCell className="py-3">
                     <div className="d-flex align-items-center gap-2">
                       <div
                         className="rounded-2 d-flex align-items-center justify-content-center fw-bold"
                         style={{
-                          width: 28, height: 28,
-                          background: officer.projects_assigned.length > 0 ? 'rgba(67,97,238,0.1)' : '#f8f9fa',
+                          width: 28,
+                          height: 28,
+                          background:
+                            officer.projects_assigned.length > 0
+                              ? 'rgba(67,97,238,0.1)'
+                              : '#f8f9fa',
                           color: officer.projects_assigned.length > 0 ? '#4361ee' : '#6c757d',
                           fontSize: '0.8rem',
                         }}
@@ -473,11 +536,21 @@ const ProjectOfficersPage = () => {
                         <CIcon icon={cilOptions} />
                       </CDropdownToggle>
                       <CDropdownMenu>
-                        <CDropdownItem onClick={(e) => { e.stopPropagation(); toggleExpand(officer.id) }}>
+                        <CDropdownItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleExpand(officer.id)
+                          }}
+                        >
                           <CIcon icon={cilFolder} className="me-2" />
                           View Projects
                         </CDropdownItem>
-                        <CDropdownItem onClick={(e) => { e.stopPropagation(); navigate('/pms/projects/create') }}>
+                        <CDropdownItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate('/pms/projects/create')
+                          }}
+                        >
                           <CIcon icon={cilPeople} className="me-2" />
                           Assign to Project
                         </CDropdownItem>
@@ -486,7 +559,10 @@ const ProjectOfficersPage = () => {
                           Edit Details
                         </CDropdownItem>
                         <CDropdownItem onClick={(e) => toggleStatus(officer, e)}>
-                          <CIcon icon={officer.status === 'active' ? cilXCircle : cilCheckCircle} className="me-2" />
+                          <CIcon
+                            icon={officer.status === 'active' ? cilXCircle : cilCheckCircle}
+                            className="me-2"
+                          />
                           {officer.status === 'active' ? 'Deactivate' : 'Activate'}
                         </CDropdownItem>
                       </CDropdownMenu>
@@ -497,8 +573,11 @@ const ProjectOfficersPage = () => {
                 {/* Expanded projects sub-row */}
                 {expandedId === officer.id && (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="py-0">
-                      <div className="p-3 bg-body-tertiary" style={{ borderTop: '1px solid #e9ecef' }}>
+                    <CTableDataCell colSpan={7} className="py-0">
+                      <div
+                        className="p-3 bg-body-tertiary"
+                        style={{ borderTop: '1px solid #e9ecef' }}
+                      >
                         <h6 className="fw-semibold small text-body-secondary text-uppercase mb-3">
                           Assigned Projects
                         </h6>
@@ -509,12 +588,20 @@ const ProjectOfficersPage = () => {
                             {(officerProjects[officer.id] || []).map((p) => (
                               <div
                                 key={p.id}
-                                className="d-flex align-items-center gap-2 px-3 py-2 bg-white rounded-3 border"
+                                className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border"
                                 style={{ cursor: 'pointer', fontSize: '0.825rem' }}
                                 onClick={() => navigate(`/pms/projects/${p.id}`)}
                               >
                                 <CBadge
-                                  color={p.status === 'ongoing' ? 'success' : p.status === 'approved' ? 'info' : p.status === 'pipeline' ? 'secondary' : 'secondary'}
+                                  color={
+                                    p.status === 'ongoing'
+                                      ? 'success'
+                                      : p.status === 'approved'
+                                        ? 'info'
+                                        : p.status === 'pipeline'
+                                          ? 'secondary'
+                                          : 'secondary'
+                                  }
                                   shape="rounded-circle"
                                   style={{ width: 8, height: 8 }}
                                 >
@@ -536,10 +623,14 @@ const ProjectOfficersPage = () => {
 
         {officers.length === 0 && (
           <div className="text-center py-5">
-            <div style={{ fontSize: '3.5rem' }} className="mb-2">👥</div>
+            <div style={{ fontSize: '3.5rem' }} className="mb-2">
+              👥
+            </div>
             <h5 className="text-body-secondary">No officers found</h5>
             <p className="text-body-tertiary">
-              {filters.search || filters.status ? 'Try adjusting filters' : 'Add your first project officer to get started'}
+              {filters.search || filters.status
+                ? 'Try adjusting filters'
+                : 'Add your first project officer to get started'}
             </p>
             {!filters.search && !filters.status && (
               <CButton color="primary" onClick={openAdd}>
@@ -552,7 +643,12 @@ const ProjectOfficersPage = () => {
       </CCard>
 
       {/* ── Add Officer Modal ──────────────────────────────────────────────────── */}
-      <CModal visible={addVisible} onClose={() => setAddVisible(false)} alignment="center" size="md">
+      <CModal
+        visible={addVisible}
+        onClose={() => setAddVisible(false)}
+        alignment="center"
+        size="md"
+      >
         <CModalHeader>
           <CModalTitle>
             <CIcon icon={cilPlus} className="me-2 text-primary" />
@@ -568,7 +664,11 @@ const ProjectOfficersPage = () => {
             }}
             formErrors={addErrors}
           />
-          <CAlert color="info" className="mt-3 py-2 px-3 d-flex align-items-start gap-2 mb-0" style={{ fontSize: '0.8rem' }}>
+          <CAlert
+            color="info"
+            className="mt-3 py-2 px-3 d-flex align-items-start gap-2 mb-0"
+            style={{ fontSize: '0.8rem' }}
+          >
             <CIcon icon={cilEnvelopeLetter} className="mt-1 flex-shrink-0" />
             <div>
               An invite email will be sent to <strong>{addForm.email || 'the officer'}</strong> via{' '}
@@ -577,9 +677,15 @@ const ProjectOfficersPage = () => {
           </CAlert>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => setAddVisible(false)}>Cancel</CButton>
+          <CButton color="secondary" variant="ghost" onClick={() => setAddVisible(false)}>
+            Cancel
+          </CButton>
           <CButton color="primary" onClick={handleAdd} disabled={addSaving}>
-            {addSaving ? <CSpinner size="sm" className="me-1" /> : <CIcon icon={cilPlus} className="me-1" />}
+            {addSaving ? (
+              <CSpinner size="sm" className="me-1" />
+            ) : (
+              <CIcon icon={cilPlus} className="me-1" />
+            )}
             Add &amp; Send Email
           </CButton>
         </CModalFooter>
@@ -588,7 +694,10 @@ const ProjectOfficersPage = () => {
       {/* ── Edit Officer Modal ─────────────────────────────────────────────────── */}
       <CModal
         visible={editVisible}
-        onClose={() => { setEditVisible(false); setEditTarget(null) }}
+        onClose={() => {
+          setEditVisible(false)
+          setEditTarget(null)
+        }}
         alignment="center"
         size="md"
       >
@@ -602,11 +711,16 @@ const ProjectOfficersPage = () => {
           {/* PA privilege notice */}
           <div
             className="rounded-3 px-3 py-2 mb-3 d-flex align-items-center gap-2 small"
-            style={{ background: 'rgba(6,214,160,0.08)', border: '1px solid rgba(6,214,160,0.25)', color: '#0a7a5a' }}
+            style={{
+              background: 'rgba(6,214,160,0.08)',
+              border: '1px solid rgba(6,214,160,0.25)',
+              color: '#0a7a5a',
+            }}
           >
             <CIcon icon={cilShieldAlt} />
             <div>
-              You have <strong>Project Associate</strong> privileges — you can edit this officer's details.
+              You have <strong>Project Associate</strong> privileges — you can edit this officer's
+              details.
             </div>
           </div>
           <OfficerForm
@@ -619,11 +733,22 @@ const ProjectOfficersPage = () => {
           />
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" variant="ghost" onClick={() => { setEditVisible(false); setEditTarget(null) }}>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            onClick={() => {
+              setEditVisible(false)
+              setEditTarget(null)
+            }}
+          >
             Cancel
           </CButton>
           <CButton color="success" onClick={handleEdit} disabled={editSaving}>
-            {editSaving ? <CSpinner size="sm" className="me-1" /> : <CIcon icon={cilCheckCircle} className="me-1" />}
+            {editSaving ? (
+              <CSpinner size="sm" className="me-1" />
+            ) : (
+              <CIcon icon={cilCheckCircle} className="me-1" />
+            )}
             Save Changes
           </CButton>
         </CModalFooter>
@@ -632,7 +757,14 @@ const ProjectOfficersPage = () => {
       {/* Toast */}
       <CToaster placement="top-end">
         {toast && (
-          <CToast autohide delay={3500} visible color={toast.color} className="text-white" onClose={() => setToast(null)}>
+          <CToast
+            autohide
+            delay={3500}
+            visible
+            color={toast.color}
+            className="text-white"
+            onClose={() => setToast(null)}
+          >
             <div className="d-flex">
               <CToastBody>{toast.message}</CToastBody>
               <CToastClose className="me-2 m-auto" white />
@@ -640,7 +772,7 @@ const ProjectOfficersPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

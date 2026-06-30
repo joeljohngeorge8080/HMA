@@ -162,9 +162,7 @@ const ChangeStatusModal = ({
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               placeholder={
-                isDeleting
-                  ? 'Reason for deletion (required)'
-                  : 'Optional reason for status change'
+                isDeleting ? 'Reason for deletion (required)' : 'Optional reason for status change'
               }
               required={isDeleting}
             />
@@ -176,8 +174,8 @@ const ChangeStatusModal = ({
                 <strong>Warning: This action cannot be undone.</strong>
                 <br />
                 Deleting <strong>{employeeName || 'this employee'}</strong> will permanently mark
-                their record as deleted and remove them from all active lists. This deletion will
-                be recorded in the audit log.
+                their record as deleted and remove them from all active lists. This deletion will be
+                recorded in the audit log.
               </CAlert>
               <div className="mb-3">
                 <CFormCheck

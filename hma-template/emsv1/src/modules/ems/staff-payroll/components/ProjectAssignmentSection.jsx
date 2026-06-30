@@ -116,7 +116,7 @@ const ProjectAssignmentSection = ({ employeeId, projectAssignments = [], canEdit
       {history.length > 0 && (
         <>
           <div className="fw-semibold small text-body-secondary mb-2">Assignment Log</div>
-          <CTable hover responsive bordered small>
+          <CTable hover responsive small>
             <CTableHead color="light">
               <CTableRow>
                 <CTableHeaderCell>Project</CTableHeaderCell>

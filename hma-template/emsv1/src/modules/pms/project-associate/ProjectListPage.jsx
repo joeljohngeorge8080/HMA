@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CRow,
@@ -38,7 +37,7 @@ import {
   cilSearch,
   cilFilterX,
   cilPen,
-  cilEyedropper,
+  cilArrowRight,
   cilPeople,
   cilOptions,
   cilFolder,
@@ -86,7 +85,7 @@ const ProjectListPage = () => {
   const clearFilters = () => setFilters({ search: '', status: '', phase: '' })
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
@@ -95,7 +94,11 @@ const ProjectListPage = () => {
             {total} project{total !== 1 ? 's' : ''} total
           </p>
         </div>
-        <CButton color="primary" className="shadow-sm" onClick={() => navigate('/pms/projects/create')}>
+        <CButton
+          color="primary"
+          className="shadow-sm"
+          onClick={() => navigate('/pms/projects/create')}
+        >
           <CIcon icon={cilPlus} className="me-1" />
           Create Project
         </CButton>
@@ -113,9 +116,7 @@ const ProjectListPage = () => {
           <button
             key={chip.status}
             className={`btn btn-sm px-3 fw-medium ${
-              filters.status === chip.status
-                ? 'btn-primary'
-                : 'btn-light border'
+              filters.status === chip.status ? 'btn-primary' : 'btn-light border'
             }`}
             style={{ borderRadius: '20px' }}
             onClick={() => handleFilterChange('status', chip.status)}
@@ -123,7 +124,9 @@ const ProjectListPage = () => {
             {chip.label}
             <span
               className={`ms-2 badge rounded-pill ${
-                filters.status === chip.status ? 'bg-white text-primary' : 'bg-secondary text-white'
+                filters.status === chip.status
+                  ? 'text-white bg-primary-subtle'
+                  : 'bg-secondary text-white'
               }`}
             >
               {chip.value}
@@ -211,13 +214,23 @@ const ProjectListPage = () => {
                       {p.location} · {p.funding_agency}
                     </div>
                     {p.pending_approvals > 0 && (
-                      <CBadge color="warning" shape="rounded-pill" className="mt-1" style={{ fontSize: '0.65rem' }}>
-                        ⏳ {p.pending_approvals} pending approval
+                      <CBadge
+                        color="warning"
+                        shape="rounded-pill"
+                        className="mt-1"
+                        style={{ fontSize: '0.65rem' }}
+                      >
+                        {p.pending_approvals} pending approval
                       </CBadge>
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
-                    <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                    <span
+                      className="fw-medium text-body-secondary small"
+                      style={{ letterSpacing: '0.5px' }}
+                    >
+                      {p.project_code || '—'}
+                    </span>
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
                     <span className="text-body-secondary small">{p.project_type || '—'}</span>
@@ -228,7 +241,7 @@ const ProjectListPage = () => {
                         <div className="fw-medium">{p.officer_name}</div>
                         {p.email_sent && (
                           <span className="text-success" style={{ fontSize: '0.7rem' }}>
-                            ✉️ Emailed
+                            Emailed
                           </span>
                         )}
                       </div>
@@ -245,7 +258,9 @@ const ProjectListPage = () => {
                       </span>
                     )}
                   </CTableDataCell>
-                  <CTableDataCell className="py-3 fw-semibold">{fmt(p.project_value)}</CTableDataCell>
+                  <CTableDataCell className="py-3 fw-semibold">
+                    {fmt(p.project_value)}
+                  </CTableDataCell>
                   <CTableDataCell className="py-3">
                     <div className="text-success fw-medium">{fmt(p.amount_received)}</div>
                     {p.project_value > 0 && (
@@ -293,7 +308,7 @@ const ProjectListPage = () => {
                             navigate(`/pms/projects/${p.id}`)
                           }}
                         >
-                          <CIcon icon={cilEyedropper} className="me-2" />
+                          <CIcon icon={cilArrowRight} className="me-2" />
                           View Details
                         </CDropdownItem>
                         <CDropdownItem
@@ -325,8 +340,8 @@ const ProjectListPage = () => {
 
         {projects.length === 0 && (
           <div className="text-center py-5">
-            <div style={{ fontSize: '3.5rem' }} className="mb-2">
-              📁
+            <div className="mb-2 text-body-secondary">
+              <CIcon icon={cilFolder} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No projects found</h5>
             <p className="text-body-tertiary">
@@ -346,7 +361,14 @@ const ProjectListPage = () => {
 
       <CToaster placement="top-end">
         {toast && (
-          <CToast autohide delay={3000} visible color={toast.color} className="text-white" onClose={() => setToast(null)}>
+          <CToast
+            autohide
+            delay={3000}
+            visible
+            color={toast.color}
+            className="text-white"
+            onClose={() => setToast(null)}
+          >
             <div className="d-flex">
               <CToastBody>{toast.message}</CToastBody>
               <CToastClose className="me-2 m-auto" white />
@@ -354,7 +376,7 @@ const ProjectListPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

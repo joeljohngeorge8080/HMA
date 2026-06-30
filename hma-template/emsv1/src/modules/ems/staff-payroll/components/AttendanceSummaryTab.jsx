@@ -130,7 +130,9 @@ const AttendanceSummaryTab = ({ employeeId }) => {
         setSummary(monthlySummary)
         setRecords(items)
         if (!monthlySummary && items.length === 0) {
-          setError('No attendance data for this month. Import attendance data from the Attendance module.')
+          setError(
+            'No attendance data for this month. Import attendance data from the Attendance module.',
+          )
         }
       } finally {
         setLoading(false)
@@ -318,12 +320,16 @@ const AttendanceSummaryTab = ({ employeeId }) => {
                         </div>
                       )}
                       {showHolidayNote && (
-                        <div style={{ fontSize: 8, marginTop: 1, color: '#856404', lineHeight: 1.3 }}>
+                        <div
+                          style={{ fontSize: 8, marginTop: 1, color: '#856404', lineHeight: 1.3 }}
+                        >
                           {holiday.name}
                         </div>
                       )}
                       {!rec && holiday && (
-                        <div style={{ fontSize: 9, marginTop: 1, color: '#6b7280', lineHeight: 1.3 }}>
+                        <div
+                          style={{ fontSize: 9, marginTop: 1, color: '#6b7280', lineHeight: 1.3 }}
+                        >
                           {holiday.name}
                         </div>
                       )}
@@ -347,7 +353,7 @@ const AttendanceSummaryTab = ({ employeeId }) => {
                 <strong>Daily Records</strong>
                 <span className="text-body-secondary small">{records.length} records</span>
               </div>
-              <CTable hover responsive bordered small>
+              <CTable hover responsive small>
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Date</CTableHeaderCell>

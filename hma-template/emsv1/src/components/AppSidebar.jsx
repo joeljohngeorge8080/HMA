@@ -17,8 +17,18 @@ import useRole from '../hooks/useRole'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const SidebarClock = () => {
@@ -41,18 +51,10 @@ const SidebarClock = () => {
   const displayHours = String(hours % 12 || 12).padStart(2, '0')
 
   return (
-    <div
-      style={{
-        padding: '10px 16px',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
-        color: 'rgba(255,255,255,0.75)',
-        fontSize: 12,
-        lineHeight: 1.6,
-      }}
-    >
-      <div style={{ fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.9)' }}>
-        {displayHours}:{minutes}:{seconds}{' '}
-        <span style={{ fontSize: 11, opacity: 0.8 }}>{ampm}</span>
+    <div className="sidebar-clock">
+      <div className="sidebar-clock__time">
+        {displayHours}:{minutes}:{seconds}
+        <span className="sidebar-clock__ampm">{ampm}</span>
       </div>
       <div>{day}</div>
       <div>

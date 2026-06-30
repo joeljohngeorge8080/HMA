@@ -527,7 +527,7 @@ const AttendanceCorrections = () => {
               No attendance data for this month. Import attendance first.
             </p>
           ) : (
-            <CTable hover responsive bordered small className="mb-0">
+            <CTable hover responsive small className="mb-0">
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>
@@ -582,9 +582,7 @@ const AttendanceCorrections = () => {
       <CCard className="mb-4">
         <CCardHeader className="d-flex align-items-center justify-content-between">
           <strong>
-            {dateFilter
-              ? `Records — ${dateFilter}`
-              : `All Records — ${MONTHS[month - 1]} ${year}`}
+            {dateFilter ? `Records — ${dateFilter}` : `All Records — ${MONTHS[month - 1]} ${year}`}
           </strong>
           <span className="text-body-secondary small">{total} records</span>
         </CCardHeader>
@@ -603,7 +601,7 @@ const AttendanceCorrections = () => {
               {dateFilter ? 'No records found for this date.' : 'No records found.'}
             </p>
           ) : (
-            <CTable hover responsive bordered small className="mb-0">
+            <CTable hover responsive small className="mb-0">
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell>Employee ID</CTableHeaderCell>
@@ -621,7 +619,9 @@ const AttendanceCorrections = () => {
                 {records.map((rec) => (
                   <CTableRow key={rec.id}>
                     <CTableDataCell className="fw-semibold">{rec.employee_id}</CTableDataCell>
-                    <CTableDataCell>{rec.employee_name || nameMap[rec.employee_id] || '—'}</CTableDataCell>
+                    <CTableDataCell>
+                      {rec.employee_name || nameMap[rec.employee_id] || '—'}
+                    </CTableDataCell>
                     <CTableDataCell>{rec.date}</CTableDataCell>
                     <CTableDataCell>
                       <CBadge color={STATUS_COLORS[rec.status] || 'secondary'}>
@@ -704,8 +704,8 @@ const AttendanceCorrections = () => {
             Calendar — {calendarEmployee?.employee_id}
             {calendarEmployee && nameMap[calendarEmployee.employee_id]
               ? ` — ${nameMap[calendarEmployee.employee_id]}`
-              : ''}
-            {' '}— {MONTHS[month - 1]} {year}
+              : ''}{' '}
+            — {MONTHS[month - 1]} {year}
           </CModalTitle>
         </CModalHeader>
         <CModalBody>

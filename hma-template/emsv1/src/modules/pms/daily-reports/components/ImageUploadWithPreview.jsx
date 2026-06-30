@@ -107,7 +107,12 @@ const ImageUploadWithPreview = ({ value = [], onChange, maxFiles = MAX_FILES }) 
       </div>
 
       {error && (
-        <CAlert color="danger" className="py-1 px-2 mt-2 mb-0 small" dismissible onClose={() => setError(null)}>
+        <CAlert
+          color="danger"
+          className="py-1 px-2 mt-2 mb-0 small"
+          dismissible
+          onClose={() => setError(null)}
+        >
           {error}
         </CAlert>
       )}
@@ -125,11 +130,7 @@ const ImageUploadWithPreview = ({ value = [], onChange, maxFiles = MAX_FILES }) 
                   </span>
                 </div>
               ) : (
-                <img
-                  src={item.file_url}
-                  alt={item.file_name}
-                  className="upload-preview-img"
-                />
+                <img src={item.file_url} alt={item.file_name} className="upload-preview-img" />
               )}
               <CButton
                 color="danger"

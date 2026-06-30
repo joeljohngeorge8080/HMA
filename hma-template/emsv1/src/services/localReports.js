@@ -61,7 +61,9 @@ export const localReports = {
     if (dateTo) rows = rows.filter((r) => r.report_date <= dateTo)
 
     // Sort newest first
-    rows.sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at))
+    rows.sort(
+      (a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at),
+    )
 
     const total = rows.length
     const total_pages = Math.max(1, Math.ceil(total / pageSize))
@@ -157,7 +159,7 @@ export const localReports = {
       submitted_by: data.submitted_by || 'current_user',
       submitted_by_name: data.submitted_by_name || 'Field Personnel',
       submitted_at: ts,
-      
+
       // Task specific fields
       task_id: data.task_id,
       task_title: data.task_title || '',
@@ -165,7 +167,7 @@ export const localReports = {
       notes: data.notes || '',
       geo_photos: data.geo_photos || [],
       bill_uploads: data.bill_uploads || [],
-      
+
       status: REPORT_STATUS.SUBMITTED,
       decline_reason: null,
       reviewed_by: null,
@@ -198,11 +200,11 @@ export const localReports = {
     // If it's a task report, also update the underlying task
     if (rows[idx].report_type === 'task' && rows[idx].task_id) {
       try {
-        // We need to dynamically import or rely on localTasks. Since we are in services, 
+        // We need to dynamically import or rely on localTasks. Since we are in services,
         // it's safer to just load the task store and update it directly to avoid circular deps.
         const TASK_KEY = 'hma_tasks'
         const tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]')
-        const tIdx = tasks.findIndex(t => t.id === rows[idx].task_id)
+        const tIdx = tasks.findIndex((t) => t.id === rows[idx].task_id)
         if (tIdx !== -1) {
           tasks[tIdx].status = rows[idx].requested_status
           tasks[tIdx].updated_at = ts
@@ -231,23 +233,6 @@ export const localReports = {
       ...rows[idx],
       status: REPORT_STATUS.SETTLED,
       settled_at: ts,
-      updated_at: ts,
-    }
-
-    writeAll(rows)
-    return rows[idx]
-  },
-
-  // ── markReportSubmitted ─────────────────────────────────────────────────────
-  markReportSubmitted(id) {
-    const rows = readAll()
-    const idx = rows.findIndex((r) => r.id === id)
-    if (idx === -1) throw new Error('Report not found')
-
-    const ts = now()
-    rows[idx] = {
-      ...rows[idx],
-      status: REPORT_STATUS.REPORT_SUBMITTED,
       updated_at: ts,
     }
 
@@ -284,7 +269,7 @@ export const localReports = {
     if (idx === -1) throw new Error('Report not found')
 
     const ts = now()
-    
+
     if (rows[idx].report_type === 'task') {
       rows[idx] = {
         ...rows[idx],
@@ -347,12 +332,10 @@ export const localReports = {
     if (role === 'Project Officer') {
       return {
         pending: rows.filter(
-          (r) =>
-            r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
+          (r) => r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
         ).length,
         total: rows.filter(
-          (r) =>
-            r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
+          (r) => r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
         ).length,
       }
     }
@@ -421,109 +404,11 @@ export const localReports = {
     const all = readAll()
     if (all.length >= 5) {
       this.approve(all[0].id, 'po_001')
-      this.decline(all[2].id, 'po_001', 'Receipt image is blurry. Please re-upload a clear photo of the transport bill.')
-    }
-  },
-}
-
-// ── localMergedReports ────────────────────────────────────────────────────────
-// Manages "Merged Reports" sent by the Backend Team to the Project Coordinator.
-// A Merged Report bundles multiple settled reports.
-
-const MERGED_REPORTS_KEY = 'hma_merged_reports'
-
-const readMerged = () => {
-  try {
-    return JSON.parse(localStorage.getItem(MERGED_REPORTS_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-const writeMerged = (rows) => {
-  localStorage.setItem(MERGED_REPORTS_KEY, JSON.stringify(rows))
-}
-
-export const MERGED_REPORT_STATUS = {
-  PENDING: 'pending',
-  FINALISED: 'finalised',
-}
-
-export const localMergedReports = {
-  list({ search = '', status = '', page = 1, pageSize = 25 } = {}) {
-    let rows = readMerged()
-
-    if (search) {
-      const q = search.toLowerCase()
-      rows = rows.filter(
-        (r) =>
-          r.title?.toLowerCase().includes(q) ||
-          r.notes?.toLowerCase().includes(q),
+      this.decline(
+        all[2].id,
+        'po_001',
+        'Receipt image is blurry. Please re-upload a clear photo of the transport bill.',
       )
     }
-    if (status) rows = rows.filter((r) => r.status === status)
-
-    // Sort newest first
-    rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
-    const total = rows.length
-    const total_pages = Math.max(1, Math.ceil(total / pageSize))
-    const start = (page - 1) * pageSize
-    return { items: rows.slice(start, start + pageSize), total, total_pages }
-  },
-
-  create(data) {
-    const rows = readMerged()
-    const ts = now()
-
-    // Create the merged report record
-    const report = {
-      id: `MR-${uid().split('-')[0].toUpperCase()}`,
-      title: data.title || `Merged Settlement Report — ${ts.split('T')[0]}`,
-      notes: data.notes || '',
-      created_by: data.createdBy || 'backend_team',
-      created_by_name: data.createdByName || 'Backend Team',
-      created_at: ts,
-      status: MERGED_REPORT_STATUS.PENDING,
-      bill_ids: data.billIds || [],
-      // Keep a snapshot of the bills
-      bills_snapshot: data.bills || [],
-      total_amount: (data.bills || []).reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0),
-      bill_count: (data.billIds || []).length,
-      finalised_at: null,
-    }
-
-    writeMerged([...rows, report])
-
-    // Update the underlying bills to REPORT_SUBMITTED so they don't show in the pool anymore
-    data.billIds.forEach((billId) => {
-      try {
-        localReports.markReportSubmitted(billId)
-      } catch (err) {
-        console.error('Failed to update underlying bill status:', err)
-      }
-    })
-
-    return report
-  },
-
-  finalise(id) {
-    const rows = readMerged()
-    const idx = rows.findIndex((r) => r.id === id)
-    if (idx === -1) throw new Error('Merged Report not found')
-    
-    if (rows[idx].status !== MERGED_REPORT_STATUS.PENDING) {
-      throw new Error('Report is already finalised')
-    }
-
-    const ts = now()
-    rows[idx] = {
-      ...rows[idx],
-      status: MERGED_REPORT_STATUS.FINALISED,
-      finalised_at: ts,
-    }
-
-    writeMerged(rows)
-    return rows[idx]
   },
 }

@@ -1,11 +1,6 @@
-/**
- * ProjectAssociateDashboard.jsx — Project Associate main dashboard.
- * Route: /pms/pa/dashboard
- */
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -30,12 +25,57 @@ import {
   cilWarning,
   cilClock,
   cilArrowRight,
-  cilBell,
+  cilSettings,
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import useDashboardWidgets from '../../../components/dashboard/useDashboardWidgets'
+import WidgetCatalog from '../../../components/dashboard/WidgetCatalog'
+import DailyReportsSummaryWidget from '../dashboard/widgets/DailyReportsSummaryWidget'
+import FieldPersonnelWidget from '../dashboard/widgets/FieldPersonnelWidget'
+import SettlementsWidget from '../dashboard/widgets/SettlementsWidget'
+import ProjectsByPhaseWidget from '../dashboard/widgets/ProjectsByPhaseWidget'
+
+const EXTRA_WIDGETS = [
+  {
+    id: 'daily_reports',
+    title: 'Daily Reports Summary',
+    description: 'Pending, approved, declined, and settled report counts',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Reports', color: 'warning' },
+    component: DailyReportsSummaryWidget,
+  },
+  {
+    id: 'field_personnel',
+    title: 'Field Personnel',
+    description: 'Active personnel, task counts, completion rate',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Teams', color: 'info' },
+    component: FieldPersonnelWidget,
+  },
+  {
+    id: 'settlements',
+    title: 'Settlements',
+    description: 'Pending vs settled reports and financial amounts',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: SettlementsWidget,
+  },
+  {
+    id: 'projects_by_phase',
+    title: 'Projects by Phase & Status',
+    description: 'Lifecycle phase breakdown and status distribution',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Projects', color: 'primary' },
+    component: ProjectsByPhaseWidget,
+  },
+]
 
 const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n)
 
 const STATUS_META = {
   pipeline: { label: 'Pipeline', color: 'secondary' },
@@ -45,15 +85,20 @@ const STATUS_META = {
 }
 
 const PHASE_META = {
-  design_and_initiation:      { label: 'Design and Initiation',      color: '#5bc0de' },
-  implementation:             { label: 'Implementation',             color: '#337ab7' },
-  monitoring_and_evaluation:  { label: 'Monitoring and Evaluation',  color: '#06d6a0' },
+  design_and_initiation: { label: 'Design and Initiation', color: '#5bc0de' },
+  implementation: { label: 'Implementation', color: '#337ab7' },
+  monitoring_and_evaluation: { label: 'Monitoring and Evaluation', color: '#06d6a0' },
 }
 
 const ProjectAssociateDashboard = () => {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentProjects, setRecentProjects] = useState([])
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const { activeIds, activeWidgets, toggleWidget, resetWidgets } = useDashboardWidgets(
+    'pms_pa',
+    EXTRA_WIDGETS,
+  )
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
@@ -104,7 +149,7 @@ const ProjectAssociateDashboard = () => {
   ]
 
   return (
-    <CContainer lg className="py-4">
+    <>
       {/* Hero Header */}
       <div
         className="rounded-4 mb-4 px-4 py-4 text-white position-relative overflow-hidden"
@@ -141,6 +186,16 @@ const ProjectAssociateDashboard = () => {
             >
               <CIcon icon={cilPeople} className="me-1" />
               Project Officers
+            </CButton>
+            <CButton
+              color="light"
+              variant="outline"
+              size="sm"
+              className="text-white border-white ms-auto"
+              onClick={() => setCatalogOpen(true)}
+            >
+              <CIcon icon={cilSettings} className="me-1" />
+              Customize
             </CButton>
           </div>
         </div>
@@ -272,10 +327,17 @@ const ProjectAssociateDashboard = () => {
                       background: `${action.color}15`,
                     }}
                   >
-                    <CIcon icon={action.icon} style={{ color: action.color, width: 16, height: 16 }} />
+                    <CIcon
+                      icon={action.icon}
+                      style={{ color: action.color, width: 16, height: 16 }}
+                    />
                   </div>
                   <span className="fw-medium small">{action.label}</span>
-                  <CIcon icon={cilArrowRight} className="ms-auto text-body-secondary" style={{ width: 14, height: 14 }} />
+                  <CIcon
+                    icon={cilArrowRight}
+                    className="ms-auto text-body-secondary"
+                    style={{ width: 14, height: 14 }}
+                  />
                 </button>
               ))}
             </CCardBody>
@@ -313,10 +375,11 @@ const ProjectAssociateDashboard = () => {
                 <CTableBody>
                   {recentProjects.map((p) => {
                     const progress =
-                      p.tasks_count > 0
-                        ? Math.round((p.tasks_completed / p.tasks_count) * 100)
-                        : 0
-                    const statusMeta = STATUS_META[p.status] || { label: p.status, color: 'secondary' }
+                      p.tasks_count > 0 ? Math.round((p.tasks_completed / p.tasks_count) * 100) : 0
+                    const statusMeta = STATUS_META[p.status] || {
+                      label: p.status,
+                      color: 'secondary',
+                    }
                     return (
                       <CTableRow
                         key={p.id}
@@ -331,14 +394,23 @@ const ProjectAssociateDashboard = () => {
                             {p.location}
                           </div>
                           {p.pending_approvals > 0 && (
-                            <CBadge color="warning" className="mt-1" style={{ fontSize: '0.65rem' }}>
+                            <CBadge
+                              color="warning"
+                              className="mt-1"
+                              style={{ fontSize: '0.65rem' }}
+                            >
                               <CIcon icon={cilWarning} style={{ width: 10 }} className="me-1" />
                               {p.pending_approvals} pending
                             </CBadge>
                           )}
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
-                          <span className="fw-medium text-body-secondary small" style={{ letterSpacing: '0.5px' }}>{p.project_code || '—'}</span>
+                          <span
+                            className="fw-medium text-body-secondary small"
+                            style={{ letterSpacing: '0.5px' }}
+                          >
+                            {p.project_code || '—'}
+                          </span>
                         </CTableDataCell>
                         <CTableDataCell className="py-3">
                           <span className="text-body-secondary small">{p.project_type || '—'}</span>
@@ -353,7 +425,7 @@ const ProjectAssociateDashboard = () => {
                                   style={{ fontSize: '0.7rem' }}
                                   title="Email sent via SES"
                                 >
-                                  ✉️ Invited
+                                  Invited
                                 </span>
                               )}
                             </div>
@@ -403,7 +475,7 @@ const ProjectAssociateDashboard = () => {
               </CTable>
               {recentProjects.length === 0 && (
                 <div className="text-center py-5 text-body-secondary">
-                  <div style={{ fontSize: '3rem' }}>📁</div>
+                  <CIcon icon={cilFolder} style={{ width: 40, height: 40 }} className="mb-1" />
                   <div>No projects yet</div>
                 </div>
               )}
@@ -411,7 +483,30 @@ const ProjectAssociateDashboard = () => {
           </CCard>
         </CCol>
       </CRow>
-    </CContainer>
+
+      {/* Extra customizable widgets */}
+      {activeWidgets.length > 0 && (
+        <CRow className="g-3 mt-1">
+          {activeWidgets.map((widget) => {
+            const Component = widget.component
+            return (
+              <CCol key={widget.id} {...widget.colProps}>
+                <Component />
+              </CCol>
+            )
+          })}
+        </CRow>
+      )}
+
+      <WidgetCatalog
+        visible={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        allWidgets={EXTRA_WIDGETS}
+        activeIds={activeIds}
+        onToggle={toggleWidget}
+        onReset={resetWidgets}
+      />
+    </>
   )
 }
 

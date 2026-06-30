@@ -2,6 +2,8 @@ import React from 'react'
 import { MODULE } from '../constants/modules'
 import Placeholder from '../views/Placeholder'
 
+const PmsDashboard = React.lazy(() => import('../modules/pms/dashboard/PmsDashboard'))
+
 // Project management pages
 const MyProjectsPage = React.lazy(() => import('../modules/pms/projects/MyProjectsPage'))
 const CreateProjectPage = React.lazy(() => import('../modules/pms/projects/CreateProjectPage'))
@@ -17,12 +19,8 @@ const placeholder = (title, message) => {
 const ProjectAssociateDashboard = React.lazy(
   () => import('../modules/pms/project-associate/ProjectAssociateDashboard'),
 )
-const ProjectListPage = React.lazy(
-  () => import('../modules/pms/project-associate/ProjectListPage'),
-)
-const ProjectFormPage = React.lazy(
-  () => import('../modules/pms/project-associate/ProjectFormPage'),
-)
+const ProjectListPage = React.lazy(() => import('../modules/pms/project-associate/ProjectListPage'))
+const ProjectFormPage = React.lazy(() => import('../modules/pms/project-associate/ProjectFormPage'))
 const PAProjectDetailPage = React.lazy(
   () => import('../modules/pms/project-associate/ProjectDetailPage'),
 )
@@ -49,22 +47,37 @@ const BackendReportsPage = React.lazy(
 const TaskManagementPage = React.lazy(
   () => import('../modules/pms/daily-reports/TaskManagementPage'),
 )
-const FieldPersonnelOverviewPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'))
+const FieldPersonnelOverviewPage = React.lazy(
+  () => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'),
+)
 const MyTasksPage = React.lazy(() => import('../modules/pms/daily-reports/MyTasksPage'))
-const TaskReportSubmitPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportSubmitPage'))
-const TaskReportEditPage = React.lazy(() => import('../modules/pms/daily-reports/TaskReportEditPage'))
+const TaskReportSubmitPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskReportSubmitPage'),
+)
+const TaskReportEditPage = React.lazy(
+  () => import('../modules/pms/daily-reports/TaskReportEditPage'),
+)
 const PersonnelLogPage = React.lazy(() => import('../modules/pms/daily-reports/PersonnelLogPage'))
-const FieldPersonnelBillsPage = React.lazy(() => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'))
+const FieldPersonnelBillsPage = React.lazy(
+  () => import('../modules/pms/daily-reports/FieldPersonnelBillsPage'),
+)
 const SettlementsPage = React.lazy(() => import('../modules/pms/daily-reports/SettlementsPage'))
-const MergedReportsPage = React.lazy(() => import('../modules/pms/daily-reports/MergedReportsPage'))
 const AuditLogsPage = React.lazy(() => import('../modules/pms/audit-logs/AuditLogsPage'))
+
+// LSGB pages
+const LsgbOverviewPage = React.lazy(() => import('../modules/pms/lsgb/LsgbOverviewPage'))
+const LsgbFundsPage = React.lazy(() => import('../modules/pms/lsgb/LsgbFundsPage'))
+const LsgbAnalysisPage = React.lazy(() => import('../modules/pms/lsgb/LsgbAnalysisPage'))
+
+// Donors
+const DonorPage = React.lazy(() => import('../modules/pms/donors/DonorPage'))
 
 export const pmsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   {
     path: '/pms/dashboard',
     name: 'Dashboard',
-    element: placeholder('PMS Dashboard'),
+    element: PmsDashboard,
     module: MODULE.PMS_DASHBOARD,
   },
 
@@ -285,7 +298,7 @@ export const pmsRoutes = [
   {
     path: '/pms/funding-agencies',
     name: 'Funding Agencies',
-    element: placeholder('Funding Agencies'),
+    element: DonorPage,
     module: MODULE.PMS_AGENCIES,
   },
   {
@@ -382,18 +395,32 @@ export const pmsRoutes = [
     element: SettlementsPage,
     module: MODULE.PMS_SETTLEMENTS,
   },
-  {
-    path: '/pms/merged-reports',
-    name: 'Merged Reports',
-    element: MergedReportsPage,
-    module: MODULE.PMS_SETTLEMENTS,
-  },
 
   {
     path: '/pms/audit-logs',
     name: 'Audit Logs',
     element: AuditLogsPage,
     module: MODULE.AUDIT_LOGS,
+  },
+
+  // ── LSGB Projects ─────────────────────────────────────────────────────────
+  {
+    path: '/pms/lsgb/overview',
+    name: 'LSGB Overview',
+    element: LsgbOverviewPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/lsgb/funds',
+    name: 'LSGB Fund Tracking',
+    element: LsgbFundsPage,
+    module: MODULE.PMS_PROJECTS,
+  },
+  {
+    path: '/pms/lsgb/analysis',
+    name: 'LSGB Analysis',
+    element: LsgbAnalysisPage,
+    module: MODULE.PMS_PROJECTS,
   },
 ]
 

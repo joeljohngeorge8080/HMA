@@ -1,9 +1,21 @@
 import React, { useState } from 'react'
 import {
-  CContainer, CRow, CCol, CCard, CCardBody, CCardHeader,
-  CForm, CFormInput, CFormTextarea, CButton,
-  CTable, CTableHead, CTableRow, CTableHeaderCell, CTableBody, CTableDataCell,
-  CBadge
+  CRow,
+  CCol,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CForm,
+  CFormInput,
+  CFormTextarea,
+  CButton,
+  CTable,
+  CTableHead,
+  CTableRow,
+  CTableHeaderCell,
+  CTableBody,
+  CTableDataCell,
+  CBadge,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCloudUpload } from '@coreui/icons'
@@ -11,7 +23,14 @@ import UploadBillModal from './components/UploadBillModal'
 
 const FieldPersonnelBillsPage = () => {
   const [bills, setBills] = useState([
-    { id: 1, date: '2026-06-18', reason: 'Site Inspection Travel Allowance', amount: 1500, status: 'Pending', file: 'receipt_01.jpg' }
+    {
+      id: 1,
+      date: '2026-06-18',
+      reason: 'Site Inspection Travel Allowance',
+      amount: 1500,
+      status: 'Pending',
+      file: 'receipt_01.jpg',
+    },
   ])
 
   const [modalVisible, setModalVisible] = useState(false)
@@ -23,14 +42,14 @@ const FieldPersonnelBillsPage = () => {
       reason: formData.reason,
       amount: formData.amount,
       status: 'Pending',
-      file: formData.file ? formData.file.name : 'No file attached'
+      file: formData.file ? formData.file.name : 'No file attached',
     }
     setBills([newBill, ...bills])
     setModalVisible(false)
   }
 
   return (
-    <CContainer lg className="py-3">
+    <>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="fw-semibold mb-0">My Bills & Expenses</h4>
         <CButton color="primary" onClick={() => setModalVisible(true)}>
@@ -38,12 +57,12 @@ const FieldPersonnelBillsPage = () => {
           Upload New Bill
         </CButton>
       </div>
-      
+
       <CRow className="g-4">
         {/* History Table */}
         <CCol xs={12}>
           <CCard className="shadow-sm h-100">
-            <CCardHeader className="bg-white pb-0 border-bottom">
+            <CCardHeader className="pb-0 border-bottom">
               <h6 className="fw-semibold mb-3">Submission History</h6>
             </CCardHeader>
             <CCardBody>
@@ -65,7 +84,7 @@ const FieldPersonnelBillsPage = () => {
                       </CTableDataCell>
                     </CTableRow>
                   ) : (
-                    bills.map(b => (
+                    bills.map((b) => (
                       <CTableRow key={b.id}>
                         <CTableDataCell className="small">{b.date}</CTableDataCell>
                         <CTableDataCell>
@@ -73,11 +92,14 @@ const FieldPersonnelBillsPage = () => {
                         </CTableDataCell>
                         <CTableDataCell className="fw-semibold">₹{b.amount}</CTableDataCell>
                         <CTableDataCell className="small text-body-secondary">
-                          <CIcon icon={cilCloudUpload} className="me-1" size="sm"/> 
+                          <CIcon icon={cilCloudUpload} className="me-1" size="sm" />
                           {b.file}
                         </CTableDataCell>
                         <CTableDataCell>
-                          <CBadge color={b.status === 'Pending' ? 'warning' : 'success'} shape="rounded-pill">
+                          <CBadge
+                            color={b.status === 'Pending' ? 'warning' : 'success'}
+                            shape="rounded-pill"
+                          >
                             {b.status}
                           </CBadge>
                         </CTableDataCell>
@@ -95,7 +117,7 @@ const FieldPersonnelBillsPage = () => {
         onClose={() => setModalVisible(false)}
         onConfirm={handleUploadBill}
       />
-    </CContainer>
+    </>
   )
 }
 

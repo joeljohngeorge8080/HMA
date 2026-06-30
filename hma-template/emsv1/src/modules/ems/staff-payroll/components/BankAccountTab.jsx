@@ -70,7 +70,7 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
       {!bankAccounts?.length ? (
         <p className="text-body-secondary">No bank accounts added.</p>
       ) : (
-        <CTable hover responsive bordered>
+        <CTable hover responsive>
           <CTableHead color="light">
             <CTableRow>
               <CTableHeaderCell>Bank Name</CTableHeaderCell>

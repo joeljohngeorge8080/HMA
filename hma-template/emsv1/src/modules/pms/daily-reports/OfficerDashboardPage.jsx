@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  CContainer,
   CRow,
   CCol,
   CCard,
@@ -28,7 +27,7 @@ import {
   CModalFooter,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilSearch, cilFilterX, cilCheckCircle, cilXCircle } from '@coreui/icons'
+import { cilSearch, cilFilterX, cilCheckCircle, cilXCircle, cilNotes } from '@coreui/icons'
 
 import ReportCard from './components/ReportCard'
 import DeclineReasonModal from './components/DeclineReasonModal'
@@ -96,7 +95,7 @@ const OfficerDashboardPage = () => {
     setApproveLoading(true)
     try {
       localReports.approve(approveTargetId)
-      setToast({ color: 'success', message: '✅ Report approved and forwarded to backend team' })
+      setToast({ color: 'success', message: 'Report approved and forwarded to backend team' })
       setApproveModalVisible(false)
       setApproveTargetId(null)
       loadReports()
@@ -116,7 +115,7 @@ const OfficerDashboardPage = () => {
     setDeclineLoading(true)
     try {
       localReports.decline(declineTargetId, 'project_officer', reason)
-      setToast({ color: 'warning', message: '⚠️ Report declined and sent back to field personnel' })
+      setToast({ color: 'warning', message: 'Report declined and sent back to field personnel' })
       setDeclineModalVisible(false)
       setDeclineTargetId(null)
       loadReports()
@@ -134,7 +133,7 @@ const OfficerDashboardPage = () => {
   const declinedCount = reports.filter((r) => r.status === REPORT_STATUS.DECLINED).length
 
   return (
-    <CContainer lg className="py-3">
+    <>
       {/* Header */}
       <div className="mb-3">
         <h4 className="mb-1 fw-semibold">Review Reports</h4>
@@ -151,7 +150,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'submitted' ? 'bg-warning-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'submitted' ? '' : 'submitted')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'submitted' ? '' : 'submitted')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-warning">{pendingCount}</div>
@@ -165,7 +166,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'approved' ? 'bg-success-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'approved' ? '' : 'approved')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'approved' ? '' : 'approved')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-success">{approvedCount}</div>
@@ -179,7 +182,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'declined' ? 'bg-danger-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'declined' ? '' : 'declined')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'declined' ? '' : 'declined')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-danger">{declinedCount}</div>
@@ -254,8 +259,8 @@ const OfficerDashboardPage = () => {
       {reports.length === 0 ? (
         <CCard className="shadow-sm">
           <CCardBody className="text-center py-5">
-            <div className="text-body-secondary mb-3" style={{ fontSize: '3rem' }}>
-              📑
+            <div className="mb-3 text-body-secondary">
+              <CIcon icon={cilNotes} style={{ width: 48, height: 48 }} />
             </div>
             <h5 className="text-body-secondary">No reports to review</h5>
             <p className="text-body-tertiary">
@@ -282,22 +287,22 @@ const OfficerDashboardPage = () => {
       )}
 
       {/* Approve confirmation modal */}
-      <CModal visible={approveModalVisible} onClose={() => setApproveModalVisible(false)} alignment="center">
+      <CModal
+        visible={approveModalVisible}
+        onClose={() => setApproveModalVisible(false)}
+        alignment="center"
+      >
         <CModalHeader closeButton>
           <CModalTitle>Confirm Approval</CModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>
-            Are you sure you want to approve this report? It will be forwarded to the backend
-            team for settlement processing.
+            Are you sure you want to approve this report? It will be forwarded to the backend team
+            for settlement processing.
           </p>
         </CModalBody>
         <CModalFooter>
-          <CButton
-            color="secondary"
-            variant="ghost"
-            onClick={() => setApproveModalVisible(false)}
-          >
+          <CButton color="secondary" variant="ghost" onClick={() => setApproveModalVisible(false)}>
             Cancel
           </CButton>
           <CButton color="success" onClick={confirmApprove} disabled={approveLoading}>
@@ -332,7 +337,7 @@ const OfficerDashboardPage = () => {
           </CToast>
         )}
       </CToaster>
-    </CContainer>
+    </>
   )
 }
 

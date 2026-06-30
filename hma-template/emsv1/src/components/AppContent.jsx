@@ -7,7 +7,6 @@ import ProtectedRoute from './ProtectedRoute'
 import useRole from '../hooks/useRole'
 import { ROLE } from '../constants/roles'
 
-
 /**
  * Converts an absolute route path to a relative one for use in nested <Routes>.
  *
@@ -42,7 +41,7 @@ const AppContent = () => {
         return '/pms/settlements'
       }
       if (role === ROLE.PROJECT_COORDINATOR) {
-        return '/pms/merged-reports'
+        return '/pms/pa/dashboard'
       }
       return '/pms/dashboard'
     }

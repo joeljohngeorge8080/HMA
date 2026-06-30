@@ -32,14 +32,33 @@ import CoreSalaryPanel from './CoreSalaryPanel'
 import AdminDivisionPanel from './AdminDivisionPanel'
 
 const MONTHS_LABEL = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 const MONTHS_OPT = [
-  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' },
-  { v: 4, l: 'April' }, { v: 5, l: 'May' }, { v: 6, l: 'June' },
-  { v: 7, l: 'July' }, { v: 8, l: 'August' }, { v: 9, l: 'September' },
-  { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+  { v: 1, l: 'January' },
+  { v: 2, l: 'February' },
+  { v: 3, l: 'March' },
+  { v: 4, l: 'April' },
+  { v: 5, l: 'May' },
+  { v: 6, l: 'June' },
+  { v: 7, l: 'July' },
+  { v: 8, l: 'August' },
+  { v: 9, l: 'September' },
+  { v: 10, l: 'October' },
+  { v: 11, l: 'November' },
+  { v: 12, l: 'December' },
 ]
 const THIS_YEAR = new Date().getFullYear()
 const YEARS = [THIS_YEAR - 2, THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
@@ -86,11 +105,23 @@ const EMPTY_FORM = {
   remarks: '',
 }
 
-const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSave, onClose, saving, error }) => {
+const ExpenseModal = ({
+  title,
+  form,
+  setForm,
+  divCategories,
+  allCategories,
+  onSave,
+  onClose,
+  saving,
+  error,
+}) => {
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }))
   const variance =
     form.planned_amount !== '' && form.actual_amount !== ''
-      ? parseFloat((parseFloat(form.actual_amount || 0) - parseFloat(form.planned_amount || 0)).toFixed(2))
+      ? parseFloat(
+          (parseFloat(form.actual_amount || 0) - parseFloat(form.planned_amount || 0)).toFixed(2),
+        )
       : null
 
   return (
@@ -102,7 +133,11 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">
-            {error && <CAlert color="danger" className="py-2">{error}</CAlert>}
+            {error && (
+              <CAlert color="danger" className="py-2">
+                {error}
+              </CAlert>
+            )}
             <CRow className="g-3">
               <CCol md={6}>
                 <CFormLabel className="fw-semibold">
@@ -110,9 +145,7 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
                 </CFormLabel>
                 {divCategories.length === 1 ? (
                   /* Single-category division (e.g. HR) — lock it, no accidental blank selection */
-                  <div className="form-control bg-body-secondary">
-                    {divCategories[0].name}
-                  </div>
+                  <div className="form-control bg-body-secondary">{divCategories[0].name}</div>
                 ) : (
                   <CFormSelect
                     value={form.category_id}
@@ -120,7 +153,9 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
                   >
                     <option value="">Select category…</option>
                     {(divCategories.length > 0 ? divCategories : allCategories).map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
                     ))}
                   </CFormSelect>
                 )}
@@ -139,22 +174,43 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Month</CFormLabel>
-                <CFormSelect value={form.month} onChange={(e) => set('month', parseInt(e.target.value))}>
-                  {MONTHS_OPT.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
+                <CFormSelect
+                  value={form.month}
+                  onChange={(e) => set('month', parseInt(e.target.value))}
+                >
+                  {MONTHS_OPT.map((m) => (
+                    <option key={m.v} value={m.v}>
+                      {m.l}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Year</CFormLabel>
-                <CFormSelect value={form.year} onChange={(e) => set('year', parseInt(e.target.value))}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                <CFormSelect
+                  value={form.year}
+                  onChange={(e) => set('year', parseInt(e.target.value))}
+                >
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Frequency</CFormLabel>
-                <CFormSelect value={form.frequency} onChange={(e) => set('frequency', e.target.value)}>
-                  {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                <CFormSelect
+                  value={form.frequency}
+                  onChange={(e) => set('frequency', e.target.value)}
+                >
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -188,7 +244,13 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
                 <CFormLabel className="fw-semibold">Variance</CFormLabel>
                 <div
                   className={`form-control bg-body-secondary ${
-                    variance === null ? '' : variance > 0 ? 'text-danger' : variance < 0 ? 'text-success' : ''
+                    variance === null
+                      ? ''
+                      : variance > 0
+                        ? 'text-danger'
+                        : variance < 0
+                          ? 'text-success'
+                          : ''
                   }`}
                   style={{ userSelect: 'none' }}
                 >
@@ -201,7 +263,11 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
               <CCol sm={6}>
                 <CFormLabel className="fw-semibold">Status</CFormLabel>
                 <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -217,7 +283,9 @@ const ExpenseModal = ({ title, form, setForm, divCategories, allCategories, onSa
             </CRow>
           </div>
           <div className="modal-footer">
-            <CButton color="secondary" onClick={onClose} disabled={saving}>Cancel</CButton>
+            <CButton color="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </CButton>
             <CButton color="primary" onClick={onSave} disabled={saving}>
               {saving && <CSpinner size="sm" className="me-1" />}
               Save
@@ -293,8 +361,14 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
   }
 
   const handleSave = async () => {
-    if (!form.category_id) { setError('Select a category'); return }
-    if (!form.expense_name.trim()) { setError('Expense name is required'); return }
+    if (!form.category_id) {
+      setError('Select a category')
+      return
+    }
+    if (!form.expense_name.trim()) {
+      setError('Expense name is required')
+      return
+    }
     if (form.planned_amount === '' || isNaN(parseFloat(form.planned_amount))) {
       setError('Planned amount is required')
       return
@@ -387,7 +461,8 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
                   <div className="border rounded p-2 text-center">
                     <div className="small text-body-secondary">Variance</div>
                     <div className={`fw-bold text-${variance > 0 ? 'danger' : 'success'}`}>
-                      {variance > 0 ? '+' : ''}{currency(variance)}
+                      {variance > 0 ? '+' : ''}
+                      {currency(variance)}
                     </div>
                   </div>
                 </CCol>
@@ -405,8 +480,8 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
                     utilizationPct > 100
                       ? 'danger'
                       : utilizationPct > 85
-                      ? 'warning'
-                      : division.color
+                        ? 'warning'
+                        : division.color
                   }
                   height={8}
                 />
@@ -420,7 +495,7 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
               </div>
 
               {/* Individual expense rows */}
-              <CTable small bordered hover responsive className="mb-0">
+              <CTable small hover responsive className="mb-0">
                 <CTableHead color="light">
                   <CTableRow>
                     <CTableHeaderCell>Expense</CTableHeaderCell>
@@ -434,28 +509,39 @@ const DivisionCard = ({ division, expenses, categories, canEdit, month, year, on
                 </CTableHead>
                 <CTableBody>
                   {divExpenses.map((exp) => {
-                    const v = parseFloat(exp.actual_amount || 0) - parseFloat(exp.planned_amount || 0)
+                    const v =
+                      parseFloat(exp.actual_amount || 0) - parseFloat(exp.planned_amount || 0)
                     const catName =
                       categories.find((c) => c.id === exp.category_id)?.name ||
                       exp.category_name ||
                       'Unknown'
                     return (
                       <CTableRow key={exp.id}>
-                        <CTableDataCell className="fw-semibold small">{exp.expense_name}</CTableDataCell>
+                        <CTableDataCell className="fw-semibold small">
+                          {exp.expense_name}
+                        </CTableDataCell>
                         <CTableDataCell>
                           <CBadge color="info" textColor="dark" className="small">
                             {catName}
                           </CBadge>
                         </CTableDataCell>
-                        <CTableDataCell className="text-end small">{currency(exp.planned_amount)}</CTableDataCell>
-                        <CTableDataCell className="text-end small">{currency(exp.actual_amount)}</CTableDataCell>
+                        <CTableDataCell className="text-end small">
+                          {currency(exp.planned_amount)}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end small">
+                          {currency(exp.actual_amount)}
+                        </CTableDataCell>
                         <CTableDataCell
                           className={`text-end small fw-semibold text-${v > 0 ? 'danger' : 'success'}`}
                         >
-                          {v > 0 ? '+' : ''}{currency(v)}
+                          {v > 0 ? '+' : ''}
+                          {currency(v)}
                         </CTableDataCell>
                         <CTableDataCell>
-                          <CBadge color={STATUS_COLORS[exp.status] || 'secondary'} className="small">
+                          <CBadge
+                            color={STATUS_COLORS[exp.status] || 'secondary'}
+                            className="small"
+                          >
                             {exp.status}
                           </CBadge>
                         </CTableDataCell>
@@ -568,11 +654,7 @@ const DivisionsSummary = ({ year, month }) => {
   }
 
   const periodLabel =
-    month && year
-      ? `${MONTHS_LABEL[month]} ${year}`
-      : year
-      ? `Year ${year}`
-      : 'All Time'
+    month && year ? `${MONTHS_LABEL[month]} ${year}` : year ? `Year ${year}` : 'All Time'
 
   return (
     <>
