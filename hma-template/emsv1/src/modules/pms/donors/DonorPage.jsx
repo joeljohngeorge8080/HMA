@@ -61,6 +61,8 @@ const EMPTY = {
   num_beneficiaries: '',
   project_value: '',
   year: THIS_YEAR,
+  start_date: '',
+  end_date: '',
   notes: '',
 }
 
@@ -71,7 +73,11 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    setForm(initial ? { ...initial, project_value: String(initial.project_value || ''), num_beneficiaries: String(initial.num_beneficiaries || '') } : EMPTY)
+    setForm(
+      initial
+        ? { ...initial, project_value: String(initial.project_value || ''), num_beneficiaries: String(initial.num_beneficiaries || '') }
+        : EMPTY,
+    )
     setErrors({})
   }, [initial, visible])
 
@@ -91,9 +97,6 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
   const validate = () => {
     const e = {}
     if (!form.funding_agency.trim()) e.funding_agency = 'Funding agency name is required'
-    if (!form.location.trim()) e.location = 'Location is required'
-    if (!form.year) e.year = 'Year is required'
-    if (!form.project_value || parseFloat(form.project_value) <= 0) e.project_value = 'Enter a valid fund amount'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -104,7 +107,7 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
       ...form,
       project_value: parseFloat(form.project_value) || 0,
       num_beneficiaries: parseInt(form.num_beneficiaries) || 0,
-      year: parseInt(form.year),
+      year: form.year ? parseInt(form.year) : null,
     })
     onClose()
   }
@@ -135,27 +138,33 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
 
           {/* Year */}
           <CCol xs={12} md={6}>
-            <CFormLabel className="small fw-semibold">
-              Year <span className="text-danger">*</span>
-            </CFormLabel>
-            <CFormSelect value={form.year} onChange={(e) => set('year', e.target.value)} invalid={!!errors.year}>
+            <CFormLabel className="small fw-semibold">Year</CFormLabel>
+            <CFormSelect value={form.year || ''} onChange={(e) => set('year', e.target.value)}>
+              <option value="">— Select year —</option>
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </CFormSelect>
-            {errors.year && <div className="text-danger small mt-1">{errors.year}</div>}
           </CCol>
 
           {/* Location */}
           <CCol xs={12} md={6}>
-            <CFormLabel className="small fw-semibold">
-              Location <span className="text-danger">*</span>
-            </CFormLabel>
+            <CFormLabel className="small fw-semibold">Location</CFormLabel>
             <CFormInput
               placeholder="e.g., Mumbai, Maharashtra"
               value={form.location}
               onChange={(e) => set('location', e.target.value)}
-              invalid={!!errors.location}
             />
-            {errors.location && <div className="text-danger small mt-1">{errors.location}</div>}
+          </CCol>
+
+          {/* Start date */}
+          <CCol xs={12} md={6}>
+            <CFormLabel className="small fw-semibold">Start Date</CFormLabel>
+            <CFormInput type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} />
+          </CCol>
+
+          {/* End date */}
+          <CCol xs={12} md={6}>
+            <CFormLabel className="small fw-semibold">End Date</CFormLabel>
+            <CFormInput type="date" value={form.end_date} onChange={(e) => set('end_date', e.target.value)} />
           </CCol>
 
           {/* Project */}
@@ -180,9 +189,7 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
 
           {/* Fund amount */}
           <CCol xs={12} md={6}>
-            <CFormLabel className="small fw-semibold">
-              Fund Amount (₹) <span className="text-danger">*</span>
-            </CFormLabel>
+            <CFormLabel className="small fw-semibold">Fund Amount (₹)</CFormLabel>
             <CInputGroup>
               <CInputGroupText>₹</CInputGroupText>
               <CFormInput
@@ -191,10 +198,8 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
                 placeholder="0"
                 value={form.project_value}
                 onChange={(e) => set('project_value', e.target.value)}
-                invalid={!!errors.project_value}
               />
             </CInputGroup>
-            {errors.project_value && <div className="text-danger small mt-1">{errors.project_value}</div>}
           </CCol>
 
           {/* Beneficiaries */}
@@ -211,7 +216,7 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
 
           {/* Notes */}
           <CCol xs={12}>
-            <CFormLabel className="small fw-semibold">Notes <span className="fw-normal text-body-secondary">(optional)</span></CFormLabel>
+            <CFormLabel className="small fw-semibold">Notes</CFormLabel>
             <CFormInput
               placeholder="Any additional details about this contribution"
               value={form.notes}
@@ -233,6 +238,16 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
 
 // ── All Records flat table ────────────────────────────────────────────────────
 
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null
+
+const DateRange = ({ start, end }) => {
+  if (!start && !end) return <span className="text-body-secondary">—</span>
+  if (start && end) return <span>{fmtDate(start)} – {fmtDate(end)}</span>
+  if (start) return <span>{fmtDate(start)} onwards</span>
+  return <span>Until {fmtDate(end)}</span>
+}
+
 const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = false }) => (
   <div className="table-responsive">
     <CTable hover align="middle" className="mb-0" style={{ fontSize: compact ? '0.8rem' : '0.875rem' }}>
@@ -241,6 +256,7 @@ const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = fals
           <CTableHeaderCell className="border-0 py-2 ps-3">SL</CTableHeaderCell>
           {!compact && <CTableHeaderCell className="border-0 py-2">Funding Agency</CTableHeaderCell>}
           <CTableHeaderCell className="border-0 py-2">Year</CTableHeaderCell>
+          <CTableHeaderCell className="border-0 py-2">Period</CTableHeaderCell>
           <CTableHeaderCell className="border-0 py-2">Location</CTableHeaderCell>
           <CTableHeaderCell className="border-0 py-2">Project</CTableHeaderCell>
           <CTableHeaderCell className="border-0 py-2">Fund Amount</CTableHeaderCell>
@@ -259,14 +275,19 @@ const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = fals
               </CTableDataCell>
             )}
             <CTableDataCell>
-              <CBadge color="secondary" shape="rounded-pill">{r.year}</CBadge>
+              {r.year
+                ? <CBadge color="secondary" shape="rounded-pill">{r.year}</CBadge>
+                : <span className="text-body-secondary small">—</span>}
+            </CTableDataCell>
+            <CTableDataCell className="small text-body-secondary text-nowrap">
+              <DateRange start={r.start_date} end={r.end_date} />
             </CTableDataCell>
             <CTableDataCell className="small">{r.location || '—'}</CTableDataCell>
             <CTableDataCell className="small text-truncate" style={{ maxWidth: 180 }}>
               {r.project_name || <span className="text-body-secondary">—</span>}
             </CTableDataCell>
             <CTableDataCell className="fw-bold" style={{ color: '#4361ee' }}>
-              {fmt(r.project_value)}
+              {r.project_value ? fmt(r.project_value) : <span className="text-body-secondary small">—</span>}
             </CTableDataCell>
             <CTableDataCell>
               {r.num_beneficiaries > 0

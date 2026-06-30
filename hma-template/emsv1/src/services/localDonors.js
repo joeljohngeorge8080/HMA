@@ -47,6 +47,8 @@ export const localDonors = {
       num_beneficiaries: 0,
       project_value: 0,
       year: new Date().getFullYear(),
+      start_date: '',
+      end_date: '',
       notes: '',
       ...data,
       created_at: now(),
