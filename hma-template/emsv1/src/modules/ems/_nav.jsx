@@ -16,7 +16,6 @@ import {
   cilBell,
   cilNotes,
   cilOptions,
-  cilGroup,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -78,15 +77,6 @@ const emsNav = [
         ],
       },
     ],
-  },
-
-  // ── Beneficiary Records ────────────────────────────────────────────
-  {
-    component: CNavItem,
-    name: 'Beneficiary Records',
-    to: '/ems/beneficiary',
-    icon: <CIcon icon={cilGroup} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
   },
 
   // ── Overheads & Pools ──────────────────────────────────────────────
