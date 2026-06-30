@@ -1,6 +1,8 @@
 /**
  * TaskAssignModal — Modal for Project Officers to create a project task.
- * Tasks are now project-scoped (visible to the whole team), not individual.
+ * Tasks are project-scoped and can be assigned to a specific installment/milestone.
+ * The assigned installment_id makes the task show up in the Project Associate's
+ * "Project Milestones" tab under the correct installment card.
  */
 import React, { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
@@ -20,9 +22,10 @@ import {
   CRow,
   CCol,
   CAlert,
+  CBadge,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilTask, cilLocationPin } from '@coreui/icons'
+import { cilTask, cilLocationPin, cilFolder } from '@coreui/icons'
 
 import { localProjects } from '../../../../services/localProjects'
 
@@ -39,10 +42,14 @@ const TaskAssignModal = ({
     title: '',
     description: '',
     project_id: preselectedProjectId || '',
+    installment_id: '',
+    task_type: 'task',
+    assignee: '',
     due_date: '',
   })
   const [errors, setErrors] = useState({})
   const [officerProjects, setOfficerProjects] = useState([])
+  const [selectedProjectData, setSelectedProjectData] = useState(null)
 
   useEffect(() => {
     if (visible) {
@@ -50,10 +57,20 @@ const TaskAssignModal = ({
       const projects = localProjects.getByOfficer(OFFICER_ID)
       setOfficerProjects(projects)
       if (preselectedProjectId) {
+        const proj = projects.find((p) => p.id === preselectedProjectId)
+        setSelectedProjectData(proj || null)
         setForm((f) => ({ ...f, project_id: preselectedProjectId }))
       }
     }
   }, [visible, preselectedProjectId])
+
+  // When project changes, update selectedProjectData and clear installment
+  const handleProjectChange = (projectId) => {
+    const proj = officerProjects.find((p) => p.id === projectId) || null
+    setSelectedProjectData(proj)
+    setForm((prev) => ({ ...prev, project_id: projectId, installment_id: '' }))
+    if (errors.project_id) setErrors((prev) => ({ ...prev, project_id: '' }))
+  }
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -79,12 +96,21 @@ const TaskAssignModal = ({
   }
 
   const handleClose = () => {
-    setForm({ title: '', description: '', project_id: preselectedProjectId || '', due_date: '' })
+    setForm({
+      title: '',
+      description: '',
+      project_id: preselectedProjectId || '',
+      installment_id: '',
+      task_type: 'task',
+      assignee: '',
+      due_date: '',
+    })
     setErrors({})
+    setSelectedProjectData(null)
     onClose()
   }
 
-  const selectedProject = officerProjects.find((p) => p.id === form.project_id)
+  const installments = selectedProjectData?.installments || []
 
   return (
     <CModal visible={visible} onClose={handleClose} alignment="center" size="lg">
@@ -109,7 +135,7 @@ const TaskAssignModal = ({
           <CFormSelect
             id="task-project"
             value={form.project_id}
-            onChange={(e) => handleChange('project_id', e.target.value)}
+            onChange={(e) => handleProjectChange(e.target.value)}
             invalid={!!errors.project_id}
             disabled={!!preselectedProjectId}
           >
@@ -121,13 +147,67 @@ const TaskAssignModal = ({
             ))}
           </CFormSelect>
           {errors.project_id && <CFormFeedback invalid>{errors.project_id}</CFormFeedback>}
-          {selectedProject && (
+          {selectedProjectData && (
             <div className="text-body-secondary mt-1" style={{ fontSize: '0.75rem' }}>
               <CIcon icon={cilLocationPin} size="sm" className="me-1" />
-              {selectedProject.location} · Team: {selectedProject.field_personnel?.length || 0}{' '}
-              member(s)
+              {selectedProjectData.location} · Team:{' '}
+              {selectedProjectData.field_personnel?.length || 0} member(s)
             </div>
           )}
+        </div>
+
+        {/* Assign to Milestone / Installment */}
+        {form.project_id && (
+          <div className="mb-3">
+            <CFormLabel htmlFor="task-installment" className="fw-medium">
+              <CIcon icon={cilFolder} size="sm" className="me-1" />
+              Assign to Milestone
+              <span className="text-body-secondary fw-normal ms-1">(optional)</span>
+            </CFormLabel>
+            {installments.length === 0 ? (
+              <div
+                className="rounded-3 border p-2 small text-body-secondary"
+                style={{ background: 'var(--cui-body-tertiary-bg)' }}
+              >
+                No installments/milestones configured for this project yet.
+              </div>
+            ) : (
+              <CFormSelect
+                id="task-installment"
+                value={form.installment_id}
+                onChange={(e) => handleChange('installment_id', e.target.value)}
+              >
+                <option value="">— No milestone (general task) —</option>
+                {installments.map((inst) => (
+                  <option key={inst.id} value={inst.id}>
+                    {inst.label} ({inst.percentage}%) — {inst.id}
+                  </option>
+                ))}
+              </CFormSelect>
+            )}
+            {form.installment_id && (
+              <div className="mt-1" style={{ fontSize: '0.75rem' }}>
+                <CBadge color="info" shape="rounded-pill">
+                  Task will appear under this milestone for Project Associate
+                </CBadge>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Task Type */}
+        <div className="mb-3">
+          <CFormLabel htmlFor="task-type" className="fw-medium">
+            Task Type
+          </CFormLabel>
+          <CFormSelect
+            id="task-type"
+            value={form.task_type}
+            onChange={(e) => handleChange('task_type', e.target.value)}
+          >
+            <option value="task">📋 Task</option>
+            <option value="procurement">🛒 Procurement</option>
+          </CFormSelect>
         </div>
 
         {/* Title */}
@@ -143,6 +223,19 @@ const TaskAssignModal = ({
             invalid={!!errors.title}
           />
           {errors.title && <CFormFeedback invalid>{errors.title}</CFormFeedback>}
+        </div>
+
+        {/* Assignee */}
+        <div className="mb-3">
+          <CFormLabel htmlFor="task-assignee" className="fw-medium">
+            Assignee
+          </CFormLabel>
+          <CFormInput
+            id="task-assignee"
+            placeholder="e.g. Field Team A, Arjun Sharma, Procurement Team"
+            value={form.assignee}
+            onChange={(e) => handleChange('assignee', e.target.value)}
+          />
         </div>
 
         {/* Description */}
@@ -177,10 +270,10 @@ const TaskAssignModal = ({
           </CCol>
         </CRow>
 
-        {selectedProject && selectedProject.field_personnel?.length > 0 && (
+        {selectedProjectData && selectedProjectData.field_personnel?.length > 0 && (
           <div className="mt-3 p-2 bg-body-secondary rounded small text-body-secondary">
             <strong>👥 This task will be visible to:</strong>{' '}
-            {selectedProject.field_personnel.map((fp) => fp.name).join(', ')}
+            {selectedProjectData.field_personnel.map((fp) => fp.name).join(', ')}
           </div>
         )}
       </CModalBody>

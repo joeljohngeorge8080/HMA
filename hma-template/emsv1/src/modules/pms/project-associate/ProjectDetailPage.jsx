@@ -37,6 +37,7 @@ import {
   CTableDataCell,
   CFormInput,
   CFormSelect,
+  CFormLabel,
   CFormCheck,
   CInputGroup,
   CInputGroupText,
@@ -66,6 +67,7 @@ import {
 } from '@coreui/icons'
 import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
+import { localTasks } from '../../../services/localTasks'
 import { localPayroll } from '../../../services/localPayroll'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
@@ -612,6 +614,7 @@ const DEMO_TASKS = [
   },
 ]
 
+
 const ProjectDetailPage = () => {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -622,6 +625,13 @@ const ProjectDetailPage = () => {
   const [rejectModal, setRejectModal] = useState({ visible: false, item: null })
   const [ucModal, setUcModal] = useState({ visible: false, milestone: null })
   const [toast, setToast] = useState(null)
+  const [expandedMilestone, setExpandedMilestone] = useState(null)
+  // milestoneTasksGrouped: { [installment_id]: task[] } — live from localStorage
+  const [milestoneTasksGrouped, setMilestoneTasksGrouped] = useState({})
+  // editMilestone: { id, phase_name, start_date, end_date, actual_date }
+  const [editMilestone, setEditMilestone] = useState(null)
+  const [editMilestoneForm, setEditMilestoneForm] = useState({})
+  const [editMilestoneSaving, setEditMilestoneSaving] = useState(false)
   // Budget & Payroll state
   const [actualDateEditing, setActualDateEditing] = useState(null)
   const [actualDateVal, setActualDateVal] = useState('')
@@ -641,6 +651,8 @@ const ProjectDetailPage = () => {
     setProject(p)
     if (p) {
       setBeneficiariesCompleted(p.beneficiaries_completed || 0)
+      // Load and group tasks by installment_id from localStorage (live sync with Project Officer)
+      setMilestoneTasksGrouped(localTasks.getByProjectGrouped(id))
     }
     // Load approvals only for projects that have pending ones
     if (p && p.pending_approvals > 0) {
@@ -911,7 +923,6 @@ const ProjectDetailPage = () => {
             {[
               'Overview',
               'Project Officer',
-              'Tasks & Procurement',
               'Approvals',
               'Project Financials',
               'Project Milestones',
@@ -925,12 +936,12 @@ const ProjectDetailPage = () => {
                   className="fw-medium"
                 >
                   {tab}
-                  {i === 3 && approvals.filter((a) => a.status === 'pending').length > 0 && (
+                  {i === 2 && approvals.filter((a) => a.status === 'pending').length > 0 && (
                     <CBadge color="danger" shape="rounded-pill" className="ms-2">
                       {approvals.filter((a) => a.status === 'pending').length}
                     </CBadge>
                   )}
-                  {i === 4 && (
+                  {i === 3 && (
                     <CBadge
                       color={
                         project.project_value -
@@ -1110,154 +1121,10 @@ const ProjectDetailPage = () => {
               )}
             </CTabPane>
 
-            {/* Tasks & Procurement Tab */}
-            <CTabPane visible={activeTab === 2}>
-              <CRow className="g-4">
-                <CCol xs={12} lg={4}>
-                  <CCard
-                    className="border-0 shadow-sm bg-body-tertiary h-100"
-                    style={{ borderRadius: '12px' }}
-                  >
-                    <CCardBody className="text-center p-4">
-                      <h6 className="fw-bold mb-4 small text-uppercase text-body-secondary">
-                        Schedule Status
-                      </h6>
-                      {(() => {
-                        const today = new Date().toISOString().split('T')[0]
-                        const tasksStats = DEMO_TASKS.map((t) => {
-                          const isDelayed =
-                            t.status === 'completed'
-                              ? t.actual_date > t.target_date
-                              : today > t.target_date
-                          return { ...t, isDelayed }
-                        })
-                        const delayedCount = tasksStats.filter((t) => t.isDelayed).length
-                        const onTrackCount = tasksStats.length - delayedCount
 
-                        return (
-                          <div style={{ maxWidth: '220px', margin: '0 auto' }}>
-                            <CChartDoughnut
-                              data={{
-                                labels: ['On Track', 'Delayed'],
-                                datasets: [
-                                  {
-                                    backgroundColor: ['#06d6a0', '#e74c3c'],
-                                    data: [onTrackCount, delayedCount],
-                                    borderWidth: 0,
-                                  },
-                                ],
-                              }}
-                              options={{
-                                plugins: {
-                                  legend: {
-                                    position: 'bottom',
-                                    labels: {
-                                      usePointStyle: true,
-                                      boxWidth: 8,
-                                      font: { size: 12 },
-                                    },
-                                  },
-                                },
-                                cutout: '75%',
-                              }}
-                            />
-                            <div className="mt-3 small text-body-secondary">
-                              <strong>{delayedCount}</strong> out of {tasksStats.length} tasks are
-                              experiencing delays.
-                            </div>
-                          </div>
-                        )
-                      })()}
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-                <CCol xs={12} lg={8}>
-                  <h6 className="fw-semibold mb-3">Tasks List</h6>
-                  <div className="d-flex flex-column gap-2">
-                    {DEMO_TASKS.map((task, i) => {
-                      const today = new Date().toISOString().split('T')[0]
-                      const isDelayed =
-                        task.status === 'completed'
-                          ? task.actual_date > task.target_date
-                          : today > task.target_date
-                      return (
-                        <div
-                          key={i}
-                          className="d-flex align-items-center gap-3 p-3 rounded-3 border shadow-sm"
-                          style={{ fontSize: '0.875rem' }}
-                        >
-                          <div
-                            className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0`}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              background: task.status === 'completed' ? '#06d6a020' : '#f0ad4e20',
-                            }}
-                          >
-                            <CIcon
-                              icon={task.status === 'completed' ? cilCheckCircle : cilTask}
-                              style={{
-                                color: task.status === 'completed' ? '#06d6a0' : '#f0ad4e',
-                                width: 16,
-                                height: 16,
-                              }}
-                            />
-                          </div>
-                          <div className="flex-grow-1">
-                            <div className="d-flex align-items-center gap-2 mb-1">
-                              <span className="fw-bold" style={{ fontSize: '0.95rem' }}>
-                                {task.title}
-                              </span>
-                              {isDelayed && (
-                                <CBadge
-                                  color="danger"
-                                  shape="rounded-pill"
-                                  className="small"
-                                  style={{ fontSize: '0.65rem' }}
-                                >
-                                  Delayed
-                                </CBadge>
-                              )}
-                            </div>
-                            <CRow
-                              className="g-2 text-body-secondary mt-1"
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              <CCol xs={12} sm={4}>
-                                <CIcon icon={cilPeople} className="me-1 opacity-75" />
-                                {task.assignee}
-                              </CCol>
-                              <CCol xs={6} sm={4}>
-                                Target:{' '}
-                                <span className="fw-medium text-body">
-                                  {fmtDate(task.target_date)}
-                                </span>
-                              </CCol>
-                              <CCol xs={6} sm={4}>
-                                Actual:{' '}
-                                <span className="fw-medium text-body">
-                                  {task.actual_date ? fmtDate(task.actual_date) : '—'}
-                                </span>
-                              </CCol>
-                            </CRow>
-                          </div>
-                          <CBadge
-                            color={task.status === 'completed' ? 'success' : 'warning'}
-                            shape="rounded-pill"
-                            className="text-capitalize"
-                          >
-                            {task.status}
-                          </CBadge>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CCol>
-              </CRow>
-            </CTabPane>
 
             {/* Approvals Tab */}
-            <CTabPane visible={activeTab === 3}>
+            <CTabPane visible={activeTab === 2}>
               {approvals.length === 0 ? (
                 <div className="text-center py-5 text-body-secondary">
                   <div className="mb-2 text-body-secondary">
@@ -1336,7 +1203,7 @@ const ProjectDetailPage = () => {
             </CTabPane>
 
             {/* Project Financials Tab */}
-            <CTabPane visible={activeTab === 4}>
+            <CTabPane visible={activeTab === 3}>
               {/* 4 KPI tiles */}
               <CRow className="g-3 mb-4">
                 {[
@@ -1551,170 +1418,458 @@ const ProjectDetailPage = () => {
             </CTabPane>
 
             {/* Project Milestones Tab */}
-            <CTabPane visible={activeTab === 5}>
-              <CRow className="g-4">
-                {/* Milestones & UC Tracking */}
-                <CCol xs={12} lg={8}>
-                  <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-                    <CCardBody className="p-4">
-                      <div className="d-flex align-items-center justify-content-between mb-4">
-                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">
-                          Fund Installments & UCs
-                        </h6>
-                      </div>
+            <CTabPane visible={activeTab === 4}>
+              {/* ── Summary header row ── */}
+              <div
+                className="d-none d-md-grid mb-3 px-1"
+                style={{
+                  gridTemplateColumns: '2fr 2fr 1fr 1fr 80px',
+                  gap: '0 1rem',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  color: 'var(--cui-body-secondary-color)',
+                }}
+              >
+                <span>Installment</span>
+                <span>Project Phase</span>
+                <span>Tasks</span>
+                <span>UC Status</span>
+                <span></span>
+              </div>
 
-                      {project.installments && project.installments.length > 0 ? (
-                        <div className="position-relative">
-                          {/* Vertical timeline line */}
+              <div className="d-flex flex-column gap-3">
+                {project.installments && project.installments.length > 0 ? (
+                  project.installments.map((inst, i) => {
+                    const milestoneTasks = milestoneTasksGrouped[inst.id] || []
+                    const isExpanded = expandedMilestone === inst.id
+                    const isEditing = editMilestone === inst.id
+                    const completedCount = milestoneTasks.filter((t) => t.status === 'completed').length
+                    const today = new Date().toISOString().split('T')[0]
+                    const delay = getDelayDays(inst.end_date || inst.target_date, inst.actual_date)
+
+                    const ucColor =
+                      inst.uc_status === 'Approved' ? '#06d6a0'
+                      : inst.uc_status === 'Submitted' ? '#4361ee'
+                      : '#f77f00'
+                    const ucBadgeColor =
+                      inst.uc_status === 'Approved' ? 'success'
+                      : inst.uc_status === 'Submitted' ? 'primary'
+                      : 'warning'
+
+                    return (
+                      <div
+                        key={inst.id}
+                        className="rounded-4 border shadow-sm overflow-hidden"
+                        style={{
+                          borderLeft: `4px solid ${ucColor}`,
+                          transition: 'box-shadow 0.2s',
+                        }}
+                      >
+                        {/* ── Main row (always visible) ── */}
+                        <div
+                          className="p-3 d-flex align-items-center gap-3"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            if (!isEditing) setExpandedMilestone(isExpanded ? null : inst.id)
+                          }}
+                        >
+                          {/* Timeline bubble */}
                           <div
-                            className="position-absolute bg-secondary opacity-25"
-                            style={{ left: '16px', top: '10px', bottom: '10px', width: '2px' }}
-                          ></div>
+                            className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
+                            style={{
+                              width: 36, height: 36,
+                              background: ucColor + '22',
+                              border: `2px solid ${ucColor}`,
+                              color: ucColor,
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            {inst.uc_status === 'Approved' ? '✓' : i + 1}
+                          </div>
 
-                          <div className="d-flex flex-column gap-4">
-                            {project.installments.map((inst, i) => (
-                              <div key={inst.id} className="d-flex position-relative">
-                                {/* Timeline Dot */}
-                                <div
-                                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 z-1"
-                                  style={{
-                                    width: 34,
-                                    height: 34,
-                                    background:
-                                      inst.uc_status === 'Approved'
-                                        ? '#06d6a0'
-                                        : inst.uc_status === 'Submitted'
-                                          ? '#4361ee'
-                                          : '#fff',
-                                    border: `2px solid ${inst.uc_status === 'Approved' ? '#06d6a0' : inst.uc_status === 'Submitted' ? '#4361ee' : '#dee2e6'}`,
-                                    color: inst.uc_status === 'Pending' ? '#adb5bd' : '#fff',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                  }}
-                                >
-                                  {inst.uc_status === 'Approved' ? '✓' : i + 1}
+                          {/* Installment info */}
+                          <div style={{ flex: '2', minWidth: 0 }}>
+                            <div className="fw-bold" style={{ fontSize: '0.9rem' }}>
+                              {inst.label}
+                              <span className="text-body-secondary fw-normal ms-1" style={{ fontSize: '0.78rem' }}>
+                                ({inst.percentage}%) · {fmt(inst.amount)}
+                              </span>
+                            </div>
+                            <div className="text-body-secondary" style={{ fontSize: '0.73rem' }}>
+                              {fmtDate(inst.start_date)} → {fmtDate(inst.end_date || inst.target_date)}
+                              {inst.actual_date && (
+                                <span className="ms-2 text-success fw-medium">
+                                  ✓ Received {fmtDate(inst.actual_date)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Phase */}
+                          <div style={{ flex: '2', minWidth: 0 }}>
+                            <div
+                              className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-3"
+                              style={{
+                                background: 'rgba(67,97,238,0.08)',
+                                border: '1px solid rgba(67,97,238,0.18)',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                color: '#4361ee',
+                              }}
+                            >
+                              <span>🏗</span>
+                              {inst.phase_name || `Phase ${i + 1}`}
+                            </div>
+                          </div>
+
+                          {/* Tasks count */}
+                          <div style={{ flex: '1', textAlign: 'center' }}>
+                            {milestoneTasks.length === 0 ? (
+                              <span className="text-body-secondary" style={{ fontSize: '0.78rem' }}>—</span>
+                            ) : (
+                              <>
+                                <div className="fw-bold" style={{ fontSize: '0.88rem', color: completedCount === milestoneTasks.length ? '#06d6a0' : '#f0ad4e' }}>
+                                  {completedCount}/{milestoneTasks.length}
                                 </div>
+                                <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>tasks done</div>
+                              </>
+                            )}
+                          </div>
 
-                                {/* Content Card */}
-                                <div className="ms-4 flex-grow-1">
-                                  <div className="p-3 rounded-3 border shadow-sm">
-                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                      <div>
-                                        <h6 className="fw-bold mb-1">
-                                          {inst.label}{' '}
-                                          <span className="text-body-secondary fw-normal small">
-                                            ({inst.percentage}%)
-                                          </span>
-                                        </h6>
-                                        <div className="text-primary fw-bold fs-5">
-                                          {fmt(inst.amount)}
-                                        </div>
-                                      </div>
-                                      <CBadge
-                                        color={
-                                          inst.uc_status === 'Approved'
-                                            ? 'success'
-                                            : inst.uc_status === 'Submitted'
-                                              ? 'primary'
-                                              : 'warning'
-                                        }
-                                        shape="rounded-pill"
-                                      >
-                                        UC: {inst.uc_status || 'Pending'}
-                                      </CBadge>
-                                    </div>
-
-                                    <CRow className="g-2 small text-body-secondary mt-2">
-                                      <CCol xs={4}>
-                                        <div>
-                                          <CIcon icon={cilFolder} className="me-1" /> Target Date
-                                        </div>
-                                        <div className="fw-medium text-body">
-                                          {fmtDate(inst.target_date)}
-                                        </div>
-                                      </CCol>
-                                      <CCol xs={4}>
-                                        <div>
-                                          <CIcon icon={cilFolder} className="me-1" /> Actual Date
-                                        </div>
-                                        <div className="fw-medium text-body">
-                                          {inst.actual_date ? fmtDate(inst.actual_date) : '—'}
-                                        </div>
-                                      </CCol>
-                                      <CCol xs={4}>
-                                        <div>
-                                          <CIcon icon={cilWarning} className="me-1" /> Delay
-                                        </div>
-                                        {(() => {
-                                          const delay = getDelayDays(
-                                            inst.target_date,
-                                            inst.actual_date,
-                                          )
-                                          return (
-                                            <div
-                                              className={`fw-semibold ${delay > 0 ? 'text-danger' : 'text-success'}`}
-                                            >
-                                              {delay > 0 ? `${delay} days` : 'No delay'}
-                                            </div>
-                                          )
-                                        })()}
-                                      </CCol>
-                                    </CRow>
-
-                                    {(inst.uc_status === 'Pending' || !inst.uc_status) && (
-                                      <div className="mt-3 pt-3 border-top text-end">
-                                        <CButton
-                                          color="primary"
-                                          size="sm"
-                                          onClick={() =>
-                                            setUcModal({ visible: true, milestone: inst })
-                                          }
-                                        >
-                                          <CIcon icon={cilFile} className="me-1" />
-                                          Submit UC
-                                        </CButton>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                          {/* UC Status */}
+                          <div style={{ flex: '1', textAlign: 'center' }}>
+                            <CBadge color={ucBadgeColor} shape="rounded-pill" style={{ fontSize: '0.7rem' }}>
+                              {inst.uc_status || 'Pending'}
+                            </CBadge>
+                            {delay > 0 && (
+                              <div className="text-danger" style={{ fontSize: '0.68rem', marginTop: 2 }}>
+                                {delay}d delay
                               </div>
-                            ))}
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div
+                            className="d-flex align-items-center gap-1 flex-shrink-0"
+                            style={{ width: 80, justifyContent: 'flex-end' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CButton
+                              color="secondary"
+                              variant="ghost"
+                              size="sm"
+                              title="Edit milestone"
+                              onClick={() => {
+                                if (isEditing) {
+                                  setEditMilestone(null)
+                                } else {
+                                  setEditMilestone(inst.id)
+                                  setEditMilestoneForm({
+                                    phase_name: inst.phase_name || `Phase ${i + 1}`,
+                                    start_date: inst.start_date || '',
+                                    end_date: inst.end_date || inst.target_date || '',
+                                    actual_date: inst.actual_date || '',
+                                    uc_status: inst.uc_status || 'Pending',
+                                  })
+                                  setExpandedMilestone(null)
+                                }
+                              }}
+                              style={{ padding: '4px 8px' }}
+                            >
+                              <CIcon icon={isEditing ? cilXCircle : cilPencil} size="sm" />
+                            </CButton>
+                            <CButton
+                              color="secondary"
+                              variant="ghost"
+                              size="sm"
+                              title={isExpanded ? 'Collapse' : 'Expand tasks'}
+                              onClick={() => {
+                                if (!isEditing) setExpandedMilestone(isExpanded ? null : inst.id)
+                              }}
+                              style={{ padding: '4px 8px' }}
+                            >
+                              <CIcon icon={isExpanded ? cilChevronTop : cilChevronBottom} size="sm" />
+                            </CButton>
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-center py-5 text-body-secondary">
-                          No installments configured for this project.
-                        </div>
-                      )}
-                    </CCardBody>
-                  </CCard>
-                </CCol>
 
-                {/* Project Risks */}
-                <CCol xs={12} lg={4}>
-                  <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-                    <CCardBody className="p-4">
-                      <div className="d-flex align-items-center justify-content-between mb-4">
-                        <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">
-                          Project Risks
-                        </h6>
-                        <CButton color="secondary" variant="ghost" size="sm">
-                          Add Risk
-                        </CButton>
+                        {/* ── Inline Edit Panel ── */}
+                        {isEditing && (
+                          <div
+                            className="border-top px-4 py-3"
+                            style={{ background: 'rgba(67,97,238,0.03)' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="fw-semibold small text-uppercase text-body-secondary mb-3" style={{ letterSpacing: '0.06em' }}>
+                              ✏️ Edit Milestone
+                            </div>
+                            <CRow className="g-3">
+                              <CCol xs={12} md={6}>
+                                <CFormLabel className="small fw-medium mb-1">Phase Name</CFormLabel>
+                                <CFormInput
+                                  size="sm"
+                                  value={editMilestoneForm.phase_name || ''}
+                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, phase_name: e.target.value }))}
+                                  placeholder="e.g. Phase 1 — Planning & Survey"
+                                />
+                              </CCol>
+                              <CCol xs={12} md={6}>
+                                <CFormLabel className="small fw-medium mb-1">UC Status</CFormLabel>
+                                <CFormSelect
+                                  size="sm"
+                                  value={editMilestoneForm.uc_status || 'Pending'}
+                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, uc_status: e.target.value }))}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="Submitted">Submitted</option>
+                                  <option value="Approved">Approved</option>
+                                </CFormSelect>
+                              </CCol>
+                              <CCol xs={12} md={4}>
+                                <CFormLabel className="small fw-medium mb-1">Start Date</CFormLabel>
+                                <CFormInput
+                                  size="sm"
+                                  type="date"
+                                  value={editMilestoneForm.start_date || ''}
+                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, start_date: e.target.value }))}
+                                />
+                              </CCol>
+                              <CCol xs={12} md={4}>
+                                <CFormLabel className="small fw-medium mb-1">Target End Date</CFormLabel>
+                                <CFormInput
+                                  size="sm"
+                                  type="date"
+                                  value={editMilestoneForm.end_date || ''}
+                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, end_date: e.target.value }))}
+                                />
+                              </CCol>
+                              <CCol xs={12} md={4}>
+                                <CFormLabel className="small fw-medium mb-1">Actual Receipt Date</CFormLabel>
+                                <CFormInput
+                                  size="sm"
+                                  type="date"
+                                  value={editMilestoneForm.actual_date || ''}
+                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, actual_date: e.target.value }))}
+                                />
+                              </CCol>
+                            </CRow>
+                            <div className="d-flex gap-2 mt-3">
+                              <CButton
+                                size="sm"
+                                color="primary"
+                                disabled={editMilestoneSaving}
+                                onClick={() => {
+                                  setEditMilestoneSaving(true)
+                                  try {
+                                    const updated = localProjects.updateInstallment(project.id, inst.id, {
+                                      phase_name: editMilestoneForm.phase_name,
+                                      start_date: editMilestoneForm.start_date,
+                                      end_date: editMilestoneForm.end_date,
+                                      target_date: editMilestoneForm.end_date,
+                                      actual_date: editMilestoneForm.actual_date || null,
+                                      uc_status: editMilestoneForm.uc_status,
+                                    })
+                                    setProject(updated)
+                                    setEditMilestone(null)
+                                    setToast({ color: 'success', message: 'Milestone updated successfully' })
+                                  } catch (err) {
+                                    setToast({ color: 'danger', message: err.message })
+                                  }
+                                  setEditMilestoneSaving(false)
+                                }}
+                              >
+                                {editMilestoneSaving ? <CSpinner size="sm" /> : 'Save Changes'}
+                              </CButton>
+                              <CButton
+                                size="sm"
+                                color="secondary"
+                                variant="ghost"
+                                onClick={() => setEditMilestone(null)}
+                              >
+                                Cancel
+                              </CButton>
+                              {(inst.uc_status === 'Pending' || !inst.uc_status) && (
+                                <CButton
+                                  size="sm"
+                                  color="primary"
+                                  variant="outline"
+                                  className="ms-auto"
+                                  onClick={() => {
+                                    setEditMilestone(null)
+                                    setUcModal({ visible: true, milestone: inst })
+                                  }}
+                                >
+                                  <CIcon icon={cilFile} className="me-1" />
+                                  Submit UC
+                                </CButton>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Expanded Tasks & Procurement ── */}
+                        {isExpanded && !isEditing && (
+                          <div
+                            className="border-top"
+                            style={{ background: 'var(--cui-body-bg)' }}
+                          >
+                            {/* Tasks table header */}
+                            <div
+                              className="d-none d-sm-grid px-3 pt-3 pb-1"
+                              style={{
+                                gridTemplateColumns: '28px 1fr 80px 100px 100px 80px',
+                                gap: '0 12px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.06em',
+                                color: 'var(--cui-body-secondary-color)',
+                              }}
+                            >
+                              <span></span>
+                              <span>Task</span>
+                              <span>Assignee</span>
+                              <span>Target</span>
+                              <span>Actual</span>
+                              <span>Status</span>
+                            </div>
+
+                            {milestoneTasks.length === 0 ? (
+                              <div className="px-4 py-4 text-center small text-body-secondary">
+                                No tasks assigned to this milestone yet.
+                                <br />
+                                <span className="text-body-tertiary" style={{ fontSize: '0.75rem' }}>
+                                  Project Officer can assign tasks from the Tasks tab.
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="px-3 pb-3 d-flex flex-column gap-2 mt-2">
+                                {milestoneTasks.map((task, ti) => {
+                                  const isDelayed =
+                                    task.status === 'completed'
+                                      ? task.actual_date > task.target_date
+                                      : today > (task.target_date || task.due_date)
+                                  const isProcurement = task.task_type === 'procurement'
+                                  const taskStatusColor =
+                                    task.status === 'completed' ? '#06d6a0'
+                                    : task.status === 'active' ? '#f0ad4e'
+                                    : '#adb5bd'
+
+                                  return (
+                                    <div
+                                      key={task.id || ti}
+                                      className="d-flex align-items-center gap-3 p-2 rounded-3"
+                                      style={{
+                                        fontSize: '0.835rem',
+                                        background: isProcurement ? 'rgba(67,97,238,0.04)' : 'rgba(6,214,160,0.04)',
+                                        border: `1px solid ${isProcurement ? 'rgba(67,97,238,0.12)' : 'rgba(6,214,160,0.12)'}`,
+                                      }}
+                                    >
+                                      {/* Icon */}
+                                      <div
+                                        className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                        style={{ width: 28, height: 28, background: taskStatusColor + '22' }}
+                                      >
+                                        <CIcon
+                                          icon={task.status === 'completed' ? cilCheckCircle : isProcurement ? cilFolder : cilTask}
+                                          style={{ color: taskStatusColor, width: 14, height: 14 }}
+                                        />
+                                      </div>
+
+                                      {/* Title + badges */}
+                                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                                          <span className="fw-semibold text-truncate">{task.title}</span>
+                                          <CBadge
+                                            color={isProcurement ? 'info' : 'secondary'}
+                                            shape="rounded-pill"
+                                            style={{ fontSize: '0.6rem', flexShrink: 0 }}
+                                          >
+                                            {isProcurement ? 'Procurement' : 'Task'}
+                                          </CBadge>
+                                          {isDelayed && (
+                                            <CBadge color="danger" shape="rounded-pill" style={{ fontSize: '0.6rem', flexShrink: 0 }}>
+                                              Delayed
+                                            </CBadge>
+                                          )}
+                                        </div>
+                                        {/* Mobile-only metadata */}
+                                        <div className="d-sm-none text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                                          <CIcon icon={cilPeople} className="me-1 opacity-75" />{task.assignee || '—'}
+                                          {' · '}Target: {fmtDate(task.target_date || task.due_date)}
+                                        </div>
+                                      </div>
+
+                                      {/* Assignee (desktop) */}
+                                      <div className="d-none d-sm-block text-body-secondary text-truncate" style={{ width: 80, fontSize: '0.75rem', flexShrink: 0 }}>
+                                        <CIcon icon={cilPeople} className="me-1 opacity-75" size="sm" />
+                                        {task.assignee || '—'}
+                                      </div>
+
+                                      {/* Target date */}
+                                      <div className="d-none d-sm-block" style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}>
+                                        {fmtDate(task.target_date || task.due_date)}
+                                      </div>
+
+                                      {/* Actual date */}
+                                      <div className="d-none d-sm-block" style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}>
+                                        {task.actual_date ? fmtDate(task.actual_date) : <span className="text-body-tertiary">—</span>}
+                                      </div>
+
+                                      {/* Status badge */}
+                                      <div style={{ flexShrink: 0 }}>
+                                        <CBadge
+                                          color={task.status === 'completed' ? 'success' : task.status === 'active' ? 'warning' : 'secondary'}
+                                          shape="rounded-pill"
+                                          className="text-capitalize"
+                                          style={{ fontSize: '0.68rem' }}
+                                        >
+                                          {task.status}
+                                        </CBadge>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
+                    )
+                  })
+                ) : (
+                  <div
+                    className="text-center py-5 text-body-secondary rounded-4 border"
+                    style={{ background: 'var(--cui-body-tertiary-bg)' }}
+                  >
+                    <div style={{ fontSize: '2.5rem' }}>📋</div>
+                    <div className="mt-2">No installments configured for this project.</div>
+                  </div>
+                )}
+              </div>
 
-                      {project.risks && project.risks.length > 0 ? (
-                        <div className="d-flex flex-column gap-3">
-                          {project.risks.map((risk) => (
-                            <div key={risk.id} className="p-3 rounded-3 border bg-body-tertiary">
+              {/* Project Risks — now below the milestones, full width */}
+              <div className="mt-4">
+                <CCard className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+                  <CCardBody className="p-4">
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <h6 className="fw-bold mb-0 text-uppercase text-body-secondary small">
+                        Project Risks
+                      </h6>
+                      <CButton color="secondary" variant="ghost" size="sm">
+                        Add Risk
+                      </CButton>
+                    </div>
+                    {project.risks && project.risks.length > 0 ? (
+                      <CRow className="g-3">
+                        {project.risks.map((risk) => (
+                          <CCol key={risk.id} xs={12} md={6} lg={4}>
+                            <div className="p-3 rounded-3 border bg-body-tertiary h-100">
                               <div className="d-flex justify-content-between mb-2">
                                 <CBadge
-                                  color={
-                                    risk.severity === 'High'
-                                      ? 'danger'
-                                      : risk.severity === 'Medium'
-                                        ? 'warning'
-                                        : 'info'
-                                  }
+                                  color={risk.severity === 'High' ? 'danger' : risk.severity === 'Medium' ? 'warning' : 'info'}
                                   shape="rounded-pill"
                                 >
                                   {risk.severity} Risk
@@ -1723,21 +1878,21 @@ const ProjectDetailPage = () => {
                               </div>
                               <div className="fw-medium text-body small">{risk.title}</div>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-4 text-body-secondary small bg-body-tertiary rounded-3 border">
-                          No active risks logged.
-                        </div>
-                      )}
-                    </CCardBody>
-                  </CCard>
-                </CCol>
-              </CRow>
+                          </CCol>
+                        ))}
+                      </CRow>
+                    ) : (
+                      <div className="text-center py-3 text-body-secondary small bg-body-tertiary rounded-3 border">
+                        No active risks logged.
+                      </div>
+                    )}
+                  </CCardBody>
+                </CCard>
+              </div>
             </CTabPane>
 
-            {/* ══ TAB 6: Budget & Payroll ════════════════════════════════════ */}
-            <CTabPane visible={activeTab === 6}>
+            {/* ══ TAB 5: Budget & Payroll ════════════════════════════════════ */}
+            <CTabPane visible={activeTab === 5}>
               {/* Budget & Payroll helpers inline — uses project.installments */}
               {(() => {
                 const installments = project.installments || []
