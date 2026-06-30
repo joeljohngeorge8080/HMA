@@ -51,6 +51,7 @@ const FieldPersonnelOverviewPage = React.lazy(
   () => import('../modules/pms/daily-reports/FieldPersonnelOverviewPage'),
 )
 const MyTasksPage = React.lazy(() => import('../modules/pms/daily-reports/MyTasksPage'))
+const BeneficiaryPage = React.lazy(() => import('../modules/ems/beneficiary/BeneficiaryPage'))
 const TaskReportSubmitPage = React.lazy(
   () => import('../modules/pms/daily-reports/TaskReportSubmitPage'),
 )
@@ -306,6 +307,12 @@ export const pmsRoutes = [
     name: 'Implementing Partners',
     element: placeholder('Implementing Partners'),
     module: MODULE.PMS_PARTNERS,
+  },
+  {
+    path: '/pms/beneficiary',
+    name: 'Beneficiary Records',
+    element: BeneficiaryPage,
+    module: MODULE.BENEFICIARY,
   },
 
   // ── Daily Reports ─────────────────────────────────────────────────────────
