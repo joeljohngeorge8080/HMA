@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -18,18 +18,8 @@ import useRole from '../hooks/useRole'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
 const SidebarClock = () => {
@@ -44,7 +34,6 @@ const SidebarClock = () => {
   const date = now.getDate()
   const month = MONTHS[now.getMonth()]
   const year = now.getFullYear()
-
   const hours = now.getHours()
   const minutes = String(now.getMinutes()).padStart(2, '0')
   const seconds = String(now.getSeconds()).padStart(2, '0')
@@ -58,9 +47,110 @@ const SidebarClock = () => {
         <span className="sidebar-clock__ampm">{ampm}</span>
       </div>
       <div>{day}</div>
-      <div>
-        {date} {month} {year}
-      </div>
+      <div>{date} {month} {year}</div>
+    </div>
+  )
+}
+
+// Recursively collect all routable items with their parent group name
+const flattenNav = (items, parentName = null) => {
+  const results = []
+  for (const item of items) {
+    if (item.to) {
+      results.push({ name: item.name, to: item.to, parent: parentName })
+    }
+    if (item.items?.length) {
+      results.push(...flattenNav(item.items, item.name))
+    }
+  }
+  return results
+}
+
+const SidebarSearch = ({ nav }) => {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  const role = useRole()
+  const ref = useRef(null)
+
+  const visibleNav = nav.filter((item) => !item.roles || !role || item.roles.includes(role))
+  const allItems = flattenNav(visibleNav)
+
+  const results = query.trim()
+    ? allItems.filter((item) => item.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : []
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleSelect = (to) => {
+    navigate(to)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="px-3 py-2 border-bottom position-relative" ref={ref}>
+      <input
+        type="text"
+        className="form-control form-control-sm"
+        placeholder="Search menu…"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+        onFocus={() => query.trim() && setOpen(true)}
+        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
+      />
+      {open && results.length > 0 && (
+        <div
+          className="position-absolute rounded shadow"
+          style={{
+            top: 'calc(100% - 8px)',
+            left: 12,
+            right: 12,
+            zIndex: 1100,
+            maxHeight: 260,
+            overflowY: 'auto',
+            background: '#fff',
+            border: '1px solid #dee2e6',
+          }}
+        >
+          {results.map((item, idx) => (
+            <button
+              key={idx}
+              className="d-block w-100 text-start px-3 py-2 border-0 bg-transparent"
+              style={{ cursor: 'pointer' }}
+              onMouseDown={() => handleSelect(item.to)}
+            >
+              <div className="fw-semibold text-dark small">{item.name}</div>
+              {item.parent && (
+                <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                  {item.parent}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {open && query.trim() && results.length === 0 && (
+        <div
+          className="position-absolute rounded shadow px-3 py-2 small text-muted"
+          style={{
+            top: 'calc(100% - 8px)',
+            left: 12,
+            right: 12,
+            zIndex: 1100,
+            background: '#fff',
+            border: '1px solid #dee2e6',
+          }}
+        >
+          No results found
+        </div>
+      )}
     </div>
   )
 }
@@ -111,6 +201,9 @@ const AppSidebar = ({ nav = [] }) => {
           onClick={() => dispatch({ type: 'set', sidebarShow: false })}
         />
       </CSidebarHeader>
+
+      {!unfoldable && <SidebarSearch nav={nav} />}
+
       <AppSidebarNav items={visibleNavigation} />
       <CSidebarFooter className="border-top d-none d-lg-flex flex-column p-0">
         {!unfoldable && <SidebarClock />}
