@@ -69,6 +69,9 @@ const LsgbOverviewPage = React.lazy(() => import('../modules/pms/lsgb/LsgbOvervi
 const LsgbFundsPage = React.lazy(() => import('../modules/pms/lsgb/LsgbFundsPage'))
 const LsgbAnalysisPage = React.lazy(() => import('../modules/pms/lsgb/LsgbAnalysisPage'))
 
+// Donors
+const DonorPage = React.lazy(() => import('../modules/pms/donors/DonorPage'))
+
 export const pmsRoutes = [
   { path: '/', exact: true, name: 'Home' },
   {
@@ -295,7 +298,7 @@ export const pmsRoutes = [
   {
     path: '/pms/funding-agencies',
     name: 'Funding Agencies',
-    element: placeholder('Funding Agencies'),
+    element: DonorPage,
     module: MODULE.PMS_AGENCIES,
   },
   {

@@ -140,7 +140,7 @@ const pmsNav = [
   },
   {
     component: CNavItem,
-    name: 'Funding Agencies',
+    name: 'Donor Records',
     to: '/pms/funding-agencies',
     icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
   },
