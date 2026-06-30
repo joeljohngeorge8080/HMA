@@ -57,9 +57,11 @@ import {
 import { localOfficers, localProjects } from '../../../services/localProjects'
 import useAuth from '../../../hooks/useAuth'
 
-const EMPTY_FORM = { name: '', email: '', phone: '', designation: '' }
+const EMPTY_FORM = { name: '', email: '', phone: '', designation: '', officer_type: '' }
 
 const DESIGNATIONS = ['Senior Project Officer', 'Project Officer', 'Assistant Project Officer']
+
+const OFFICER_TYPE_COLOR = { LSGB: 'info', CSR: 'warning', General: 'secondary' }
 
 // ─── Reusable officer form (used by both Add and Edit modals) ─────────────────
 const OfficerForm = ({ form, setField, formErrors }) => (
@@ -121,6 +123,28 @@ const OfficerForm = ({ form, setField, formErrors }) => (
           <div className="text-danger small mt-1">{formErrors.designation}</div>
         )}
       </CCol>
+
+      <CCol xs={12}>
+        <CFormLabel className="fw-semibold small">
+          Project Type <span className="text-danger">*</span>
+        </CFormLabel>
+        <CFormSelect
+          value={form.officer_type || ''}
+          onChange={(e) => setField('officer_type', e.target.value)}
+          invalid={!!formErrors.officer_type}
+        >
+          <option value="">Select project type...</option>
+          <option value="General">General</option>
+          <option value="LSGB">LSGB — Local Self Government Body</option>
+          <option value="CSR">CSR — Corporate Social Responsibility</option>
+        </CFormSelect>
+        {formErrors.officer_type && (
+          <div className="text-danger small mt-1">{formErrors.officer_type}</div>
+        )}
+        <div className="text-body-secondary small mt-1">
+          LSGB officers handle projects funded by local government bodies (Panchayat / Municipality / Corporation).
+        </div>
+      </CCol>
     </CRow>
   </CForm>
 )
@@ -174,6 +198,7 @@ const ProjectOfficersPage = () => {
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       e.email = 'Valid email is required'
     if (!form.designation.trim()) e.designation = 'Designation is required'
+    if (!form.officer_type) e.officer_type = 'Project type is required'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -208,6 +233,7 @@ const ProjectOfficersPage = () => {
       email: officer.email,
       phone: officer.phone || '',
       designation: officer.designation || '',
+      officer_type: officer.officer_type || '',
     })
     setEditErrors({})
     setEditVisible(true)
@@ -389,6 +415,7 @@ const ProjectOfficersPage = () => {
               <CTableHeaderCell className="border-0 py-3 ps-4">Officer</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Contact</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Designation</CTableHeaderCell>
+              <CTableHeaderCell className="border-0 py-3">Type</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Projects</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3">Status</CTableHeaderCell>
               <CTableHeaderCell className="border-0 py-3 text-end pe-4">Actions</CTableHeaderCell>
@@ -436,6 +463,17 @@ const ProjectOfficersPage = () => {
                   {/* Designation */}
                   <CTableDataCell className="py-3">
                     <span className="fw-medium">{officer.designation || '—'}</span>
+                  </CTableDataCell>
+
+                  {/* Officer Type */}
+                  <CTableDataCell className="py-3">
+                    <CBadge
+                      color={OFFICER_TYPE_COLOR[officer.officer_type] || 'secondary'}
+                      shape="rounded-pill"
+                      className="px-2"
+                    >
+                      {officer.officer_type || 'General'}
+                    </CBadge>
                   </CTableDataCell>
 
                   {/* Projects count */}
@@ -535,7 +573,7 @@ const ProjectOfficersPage = () => {
                 {/* Expanded projects sub-row */}
                 {expandedId === officer.id && (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="py-0">
+                    <CTableDataCell colSpan={7} className="py-0">
                       <div
                         className="p-3 bg-body-tertiary"
                         style={{ borderTop: '1px solid #e9ecef' }}

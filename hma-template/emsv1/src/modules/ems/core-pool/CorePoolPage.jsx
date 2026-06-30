@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  CContainer,
   CCard,
   CCardBody,
   CCardHeader,
@@ -8,283 +7,709 @@ import {
   CCol,
   CButton,
   CFormInput,
+  CFormSelect,
+  CFormLabel,
   CInputGroup,
   CInputGroupText,
   CBadge,
+  CNav,
+  CNavItem,
+  CNavLink,
+  CTabContent,
+  CTabPane,
+  CTable,
+  CTableHead,
+  CTableRow,
+  CTableHeaderCell,
+  CTableBody,
+  CTableDataCell,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
+  CAlert,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilPencil, cilTrash } from '@coreui/icons'
-import { localOrgPool } from '../../../services/localOrgPool'
+import {
+  cilPlus,
+  cilPencil,
+  cilTrash,
+  cilPeople,
+  cilBriefcase,
+  cilSearch,
+  cilChevronBottom,
+  cilChevronTop,
+  cilMoney,
+  cilX,
+} from '@coreui/icons'
+import { localPayroll } from '../../../services/localPayroll'
 
-const CorePoolPage = () => {
-  const [form, setForm] = useState({ label: '', amount: '', date: '', notes: '' })
-  const [adding, setAdding] = useState(false)
-  const [editId, setEditId] = useState(null)
-  const [editForm, setEditForm] = useState({})
-  const [allExpenses, setAllExpenses] = useState([])
-  const [previewAllocs, setPreviewAllocs] = useState([])
+// ── Core Salary Expense store ─────────────────────────────────────────────────
+// Tracks which employees' salaries are formally registered as core overhead.
 
-  const reload = () => {
-    setAllExpenses(localOrgPool.getCoreExpenses())
-  }
+const CORE_SAL_KEY = 'hma_core_salary_expenses'
 
-  useEffect(() => {
-    reload()
-  }, [])
+const uid = () => `cse_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
-  const fmt2 = (n) =>
-    new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(n || 0)
-  const fmtDate = (d) =>
-    d
-      ? new Date(d).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })
-      : ''
+const coreExpenses = {
+  read: () => {
+    try { return JSON.parse(localStorage.getItem(CORE_SAL_KEY) || '[]') } catch { return [] }
+  },
+  write: (data) => localStorage.setItem(CORE_SAL_KEY, JSON.stringify(data)),
+  add(entry) {
+    const all = this.read()
+    const record = { ...entry, id: uid(), added_at: new Date().toISOString() }
+    this.write([...all, record])
+    return record
+  },
+  update(id, patch) {
+    this.write(this.read().map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  },
+  remove(id) {
+    this.write(this.read().filter((r) => r.id !== id))
+  },
+}
 
-  const handlePreview = () => {
-    const amt = parseFloat(form.amount) || 0
-    if (amt > 0) setPreviewAllocs(localOrgPool.computeAllocations('core', amt))
-    else setPreviewAllocs([])
-  }
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  const handleAdd = () => {
-    if (!form.label || !form.amount) return
-    localOrgPool.addCoreExpense(form, 'global')
-    setForm({ label: '', amount: '', date: '', notes: '' })
-    setAdding(false)
-    setPreviewAllocs([])
-    reload()
-  }
+const fmt = (n) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
 
-  const handleRemove = (id) => {
-    localOrgPool.removeCoreExpense(id)
-    reload()
-  }
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-  const handleEditSave = () => {
-    localOrgPool.updateCoreExpense(editId, editForm)
-    setEditId(null)
-    reload()
+const CATEGORY_COLOR = { Permanent: 'primary', FTC: 'warning', TPC: 'info' }
+
+// ── Employee detail expand row ────────────────────────────────────────────────
+
+const EmployeeDetailPanel = ({ emp }) => {
+  const activeAssignments = (emp.project_assignments || []).filter((a) => a.status === 'Active')
+  const pastAssignments = (emp.project_assignments || []).filter((a) => a.status !== 'Active')
+
+  return (
+    <div className="px-4 py-3 bg-body-secondary border-top">
+      <CRow className="g-3">
+        {/* Personal / Employment details */}
+        <CCol xs={12} md={6} lg={4}>
+          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+            Employment Details
+          </div>
+          <div className="d-flex flex-column gap-1" style={{ fontSize: '0.82rem' }}>
+            {[
+              ['Employee ID', emp.employee_id],
+              ['Designation', emp.employment?.designation],
+              ['Department', emp.employment?.department],
+              ['Category', emp.employee_category],
+              ['Joined', fmtDate(emp.joined_date)],
+              ['Working State', emp.employment?.working_state],
+              ['Reporting To', emp.employment?.reporting_to],
+            ].map(([label, value]) => (
+              <div key={label} className="d-flex gap-2">
+                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>{label}</span>
+                <span className="fw-medium text-truncate">{value || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </CCol>
+
+        {/* Salary & Contact */}
+        <CCol xs={12} md={6} lg={4}>
+          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+            Salary & Contact
+          </div>
+          <div className="d-flex flex-column gap-1" style={{ fontSize: '0.82rem' }}>
+            {[
+              ['Monthly Salary', emp.current_salary ? fmt(emp.current_salary) : '—'],
+              ['Mobile', emp.contact?.mobile],
+              ['Work Email', emp.contact?.working_email],
+              ['Personal Email', emp.contact?.personal_email],
+              ['Location', emp.address?.resident_location],
+            ].map(([label, value]) => (
+              <div key={label} className="d-flex gap-2">
+                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>{label}</span>
+                <span className="fw-medium text-truncate">{value || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </CCol>
+
+        {/* Project assignments */}
+        <CCol xs={12} lg={4}>
+          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+            Project Assignments
+          </div>
+          {activeAssignments.length === 0 && pastAssignments.length === 0 ? (
+            <div className="text-body-secondary small">No project assignments on record.</div>
+          ) : (
+            <div className="d-flex flex-column gap-1">
+              {activeAssignments.map((a, i) => (
+                <div key={i} className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-success-subtle border border-success-subtle" style={{ fontSize: '0.8rem' }}>
+                  <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>Active</CBadge>
+                  <span className="fw-semibold text-truncate flex-grow-1">{a.project_name || 'Unnamed'}</span>
+                  <span className="text-body-secondary text-nowrap">{fmtDate(a.assigned_date)}</span>
+                </div>
+              ))}
+              {pastAssignments.map((a, i) => (
+                <div key={i} className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-body-tertiary border" style={{ fontSize: '0.8rem', opacity: 0.7 }}>
+                  <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>{a.status || 'Past'}</CBadge>
+                  <span className="text-truncate flex-grow-1">{a.project_name || 'Unnamed'}</span>
+                  <span className="text-body-secondary text-nowrap">{fmtDate(a.assigned_date)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CCol>
+      </CRow>
+    </div>
+  )
+}
+
+// ── Expandable employee row ───────────────────────────────────────────────────
+
+const EmployeeRow = ({ emp, index, showProjects }) => {
+  const [open, setOpen] = useState(false)
+  const activeCount = (emp.project_assignments || []).filter((a) => a.status === 'Active').length
+
+  return (
+    <>
+      <CTableRow
+        style={{ cursor: 'pointer' }}
+        className={open ? 'table-active' : ''}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <CTableDataCell className="ps-3 text-body-secondary small">{index + 1}</CTableDataCell>
+        <CTableDataCell>
+          <div className="fw-semibold">{emp.employee_name}</div>
+          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{emp.employee_id}</div>
+        </CTableDataCell>
+        <CTableDataCell className="small">{emp.employment?.designation || '—'}</CTableDataCell>
+        <CTableDataCell className="small">{emp.employment?.department || '—'}</CTableDataCell>
+        <CTableDataCell>
+          <CBadge color={CATEGORY_COLOR[emp.employee_category] || 'secondary'} shape="rounded-pill">
+            {emp.employee_category || '—'}
+          </CBadge>
+        </CTableDataCell>
+        <CTableDataCell className="fw-semibold" style={{ color: '#4361ee' }}>
+          {emp.current_salary ? fmt(emp.current_salary) : <span className="text-body-secondary small">Not set</span>}
+        </CTableDataCell>
+        {showProjects && (
+          <CTableDataCell>
+            <CBadge color={activeCount > 0 ? 'success' : 'secondary'} shape="rounded-pill">
+              {activeCount} active
+            </CBadge>
+          </CTableDataCell>
+        )}
+        <CTableDataCell className="text-end pe-3">
+          <CIcon
+            icon={open ? cilChevronTop : cilChevronBottom}
+            style={{ width: 14, height: 14, color: 'var(--cui-body-secondary-color)' }}
+          />
+        </CTableDataCell>
+      </CTableRow>
+
+      {open && (
+        <CTableRow>
+          <CTableDataCell colSpan={showProjects ? 8 : 7} className="p-0 border-0">
+            <EmployeeDetailPanel emp={emp} />
+          </CTableDataCell>
+        </CTableRow>
+      )}
+    </>
+  )
+}
+
+// ── Employee table ────────────────────────────────────────────────────────────
+
+const EmployeeTable = ({ employees, showProjects, emptyIcon, emptyText }) => {
+  if (employees.length === 0) {
+    return (
+      <div className="text-center text-body-secondary py-5">
+        <CIcon icon={emptyIcon} style={{ width: 40, height: 40, opacity: 0.3 }} className="mb-2 d-block mx-auto" />
+        <div className="small">{emptyText}</div>
+      </div>
+    )
   }
 
   return (
-    <CContainer lg className="py-4">
-      <h4 className="fw-bold mb-4">🌐 Global Core Expense Pool</h4>
+    <div className="table-responsive">
+      <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.875rem' }}>
+        <CTableHead className="bg-body-tertiary">
+          <CTableRow>
+            <CTableHeaderCell className="border-0 py-2 ps-3">#</CTableHeaderCell>
+            <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
+            <CTableHeaderCell className="border-0 py-2">Designation</CTableHeaderCell>
+            <CTableHeaderCell className="border-0 py-2">Department</CTableHeaderCell>
+            <CTableHeaderCell className="border-0 py-2">Category</CTableHeaderCell>
+            <CTableHeaderCell className="border-0 py-2">Monthly Salary</CTableHeaderCell>
+            {showProjects && <CTableHeaderCell className="border-0 py-2">Projects</CTableHeaderCell>}
+            <CTableHeaderCell className="border-0 py-2" />
+          </CTableRow>
+        </CTableHead>
+        <CTableBody>
+          {employees.map((emp, i) => (
+            <EmployeeRow key={emp.id} emp={emp} index={i} showProjects={showProjects} />
+          ))}
+        </CTableBody>
+      </CTable>
+    </div>
+  )
+}
 
-      <CCard className="shadow-sm border-top border-4 border-top-primary mb-4">
-        <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
-          <span>Manage Organization-Wide Core Expenses</span>
-          <CBadge color="primary" shape="rounded-pill">
-            {allExpenses.length} Total Expenses
-          </CBadge>
-        </CCardHeader>
-        <CCardBody>
-          {adding ? (
-            <div className="border rounded p-3 bg-body-secondary mb-4">
-              <h6 className="fw-semibold mb-3">Add New Core Expense</h6>
-              <CRow className="g-2 mb-2">
-                <CCol xs={12} md={5}>
-                  <CFormInput
-                    size="sm"
-                    placeholder="Expense label *"
-                    value={form.label}
-                    onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                  />
-                </CCol>
-                <CCol xs={6} md={3}>
-                  <CInputGroup size="sm">
-                    <CInputGroupText>₹</CInputGroupText>
-                    <CFormInput
-                      type="number"
-                      min="0"
-                      placeholder="0 *"
-                      value={form.amount}
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, amount: e.target.value }))
-                        setPreviewAllocs([])
-                      }}
-                      onBlur={handlePreview}
-                    />
-                  </CInputGroup>
-                </CCol>
-                <CCol xs={6} md={4}>
-                  <CFormInput
-                    size="sm"
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                  />
-                </CCol>
-                <CCol xs={12}>
-                  <CFormInput
-                    size="sm"
-                    placeholder="Notes (optional)"
-                    value={form.notes}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  />
-                </CCol>
-              </CRow>
+// ── Add Core Expense Modal ────────────────────────────────────────────────────
 
-              {previewAllocs.length > 0 && (
-                <div
-                  className="mb-3 p-3 rounded bg-primary bg-opacity-10 border border-primary"
-                  style={{ fontSize: '0.85rem' }}
-                >
-                  <div className="fw-semibold text-primary mb-2">
-                    📊 Allocation Preview Across Active Projects
-                  </div>
-                  <CRow className="g-2">
-                    {previewAllocs.map((a) => (
-                      <CCol xs={12} md={6} lg={4} key={a.projectId}>
-                        <div className="d-flex justify-content-between text-body-secondary bg-white p-2 rounded border">
-                          <span className="fw-medium text-truncate me-2" title={a.projectName}>
-                            {a.projectName}
-                          </span>
-                          <span className="text-nowrap">
-                            {a.sharePct}% →{' '}
-                            <strong className="text-primary">{fmt2(a.amountCharged)}</strong>
-                          </span>
-                        </div>
-                      </CCol>
-                    ))}
-                  </CRow>
-                </div>
-              )}
+const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds }) => {
+  const [selectedId, setSelectedId] = useState('')
+  const [salary, setSalary] = useState('')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
 
-              <div className="d-flex gap-2">
-                <CButton size="sm" color="primary" onClick={handleAdd}>
-                  Add &amp; Distribute Expense
-                </CButton>
-                <CButton
-                  size="sm"
-                  color="secondary"
-                  variant="ghost"
-                  onClick={() => {
-                    setAdding(false)
-                    setPreviewAllocs([])
-                  }}
-                >
-                  Cancel
-                </CButton>
+  const available = allEmployees.filter((e) => !existingIds.includes(e.id))
+  const selected = allEmployees.find((e) => e.id === selectedId)
+
+  const handleSelect = (id) => {
+    setSelectedId(id)
+    setError('')
+    const emp = allEmployees.find((e) => e.id === id)
+    setSalary(emp?.current_salary ? String(emp.current_salary) : '')
+  }
+
+  const handleAdd = () => {
+    if (!selectedId) { setError('Please select an employee.'); return }
+    if (!salary || parseFloat(salary) <= 0) { setError('Please enter a valid salary amount.'); return }
+    onAdd({
+      employee_id: selected.id,
+      employee_code: selected.employee_id,
+      employee_name: selected.employee_name,
+      designation: selected.employment?.designation || '',
+      department: selected.employment?.department || '',
+      category: selected.employee_category || '',
+      salary: parseFloat(salary),
+      notes,
+    })
+    setSelectedId('')
+    setSalary('')
+    setNotes('')
+    setError('')
+    onClose()
+  }
+
+  const handleClose = () => {
+    setSelectedId('')
+    setSalary('')
+    setNotes('')
+    setError('')
+    onClose()
+  }
+
+  return (
+    <CModal visible={visible} onClose={handleClose} alignment="center">
+      <CModalHeader closeButton>
+        <CModalTitle>Add Employee to Core Expenses</CModalTitle>
+      </CModalHeader>
+      <CModalBody>
+        <p className="text-body-secondary small mb-3">
+          Select an employee whose salary will be tracked as a core overhead expense.
+        </p>
+
+        {error && <CAlert color="danger" className="py-2 small">{error}</CAlert>}
+
+        <div className="mb-3">
+          <CFormLabel className="small fw-semibold">Employee</CFormLabel>
+          <CFormSelect
+            value={selectedId}
+            onChange={(e) => handleSelect(e.target.value)}
+          >
+            <option value="">— Select employee —</option>
+            {available.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.employee_name} ({emp.employee_id})
+                {emp.employment?.designation ? ` · ${emp.employment.designation}` : ''}
+              </option>
+            ))}
+          </CFormSelect>
+          {available.length === 0 && (
+            <div className="small text-body-secondary mt-1">All employees are already added.</div>
+          )}
+        </div>
+
+        {selected && (
+          <div className="rounded-3 px-3 py-2 bg-body-secondary mb-3" style={{ fontSize: '0.82rem' }}>
+            <div className="d-flex gap-4 flex-wrap">
+              <div><span className="text-body-secondary">Dept: </span><span className="fw-medium">{selected.employment?.department || '—'}</span></div>
+              <div><span className="text-body-secondary">Category: </span>
+                <CBadge color={CATEGORY_COLOR[selected.employee_category] || 'secondary'} shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
+                  {selected.employee_category || '—'}
+                </CBadge>
+              </div>
+              <div><span className="text-body-secondary">On projects: </span>
+                <span className="fw-medium">
+                  {(selected.project_assignments || []).filter(a => a.status === 'Active').length}
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="mb-4">
-              <CButton size="sm" color="primary" onClick={() => setAdding(true)}>
-                <CIcon icon={cilPlus} className="me-1" />
-                Add New Core Expense
-              </CButton>
-            </div>
-          )}
+          </div>
+        )}
 
-          {allExpenses.length === 0 ? (
-            <div className="text-center text-body-tertiary small py-4 bg-light rounded border border-dashed">
-              No Core expenses recorded yet.
-            </div>
-          ) : (
-            <div className="d-flex flex-column gap-3">
-              {allExpenses.map((exp) =>
-                editId === exp.id ? (
-                  <div key={exp.id} className="border rounded p-3 bg-body-secondary shadow-sm">
-                    <CRow className="g-2 mb-2">
-                      <CCol xs={12} md={5}>
-                        <CFormInput
-                          size="sm"
-                          placeholder="Label"
-                          value={editForm.label}
-                          onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
-                        />
-                      </CCol>
-                      <CCol xs={6} md={3}>
-                        <CInputGroup size="sm">
-                          <CInputGroupText>₹</CInputGroupText>
-                          <CFormInput
-                            type="number"
-                            value={editForm.amount}
-                            onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                          />
-                        </CInputGroup>
-                      </CCol>
-                      <CCol xs={6} md={4}>
-                        <CFormInput
-                          size="sm"
-                          type="date"
-                          value={editForm.date}
-                          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-                        />
-                      </CCol>
-                    </CRow>
-                    <div className="d-flex gap-2 mt-2">
-                      <CButton size="sm" color="primary" onClick={handleEditSave}>
-                        Save Changes
-                      </CButton>
-                      <CButton
-                        size="sm"
-                        color="secondary"
-                        variant="ghost"
-                        onClick={() => setEditId(null)}
-                      >
-                        Cancel
-                      </CButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    key={exp.id}
-                    className="d-flex align-items-center justify-content-between border rounded px-3 py-3 bg-white shadow-sm"
-                  >
-                    <div>
-                      <div className="fw-semibold fs-6 text-dark mb-1">{exp.label}</div>
-                      <div className="text-body-secondary small mb-1">
-                        {fmtDate(exp.date)} {exp.notes && ` · ${exp.notes}`}
-                      </div>
-                      <div className="text-body-tertiary" style={{ fontSize: '0.8rem' }}>
-                        Distributed across {exp.project_allocations?.length || 0} active project(s)
-                      </div>
-                    </div>
-                    <div className="d-flex align-items-center gap-4">
-                      <div className="text-end">
-                        <div className="text-body-secondary small">Total Amount</div>
-                        <div className="fw-bold fs-5 text-primary">{fmt2(exp.amount)}</div>
-                      </div>
-                      <div className="d-flex gap-1 border-start ps-3">
-                        <CButton
-                          color="secondary"
-                          variant="ghost"
-                          size="sm"
-                          title="Edit Expense"
-                          onClick={() => {
-                            setEditId(exp.id)
-                            setEditForm({ ...exp })
-                          }}
-                        >
-                          <CIcon icon={cilPencil} />
-                        </CButton>
-                        <CButton
-                          color="danger"
-                          variant="ghost"
-                          size="sm"
-                          title="Remove Expense"
-                          onClick={() => handleRemove(exp.id)}
-                        >
-                          <CIcon icon={cilTrash} />
-                        </CButton>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
+        <div className="mb-3">
+          <CFormLabel className="small fw-semibold">Monthly Salary (₹)</CFormLabel>
+          <CInputGroup>
+            <CInputGroupText>₹</CInputGroupText>
+            <CFormInput
+              type="number"
+              min="0"
+              placeholder="Enter monthly salary"
+              value={salary}
+              onChange={(e) => setSalary(e.target.value)}
+            />
+          </CInputGroup>
+          {selected?.current_salary === 0 && (
+            <div className="small text-warning mt-1">No salary on record — please enter the amount manually.</div>
           )}
-        </CCardBody>
-      </CCard>
-    </CContainer>
+        </div>
+
+        <div className="mb-1">
+          <CFormLabel className="small fw-semibold">Notes <span className="fw-normal text-body-secondary">(optional)</span></CFormLabel>
+          <CFormInput
+            placeholder="e.g. FY 2026–27 overhead"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" onClick={handleClose}>Cancel</CButton>
+        <CButton color="primary" onClick={handleAdd} disabled={available.length === 0}>
+          <CIcon icon={cilPlus} className="me-1" />
+          Add to Core Expenses
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  )
+}
+
+// ── Edit salary modal ─────────────────────────────────────────────────────────
+
+const EditExpenseModal = ({ visible, entry, onClose, onSave }) => {
+  const [salary, setSalary] = useState(entry?.salary || '')
+  const [notes, setNotes] = useState(entry?.notes || '')
+
+  useEffect(() => {
+    if (entry) { setSalary(String(entry.salary || '')); setNotes(entry.notes || '') }
+  }, [entry])
+
+  const handleSave = () => {
+    onSave({ salary: parseFloat(salary) || 0, notes })
+    onClose()
+  }
+
+  return (
+    <CModal visible={visible} onClose={onClose} alignment="center" size="sm">
+      <CModalHeader closeButton>
+        <CModalTitle>Edit Core Expense</CModalTitle>
+      </CModalHeader>
+      <CModalBody>
+        <div className="fw-semibold mb-3">{entry?.employee_name}</div>
+        <div className="mb-3">
+          <CFormLabel className="small fw-semibold">Monthly Salary (₹)</CFormLabel>
+          <CInputGroup>
+            <CInputGroupText>₹</CInputGroupText>
+            <CFormInput type="number" min="0" value={salary} onChange={(e) => setSalary(e.target.value)} />
+          </CInputGroup>
+        </div>
+        <div>
+          <CFormLabel className="small fw-semibold">Notes</CFormLabel>
+          <CFormInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
+        </div>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" onClick={onClose}>Cancel</CButton>
+        <CButton color="primary" onClick={handleSave}>Save</CButton>
+      </CModalFooter>
+    </CModal>
+  )
+}
+
+// ── Core Expenses Tab ─────────────────────────────────────────────────────────
+
+const CoreExpensesTab = ({ allEmployees }) => {
+  const [entries, setEntries] = useState([])
+  const [addOpen, setAddOpen] = useState(false)
+  const [editEntry, setEditEntry] = useState(null)
+
+  const reload = useCallback(() => setEntries(coreExpenses.read()), [])
+  useEffect(() => { reload() }, [reload])
+
+  const handleAdd = (entry) => { coreExpenses.add(entry); reload() }
+  const handleRemove = (id) => { coreExpenses.remove(id); reload() }
+  const handleEditSave = (id, patch) => { coreExpenses.update(id, patch); reload() }
+
+  const existingIds = entries.map((e) => e.employee_id)
+  const totalMonthly = entries.reduce((s, e) => s + (e.salary || 0), 0)
+
+  return (
+    <>
+      {/* Summary */}
+      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+          <div className="fw-semibold">Core Salary Expenses</div>
+          <div className="text-body-secondary small">
+            Salaries of employees not assigned to any project — registered as organizational overhead.
+          </div>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          {totalMonthly > 0 && (
+            <CBadge color="primary" shape="rounded-pill" className="px-3 py-2">
+              Total: {fmt(totalMonthly)} / mo
+            </CBadge>
+          )}
+          <CButton size="sm" color="primary" onClick={() => setAddOpen(true)}>
+            <CIcon icon={cilPlus} className="me-1" />
+            Add Employee
+          </CButton>
+        </div>
+      </div>
+
+      {/* Entries list */}
+      {entries.length === 0 ? (
+        <div className="text-center py-5 text-body-secondary border rounded-3 bg-body-secondary">
+          <CIcon icon={cilMoney} style={{ width: 40, height: 40, opacity: 0.3 }} className="mb-2 d-block mx-auto" />
+          <div className="small">No core salary expenses registered yet.</div>
+          <div className="small mt-1">Click <strong>Add Employee</strong> to register an employee's salary as a core overhead expense.</div>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.875rem' }}>
+            <CTableHead className="bg-body-tertiary">
+              <CTableRow>
+                <CTableHeaderCell className="border-0 py-2 ps-3">#</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Designation</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Department</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Category</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Monthly Salary</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Notes</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2">Added</CTableHeaderCell>
+                <CTableHeaderCell className="border-0 py-2" />
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {entries.map((entry, i) => (
+                <CTableRow key={entry.id}>
+                  <CTableDataCell className="ps-3 text-body-secondary small">{i + 1}</CTableDataCell>
+                  <CTableDataCell>
+                    <div className="fw-semibold">{entry.employee_name}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{entry.employee_code}</div>
+                  </CTableDataCell>
+                  <CTableDataCell className="small">{entry.designation || '—'}</CTableDataCell>
+                  <CTableDataCell className="small">{entry.department || '—'}</CTableDataCell>
+                  <CTableDataCell>
+                    <CBadge color={CATEGORY_COLOR[entry.category] || 'secondary'} shape="rounded-pill">
+                      {entry.category || '—'}
+                    </CBadge>
+                  </CTableDataCell>
+                  <CTableDataCell className="fw-bold" style={{ color: '#4361ee' }}>
+                    {fmt(entry.salary)}
+                  </CTableDataCell>
+                  <CTableDataCell className="small text-body-secondary text-truncate" style={{ maxWidth: 150 }}>
+                    {entry.notes || '—'}
+                  </CTableDataCell>
+                  <CTableDataCell className="small text-body-secondary">
+                    {fmtDate(entry.added_at)}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-end pe-3">
+                    <CButton
+                      color="secondary" variant="ghost" size="sm" className="me-1"
+                      title="Edit"
+                      onClick={() => setEditEntry(entry)}
+                    >
+                      <CIcon icon={cilPencil} />
+                    </CButton>
+                    <CButton
+                      color="danger" variant="ghost" size="sm"
+                      title="Remove"
+                      onClick={() => handleRemove(entry.id)}
+                    >
+                      <CIcon icon={cilTrash} />
+                    </CButton>
+                  </CTableDataCell>
+                </CTableRow>
+              ))}
+            </CTableBody>
+          </CTable>
+        </div>
+      )}
+
+      <AddExpenseModal
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdd={handleAdd}
+        allEmployees={allEmployees}
+        existingIds={existingIds}
+      />
+
+      <EditExpenseModal
+        visible={!!editEntry}
+        entry={editEntry}
+        onClose={() => setEditEntry(null)}
+        onSave={(patch) => { handleEditSave(editEntry.id, patch); setEditEntry(null) }}
+      />
+    </>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+const CorePoolPage = () => {
+  const [activeTab, setActiveTab] = useState('employees')
+  const [search, setSearch] = useState('')
+  const [allEmployees, setAllEmployees] = useState([])
+
+  useEffect(() => {
+    setAllEmployees(localPayroll.getAllEmployeesWithProjectInfo())
+  }, [])
+
+  const active = allEmployees.filter((e) => e.status !== 'Deleted' && e.status !== 'Inactive')
+
+  const filtered = search.trim()
+    ? active.filter((e) => {
+        const q = search.toLowerCase()
+        return (
+          e.employee_name?.toLowerCase().includes(q) ||
+          e.employee_id?.toLowerCase().includes(q) ||
+          e.employment?.designation?.toLowerCase().includes(q) ||
+          e.employment?.department?.toLowerCase().includes(q)
+        )
+      })
+    : active
+
+  const unassigned = filtered.filter((e) => e.isOverhead)
+  const assigned = filtered.filter((e) => !e.isOverhead)
+
+  const totalUnassignedSalary = unassigned.reduce((s, e) => s + (parseFloat(e.current_salary) || 0), 0)
+  const totalAssignedSalary = assigned.reduce((s, e) => s + (parseFloat(e.current_salary) || 0), 0)
+
+  return (
+    <>
+      {/* Header */}
+      <div className="mb-4">
+        <h4 className="fw-bold mb-1">Global Core Pool</h4>
+        <p className="text-body-secondary mb-0 small">
+          Track core employee assignments and register unassigned employee salaries as overhead expenses.
+        </p>
+      </div>
+
+      {/* Summary stats */}
+      <CRow className="g-3 mb-4">
+        {[
+          { label: 'Total Employees', value: active.length, color: '#4361ee' },
+          { label: 'Unassigned (Overhead)', value: unassigned.length, color: '#f0ad4e', sub: totalUnassignedSalary > 0 ? fmt(totalUnassignedSalary) + '/mo' : null },
+          { label: 'On Projects', value: assigned.length, color: '#06d6a0', sub: totalAssignedSalary > 0 ? fmt(totalAssignedSalary) + '/mo' : null },
+          { label: 'Total Payroll', value: fmt(totalUnassignedSalary + totalAssignedSalary), color: '#9b5de5' },
+        ].map((stat) => (
+          <CCol key={stat.label} xs={6} md={3}>
+            <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
+              <CCardBody className="py-3 px-3">
+                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: stat.color }}>{stat.value}</div>
+                <div className="small text-body-secondary">{stat.label}</div>
+                {stat.sub && <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>{stat.sub}</div>}
+              </CCardBody>
+            </CCard>
+          </CCol>
+        ))}
+      </CRow>
+
+      {/* Tabs */}
+      <CNav variant="tabs" className="mb-0">
+        <CNavItem>
+          <CNavLink active={activeTab === 'employees'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('employees')}>
+            <CIcon icon={cilPeople} className="me-1" size="sm" />
+            Employees
+            <CBadge color="primary" shape="rounded-pill" className="ms-2">{active.length}</CBadge>
+          </CNavLink>
+        </CNavItem>
+        <CNavItem>
+          <CNavLink active={activeTab === 'expenses'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('expenses')}>
+            <CIcon icon={cilMoney} className="me-1" size="sm" />
+            Core Expenses
+          </CNavLink>
+        </CNavItem>
+      </CNav>
+
+      <CTabContent className="border border-top-0 rounded-bottom bg-body mb-4">
+
+        {/* ── Employees tab ── */}
+        <CTabPane visible={activeTab === 'employees'} className="p-3">
+          <CInputGroup size="sm" className="mb-4" style={{ maxWidth: 380 }}>
+            <CInputGroupText><CIcon icon={cilSearch} size="sm" /></CInputGroupText>
+            <CFormInput
+              placeholder="Search name, ID, designation, department…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <CButton color="secondary" variant="ghost" size="sm" onClick={() => setSearch('')}>
+                <CIcon icon={cilX} size="sm" />
+              </CButton>
+            )}
+          </CInputGroup>
+
+          {/* Unassigned */}
+          <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>
+            <CCardHeader className="bg-transparent border-bottom d-flex align-items-center justify-content-between py-3">
+              <div>
+                <span className="fw-semibold">Unassigned Employees</span>
+                <span className="text-body-secondary small ms-2">— not currently on any project</span>
+              </div>
+              <div className="d-flex gap-2 align-items-center flex-wrap">
+                <CBadge color="warning" shape="rounded-pill">{unassigned.length} employees</CBadge>
+                {totalUnassignedSalary > 0 && (
+                  <CBadge color="secondary" shape="rounded-pill">{fmt(totalUnassignedSalary)} / mo</CBadge>
+                )}
+              </div>
+            </CCardHeader>
+            <CCardBody className="p-0">
+              <EmployeeTable
+                employees={unassigned}
+                showProjects={false}
+                emptyIcon={cilPeople}
+                emptyText={search ? 'No unassigned employees match your search.' : 'All employees are currently assigned to projects.'}
+              />
+            </CCardBody>
+          </CCard>
+
+          {/* Assigned */}
+          <CCard className="border-0 shadow-sm" style={{ borderRadius: 12 }}>
+            <CCardHeader className="bg-transparent border-bottom d-flex align-items-center justify-content-between py-3">
+              <div>
+                <span className="fw-semibold">Project-Assigned Employees</span>
+                <span className="text-body-secondary small ms-2">— click a row to expand details</span>
+              </div>
+              <div className="d-flex gap-2 align-items-center flex-wrap">
+                <CBadge color="success" shape="rounded-pill">{assigned.length} employees</CBadge>
+                {totalAssignedSalary > 0 && (
+                  <CBadge color="secondary" shape="rounded-pill">{fmt(totalAssignedSalary)} / mo</CBadge>
+                )}
+              </div>
+            </CCardHeader>
+            <CCardBody className="p-0">
+              <EmployeeTable
+                employees={assigned}
+                showProjects={true}
+                emptyIcon={cilBriefcase}
+                emptyText={search ? 'No assigned employees match your search.' : 'No employees are currently assigned to any project.'}
+              />
+            </CCardBody>
+          </CCard>
+        </CTabPane>
+
+        {/* ── Core Expenses tab ── */}
+        <CTabPane visible={activeTab === 'expenses'} className="p-3">
+          <CoreExpensesTab allEmployees={active} />
+        </CTabPane>
+
+      </CTabContent>
+    </>
   )
 }
 
