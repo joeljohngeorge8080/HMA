@@ -82,10 +82,7 @@ const MyReportsPage = () => {
           <h4 className="mb-1 fw-semibold">My Reports</h4>
           <p className="text-body-secondary mb-0 small">{total} total reports</p>
         </div>
-        <CButton
-          color="primary"
-          onClick={() => navigate('/pms/daily-reports/new')}
-        >
+        <CButton color="primary" onClick={() => navigate('/pms/daily-reports/new')}>
           <CIcon icon={cilPlus} className="me-1" />
           New Report
         </CButton>
@@ -94,8 +91,8 @@ const MyReportsPage = () => {
       {/* Declined alert */}
       {declinedCount > 0 && (
         <CAlert color="danger" className="d-flex align-items-center gap-2 mb-3">
-          <strong>{declinedCount}</strong> report(s) were declined and need your attention.
-          Click on a declined report to edit and resubmit.
+          <strong>{declinedCount}</strong> report(s) were declined and need your attention. Click on
+          a declined report to edit and resubmit.
         </CAlert>
       )}
 

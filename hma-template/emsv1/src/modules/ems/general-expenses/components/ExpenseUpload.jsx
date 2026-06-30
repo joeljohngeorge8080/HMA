@@ -26,15 +26,31 @@ const thisYear = new Date().getFullYear()
 const thisMonth = new Date().getMonth() + 1
 
 const MONTHS = [
-  { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
-  { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
-  { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
-  { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' },
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
 ]
 
 const YEARS = [thisYear - 1, thisYear, thisYear + 1]
 
-const TEMPLATE_HEADERS = ['Category', 'Expense Name', 'Frequency', 'Planned Amount', 'Actual Amount', 'Status', 'Remarks']
+const TEMPLATE_HEADERS = [
+  'Category',
+  'Expense Name',
+  'Frequency',
+  'Planned Amount',
+  'Actual Amount',
+  'Status',
+  'Remarks',
+]
 
 const ExpenseUpload = () => {
   const navigate = useNavigate()
@@ -82,7 +98,10 @@ const ExpenseUpload = () => {
   }
 
   const handleUpload = async () => {
-    if (!file) { setError('Select an Excel file first'); return }
+    if (!file) {
+      setError('Select an Excel file first')
+      return
+    }
     setUploading(true)
     setError('')
     setResult(null)
@@ -108,7 +127,10 @@ const ExpenseUpload = () => {
   }
 
   const downloadTemplate = () => {
-    const csv = [TEMPLATE_HEADERS.join(','), 'House Rent,Office Rent,Monthly,50000,50000,Paid,'].join('\n')
+    const csv = [
+      TEMPLATE_HEADERS.join(','),
+      'House Rent,Office Rent,Monthly,50000,50000,Paid,',
+    ].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -130,13 +152,19 @@ const ExpenseUpload = () => {
       <CRow className="g-3">
         <CCol lg={7}>
           <CCard>
-            <CCardHeader><strong>Upload Excel File</strong></CCardHeader>
+            <CCardHeader>
+              <strong>Upload Excel File</strong>
+            </CCardHeader>
             <CCardBody>
-              {error && <CAlert color="danger" dismissible onClose={() => setError('')}>{error}</CAlert>}
+              {error && (
+                <CAlert color="danger" dismissible onClose={() => setError('')}>
+                  {error}
+                </CAlert>
+              )}
               {result && (
                 <CAlert color="success">
-                  <strong>{result.file_name}</strong> uploaded successfully.{' '}
-                  {result.row_count} records created.{' '}
+                  <strong>{result.file_name}</strong> uploaded successfully. {result.row_count}{' '}
+                  records created.{' '}
                   {result.error_log && (
                     <details className="mt-2">
                       <summary className="text-warning small">Some rows had errors</summary>
@@ -151,14 +179,20 @@ const ExpenseUpload = () => {
                   <CFormLabel className="fw-semibold">Month</CFormLabel>
                   <CFormSelect value={month} onChange={(e) => setMonth(parseInt(e.target.value))}>
                     {MONTHS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
                     ))}
                   </CFormSelect>
                 </CCol>
                 <CCol sm={6}>
                   <CFormLabel className="fw-semibold">Year</CFormLabel>
                   <CFormSelect value={year} onChange={(e) => setYear(parseInt(e.target.value))}>
-                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                    {YEARS.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
                   </CFormSelect>
                 </CCol>
               </CRow>
@@ -183,7 +217,11 @@ const ExpenseUpload = () => {
 
               <div className="d-flex gap-2">
                 <CButton color="primary" onClick={handleUpload} disabled={uploading || !file}>
-                  {uploading ? <CSpinner size="sm" className="me-1" /> : <CIcon icon={cilCloudUpload} className="me-1" />}
+                  {uploading ? (
+                    <CSpinner size="sm" className="me-1" />
+                  ) : (
+                    <CIcon icon={cilCloudUpload} className="me-1" />
+                  )}
                   Upload
                 </CButton>
                 <CButton color="secondary" variant="outline" onClick={downloadTemplate}>
@@ -196,7 +234,9 @@ const ExpenseUpload = () => {
 
         <CCol lg={5}>
           <CCard>
-            <CCardHeader><strong>Required Columns</strong></CCardHeader>
+            <CCardHeader>
+              <strong>Required Columns</strong>
+            </CCardHeader>
             <CCardBody>
               <p className="text-body-secondary small mb-2">
                 Your Excel file must have these columns in the first row:
@@ -205,9 +245,7 @@ const ExpenseUpload = () => {
                 {TEMPLATE_HEADERS.map((h) => (
                   <li key={h}>
                     <code>{h}</code>
-                    {h === 'Planned Amount' || h === 'Expense Name' || h === 'Category'
-                      ? ' *'
-                      : ''}
+                    {h === 'Planned Amount' || h === 'Expense Name' || h === 'Category' ? ' *' : ''}
                   </li>
                 ))}
               </ul>
@@ -228,7 +266,9 @@ const ExpenseUpload = () => {
       </CRow>
 
       <CCard className="mt-3">
-        <CCardHeader><strong>Upload History</strong></CCardHeader>
+        <CCardHeader>
+          <strong>Upload History</strong>
+        </CCardHeader>
         <CCardBody>
           <UploadHistoryTable uploads={uploads} />
         </CCardBody>

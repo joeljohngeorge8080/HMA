@@ -2,23 +2,94 @@ import { ROLES, ROLE } from '../constants/roles'
 
 const STORAGE_KEY = 'hma_registered_users'
 
-const defaultUsers = [
+// These users are always present regardless of what's in localStorage.
+// The id must stay fixed so duplicates are not created on subsequent loads.
+// PASSWORD_LOGINS are checked before the backend — Employee ID + password
+// login works without a backend account for these entries.
+const SEEDED_USERS = [
   {
     id: 'USR000',
     full_name: 'HMA Admin',
     google_email: 'hllmangementacademyems@gmail.com',
     role: ROLE.ADMIN,
     added_by: 'system',
-    added_at: new Date().toISOString(),
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_001',
+    full_name: 'Developer Admin 1',
+    google_email: 'dev.admin1@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_002',
+    full_name: 'Developer Admin 2',
+    google_email: 'dev.admin2@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_003',
+    full_name: 'Developer Admin 3',
+    google_email: 'dev.admin3@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_004',
+    full_name: 'Developer Admin 4',
+    google_email: 'dev.admin4@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'DEV_ADMIN_005',
+    full_name: 'Developer Admin 5',
+    google_email: 'dev.admin5@gmail.com',
+    role: ROLE.ADMIN,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
   },
 ]
+
+// Local password accounts — checked before the backend on Employee ID login.
+// These bypass the backend entirely (all app data is localStorage-based).
+const PASSWORD_LOGINS = [
+  { employee_id: 'ADMIN001', password: 'HmaAdmin@1', user_id: 'DEV_ADMIN_001' },
+  { employee_id: 'ADMIN002', password: 'HmaAdmin@2', user_id: 'DEV_ADMIN_002' },
+  { employee_id: 'ADMIN003', password: 'HmaAdmin@3', user_id: 'DEV_ADMIN_003' },
+  { employee_id: 'ADMIN004', password: 'HmaAdmin@4', user_id: 'DEV_ADMIN_004' },
+  { employee_id: 'ADMIN005', password: 'HmaAdmin@5', user_id: 'DEV_ADMIN_005' },
+]
+
+export const verifyPasswordLogin = (employeeId, password) => {
+  const entry = PASSWORD_LOGINS.find((p) => p.employee_id === employeeId && p.password === password)
+  if (!entry) return null
+  const seeded = SEEDED_USERS.find((u) => u.id === entry.user_id)
+  if (!seeded) return null
+  return {
+    employee_id: entry.employee_id,
+    full_name: seeded.full_name,
+    role: seeded.role,
+    google_email: seeded.google_email,
+  }
+}
 
 const load = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : defaultUsers
+    const stored = raw ? JSON.parse(raw) : []
+    // Always merge seeded users so they survive localStorage clears and fresh deploys
+    const storedIds = new Set(stored.map((u) => u.id))
+    const missing = SEEDED_USERS.filter((u) => !storedIds.has(u.id))
+    return [...missing, ...stored]
   } catch {
-    return defaultUsers
+    return SEEDED_USERS
   }
 }
 
@@ -28,9 +99,7 @@ export const getRegisteredUsers = () => load()
 
 export const addRegisteredUser = (user) => {
   const users = load()
-  const exists = users.some(
-    (u) => u.google_email.toLowerCase() === user.google_email.toLowerCase(),
-  )
+  const exists = users.some((u) => u.google_email.toLowerCase() === user.google_email.toLowerCase())
   if (exists) throw new Error('A user with this Google email is already registered.')
   const newUser = {
     id: `USR${Date.now()}`,

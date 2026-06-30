@@ -11,16 +11,24 @@
  */
 
 const EMPLOYEES_KEY = 'hma_employees'
-const PROJECTS_KEY  = 'hma_projects_v8'
+const PROJECTS_KEY = 'hma_projects_v8'
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
 
 const readEmployees = () => {
-  try { return JSON.parse(localStorage.getItem(EMPLOYEES_KEY) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(EMPLOYEES_KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 
 const readProjects = () => {
-  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -62,34 +70,34 @@ export const localPayroll = {
    */
   getAllEmployeesWithProjectInfo() {
     const employees = readEmployees().filter((e) => e.status !== 'Deleted')
-    const projects  = readProjects()
+    const projects = readProjects()
 
     return employees.map((emp) => {
-      const activeAssignments = (emp.project_assignments || []).filter(
-        (a) => a.status === 'Active',
-      )
+      const activeAssignments = (emp.project_assignments || []).filter((a) => a.status === 'Active')
 
       // Try to resolve project ids from the projects store by matching project name
       const activeProjectNames = activeAssignments.map((a) => a.project_name || '')
-      const activeProjectIds = activeProjectNames.map((name) => {
-        const match = projects.find(
-          (p) => (p.title || p.name || '').toLowerCase() === name.toLowerCase(),
-        )
-        return match?.id || null
-      }).filter(Boolean)
+      const activeProjectIds = activeProjectNames
+        .map((name) => {
+          const match = projects.find(
+            (p) => (p.title || p.name || '').toLowerCase() === name.toLowerCase(),
+          )
+          return match?.id || null
+        })
+        .filter(Boolean)
 
       const activeProjectValues = activeProjectIds.map((pid) => {
         const p = projects.find((pr) => pr.id === pid)
-        return p ? (p.project_valuation || p.project_value || 0) : 0
+        return p ? p.project_valuation || p.project_value || 0 : 0
       })
 
       return {
         ...emp,
-        activeProjectCount:  activeAssignments.length,
+        activeProjectCount: activeAssignments.length,
         activeProjectNames,
         activeProjectIds,
         activeProjectValues,
-        isOverhead:          activeAssignments.length === 0,
+        isOverhead: activeAssignments.length === 0,
       }
     })
   },
@@ -99,12 +107,12 @@ export const localPayroll = {
    * Matches by project title/name (case-insensitive) stored in project_assignments.
    */
   getProjectEmployees(projectId) {
-    const projects  = readProjects()
-    const project   = projects.find((p) => p.id === projectId)
+    const projects = readProjects()
+    const project = projects.find((p) => p.id === projectId)
     if (!project) return []
 
     const projectName = (project.title || project.name || '').toLowerCase()
-    const employees   = readEmployees().filter((e) => e.status !== 'Deleted')
+    const employees = readEmployees().filter((e) => e.status !== 'Deleted')
 
     return employees.filter((emp) =>
       (emp.project_assignments || []).some(
@@ -127,12 +135,12 @@ export const localPayroll = {
    * @returns {Array<{ employee, monthlyShare, projectMonths, totalDeduction, allActiveProjects, allMonthlyRates }>}
    */
   computeCoreDeductions(projectId) {
-    const projects    = readProjects()
+    const projects = readProjects()
     const thisProject = projects.find((p) => p.id === projectId)
     if (!thisProject) return []
 
     const projectName = (thisProject.title || thisProject.name || '').toLowerCase()
-    const employees   = readEmployees().filter((e) => e.status !== 'Deleted')
+    const employees = readEmployees().filter((e) => e.status !== 'Deleted')
     const projectMonths = Math.max(monthsBetween(thisProject.start_date, thisProject.end_date), 1)
 
     const getMonthlyRate = (proj) => {
@@ -143,9 +151,7 @@ export const localPayroll = {
     const deductions = []
 
     employees.forEach((emp) => {
-      const activeAssignments = (emp.project_assignments || []).filter(
-        (a) => a.status === 'Active',
-      )
+      const activeAssignments = (emp.project_assignments || []).filter((a) => a.status === 'Active')
       const isOnThisProject = activeAssignments.some(
         (a) => (a.project_name || '').toLowerCase() === projectName,
       )
@@ -155,8 +161,8 @@ export const localPayroll = {
       if (salary <= 0) return
 
       // Build monthly-rate weights for all projects this employee works on
-      const allActiveNames    = activeAssignments.map((a) => a.project_name || '')
-      const allMonthlyRates   = allActiveNames.map((name) => {
+      const allActiveNames = activeAssignments.map((a) => a.project_name || '')
+      const allMonthlyRates = allActiveNames.map((name) => {
         const match = projects.find(
           (p) => (p.title || p.name || '').toLowerCase() === name.toLowerCase(),
         )
@@ -164,11 +170,9 @@ export const localPayroll = {
       })
 
       // Position of THIS project in the employee's active list
-      const thisIdx = allActiveNames.findIndex(
-        (name) => name.toLowerCase() === projectName,
-      )
+      const thisIdx = allActiveNames.findIndex((name) => name.toLowerCase() === projectName)
 
-      const splits       = localPayroll.splitSalaryByProject(salary, allMonthlyRates)
+      const splits = localPayroll.splitSalaryByProject(salary, allMonthlyRates)
       const monthlyShare = splits[thisIdx] ?? salary
       const totalDeduction = monthlyShare * projectMonths
 
@@ -177,7 +181,7 @@ export const localPayroll = {
         salary,
         allActiveProjects: allActiveNames,
         allMonthlyRates: allMonthlyRates.map((r) => Math.round(r * 100) / 100),
-        monthlyShare:    Math.round(monthlyShare * 100) / 100,
+        monthlyShare: Math.round(monthlyShare * 100) / 100,
         projectMonths: projectMonths,
         totalDeduction: Math.round(totalDeduction * 100) / 100,
       })
@@ -193,15 +197,16 @@ export const localPayroll = {
   suggestRecurringAmount(projectId, recurringType) {
     const projects = readProjects()
     const project = projects.find((p) => p.id === projectId)
-    if (!project || !project.admin_expenses) return { suggested: null, prevAmount: null, trend: null }
-    
+    if (!project || !project.admin_expenses)
+      return { suggested: null, prevAmount: null, trend: null }
+
     // Find the latest recurring expense of this type
     const expenses = [...project.admin_expenses].reverse()
     const prevExp = expenses.find((e) => e.is_recurring && e.recurring_type === recurringType)
-    
+
     if (prevExp && prevExp.amount > 0) {
-      const prev      = parseFloat(prevExp.amount)
-      const variance  = prev * 0.05
+      const prev = parseFloat(prevExp.amount)
+      const variance = prev * 0.05
       // Suggest +5% (standard escalation); user can adjust
       const suggested = Math.round((prev + variance) * 100) / 100
       return { suggested, prevAmount: prev, trend: 'up' }
@@ -219,13 +224,13 @@ export const localPayroll = {
 
     const deductions = localPayroll.computeCoreDeductions(projectId)
     const projectValue = project.project_valuation || project.project_value || 0
-    const allocated  = projectValue * ((project.core_pct ?? 5) / 100)
-    const used       = deductions.reduce((s, d) => s + d.totalDeduction, 0)
-    const remaining  = allocated - used
+    const allocated = projectValue * ((project.core_pct ?? 5) / 100)
+    const used = deductions.reduce((s, d) => s + d.totalDeduction, 0)
+    const remaining = allocated - used
 
     return {
       allocated: Math.round(allocated * 100) / 100,
-      used:      Math.round(used * 100) / 100,
+      used: Math.round(used * 100) / 100,
       remaining: Math.round(remaining * 100) / 100,
       deductions,
     }

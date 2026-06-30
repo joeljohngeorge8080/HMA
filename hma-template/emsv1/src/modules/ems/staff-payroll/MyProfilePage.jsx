@@ -54,9 +54,7 @@ const MyProfilePage = () => {
         if (empId) {
           const { items } = localEmployees.list({ search: empId, pageSize: 5 })
           // Exact match on employee_id (search is a substring match, so confirm)
-          const found = items.find(
-            (e) => e.employee_id?.toLowerCase() === empId.toLowerCase(),
-          )
+          const found = items.find((e) => e.employee_id?.toLowerCase() === empId.toLowerCase())
           if (found) {
             setProfile(found)
             if (found.photo_url) setPhoto(found.photo_url)
@@ -96,12 +94,7 @@ const MyProfilePage = () => {
       <CCard>
         {/* Header — name, ID, photo (view-only) */}
         <div className="p-3 border-bottom d-flex align-items-center gap-3">
-          <ProfilePhotoUpload
-            photo={photo}
-            name={fullName}
-            size={56}
-            canEdit={false}
-          />
+          <ProfilePhotoUpload photo={photo} name={fullName} size={56} canEdit={false} />
           <div>
             <div className="fw-semibold fs-5">{fullName}</div>
             <div className="text-body-secondary small">
@@ -111,7 +104,7 @@ const MyProfilePage = () => {
                 : profile.designation
                   ? ` · ${profile.designation}`
                   : ''}
-              {(profile.employment?.department || profile.department)
+              {profile.employment?.department || profile.department
                 ? ` · ${profile.employment?.department || profile.department}`
                 : ''}
             </div>
@@ -135,11 +128,7 @@ const MyProfilePage = () => {
 
           <CTabContent className="p-3">
             <CTabPane visible={activeTab === 'address'}>
-              <AddressTab
-                employeeId={profile.id}
-                addresses={profile.addresses}
-                canEdit={false}
-              />
+              <AddressTab employeeId={profile.id} addresses={profile.addresses} canEdit={false} />
             </CTabPane>
             <CTabPane visible={activeTab === 'govids'}>
               <GovernmentIdsTab

@@ -23,7 +23,15 @@ import { cilPlus, cilPencil, cilTrash, cilSave, cilX } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 
 const GlobalHRPoolPage = () => {
-  const [form, setForm] = useState({ vendor: '', label: '', frequency: 'Monthly', yearly_price: '', amount: '', date: '', notes: '' })
+  const [form, setForm] = useState({
+    vendor: '',
+    label: '',
+    frequency: 'Monthly',
+    yearly_price: '',
+    amount: '',
+    date: '',
+    notes: '',
+  })
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -39,9 +47,11 @@ const GlobalHRPoolPage = () => {
   }, [])
 
   const fmt2 = (n) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
-      n || 0,
-    )
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(n || 0)
   const fmtDate = (d) =>
     d
       ? new Date(d).toLocaleDateString('en-IN', {
@@ -82,7 +92,15 @@ const GlobalHRPoolPage = () => {
   const handleAdd = () => {
     if (!form.label || !form.amount) return
     localOrgPool.addHRExpense(form, 'global')
-    setForm({ vendor: '', label: '', frequency: 'Monthly', yearly_price: '', amount: '', date: '', notes: '' })
+    setForm({
+      vendor: '',
+      label: '',
+      frequency: 'Monthly',
+      yearly_price: '',
+      amount: '',
+      date: '',
+      notes: '',
+    })
     setAdding(false)
     setPreviewAllocs([])
     reload()
@@ -104,10 +122,12 @@ const GlobalHRPoolPage = () => {
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1 fw-bold">Global HR Expense Pool</h4>
-          <p className="text-body-secondary mb-0 small">Organisation-wide HR expenses distributed across projects.</p>
+          <p className="text-body-secondary mb-0 small">
+            Organisation-wide HR expenses distributed across projects.
+          </p>
         </div>
       </div>
-      
+
       <CCard className="shadow-sm border-top border-4 border-top-success mb-4">
         <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
           <span>Manage Organization-Wide HR Expenses</span>
@@ -174,26 +194,33 @@ const GlobalHRPoolPage = () => {
                   </CInputGroup>
                 </CCol>
               </CRow>
-              
+
               {previewAllocs.length > 0 && (
                 <div
                   className="mb-3 p-3 rounded bg-success bg-opacity-10 border border-success"
                   style={{ fontSize: '0.85rem' }}
                 >
-                  <div className="fw-semibold text-success mb-2">Allocation Preview Across Active Projects</div>
+                  <div className="fw-semibold text-success mb-2">
+                    Allocation Preview Across Active Projects
+                  </div>
                   <CRow className="g-2">
                     {previewAllocs.map((a) => (
                       <CCol xs={12} md={6} lg={4} key={a.projectId}>
                         <div className="d-flex justify-content-between text-body-secondary bg-body-secondary p-2 rounded border">
-                          <span className="fw-medium text-truncate me-2" title={a.projectName}>{a.projectName}</span>
-                          <span className="text-nowrap">{a.sharePct}% → <strong className="text-success">{fmt2(a.amountCharged)}</strong></span>
+                          <span className="fw-medium text-truncate me-2" title={a.projectName}>
+                            {a.projectName}
+                          </span>
+                          <span className="text-nowrap">
+                            {a.sharePct}% →{' '}
+                            <strong className="text-success">{fmt2(a.amountCharged)}</strong>
+                          </span>
                         </div>
                       </CCol>
                     ))}
                   </CRow>
                 </div>
               )}
-              
+
               <div className="d-flex gap-2">
                 <CButton size="sm" color="success" onClick={handleAdd}>
                   Add &amp; Distribute Expense
@@ -261,7 +288,9 @@ const GlobalHRPoolPage = () => {
                           <CFormSelect
                             size="sm"
                             value={editForm.frequency}
-                            onChange={(e) => setEditForm((f) => ({ ...f, frequency: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, frequency: e.target.value }))
+                            }
                           >
                             <option value="Monthly">Monthly</option>
                             <option value="Quarterly">Quarterly</option>
@@ -286,10 +315,23 @@ const GlobalHRPoolPage = () => {
                           />
                         </CTableDataCell>
                         <CTableDataCell>
-                          <CButton size="sm" color="primary" variant="ghost" className="me-1" onClick={handleEditSave} title="Save">
+                          <CButton
+                            size="sm"
+                            color="primary"
+                            variant="ghost"
+                            className="me-1"
+                            onClick={handleEditSave}
+                            title="Save"
+                          >
                             <CIcon icon={cilSave} />
                           </CButton>
-                          <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)} title="Cancel">
+                          <CButton
+                            size="sm"
+                            color="secondary"
+                            variant="ghost"
+                            onClick={() => setEditId(null)}
+                            title="Cancel"
+                          >
                             <CIcon icon={cilX} />
                           </CButton>
                         </CTableDataCell>
@@ -300,8 +342,12 @@ const GlobalHRPoolPage = () => {
                         <CTableDataCell className="text-start">{exp.vendor || '-'}</CTableDataCell>
                         <CTableDataCell className="text-start">{exp.label}</CTableDataCell>
                         <CTableDataCell>{exp.frequency || 'Monthly'}</CTableDataCell>
-                        <CTableDataCell>{exp.yearly_price ? fmt2(exp.yearly_price) : '-'}</CTableDataCell>
-                        <CTableDataCell className="fw-semibold text-success">{fmt2(exp.amount)}</CTableDataCell>
+                        <CTableDataCell>
+                          {exp.yearly_price ? fmt2(exp.yearly_price) : '-'}
+                        </CTableDataCell>
+                        <CTableDataCell className="fw-semibold text-success">
+                          {fmt2(exp.amount)}
+                        </CTableDataCell>
                         <CTableDataCell>
                           <CButton
                             color="secondary"

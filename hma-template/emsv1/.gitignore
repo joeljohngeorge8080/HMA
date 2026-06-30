@@ -9,7 +9,7 @@ yarn.lock
 /coverage
 
 # production
-/build
+# /build — committed to repo so Netlify serves pre-built output directly
 
 # misc
 .eslintcache

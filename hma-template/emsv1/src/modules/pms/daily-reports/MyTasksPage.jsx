@@ -36,7 +36,7 @@ const MyTasksPage = () => {
   const loadData = useCallback(() => {
     // Seed both data stores
     localProjects.seedDemoData()
-    
+
     // Find all projects this FP belongs to (by email)
     const projects = localProjects.getByPersonnelEmail(CURRENT_FP_EMAIL)
     setMyProjects(projects)
@@ -77,7 +77,8 @@ const MyTasksPage = () => {
         <div>
           <h4 className="mb-1 fw-semibold">My Tasks</h4>
           <p className="text-body-secondary mb-0 small">
-            Tasks from {myProjects.length} project{myProjects.length !== 1 ? 's' : ''} you are assigned to
+            Tasks from {myProjects.length} project{myProjects.length !== 1 ? 's' : ''} you are
+            assigned to
             {totalActive > 0 && ` · ${totalActive} active`}
           </p>
         </div>
@@ -96,7 +97,8 @@ const MyTasksPage = () => {
 
       {myProjects.length === 0 ? (
         <CAlert color="info">
-          You are not assigned to any projects yet. Contact your Project Officer to be added to a project team.
+          You are not assigned to any projects yet. Contact your Project Officer to be added to a
+          project team.
         </CAlert>
       ) : Object.keys(tasksByProject).length === 0 ? (
         <CCard className="shadow-sm">
@@ -106,7 +108,9 @@ const MyTasksPage = () => {
             </div>
             <h5 className="text-body-secondary">No tasks found</h5>
             <p className="text-body-tertiary">
-              {statusFilter ? 'No tasks match this filter.' : 'Your project teams have no tasks yet.'}
+              {statusFilter
+                ? 'No tasks match this filter.'
+                : 'Your project teams have no tasks yet.'}
             </p>
           </CCardBody>
         </CCard>

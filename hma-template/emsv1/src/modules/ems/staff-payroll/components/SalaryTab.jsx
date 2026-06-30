@@ -286,8 +286,11 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
                   <CRow>
                     <CCol xs={6}>
                       <small className="text-body-secondary">Difference</small>
-                      <p className={`mb-0 fw-semibold ${editDiff >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {editDiff >= 0 ? '+' : ''}₹{Math.abs(editDiff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      <p
+                        className={`mb-0 fw-semibold ${editDiff >= 0 ? 'text-success' : 'text-danger'}`}
+                      >
+                        {editDiff >= 0 ? '+' : ''}₹
+                        {Math.abs(editDiff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
                     </CCol>
                     <CCol xs={6}>
@@ -325,7 +328,11 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
             </div>
           </CModalBody>
           <CModalFooter>
-            <CButton color="secondary" onClick={() => setShowEditModal(false)} disabled={editSubmitting}>
+            <CButton
+              color="secondary"
+              onClick={() => setShowEditModal(false)}
+              disabled={editSubmitting}
+            >
               Cancel
             </CButton>
             <CButton color="primary" type="submit" disabled={editSubmitting}>

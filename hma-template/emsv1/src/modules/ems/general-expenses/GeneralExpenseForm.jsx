@@ -27,10 +27,18 @@ const thisYear = new Date().getFullYear()
 const thisMonth = new Date().getMonth() + 1
 
 const MONTHS = [
-  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' },
-  { v: 4, l: 'April' }, { v: 5, l: 'May' }, { v: 6, l: 'June' },
-  { v: 7, l: 'July' }, { v: 8, l: 'August' }, { v: 9, l: 'September' },
-  { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+  { v: 1, l: 'January' },
+  { v: 2, l: 'February' },
+  { v: 3, l: 'March' },
+  { v: 4, l: 'April' },
+  { v: 5, l: 'May' },
+  { v: 6, l: 'June' },
+  { v: 7, l: 'July' },
+  { v: 8, l: 'August' },
+  { v: 9, l: 'September' },
+  { v: 10, l: 'October' },
+  { v: 11, l: 'November' },
+  { v: 12, l: 'December' },
 ]
 
 const YEARS = [thisYear - 2, thisYear - 1, thisYear, thisYear + 1]
@@ -120,14 +128,23 @@ const GeneralExpenseForm = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }))
 
-  const variance = form.actual_amount !== '' && form.planned_amount !== ''
-    ? parseFloat((parseFloat(form.actual_amount || 0) - parseFloat(form.planned_amount || 0)).toFixed(2))
-    : null
+  const variance =
+    form.actual_amount !== '' && form.planned_amount !== ''
+      ? parseFloat(
+          (parseFloat(form.actual_amount || 0) - parseFloat(form.planned_amount || 0)).toFixed(2),
+        )
+      : null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.category_id) { setError('Select a category'); return }
-    if (!form.expense_name.trim()) { setError('Expense name is required'); return }
+    if (!form.category_id) {
+      setError('Select a category')
+      return
+    }
+    if (!form.expense_name.trim()) {
+      setError('Expense name is required')
+      return
+    }
     if (form.planned_amount === '' || isNaN(parseFloat(form.planned_amount))) {
       setError('Planned amount is required')
       return
@@ -171,7 +188,12 @@ const GeneralExpenseForm = () => {
     }
   }
 
-  if (loading) return <div className="text-center py-5"><CSpinner /></div>
+  if (loading)
+    return (
+      <div className="text-center py-5">
+        <CSpinner />
+      </div>
+    )
 
   return (
     <>
@@ -187,7 +209,11 @@ const GeneralExpenseForm = () => {
           <strong>{isEdit ? 'Edit' : 'New'} General Expense</strong>
         </CCardHeader>
         <CCardBody>
-          {error && <CAlert color="danger" dismissible onClose={() => setError('')}>{error}</CAlert>}
+          {error && (
+            <CAlert color="danger" dismissible onClose={() => setError('')}>
+              {error}
+            </CAlert>
+          )}
 
           <CForm onSubmit={handleSubmit}>
             <CRow className="g-3">
@@ -202,7 +228,9 @@ const GeneralExpenseForm = () => {
                 >
                   <option value="">Select category…</option>
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
                   ))}
                 </CFormSelect>
               </CCol>
@@ -221,22 +249,43 @@ const GeneralExpenseForm = () => {
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Month</CFormLabel>
-                <CFormSelect value={form.month} onChange={(e) => set('month', parseInt(e.target.value))}>
-                  {MONTHS.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
+                <CFormSelect
+                  value={form.month}
+                  onChange={(e) => set('month', parseInt(e.target.value))}
+                >
+                  {MONTHS.map((m) => (
+                    <option key={m.v} value={m.v}>
+                      {m.l}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Year</CFormLabel>
-                <CFormSelect value={form.year} onChange={(e) => set('year', parseInt(e.target.value))}>
-                  {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                <CFormSelect
+                  value={form.year}
+                  onChange={(e) => set('year', parseInt(e.target.value))}
+                >
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
               <CCol sm={4}>
                 <CFormLabel className="fw-semibold">Frequency</CFormLabel>
-                <CFormSelect value={form.frequency} onChange={(e) => set('frequency', e.target.value)}>
-                  {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
+                <CFormSelect
+                  value={form.frequency}
+                  onChange={(e) => set('frequency', e.target.value)}
+                >
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -283,7 +332,11 @@ const GeneralExpenseForm = () => {
               <CCol sm={6}>
                 <CFormLabel className="fw-semibold">Status</CFormLabel>
                 <CFormSelect value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
 
@@ -300,7 +353,11 @@ const GeneralExpenseForm = () => {
 
             <div className="d-flex gap-2 mt-4">
               <CButton type="submit" color="primary" disabled={saving}>
-                {saving ? <CSpinner size="sm" className="me-1" /> : <CIcon icon={cilSave} className="me-1" />}
+                {saving ? (
+                  <CSpinner size="sm" className="me-1" />
+                ) : (
+                  <CIcon icon={cilSave} className="me-1" />
+                )}
                 {isEdit ? 'Save Changes' : 'Create Expense'}
               </CButton>
               <CButton

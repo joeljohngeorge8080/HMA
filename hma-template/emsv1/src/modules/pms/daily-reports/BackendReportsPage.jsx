@@ -152,7 +152,12 @@ const BackendReportsPage = () => {
             {reports.length} approved reports • Total: {formatCurrency(totalAmount)}
           </p>
         </div>
-        <CButton color="success" variant="outline" onClick={handleExportCSV} disabled={reports.length === 0}>
+        <CButton
+          color="success"
+          variant="outline"
+          onClick={handleExportCSV}
+          disabled={reports.length === 0}
+        >
           <CIcon icon={cilSpreadsheet} className="me-1" />
           Export CSV
         </CButton>

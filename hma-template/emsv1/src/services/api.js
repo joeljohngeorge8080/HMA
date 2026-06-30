@@ -21,8 +21,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const token = store.getState().token
-      // Dev tokens are not real JWTs — ignore 401s so the dev session stays alive
-      if (!token || token.startsWith('dev-')) {
+      // Dev and local tokens are not real JWTs — ignore 401s so the session stays alive
+      if (!token || token.startsWith('dev-') || token.startsWith('local-')) {
         return Promise.reject(error)
       }
       localStorage.removeItem('hma_token')

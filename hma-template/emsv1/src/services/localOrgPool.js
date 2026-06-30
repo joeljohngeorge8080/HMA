@@ -25,16 +25,24 @@ const PROJECTS_KEY = 'hma_projects_v9'
 const ORG_POOL_KEY = 'hma_org_pool_v1'
 
 // ─── Fixed allocation constants ───────────────────────────────────────────────
-const ADMIN_PCT    = 5    // % of installment → admin overhead (unchanged)
+const ADMIN_PCT = 5 // % of installment → admin overhead (unchanged)
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 
 const readProjects = () => {
-  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 
 const readPool = () => {
-  try { return JSON.parse(localStorage.getItem(ORG_POOL_KEY) || '{}') } catch { return {} }
+  try {
+    return JSON.parse(localStorage.getItem(ORG_POOL_KEY) || '{}')
+  } catch {
+    return {}
+  }
 }
 
 const writePool = (data) => localStorage.setItem(ORG_POOL_KEY, JSON.stringify(data))
@@ -57,8 +65,7 @@ const monthsBetween = (start, end) => {
  * Total duration of a project in months (start_date → end_date, inclusive).
  * Falls back to 1 if either date is missing.
  */
-const totalProjectMonths = (project) =>
-  monthsBetween(project.start_date, project.end_date)
+const totalProjectMonths = (project) => monthsBetween(project.start_date, project.end_date)
 
 /**
  * Returns the installment covering today, or the last installment as a fallback.
@@ -91,16 +98,16 @@ const projectValue = (p) => p.project_value || p.project_valuation || 0
  * @returns {{ monthlyBudget, totalPoolBudget, totalProjectMonths, budgetNotForeseen, pct }}
  */
 const computeHRCoreMonthly = (project, inst, poolType = 'hr') => {
-  const pv         = projectValue(project)
-  const instEnd    = inst.end_date || inst.target_date || ''
+  const pv = projectValue(project)
+  const instEnd = inst.end_date || inst.target_date || ''
   const instMonths = monthsBetween(inst.start_date, instEnd)
   const pct = poolType === 'core' ? (project.core_pct ?? 5) : (project.hr_pct ?? 5)
 
   if (pv > 0) {
     const tpm = totalProjectMonths(project)
     return {
-      monthlyBudget:     Math.round((pv * (pct / 100)) / tpm * 100) / 100,
-      totalPoolBudget:   Math.round(pv * (pct / 100) * 100) / 100,
+      monthlyBudget: Math.round(((pv * (pct / 100)) / tpm) * 100) / 100,
+      totalPoolBudget: Math.round(pv * (pct / 100) * 100) / 100,
       totalProjectMonths: tpm,
       budgetNotForeseen: false,
       pct,
@@ -110,8 +117,8 @@ const computeHRCoreMonthly = (project, inst, poolType = 'hr') => {
   // Fallback — project value unknown
   const fallbackPool = inst.amount * (pct / 100)
   return {
-    monthlyBudget:     Math.round((fallbackPool / instMonths) * 100) / 100,
-    totalPoolBudget:   Math.round(fallbackPool * 100) / 100,
+    monthlyBudget: Math.round((fallbackPool / instMonths) * 100) / 100,
+    totalPoolBudget: Math.round(fallbackPool * 100) / 100,
     totalProjectMonths: instMonths,
     budgetNotForeseen: true,
     pct,
@@ -144,37 +151,42 @@ export const localOrgPool = {
         const inst = getCurrentInstallment(p)
         if (!inst) return null
 
-        const endField   = inst.end_date || inst.target_date || ''
+        const endField = inst.end_date || inst.target_date || ''
         const instMonths = monthsBetween(inst.start_date, endField)
 
-        const { monthlyBudget, totalPoolBudget, totalProjectMonths: tpm, budgetNotForeseen, pct } =
-          computeHRCoreMonthly(p, inst, pool)
+        const {
+          monthlyBudget,
+          totalPoolBudget,
+          totalProjectMonths: tpm,
+          budgetNotForeseen,
+          pct,
+        } = computeHRCoreMonthly(p, inst, pool)
 
         return {
-          projectId:         p.id,
-          projectName:       p.title || p.name,
-          installmentId:     inst.id,
-          installmentLabel:  inst.label,
-          installmentStart:  inst.start_date,
-          installmentEnd:    endField,
+          projectId: p.id,
+          projectName: p.title || p.name,
+          installmentId: inst.id,
+          installmentLabel: inst.label,
+          installmentStart: inst.start_date,
+          installmentEnd: endField,
           installmentAmount: inst.amount,
           pct,
           instMonths,
           totalProjectMonths: tpm,
-          poolBudget:        totalPoolBudget,
+          poolBudget: totalPoolBudget,
           monthlyBudget,
           budgetNotForeseen,
-          sharePct:          0,   // filled in below
+          sharePct: 0, // filled in below
         }
       })
       .filter(Boolean)
 
-    const total        = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
     const totalRounded = Math.round(total * 100) / 100
 
     return budgets.map((b) => ({
       ...b,
-      sharePct:        total > 0 ? Math.round((b.monthlyBudget / total) * 10000) / 100 : 0,
+      sharePct: total > 0 ? Math.round((b.monthlyBudget / total) * 10000) / 100 : 0,
       totalMonthlyPool: totalRounded,
     }))
   },
@@ -196,10 +208,10 @@ export const localOrgPool = {
    */
   getProjectInstallmentBudgets(projectId, pool = 'hr') {
     const projects = readProjects()
-    const p        = projects.find((pr) => pr.id === projectId)
+    const p = projects.find((pr) => pr.id === projectId)
     if (!p) return []
 
-    const pv  = projectValue(p)
+    const pv = projectValue(p)
     const tpm = totalProjectMonths(p)
     const globalBudgetNotForeseen = pv === 0
 
@@ -209,14 +221,14 @@ export const localOrgPool = {
     // HR/Core monthly is the same every month across the whole project
     const globalHRMonthly = globalBudgetNotForeseen
       ? null
-      : Math.round((pv * (hrPct / 100)) / tpm * 100) / 100
+      : Math.round(((pv * (hrPct / 100)) / tpm) * 100) / 100
 
     const globalCoreMonthly = globalBudgetNotForeseen
       ? null
-      : Math.round((pv * (corePct / 100)) / tpm * 100) / 100
+      : Math.round(((pv * (corePct / 100)) / tpm) * 100) / 100
 
     return (p.installments || []).map((inst) => {
-      const endField   = inst.end_date || inst.target_date || ''
+      const endField = inst.end_date || inst.target_date || ''
       const instMonths = monthsBetween(inst.start_date, endField)
 
       // Project spend receives the remaining percentage
@@ -230,11 +242,11 @@ export const localOrgPool = {
       let hrMonthlyBudget, coreMonthlyBudget, budgetNotForeseen
       if (globalBudgetNotForeseen) {
         // Fallback: hrPct / corePct of installment ÷ installment months
-        hrMonthlyBudget   = Math.round(inst.amount * (hrPct / 100) / instMonths * 100) / 100
-        coreMonthlyBudget = Math.round(inst.amount * (corePct / 100) / instMonths * 100) / 100
+        hrMonthlyBudget = Math.round(((inst.amount * (hrPct / 100)) / instMonths) * 100) / 100
+        coreMonthlyBudget = Math.round(((inst.amount * (corePct / 100)) / instMonths) * 100) / 100
         budgetNotForeseen = true
       } else {
-        hrMonthlyBudget   = globalHRMonthly
+        hrMonthlyBudget = globalHRMonthly
         coreMonthlyBudget = globalCoreMonthly
         budgetNotForeseen = false
       }
@@ -247,19 +259,22 @@ export const localOrgPool = {
         while (cy < ey || (cy === ey && cm <= em)) {
           monthList.push(`${cy}-${String(cm).padStart(2, '0')}`)
           cm++
-          if (cm > 12) { cm = 1; cy++ }
+          if (cm > 12) {
+            cm = 1
+            cy++
+          }
         }
       }
 
       return {
         // Identifiers
-        installmentId:    inst.id,
+        installmentId: inst.id,
         installmentLabel: inst.label,
         installmentStart: inst.start_date,
-        installmentEnd:   endField,
+        installmentEnd: endField,
         installmentAmount: inst.amount,
-        percentage:       inst.percentage,
-        ucStatus:         inst.uc_status,
+        percentage: inst.percentage,
+        ucStatus: inst.uc_status,
 
         // Duration
         instMonths,
@@ -267,12 +282,14 @@ export const localOrgPool = {
         monthList,
 
         // Budget breakdown
-        projectBudget,          // remaining % of installment — PO designs this
-        adminBudget,            // 5%  of installment
-        hrMonthlyBudget,        // hrPct of project_value ÷ total months
-        coreMonthlyBudget,      // corePct of project_value ÷ total months
-        hrPoolTotal:   globalBudgetNotForeseen ? null : Math.round(pv * (hrPct / 100) * 100) / 100,
-        corePoolTotal: globalBudgetNotForeseen ? null : Math.round(pv * (corePct / 100) * 100) / 100,
+        projectBudget, // remaining % of installment — PO designs this
+        adminBudget, // 5%  of installment
+        hrMonthlyBudget, // hrPct of project_value ÷ total months
+        coreMonthlyBudget, // corePct of project_value ÷ total months
+        hrPoolTotal: globalBudgetNotForeseen ? null : Math.round(pv * (hrPct / 100) * 100) / 100,
+        corePoolTotal: globalBudgetNotForeseen
+          ? null
+          : Math.round(pv * (corePct / 100) * 100) / 100,
         pct: pool === 'core' ? corePct : hrPct,
         hrPct,
         corePct,
@@ -284,7 +301,7 @@ export const localOrgPool = {
         budgetDesignedByOfficer: inst.budget_designed_by_officer || null,
 
         // Legacy compat fields used by old visualiser
-        poolBudget:    (pool === 'core' ? coreMonthlyBudget : hrMonthlyBudget) * instMonths,
+        poolBudget: (pool === 'core' ? coreMonthlyBudget : hrMonthlyBudget) * instMonths,
         monthlyBudget: pool === 'core' ? coreMonthlyBudget : hrMonthlyBudget,
       }
     })
@@ -297,10 +314,10 @@ export const localOrgPool = {
   computeAllocations(pool, amount) {
     const budgets = this.getActiveProjectMonthlyBudgets(pool)
     return budgets.map((b) => ({
-      projectId:     b.projectId,
-      projectName:   b.projectName,
+      projectId: b.projectId,
+      projectName: b.projectName,
       installmentId: b.installmentId,
-      sharePct:      b.sharePct,
+      sharePct: b.sharePct,
       amountCharged: Math.round(amount * (b.sharePct / 100) * 100) / 100,
     }))
   },
@@ -313,19 +330,25 @@ export const localOrgPool = {
 
   checkHRBudgetThresholds() {
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
-    budgets.forEach(b => {
+    budgets.forEach((b) => {
       const summary = this.getProjectHRBudgetSummary(b.projectId)
       if (summary.isActive && summary.poolBudget > 0) {
         const remainingPct = summary.remaining / summary.poolBudget
-        if (remainingPct <= 0.10) {
-          const existing = localNotifications.getNotifications('HR')
-            .find(n => n.relatedProjectId === b.projectId && !n.read && n.message.includes('nearing exhaustion'))
+        if (remainingPct <= 0.1) {
+          const existing = localNotifications
+            .getNotifications('HR')
+            .find(
+              (n) =>
+                n.relatedProjectId === b.projectId &&
+                !n.read &&
+                n.message.includes('nearing exhaustion'),
+            )
           if (!existing) {
             localNotifications.addNotification({
               message: `HR Budget for project "${b.projectName}" is nearing exhaustion (${Math.round(remainingPct * 100)}% remaining).`,
               roleTarget: 'HR',
               relatedProjectId: b.projectId,
-              type: 'danger'
+              type: 'danger',
             })
           }
         }
@@ -334,20 +357,20 @@ export const localOrgPool = {
   },
 
   addHRExpense(expense, enteredByProjectId) {
-    const pool        = readPool()
+    const pool = readPool()
     const allocations = this.computeAllocations('hr', parseFloat(expense.amount) || 0)
     const newExp = {
-      id:                    uid(),
-      label:                 expense.label || '',
-      vendor:                expense.vendor || '',
-      frequency:             expense.frequency || 'Monthly',
-      yearly_price:          parseFloat(expense.yearly_price) || 0,
-      amount:                parseFloat(expense.amount) || 0,
-      date:                  expense.date || '',
-      notes:                 expense.notes || '',
+      id: uid(),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: parseFloat(expense.amount) || 0,
+      date: expense.date || '',
+      notes: expense.notes || '',
       entered_by_project_id: enteredByProjectId,
-      project_allocations:   allocations,
-      created_at:            new Date().toISOString(),
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
     }
     pool.hr_expenses = [...(pool.hr_expenses || []), newExp]
     writePool(pool)
@@ -385,15 +408,15 @@ export const localOrgPool = {
     // Recompute current share weights for all active projects
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const mine = budgets.find((b) => b.projectId === projectId)
-    if (!mine) return []   // project not active → no charges
+    if (!mine) return [] // project not active → no charges
 
     const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
     const mySharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
 
     return (readPool().hr_expenses || []).map((exp) => ({
       ...exp,
-      myAmount:          Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
-      mySharePct:        Math.round(mySharePct * 100) / 100,
+      myAmount: Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
+      mySharePct: Math.round(mySharePct * 100) / 100,
       isFromThisProject: exp.entered_by_project_id === projectId,
     }))
   },
@@ -403,36 +426,36 @@ export const localOrgPool = {
    */
   getProjectHRBudgetSummary(projectId) {
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
-    const mine    = budgets.find((b) => b.projectId === projectId)
+    const mine = budgets.find((b) => b.projectId === projectId)
 
-    const charges      = this.getProjectHRCharges(projectId)
+    const charges = this.getProjectHRCharges(projectId)
     const totalCharged = charges.reduce((s, c) => s + (c.myAmount || 0), 0)
 
     if (!mine) {
       return {
-        isActive:           false,
-        monthlyBudget:      0,
-        poolBudget:         0,
-        sharePct:           0,
-        totalMonthlyPool:   0,
-        totalCharged:       Math.round(totalCharged * 100) / 100,
-        remaining:          0,
+        isActive: false,
+        monthlyBudget: 0,
+        poolBudget: 0,
+        sharePct: 0,
+        totalMonthlyPool: 0,
+        totalCharged: Math.round(totalCharged * 100) / 100,
+        remaining: 0,
         activeProjectCount: budgets.length,
-        budgetNotForeseen:  false,
+        budgetNotForeseen: false,
       }
     }
 
     return {
-      isActive:            true,
-      monthlyBudget:       mine.monthlyBudget,
-      poolBudget:          mine.poolBudget,
-      sharePct:            mine.sharePct,
-      totalMonthlyPool:    mine.totalMonthlyPool,
-      totalCharged:        Math.round(totalCharged * 100) / 100,
-      remaining:           Math.round((mine.poolBudget - totalCharged) * 100) / 100,
-      activeProjectCount:  budgets.length,
-      budgetNotForeseen:   mine.budgetNotForeseen,
-      totalProjectMonths:  mine.totalProjectMonths,
+      isActive: true,
+      monthlyBudget: mine.monthlyBudget,
+      poolBudget: mine.poolBudget,
+      sharePct: mine.sharePct,
+      totalMonthlyPool: mine.totalMonthlyPool,
+      totalCharged: Math.round(totalCharged * 100) / 100,
+      remaining: Math.round((mine.poolBudget - totalCharged) * 100) / 100,
+      activeProjectCount: budgets.length,
+      budgetNotForeseen: mine.budgetNotForeseen,
+      totalProjectMonths: mine.totalProjectMonths,
     }
   },
 
@@ -448,8 +471,8 @@ export const localOrgPool = {
         if (!alloc) return null
         return {
           ...exp,
-          myAmount:          alloc.amountCharged,
-          mySharePct:        alloc.sharePct,
+          myAmount: alloc.amountCharged,
+          mySharePct: alloc.sharePct,
           isFromThisProject: exp.entered_by_project_id === projectId,
         }
       })
@@ -458,36 +481,36 @@ export const localOrgPool = {
 
   getProjectCoreBudgetSummary(projectId) {
     const budgets = this.getActiveProjectMonthlyBudgets('core')
-    const mine    = budgets.find((b) => b.projectId === projectId)
+    const mine = budgets.find((b) => b.projectId === projectId)
 
-    const charges      = this.getProjectCoreCharges(projectId)
+    const charges = this.getProjectCoreCharges(projectId)
     const totalCharged = charges.reduce((s, c) => s + (c.myAmount || 0), 0)
 
     if (!mine) {
       return {
-        isActive:           false,
-        monthlyBudget:      0,
-        poolBudget:         0,
-        sharePct:           0,
-        totalMonthlyPool:   0,
-        totalCharged:       Math.round(totalCharged * 100) / 100,
-        remaining:          0,
+        isActive: false,
+        monthlyBudget: 0,
+        poolBudget: 0,
+        sharePct: 0,
+        totalMonthlyPool: 0,
+        totalCharged: Math.round(totalCharged * 100) / 100,
+        remaining: 0,
         activeProjectCount: budgets.length,
-        budgetNotForeseen:  false,
+        budgetNotForeseen: false,
       }
     }
 
     return {
-      isActive:            true,
-      monthlyBudget:       mine.monthlyBudget,
-      poolBudget:          mine.poolBudget,
-      sharePct:            mine.sharePct,
-      totalMonthlyPool:    mine.totalMonthlyPool,
-      totalCharged:        Math.round(totalCharged * 100) / 100,
-      remaining:           Math.round((mine.poolBudget - totalCharged) * 100) / 100,
-      activeProjectCount:  budgets.length,
-      budgetNotForeseen:   mine.budgetNotForeseen,
-      totalProjectMonths:  mine.totalProjectMonths,
+      isActive: true,
+      monthlyBudget: mine.monthlyBudget,
+      poolBudget: mine.poolBudget,
+      sharePct: mine.sharePct,
+      totalMonthlyPool: mine.totalMonthlyPool,
+      totalCharged: Math.round(totalCharged * 100) / 100,
+      remaining: Math.round((mine.poolBudget - totalCharged) * 100) / 100,
+      activeProjectCount: budgets.length,
+      budgetNotForeseen: mine.budgetNotForeseen,
+      totalProjectMonths: mine.totalProjectMonths,
     }
   },
 
@@ -498,17 +521,17 @@ export const localOrgPool = {
   },
 
   addCoreExpense(expense, enteredByProjectId) {
-    const pool        = readPool()
+    const pool = readPool()
     const allocations = this.computeAllocations('core', parseFloat(expense.amount) || 0)
     const newExp = {
-      id:                    uid().replace('hre_', 'core_'),
-      label:                 expense.label || '',
-      amount:                parseFloat(expense.amount) || 0,
-      date:                  expense.date || '',
-      notes:                 expense.notes || '',
+      id: uid().replace('hre_', 'core_'),
+      label: expense.label || '',
+      amount: parseFloat(expense.amount) || 0,
+      date: expense.date || '',
+      notes: expense.notes || '',
       entered_by_project_id: enteredByProjectId,
-      project_allocations:   allocations,
-      created_at:            new Date().toISOString(),
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
     }
     pool.core_expenses = [...(pool.core_expenses || []), newExp]
     writePool(pool)
@@ -548,8 +571,8 @@ export const localOrgPool = {
 
     return (readPool().core_expenses || []).map((exp) => ({
       ...exp,
-      myAmount:          Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
-      mySharePct:        Math.round(mySharePct * 100) / 100,
+      myAmount: Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
+      mySharePct: Math.round(mySharePct * 100) / 100,
       isFromThisProject: exp.entered_by_project_id === projectId,
     }))
   },
@@ -559,36 +582,36 @@ export const localOrgPool = {
    */
   getProjectCoreBudgetSummary(projectId) {
     const budgets = this.getActiveProjectMonthlyBudgets('core')
-    const mine    = budgets.find((b) => b.projectId === projectId)
+    const mine = budgets.find((b) => b.projectId === projectId)
 
-    const charges      = this.getProjectCoreCharges(projectId)
+    const charges = this.getProjectCoreCharges(projectId)
     const totalCharged = charges.reduce((s, c) => s + (c.myAmount || 0), 0)
 
     if (!mine) {
       return {
-        isActive:           false,
-        monthlyBudget:      0,
-        poolBudget:         0,
-        sharePct:           0,
-        totalMonthlyPool:   0,
-        totalCharged:       Math.round(totalCharged * 100) / 100,
-        remaining:          0,
+        isActive: false,
+        monthlyBudget: 0,
+        poolBudget: 0,
+        sharePct: 0,
+        totalMonthlyPool: 0,
+        totalCharged: Math.round(totalCharged * 100) / 100,
+        remaining: 0,
         activeProjectCount: budgets.length,
-        budgetNotForeseen:  false,
+        budgetNotForeseen: false,
       }
     }
 
     return {
-      isActive:            true,
-      monthlyBudget:       mine.monthlyBudget,
-      poolBudget:          mine.poolBudget,
-      sharePct:            mine.sharePct,
-      totalMonthlyPool:    mine.totalMonthlyPool,
-      totalCharged:        Math.round(totalCharged * 100) / 100,
-      remaining:           Math.round((mine.poolBudget - totalCharged) * 100) / 100,
-      activeProjectCount:  budgets.length,
-      budgetNotForeseen:   mine.budgetNotForeseen,
-      totalProjectMonths:  mine.totalProjectMonths,
+      isActive: true,
+      monthlyBudget: mine.monthlyBudget,
+      poolBudget: mine.poolBudget,
+      sharePct: mine.sharePct,
+      totalMonthlyPool: mine.totalMonthlyPool,
+      totalCharged: Math.round(totalCharged * 100) / 100,
+      remaining: Math.round((mine.poolBudget - totalCharged) * 100) / 100,
+      activeProjectCount: budgets.length,
+      budgetNotForeseen: mine.budgetNotForeseen,
+      totalProjectMonths: mine.totalProjectMonths,
     }
   },
 

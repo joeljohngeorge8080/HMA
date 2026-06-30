@@ -56,7 +56,9 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
     setLoading(false)
   }
 
-  useEffect(() => { loadEntries() }, [year, month])
+  useEffect(() => {
+    loadEntries()
+  }, [year, month])
 
   useEffect(() => {
     const { items } = localEmployees.list({ status: 'Active', pageSize: 500 })
@@ -156,7 +158,9 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
         </CCardHeader>
         <CCardBody>
           {loading ? (
-            <div className="text-center py-4"><CSpinner color="success" /></div>
+            <div className="text-center py-4">
+              <CSpinner color="success" />
+            </div>
           ) : entries.length === 0 ? (
             <p className="text-body-secondary small mb-0">
               No salary entries for this period.
@@ -204,13 +208,18 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
                       {canEdit && (
                         <CTableDataCell>
                           <CButton
-                            color="secondary" variant="ghost" size="sm" className="me-1"
+                            color="secondary"
+                            variant="ghost"
+                            size="sm"
+                            className="me-1"
                             onClick={() => openEdit(entry)}
                           >
                             <CIcon icon={cilPencil} />
                           </CButton>
                           <CButton
-                            color="danger" variant="ghost" size="sm"
+                            color="danger"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setDeleteTarget(entry)}
                           >
                             <CIcon icon={cilTrash} />
@@ -232,9 +241,7 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">
-                  {editTarget ? 'Edit Salary Entry' : 'Add Employee'}
-                </h5>
+                <h5 className="modal-title">{editTarget ? 'Edit Salary Entry' : 'Add Employee'}</h5>
                 <button type="button" className="btn-close" onClick={() => setShowModal(false)} />
               </div>
               <div className="modal-body">
@@ -270,7 +277,9 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
                       onChange={(e) => set('status', e.target.value)}
                     >
                       {STATUSES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
                       ))}
                     </CFormSelect>
                   </CCol>
@@ -316,8 +325,12 @@ const CoreSalaryPanel = ({ year, month, canEdit }) => {
                 Remove <strong>{deleteTarget.employee_name}</strong> from this period's payroll?
               </div>
               <div className="modal-footer">
-                <CButton color="secondary" onClick={() => setDeleteTarget(null)}>Cancel</CButton>
-                <CButton color="danger" onClick={handleDelete}>Remove</CButton>
+                <CButton color="secondary" onClick={() => setDeleteTarget(null)}>
+                  Cancel
+                </CButton>
+                <CButton color="danger" onClick={handleDelete}>
+                  Remove
+                </CButton>
               </div>
             </div>
           </div>

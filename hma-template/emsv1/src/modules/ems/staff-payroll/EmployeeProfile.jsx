@@ -18,7 +18,14 @@ import {
   CTabPane,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilFile, cilMoney, cilPencil, cilPeople, cilSwapHorizontal } from '@coreui/icons'
+import {
+  cilArrowLeft,
+  cilFile,
+  cilMoney,
+  cilPencil,
+  cilPeople,
+  cilSwapHorizontal,
+} from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
@@ -196,7 +203,11 @@ const EmployeeProfile = () => {
             {canEdit && (
               <CCol xs="auto">
                 <CButtonGroup>
-                  <CButton color="primary" size="sm" onClick={() => navigate(`/ems/staff-payroll/${id}/edit`)}>
+                  <CButton
+                    color="primary"
+                    size="sm"
+                    onClick={() => navigate(`/ems/staff-payroll/${id}/edit`)}
+                  >
                     <CIcon icon={cilPencil} className="me-1" />
                     Edit
                   </CButton>

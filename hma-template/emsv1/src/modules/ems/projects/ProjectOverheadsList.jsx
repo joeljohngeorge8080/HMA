@@ -25,17 +25,17 @@ const ProjectOverheadsList = () => {
 
   useEffect(() => {
     // Only fetch projects that are active/ongoing to show overheads
-    const all = localProjects.getAll().filter(
-      p => p.is_operations_active && ['ongoing', 'active', 'approved'].includes(p.status)
-    )
-    
+    const all = localProjects
+      .getAll()
+      .filter((p) => p.is_operations_active && ['ongoing', 'active', 'approved'].includes(p.status))
+
     // Enrich with hr/core budgets
     const hrBudgets = localOrgPool.getActiveProjectMonthlyBudgets('hr')
     const coreBudgets = localOrgPool.getActiveProjectMonthlyBudgets('core')
 
-    const enriched = all.map(p => {
-      const hr = hrBudgets.find(b => b.projectId === p.id)
-      const core = coreBudgets.find(b => b.projectId === p.id)
+    const enriched = all.map((p) => {
+      const hr = hrBudgets.find((b) => b.projectId === p.id)
+      const core = coreBudgets.find((b) => b.projectId === p.id)
       return {
         ...p,
         hrMonthly: hr ? hr.monthlyBudget : 0,
@@ -47,7 +47,11 @@ const ProjectOverheadsList = () => {
   }, [])
 
   const formatCurrency = (amt) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amt || 0)
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amt || 0)
 
   return (
     <CContainer lg className="py-4">
@@ -80,7 +84,9 @@ const ProjectOverheadsList = () => {
                       <div className="text-body-tertiary small mt-1">{p.project_code}</div>
                     </CTableDataCell>
                     <CTableDataCell>
-                      <CBadge color="success" shape="rounded-pill">{p.status}</CBadge>
+                      <CBadge color="success" shape="rounded-pill">
+                        {p.status}
+                      </CBadge>
                     </CTableDataCell>
                     <CTableDataCell className="text-primary fw-semibold">
                       {formatCurrency(p.hrMonthly)}
@@ -89,9 +95,9 @@ const ProjectOverheadsList = () => {
                       {formatCurrency(p.coreMonthly)}
                     </CTableDataCell>
                     <CTableDataCell className="text-end pe-4">
-                      <CButton 
-                        color="info" 
-                        variant="ghost" 
+                      <CButton
+                        color="info"
+                        variant="ghost"
                         size="sm"
                         onClick={() => navigate(`/ems/projects/${p.id}/overheads`)}
                       >

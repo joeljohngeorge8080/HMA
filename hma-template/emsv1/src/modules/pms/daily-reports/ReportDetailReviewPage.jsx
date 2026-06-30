@@ -87,7 +87,9 @@ const AttachmentSection = ({ title, icon, items = [] }) => {
     <CCard className="shadow-sm mb-3">
       <CCardHeader className="bg-transparent">
         <CIcon icon={icon} className="me-2" />
-        <strong>{title} ({items.length})</strong>
+        <strong>
+          {title} ({items.length})
+        </strong>
       </CCardHeader>
       <CCardBody>
         <div className="d-flex flex-wrap gap-3">
@@ -225,30 +227,42 @@ const ReportDetailReviewPage = () => {
                   {report.report_type !== 'task' ? (
                     <>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
+                        <CTableDataCell
+                          className="fw-medium text-body-secondary"
+                          style={{ width: '35%' }}
+                        >
                           Bill Topic
                         </CTableDataCell>
                         <CTableDataCell className="fw-semibold">{report.bill_topic}</CTableDataCell>
                       </CTableRow>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary">Amount</CTableDataCell>
+                        <CTableDataCell className="fw-medium text-body-secondary">
+                          Amount
+                        </CTableDataCell>
                         <CTableDataCell className="fw-semibold fs-5 text-primary">
                           {formatCurrency(report.amount)}
                         </CTableDataCell>
                       </CTableRow>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary">Date</CTableDataCell>
+                        <CTableDataCell className="fw-medium text-body-secondary">
+                          Date
+                        </CTableDataCell>
                         <CTableDataCell>{formatDate(report.report_date)}</CTableDataCell>
                       </CTableRow>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary">Time</CTableDataCell>
+                        <CTableDataCell className="fw-medium text-body-secondary">
+                          Time
+                        </CTableDataCell>
                         <CTableDataCell>{report.report_time || '—'}</CTableDataCell>
                       </CTableRow>
                     </>
                   ) : (
                     <>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary" style={{ width: '35%' }}>
+                        <CTableDataCell
+                          className="fw-medium text-body-secondary"
+                          style={{ width: '35%' }}
+                        >
                           Task Name
                         </CTableDataCell>
                         <CTableDataCell className="fw-semibold text-info">
@@ -257,9 +271,13 @@ const ReportDetailReviewPage = () => {
                         </CTableDataCell>
                       </CTableRow>
                       <CTableRow>
-                        <CTableDataCell className="fw-medium text-body-secondary">Requested Status</CTableDataCell>
+                        <CTableDataCell className="fw-medium text-body-secondary">
+                          Requested Status
+                        </CTableDataCell>
                         <CTableDataCell>
-                          <span className={`badge bg-${report.requested_status === 'completed' ? 'success' : report.requested_status === 'cancelled' ? 'danger' : 'primary'} text-uppercase px-2 py-1`}>
+                          <span
+                            className={`badge bg-${report.requested_status === 'completed' ? 'success' : report.requested_status === 'cancelled' ? 'danger' : 'primary'} text-uppercase px-2 py-1`}
+                          >
                             {report.requested_status}
                           </span>
                         </CTableDataCell>
@@ -267,16 +285,22 @@ const ReportDetailReviewPage = () => {
                     </>
                   )}
                   <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary">Submitted By</CTableDataCell>
+                    <CTableDataCell className="fw-medium text-body-secondary">
+                      Submitted By
+                    </CTableDataCell>
                     <CTableDataCell>{report.submitted_by_name}</CTableDataCell>
                   </CTableRow>
                   <CTableRow>
-                    <CTableDataCell className="fw-medium text-body-secondary">Submitted At</CTableDataCell>
+                    <CTableDataCell className="fw-medium text-body-secondary">
+                      Submitted At
+                    </CTableDataCell>
                     <CTableDataCell>{formatDateTime(report.submitted_at)}</CTableDataCell>
                   </CTableRow>
                   {report.report_type !== 'task' && report.task_title && (
                     <CTableRow>
-                      <CTableDataCell className="fw-medium text-body-secondary">Linked Task</CTableDataCell>
+                      <CTableDataCell className="fw-medium text-body-secondary">
+                        Linked Task
+                      </CTableDataCell>
                       <CTableDataCell>
                         <span className="text-info d-flex align-items-center gap-1">
                           <CIcon icon={cilNotes} size="sm" />
@@ -287,7 +311,9 @@ const ReportDetailReviewPage = () => {
                   )}
                   {report.notes && (
                     <CTableRow>
-                      <CTableDataCell className="fw-medium text-body-secondary">Notes</CTableDataCell>
+                      <CTableDataCell className="fw-medium text-body-secondary">
+                        Notes
+                      </CTableDataCell>
                       <CTableDataCell>{report.notes}</CTableDataCell>
                     </CTableRow>
                   )}
@@ -304,20 +330,34 @@ const ReportDetailReviewPage = () => {
               </CCardHeader>
               <CCardBody className="p-0">
                 <div className="table-responsive">
-                  <CTable hover align="middle" className="mb-0 border-0" style={{ fontSize: '0.875rem' }}>
+                  <CTable
+                    hover
+                    align="middle"
+                    className="mb-0 border-0"
+                    style={{ fontSize: '0.875rem' }}
+                  >
                     <CTableHead color="light">
                       <CTableRow>
-                        <CTableHeaderCell className="text-center border-0" style={{ width: '60px' }}>Sl. No</CTableHeaderCell>
+                        <CTableHeaderCell
+                          className="text-center border-0"
+                          style={{ width: '60px' }}
+                        >
+                          Sl. No
+                        </CTableHeaderCell>
                         <CTableHeaderCell className="border-0">Particulars</CTableHeaderCell>
                         <CTableHeaderCell className="border-0">Venue Address</CTableHeaderCell>
-                        <CTableHeaderCell className="border-0">Local Point of Contact (Name, Contact No)</CTableHeaderCell>
+                        <CTableHeaderCell className="border-0">
+                          Local Point of Contact (Name, Contact No)
+                        </CTableHeaderCell>
                         <CTableHeaderCell className="border-0">Remarks</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
                     <CTableBody>
                       {report.meetings.map((m, idx) => (
                         <CTableRow key={idx}>
-                          <CTableDataCell className="text-center fw-medium text-body-secondary">{idx + 1}</CTableDataCell>
+                          <CTableDataCell className="text-center fw-medium text-body-secondary">
+                            {idx + 1}
+                          </CTableDataCell>
                           <CTableDataCell>{m.particulars}</CTableDataCell>
                           <CTableDataCell>{m.venue_address}</CTableDataCell>
                           <CTableDataCell>{m.local_contact}</CTableDataCell>
@@ -332,11 +372,7 @@ const ReportDetailReviewPage = () => {
           )}
 
           {/* Geo-tagged Photos */}
-          <AttachmentSection
-            title="Geo-tagged Photos"
-            icon={cilImage}
-            items={report.geo_photos}
-          />
+          <AttachmentSection title="Geo-tagged Photos" icon={cilImage} items={report.geo_photos} />
 
           {/* Bills / Receipts */}
           <AttachmentSection
@@ -409,17 +445,13 @@ const ReportDetailReviewPage = () => {
             Are you sure you want to <strong>approve</strong> this report?
           </p>
           <p className="text-body-secondary small mb-0">
-            {report.report_type === 'task' 
-              ? `The task status will be updated to ${report.requested_status}.` 
+            {report.report_type === 'task'
+              ? `The task status will be updated to ${report.requested_status}.`
               : 'The report will be forwarded to the backend team for settlement processing.'}
           </p>
         </CModalBody>
         <CModalFooter>
-          <CButton
-            color="secondary"
-            variant="ghost"
-            onClick={() => setApproveModalVisible(false)}
-          >
+          <CButton color="secondary" variant="ghost" onClick={() => setApproveModalVisible(false)}>
             Cancel
           </CButton>
           <CButton color="success" onClick={confirmApprove} disabled={approveLoading}>

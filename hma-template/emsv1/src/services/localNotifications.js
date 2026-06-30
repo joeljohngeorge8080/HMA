@@ -24,7 +24,7 @@ export const localNotifications = {
       relatedProjectId,
       type,
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     })
     writeAll(notifications)
   },
@@ -32,16 +32,16 @@ export const localNotifications = {
   getNotifications(roleTarget) {
     const notifications = readAll()
     if (!roleTarget) return notifications
-    return notifications.filter(n => n.roleTarget === roleTarget || n.roleTarget === 'all')
+    return notifications.filter((n) => n.roleTarget === roleTarget || n.roleTarget === 'all')
   },
 
   getUnreadCount(roleTarget) {
-    return this.getNotifications(roleTarget).filter(n => !n.read).length
+    return this.getNotifications(roleTarget).filter((n) => !n.read).length
   },
 
   markAsRead(id) {
     const notifications = readAll()
-    const idx = notifications.findIndex(n => n.id === id)
+    const idx = notifications.findIndex((n) => n.id === id)
     if (idx !== -1) {
       notifications[idx].read = true
       writeAll(notifications)
@@ -50,11 +50,11 @@ export const localNotifications = {
 
   markAllAsRead(roleTarget) {
     const notifications = readAll()
-    notifications.forEach(n => {
+    notifications.forEach((n) => {
       if (!roleTarget || n.roleTarget === roleTarget || n.roleTarget === 'all') {
         n.read = true
       }
     })
     writeAll(notifications)
-  }
+  },
 }

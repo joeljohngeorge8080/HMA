@@ -27,7 +27,9 @@ const AttendanceCorrections = React.lazy(
 )
 const GlobalHRPoolPage = React.lazy(() => import('../modules/ems/hr-pool/GlobalHRPoolPage'))
 const CorePoolPage = React.lazy(() => import('../modules/ems/core-pool/CorePoolPage'))
-const ProjectOverheadsList = React.lazy(() => import('../modules/ems/projects/ProjectOverheadsList'))
+const ProjectOverheadsList = React.lazy(
+  () => import('../modules/ems/projects/ProjectOverheadsList'),
+)
 const ProjectOverheadView = React.lazy(() => import('../modules/ems/projects/ProjectOverheadView'))
 
 const GeneralExpenseList = React.lazy(

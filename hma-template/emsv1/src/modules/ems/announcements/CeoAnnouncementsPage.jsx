@@ -231,7 +231,11 @@ const NotesTab = () => {
 
       {notes.length === 0 && !showForm && (
         <div className="text-center text-body-secondary py-5">
-          <CIcon icon={cilNotes} style={{ width: 40, height: 40 }} className="mb-2 text-body-secondary" />
+          <CIcon
+            icon={cilNotes}
+            style={{ width: 40, height: 40 }}
+            className="mb-2 text-body-secondary"
+          />
           <div className="mt-2">No personal notes yet. Create your first note above.</div>
         </div>
       )}

@@ -33,9 +33,11 @@ const CorePoolPage = () => {
   }, [])
 
   const fmt2 = (n) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
-      n || 0,
-    )
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(n || 0)
   const fmtDate = (d) =>
     d
       ? new Date(d).toLocaleDateString('en-IN', {
@@ -74,7 +76,7 @@ const CorePoolPage = () => {
   return (
     <CContainer lg className="py-4">
       <h4 className="fw-bold mb-4">🌐 Global Core Expense Pool</h4>
-      
+
       <CCard className="shadow-sm border-top border-4 border-top-primary mb-4">
         <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center">
           <span>Manage Organization-Wide Core Expenses</span>
@@ -128,26 +130,33 @@ const CorePoolPage = () => {
                   />
                 </CCol>
               </CRow>
-              
+
               {previewAllocs.length > 0 && (
                 <div
                   className="mb-3 p-3 rounded bg-primary bg-opacity-10 border border-primary"
                   style={{ fontSize: '0.85rem' }}
                 >
-                  <div className="fw-semibold text-primary mb-2">📊 Allocation Preview Across Active Projects</div>
+                  <div className="fw-semibold text-primary mb-2">
+                    📊 Allocation Preview Across Active Projects
+                  </div>
                   <CRow className="g-2">
                     {previewAllocs.map((a) => (
                       <CCol xs={12} md={6} lg={4} key={a.projectId}>
                         <div className="d-flex justify-content-between text-body-secondary bg-white p-2 rounded border">
-                          <span className="fw-medium text-truncate me-2" title={a.projectName}>{a.projectName}</span>
-                          <span className="text-nowrap">{a.sharePct}% → <strong className="text-primary">{fmt2(a.amountCharged)}</strong></span>
+                          <span className="fw-medium text-truncate me-2" title={a.projectName}>
+                            {a.projectName}
+                          </span>
+                          <span className="text-nowrap">
+                            {a.sharePct}% →{' '}
+                            <strong className="text-primary">{fmt2(a.amountCharged)}</strong>
+                          </span>
                         </div>
                       </CCol>
                     ))}
                   </CRow>
                 </div>
               )}
-              
+
               <div className="d-flex gap-2">
                 <CButton size="sm" color="primary" onClick={handleAdd}>
                   Add &amp; Distribute Expense
@@ -215,7 +224,12 @@ const CorePoolPage = () => {
                       <CButton size="sm" color="primary" onClick={handleEditSave}>
                         Save Changes
                       </CButton>
-                      <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>
+                      <CButton
+                        size="sm"
+                        color="secondary"
+                        variant="ghost"
+                        onClick={() => setEditId(null)}
+                      >
                         Cancel
                       </CButton>
                     </div>
@@ -226,9 +240,7 @@ const CorePoolPage = () => {
                     className="d-flex align-items-center justify-content-between border rounded px-3 py-3 bg-white shadow-sm"
                   >
                     <div>
-                      <div className="fw-semibold fs-6 text-dark mb-1">
-                        {exp.label}
-                      </div>
+                      <div className="fw-semibold fs-6 text-dark mb-1">{exp.label}</div>
                       <div className="text-body-secondary small mb-1">
                         {fmtDate(exp.date)} {exp.notes && ` · ${exp.notes}`}
                       </div>

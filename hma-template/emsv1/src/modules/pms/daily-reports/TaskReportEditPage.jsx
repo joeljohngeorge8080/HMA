@@ -29,13 +29,13 @@ import TaskCard from './components/TaskCard'
 const TaskReportEditPage = () => {
   const { taskId, reportId } = useParams()
   const navigate = useNavigate()
-  
+
   const [task, setTask] = useState(null)
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState(null)
-  
+
   // Form state
   const [status, setStatus] = useState('active')
   const [notes, setNotes] = useState('')
@@ -44,7 +44,7 @@ const TaskReportEditPage = () => {
   useEffect(() => {
     const t = localTasks.getById(taskId)
     const r = localReports.getById(reportId)
-    
+
     if (t && r) {
       setTask(t)
       setReport(r)
@@ -104,7 +104,9 @@ const TaskReportEditPage = () => {
         </CButton>
         <div className="flex-grow-1">
           <h4 className="mb-0 fw-semibold">Edit Task Report</h4>
-          <div className="small text-body-secondary">Update and resubmit your declined task report</div>
+          <div className="small text-body-secondary">
+            Update and resubmit your declined task report
+          </div>
         </div>
       </div>
 
@@ -114,7 +116,9 @@ const TaskReportEditPage = () => {
           <div>
             <strong>Officer Feedback:</strong>
             <div className="mt-1">{report.decline_reason}</div>
-            <div className="small mt-1 opacity-75">Please address this feedback before resubmitting.</div>
+            <div className="small mt-1 opacity-75">
+              Please address this feedback before resubmitting.
+            </div>
           </div>
         </CAlert>
       )}
@@ -135,10 +139,7 @@ const TaskReportEditPage = () => {
                 {/* Status Dropdown */}
                 <div className="mb-3">
                   <CFormLabel className="fw-medium">Requested Task Status</CFormLabel>
-                  <CFormSelect
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
+                  <CFormSelect value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="active">Active (In Progress)</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
@@ -168,7 +169,12 @@ const TaskReportEditPage = () => {
 
                 {/* Submit Action */}
                 <div className="d-flex justify-content-end pt-3 border-top">
-                  <CButton color="warning" className="text-white" type="submit" disabled={submitting}>
+                  <CButton
+                    color="warning"
+                    className="text-white"
+                    type="submit"
+                    disabled={submitting}
+                  >
                     {submitting ? (
                       <>
                         <CSpinner size="sm" className="me-2" />
