@@ -101,9 +101,7 @@ export const getRegisteredUsers = () => load()
 
 export const addRegisteredUser = (user) => {
   const users = load()
-  const exists = users.some(
-    (u) => u.google_email.toLowerCase() === user.google_email.toLowerCase(),
-  )
+  const exists = users.some((u) => u.google_email.toLowerCase() === user.google_email.toLowerCase())
   if (exists) throw new Error('A user with this Google email is already registered.')
   const newUser = {
     id: `USR${Date.now()}`,

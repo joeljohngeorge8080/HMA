@@ -36,24 +36,24 @@ const _row = (vendor, category, frequency, annual, status = 'Active', remarks = 
 
 // 18 entries from the HMA Admin Expenses master sheet
 const DEFAULT_DATA = [
-  _row('Manjith Travels',                   'Contract Vehicle',          'Monthly',     524160),
-  _row('Dr Anandam',                         'House Rent',                'Monthly',     1800000),
-  _row('BSNL',                               'Land Line',                 'Monthly',     24000),
-  _row('KSEB',                               'Electricity Bill',          'Monthly',     264000),
-  _row('KWA',                                'Water Bill',                'Monthly',     96000),
-  _row('Subramania Industries',              'DG AMC',                    'Half Yearly', 10000),
-  _row('Imprest',                            'Monthly Imprest',           'Monthly',     120000),
-  _row('Alchemy IBS',                        'Website',                   'Monthly',     200000),
-  _row('Geejey Solutions',                   'Epabx AMC',                 'Half Yearly', 8000),
-  _row('VRS Infosystems',                    'Tally Software Renewal',    'Annually',    16000),
-  _row('M/s Armtech Computer Services',     'CAMC Computer Hardware',    'Quarterly',   15000),
-  _row('Nu Aire',                            'AC AMC',                    'Quarterly',   36000),
-  _row('Miscellaneous',                      'Repair & Maintenance',      'Monthly',     50000),
-  _row('Microsoft 365',                      'Software',                  'Annually',    7000),
-  _row('Asterisk',                           'Photocopier (Admin & DVP)', 'Monthly',     48000),
-  _row('Pradeep Kumar Cost Accountant',      'Financial Consultant',      'Monthly',     1296000),
-  _row('Pradeep Kumar Cost Accountant',      'Accounts Assistance',       'Monthly',     750000),
-  _row('Indian Postal Department',           'Speed Post',                'Monthly',     120000,  'Inactive'),
+  _row('Manjith Travels', 'Contract Vehicle', 'Monthly', 524160),
+  _row('Dr Anandam', 'House Rent', 'Monthly', 1800000),
+  _row('BSNL', 'Land Line', 'Monthly', 24000),
+  _row('KSEB', 'Electricity Bill', 'Monthly', 264000),
+  _row('KWA', 'Water Bill', 'Monthly', 96000),
+  _row('Subramania Industries', 'DG AMC', 'Half Yearly', 10000),
+  _row('Imprest', 'Monthly Imprest', 'Monthly', 120000),
+  _row('Alchemy IBS', 'Website', 'Monthly', 200000),
+  _row('Geejey Solutions', 'Epabx AMC', 'Half Yearly', 8000),
+  _row('VRS Infosystems', 'Tally Software Renewal', 'Annually', 16000),
+  _row('M/s Armtech Computer Services', 'CAMC Computer Hardware', 'Quarterly', 15000),
+  _row('Nu Aire', 'AC AMC', 'Quarterly', 36000),
+  _row('Miscellaneous', 'Repair & Maintenance', 'Monthly', 50000),
+  _row('Microsoft 365', 'Software', 'Annually', 7000),
+  _row('Asterisk', 'Photocopier (Admin & DVP)', 'Monthly', 48000),
+  _row('Pradeep Kumar Cost Accountant', 'Financial Consultant', 'Monthly', 1296000),
+  _row('Pradeep Kumar Cost Accountant', 'Accounts Assistance', 'Monthly', 750000),
+  _row('Indian Postal Department', 'Speed Post', 'Monthly', 120000, 'Inactive'),
 ]
 
 function _ensureSeeded() {
@@ -127,5 +127,29 @@ export const localAdminExpenses = {
     const rows = read()
     if (!rows.find((r) => r.id === id)) throw new Error('Expense not found')
     write(rows.filter((r) => r.id !== id))
+  },
+
+  /**
+   * Returns active HR admin expenses converted to the PMS ExpenseCard format.
+   * Amount shown is the monthly equivalent (annual / 12).
+   * These entries are tagged with source: 'hr_admin' so PMS can render them
+   * as read-only org-level entries.
+   */
+  asProjectExpenses() {
+    _ensureSeeded()
+    return read()
+      .filter((r) => r.status === 'Active')
+      .map((r) => ({
+        id: r.id,
+        label: `${r.expense_category} — ${r.vendor_name}`,
+        amount: Math.round(parseFloat(r.annual_amount || 0) / 12),
+        date: r.updated_at || r.created_at || '',
+        notes: `${r.frequency} · HR Admin`,
+        source: 'hr_admin',
+        vendor_name: r.vendor_name,
+        expense_category: r.expense_category,
+        frequency: r.frequency,
+        annual_amount: r.annual_amount,
+      }))
   },
 }

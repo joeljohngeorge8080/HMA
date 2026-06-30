@@ -1,33 +1,36 @@
-import { useEffect, useRef } from 'react';
-import { Renderer, Program, Mesh, Triangle } from 'ogl';
-import './Lightfall.css';
+import { useEffect, useRef } from 'react'
+import { Renderer, Program, Mesh, Triangle } from 'ogl'
+import './Lightfall.css'
 
-const MAX_COLORS = 8;
+const MAX_COLORS = 8
 
-const hexToRGB = hex => {
-  const c = hex.replace('#', '').padEnd(6, '0');
-  const r = parseInt(c.slice(0, 2), 16) / 255;
-  const g = parseInt(c.slice(2, 4), 16) / 255;
-  const b = parseInt(c.slice(4, 6), 16) / 255;
-  return [r, g, b];
-};
+const hexToRGB = (hex) => {
+  const c = hex.replace('#', '').padEnd(6, '0')
+  const r = parseInt(c.slice(0, 2), 16) / 255
+  const g = parseInt(c.slice(2, 4), 16) / 255
+  const b = parseInt(c.slice(4, 6), 16) / 255
+  return [r, g, b]
+}
 
-const prepColors = input => {
-  const base = (input && input.length ? input : ['#A6C8FF', '#5227FF', '#FF9FFC']).slice(0, MAX_COLORS);
-  const count = base.length;
-  const arr = [];
-  for (let i = 0; i < MAX_COLORS; i++) arr.push(hexToRGB(base[Math.min(i, base.length - 1)]));
-  const avg = [0, 0, 0];
+const prepColors = (input) => {
+  const base = (input && input.length ? input : ['#A6C8FF', '#5227FF', '#FF9FFC']).slice(
+    0,
+    MAX_COLORS,
+  )
+  const count = base.length
+  const arr = []
+  for (let i = 0; i < MAX_COLORS; i++) arr.push(hexToRGB(base[Math.min(i, base.length - 1)]))
+  const avg = [0, 0, 0]
   for (let i = 0; i < count; i++) {
-    avg[0] += arr[i][0];
-    avg[1] += arr[i][1];
-    avg[2] += arr[i][2];
+    avg[0] += arr[i][0]
+    avg[1] += arr[i][1]
+    avg[2] += arr[i][2]
   }
-  avg[0] /= count;
-  avg[1] /= count;
-  avg[2] /= count;
-  return { arr, count, avg };
-};
+  avg[0] /= count
+  avg[1] /= count
+  avg[2] /= count
+  return { arr, count, avg }
+}
 
 const vertex = `
 attribute vec2 position;
@@ -37,7 +40,7 @@ void main() {
   vUv = uv;
   gl_Position = vec4(position, 0.0, 1.0);
 }
-`;
+`
 
 const fragment = `
 precision highp float;
@@ -164,7 +167,7 @@ void main() {
   mainImage(color, vUv * iResolution.xy);
   gl_FragColor = color;
 }
-`;
+`
 
 const Lightfall = ({
   className,
@@ -188,34 +191,34 @@ const Lightfall = ({
   mouseDampening = 0.15,
   mixBlendMode,
 }) => {
-  const containerRef = useRef(null);
-  const rafRef = useRef(null);
-  const programRef = useRef(null);
-  const meshRef = useRef(null);
-  const geometryRef = useRef(null);
-  const rendererRef = useRef(null);
-  const mouseTargetRef = useRef([0, 0]);
-  const lastTimeRef = useRef(0);
+  const containerRef = useRef(null)
+  const rafRef = useRef(null)
+  const programRef = useRef(null)
+  const meshRef = useRef(null)
+  const geometryRef = useRef(null)
+  const rendererRef = useRef(null)
+  const mouseTargetRef = useRef([0, 0])
+  const lastTimeRef = useRef(0)
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const container = containerRef.current
+    if (!container) return
 
     const renderer = new Renderer({
       dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
       alpha: true,
       antialias: true,
-    });
-    rendererRef.current = renderer;
-    const gl = renderer.gl;
-    const canvas = gl.canvas;
+    })
+    rendererRef.current = renderer
+    const gl = renderer.gl
+    const canvas = gl.canvas
 
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.display = 'block';
-    container.appendChild(canvas);
+    canvas.style.width = '100%'
+    canvas.style.height = '100%'
+    canvas.style.display = 'block'
+    container.appendChild(canvas)
 
-    const { arr, count, avg } = prepColors(colors);
+    const { arr, count, avg } = prepColors(colors)
 
     const uniforms = {
       iResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight, 1] },
@@ -245,91 +248,106 @@ const Lightfall = ({
       uMouseEnabled: { value: mouseInteraction ? 1 : 0 },
       uMouseStrength: { value: mouseStrength },
       uMouseRadius: { value: mouseRadius },
-    };
-
-    const program = new Program(gl, { vertex, fragment, uniforms });
-    programRef.current = program;
-
-    const geometry = new Triangle(gl);
-    geometryRef.current = geometry;
-    const mesh = new Mesh(gl, { geometry, program });
-    meshRef.current = mesh;
-
-    const resize = () => {
-      const rect = container.getBoundingClientRect();
-      renderer.setSize(rect.width, rect.height);
-      uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
-    };
-
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(container);
-
-    const onPointerMove = e => {
-      const rect = canvas.getBoundingClientRect();
-      const scale = renderer.dpr || 1;
-      const x = (e.clientX - rect.left) * scale;
-      const y = (rect.height - (e.clientY - rect.top)) * scale;
-      mouseTargetRef.current = [x, y];
-      if (mouseDampening <= 0) {
-        uniforms.iMouse.value = [x, y];
-      }
-    };
-    if (mouseInteraction) {
-      canvas.addEventListener('pointermove', onPointerMove);
     }
 
-    const loop = t => {
-      rafRef.current = requestAnimationFrame(loop);
-      uniforms.iTime.value = t * 0.001;
+    const program = new Program(gl, { vertex, fragment, uniforms })
+    programRef.current = program
+
+    const geometry = new Triangle(gl)
+    geometryRef.current = geometry
+    const mesh = new Mesh(gl, { geometry, program })
+    meshRef.current = mesh
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect()
+      renderer.setSize(rect.width, rect.height)
+      uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1]
+    }
+
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(container)
+
+    const onPointerMove = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const scale = renderer.dpr || 1
+      const x = (e.clientX - rect.left) * scale
+      const y = (rect.height - (e.clientY - rect.top)) * scale
+      mouseTargetRef.current = [x, y]
+      if (mouseDampening <= 0) {
+        uniforms.iMouse.value = [x, y]
+      }
+    }
+    if (mouseInteraction) {
+      canvas.addEventListener('pointermove', onPointerMove)
+    }
+
+    const loop = (t) => {
+      rafRef.current = requestAnimationFrame(loop)
+      uniforms.iTime.value = t * 0.001
       if (mouseDampening > 0) {
-        if (!lastTimeRef.current) lastTimeRef.current = t;
-        const dt = (t - lastTimeRef.current) / 1000;
-        lastTimeRef.current = t;
-        const tau = Math.max(1e-4, mouseDampening);
-        let factor = 1 - Math.exp(-dt / tau);
-        if (factor > 1) factor = 1;
-        const target = mouseTargetRef.current;
-        const cur = uniforms.iMouse.value;
-        cur[0] += (target[0] - cur[0]) * factor;
-        cur[1] += (target[1] - cur[1]) * factor;
+        if (!lastTimeRef.current) lastTimeRef.current = t
+        const dt = (t - lastTimeRef.current) / 1000
+        lastTimeRef.current = t
+        const tau = Math.max(1e-4, mouseDampening)
+        let factor = 1 - Math.exp(-dt / tau)
+        if (factor > 1) factor = 1
+        const target = mouseTargetRef.current
+        const cur = uniforms.iMouse.value
+        cur[0] += (target[0] - cur[0]) * factor
+        cur[1] += (target[1] - cur[1]) * factor
       } else {
-        lastTimeRef.current = t;
+        lastTimeRef.current = t
       }
       if (!paused && programRef.current && meshRef.current) {
         try {
-          renderer.render({ scene: meshRef.current });
+          renderer.render({ scene: meshRef.current })
         } catch (e) {
-          console.error(e);
+          console.error(e)
         }
       }
-    };
-    rafRef.current = requestAnimationFrame(loop);
+    }
+    rafRef.current = requestAnimationFrame(loop)
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (mouseInteraction) canvas.removeEventListener('pointermove', onPointerMove);
-      ro.disconnect();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (mouseInteraction) canvas.removeEventListener('pointermove', onPointerMove)
+      ro.disconnect()
       if (canvas.parentElement === container) {
-        container.removeChild(canvas);
+        container.removeChild(canvas)
       }
       const callIfFn = (obj, key) => {
-        if (obj && typeof obj[key] === 'function') obj[key].call(obj);
-      };
-      callIfFn(programRef.current, 'remove');
-      callIfFn(geometryRef.current, 'remove');
-      callIfFn(meshRef.current, 'remove');
-      callIfFn(rendererRef.current, 'destroy');
-      programRef.current = null;
-      geometryRef.current = null;
-      meshRef.current = null;
-      rendererRef.current = null;
-    };
+        if (obj && typeof obj[key] === 'function') obj[key].call(obj)
+      }
+      callIfFn(programRef.current, 'remove')
+      callIfFn(geometryRef.current, 'remove')
+      callIfFn(meshRef.current, 'remove')
+      callIfFn(rendererRef.current, 'destroy')
+      programRef.current = null
+      geometryRef.current = null
+      meshRef.current = null
+      rendererRef.current = null
+    }
   }, [
-    dpr, paused, colors, backgroundColor, speed, streakCount, streakWidth,
-    streakLength, glow, density, twinkle, zoom, backgroundGlow, opacity,
-    mouseInteraction, mouseStrength, mouseRadius, mouseDampening,
-  ]);
+    dpr,
+    paused,
+    colors,
+    backgroundColor,
+    speed,
+    streakCount,
+    streakWidth,
+    streakLength,
+    glow,
+    density,
+    twinkle,
+    zoom,
+    backgroundGlow,
+    opacity,
+    mouseInteraction,
+    mouseStrength,
+    mouseRadius,
+    mouseDampening,
+  ])
 
   return (
     <div
@@ -337,7 +355,7 @@ const Lightfall = ({
       className={`lightfall-container ${className ?? ''}`}
       style={{ ...(mixBlendMode && { mixBlendMode }) }}
     />
-  );
-};
+  )
+}
 
-export default Lightfall;
+export default Lightfall

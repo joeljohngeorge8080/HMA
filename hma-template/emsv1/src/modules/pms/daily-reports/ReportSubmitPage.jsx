@@ -44,11 +44,7 @@ const ReportSubmitPage = () => {
     <>
       <CRow className="justify-content-center">
         <CCol xs={12} lg={8} xl={7}>
-          <ReportForm
-            onSubmit={handleSubmit}
-            onSaveDraft={handleSaveDraft}
-            loading={loading}
-          />
+          <ReportForm onSubmit={handleSubmit} onSaveDraft={handleSaveDraft} loading={loading} />
         </CCol>
       </CRow>
 

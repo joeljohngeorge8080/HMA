@@ -60,9 +60,7 @@ const ProjectCard = ({ project, onClick }) => {
       : 0
 
   const isOverdue =
-    project.end_date &&
-    project.phase !== 'completed' &&
-    new Date(project.end_date) < new Date()
+    project.end_date && project.phase !== 'completed' && new Date(project.end_date) < new Date()
 
   return (
     <CCard
@@ -253,7 +251,10 @@ const MyProjectsPage = () => {
             color="secondary"
             variant="ghost"
             className="w-100"
-            onClick={() => { setSearch(''); setPhase('') }}
+            onClick={() => {
+              setSearch('')
+              setPhase('')
+            }}
           >
             <CIcon icon={cilFilterX} size="sm" className="me-1" /> Clear
           </CButton>

@@ -182,14 +182,16 @@ export const localTasks = {
     const demoTasks = [
       {
         title: 'Plot A3 Foundation Survey',
-        description: 'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos.',
+        description:
+          'Conduct soil inspection and document foundation readiness for Plot A3. Take geo-tagged photos.',
         project_id: proj0,
         project_name: projects[0]?.title || 'Medical College Construction',
         due_date: '2026-06-25',
       },
       {
         title: 'Block C Excavation Oversight',
-        description: 'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
+        description:
+          'Oversee excavation work at Block C. Submit daily labor charges and site progress photos.',
         project_id: proj0,
         project_name: projects[0]?.title || 'Medical College Construction',
         due_date: '2026-06-28',

@@ -7,7 +7,6 @@ import ProtectedRoute from './ProtectedRoute'
 import useRole from '../hooks/useRole'
 import { ROLE } from '../constants/roles'
 
-
 /**
  * Converts an absolute route path to a relative one for use in nested <Routes>.
  *

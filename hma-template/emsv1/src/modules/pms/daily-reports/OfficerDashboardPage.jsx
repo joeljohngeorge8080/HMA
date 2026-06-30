@@ -150,7 +150,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'submitted' ? 'bg-warning-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'submitted' ? '' : 'submitted')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'submitted' ? '' : 'submitted')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-warning">{pendingCount}</div>
@@ -164,7 +166,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'approved' ? 'bg-success-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'approved' ? '' : 'approved')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'approved' ? '' : 'approved')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-success">{approvedCount}</div>
@@ -178,7 +182,9 @@ const OfficerDashboardPage = () => {
               filters.status === 'declined' ? 'bg-danger-subtle' : ''
             }`}
             role="button"
-            onClick={() => handleFilterChange('status', filters.status === 'declined' ? '' : 'declined')}
+            onClick={() =>
+              handleFilterChange('status', filters.status === 'declined' ? '' : 'declined')
+            }
           >
             <CCardBody className="py-2">
               <div className="fs-4 fw-bold text-danger">{declinedCount}</div>
@@ -281,22 +287,22 @@ const OfficerDashboardPage = () => {
       )}
 
       {/* Approve confirmation modal */}
-      <CModal visible={approveModalVisible} onClose={() => setApproveModalVisible(false)} alignment="center">
+      <CModal
+        visible={approveModalVisible}
+        onClose={() => setApproveModalVisible(false)}
+        alignment="center"
+      >
         <CModalHeader closeButton>
           <CModalTitle>Confirm Approval</CModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>
-            Are you sure you want to approve this report? It will be forwarded to the backend
-            team for settlement processing.
+            Are you sure you want to approve this report? It will be forwarded to the backend team
+            for settlement processing.
           </p>
         </CModalBody>
         <CModalFooter>
-          <CButton
-            color="secondary"
-            variant="ghost"
-            onClick={() => setApproveModalVisible(false)}
-          >
+          <CButton color="secondary" variant="ghost" onClick={() => setApproveModalVisible(false)}>
             Cancel
           </CButton>
           <CButton color="success" onClick={confirmApprove} disabled={approveLoading}>

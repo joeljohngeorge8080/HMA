@@ -54,13 +54,17 @@ const FieldPersonnelOverviewPage = () => {
   }
 
   const personnelStats = useMemo(() => {
-    return FIELD_PERSONNEL_LIST.map(fp => {
+    return FIELD_PERSONNEL_LIST.map((fp) => {
       const activeTasks = getTasksForPersonnel(fp.email)
-      const pendingReports = reports.filter(r => r.submitted_by === fp.id && (r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED))
+      const pendingReports = reports.filter(
+        (r) =>
+          r.submitted_by === fp.id &&
+          (r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED),
+      )
       return {
         ...fp,
         activeTasksCount: activeTasks.length,
-        pendingReportsCount: pendingReports.length
+        pendingReportsCount: pendingReports.length,
       }
     })
   }, [projects, reports]) // removed tasks dependency to use helper
@@ -72,7 +76,11 @@ const FieldPersonnelOverviewPage = () => {
 
   const selectedReports = useMemo(() => {
     if (!selectedPersonnel) return []
-    return reports.filter(r => r.submitted_by === selectedPersonnel.id && (r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED))
+    return reports.filter(
+      (r) =>
+        r.submitted_by === selectedPersonnel.id &&
+        (r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED),
+    )
   }, [reports, selectedPersonnel])
 
   return (
@@ -80,7 +88,9 @@ const FieldPersonnelOverviewPage = () => {
       <div className="d-flex justify-content-between align-items-end mb-4">
         <div>
           <h4 className="mb-1 fw-semibold">My Team</h4>
-          <div className="text-body-secondary small">Overview of Field Personnel and their current workload</div>
+          <div className="text-body-secondary small">
+            Overview of Field Personnel and their current workload
+          </div>
         </div>
       </div>
 
@@ -92,7 +102,7 @@ const FieldPersonnelOverviewPage = () => {
               Field Personnel ({FIELD_PERSONNEL_LIST.length})
             </CCardHeader>
             <CListGroup flush>
-              {personnelStats.map(fp => (
+              {personnelStats.map((fp) => (
                 <CListGroupItem
                   key={fp.id}
                   component="button"
@@ -101,22 +111,39 @@ const FieldPersonnelOverviewPage = () => {
                   className="d-flex justify-content-between align-items-center py-3 border-bottom"
                 >
                   <div className="d-flex align-items-center gap-3">
-                    <div className={`rounded-circle d-flex align-items-center justify-content-center ${selectedPersonnel?.id === fp.id ? 'bg-primary text-white' : 'bg-body-secondary text-body'}`} style={{ width: '40px', height: '40px' }}>
+                    <div
+                      className={`rounded-circle d-flex align-items-center justify-content-center ${selectedPersonnel?.id === fp.id ? 'bg-primary text-white' : 'bg-body-secondary text-body'}`}
+                      style={{ width: '40px', height: '40px' }}
+                    >
                       <CIcon icon={cilUser} />
                     </div>
                     <div className="text-start">
                       <div className="fw-semibold">{fp.name}</div>
-                      <div className={`small ${selectedPersonnel?.id === fp.id ? 'text-white opacity-75' : 'text-body-secondary'}`}>{fp.id}</div>
+                      <div
+                        className={`small ${selectedPersonnel?.id === fp.id ? 'text-white opacity-75' : 'text-body-secondary'}`}
+                      >
+                        {fp.id}
+                      </div>
                     </div>
                   </div>
                   <div className="text-end d-flex gap-2">
                     {fp.activeTasksCount > 0 && (
-                      <CBadge color={selectedPersonnel?.id === fp.id ? 'light' : 'info'} textColor={selectedPersonnel?.id === fp.id ? 'primary' : ''} shape="rounded-pill" title="Active Tasks">
+                      <CBadge
+                        color={selectedPersonnel?.id === fp.id ? 'light' : 'info'}
+                        textColor={selectedPersonnel?.id === fp.id ? 'primary' : ''}
+                        shape="rounded-pill"
+                        title="Active Tasks"
+                      >
                         {fp.activeTasksCount} <CIcon icon={cilTask} size="sm" />
                       </CBadge>
                     )}
                     {fp.pendingReportsCount > 0 && (
-                      <CBadge color={selectedPersonnel?.id === fp.id ? 'light' : 'warning'} textColor={selectedPersonnel?.id === fp.id ? 'warning' : ''} shape="rounded-pill" title="Pending Reports">
+                      <CBadge
+                        color={selectedPersonnel?.id === fp.id ? 'light' : 'warning'}
+                        textColor={selectedPersonnel?.id === fp.id ? 'warning' : ''}
+                        shape="rounded-pill"
+                        title="Pending Reports"
+                      >
                         {fp.pendingReportsCount} <CIcon icon={cilFile} size="sm" />
                       </CBadge>
                     )}
@@ -138,7 +165,11 @@ const FieldPersonnelOverviewPage = () => {
                     <h5 className="mb-1 fw-bold">{selectedPersonnel.name}</h5>
                     <div className="text-body-secondary small">ID: {selectedPersonnel.id}</div>
                   </div>
-                  <CButton color="primary" size="sm" onClick={() => navigate('/pms/daily-reports/tasks')}>
+                  <CButton
+                    color="primary"
+                    size="sm"
+                    onClick={() => navigate('/pms/daily-reports/tasks')}
+                  >
                     Assign New Task
                   </CButton>
                 </CCardBody>
@@ -147,10 +178,11 @@ const FieldPersonnelOverviewPage = () => {
               {/* Live Tasks */}
               <div>
                 <h6 className="fw-semibold mb-3 d-flex align-items-center gap-2">
-                  <CIcon icon={cilTask} className="text-primary" /> Project Tasks for {selectedPersonnel.name.split(' ')[0]}
+                  <CIcon icon={cilTask} className="text-primary" /> Project Tasks for{' '}
+                  {selectedPersonnel.name.split(' ')[0]}
                 </h6>
                 {selectedTasks.length > 0 ? (
-                  selectedTasks.map(task => (
+                  selectedTasks.map((task) => (
                     <TaskCard key={task.id} task={task} showAssignee={false} showActions={false} />
                   ))
                 ) : (
@@ -168,7 +200,7 @@ const FieldPersonnelOverviewPage = () => {
                   <CIcon icon={cilFile} className="text-warning" /> Reports Pending Review
                 </h6>
                 {selectedReports.length > 0 ? (
-                  selectedReports.map(report => (
+                  selectedReports.map((report) => (
                     <ReportCard
                       key={report.id}
                       report={report}
@@ -190,7 +222,10 @@ const FieldPersonnelOverviewPage = () => {
               <CCardBody className="text-center py-5">
                 <CIcon icon={cilUser} size="3xl" className="text-body-tertiary mb-3 opacity-50" />
                 <h5 className="text-body-secondary">Select Field Personnel</h5>
-                <p className="text-body-tertiary small">Click on a personnel from the list to view their active workload and pending reports.</p>
+                <p className="text-body-tertiary small">
+                  Click on a personnel from the list to view their active workload and pending
+                  reports.
+                </p>
               </CCardBody>
             </CCard>
           )}

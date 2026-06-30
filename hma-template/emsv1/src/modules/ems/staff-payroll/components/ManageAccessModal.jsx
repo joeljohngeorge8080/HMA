@@ -111,8 +111,8 @@ const ManageAccessModal = ({ visible, onClose, employeeId, employeeName, current
 
           {success ? (
             <CAlert color="success">
-              Account access updated for <strong>{employeeName}</strong>. Changes take effect on
-              the next login.
+              Account access updated for <strong>{employeeName}</strong>. Changes take effect on the
+              next login.
             </CAlert>
           ) : (
             <>
@@ -157,7 +157,9 @@ const ManageAccessModal = ({ visible, onClose, employeeId, employeeName, current
                   <hr className="my-1" />
                   <div className="small fw-semibold mb-2">
                     Change Password{' '}
-                    <span className="text-body-secondary fw-normal">(leave blank to keep current)</span>
+                    <span className="text-body-secondary fw-normal">
+                      (leave blank to keep current)
+                    </span>
                   </div>
                 </CCol>
 

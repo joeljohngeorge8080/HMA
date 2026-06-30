@@ -21,6 +21,8 @@ const ROLE_NAV_MAP = {
     ),
   project_officer: (nav) =>
     nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
+  project_coordinator: (nav) =>
+    nav.filter((item) => item.name !== 'Field Personnel' && item.name !== 'Project Associate'),
   field_personnel: (nav) =>
     nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
 }
@@ -28,7 +30,8 @@ const ROLE_NAV_MAP = {
 const ROLES = [
   { key: 'admin', label: 'Administrator', color: 'primary' },
   { key: 'project_officer', label: 'Project Officer', color: 'info' },
-  { key: 'project_associate', label: 'Project Associate', color: 'success' },
+  { key: 'project_coordinator', label: 'Project Coordinator', color: 'success' },
+  { key: 'project_associate', label: 'Project Associate', color: 'secondary' },
   { key: 'field_personnel', label: 'Field Personnel', color: 'warning' },
 ]
 

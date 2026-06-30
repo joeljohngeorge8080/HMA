@@ -61,7 +61,9 @@ export const localReports = {
     if (dateTo) rows = rows.filter((r) => r.report_date <= dateTo)
 
     // Sort newest first
-    rows.sort((a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at))
+    rows.sort(
+      (a, b) => new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at),
+    )
 
     const total = rows.length
     const total_pages = Math.max(1, Math.ceil(total / pageSize))
@@ -157,7 +159,7 @@ export const localReports = {
       submitted_by: data.submitted_by || 'current_user',
       submitted_by_name: data.submitted_by_name || 'Field Personnel',
       submitted_at: ts,
-      
+
       // Task specific fields
       task_id: data.task_id,
       task_title: data.task_title || '',
@@ -165,7 +167,7 @@ export const localReports = {
       notes: data.notes || '',
       geo_photos: data.geo_photos || [],
       bill_uploads: data.bill_uploads || [],
-      
+
       status: REPORT_STATUS.SUBMITTED,
       decline_reason: null,
       reviewed_by: null,
@@ -198,11 +200,11 @@ export const localReports = {
     // If it's a task report, also update the underlying task
     if (rows[idx].report_type === 'task' && rows[idx].task_id) {
       try {
-        // We need to dynamically import or rely on localTasks. Since we are in services, 
+        // We need to dynamically import or rely on localTasks. Since we are in services,
         // it's safer to just load the task store and update it directly to avoid circular deps.
         const TASK_KEY = 'hma_tasks'
         const tasks = JSON.parse(localStorage.getItem(TASK_KEY) || '[]')
-        const tIdx = tasks.findIndex(t => t.id === rows[idx].task_id)
+        const tIdx = tasks.findIndex((t) => t.id === rows[idx].task_id)
         if (tIdx !== -1) {
           tasks[tIdx].status = rows[idx].requested_status
           tasks[tIdx].updated_at = ts
@@ -238,7 +240,6 @@ export const localReports = {
     return rows[idx]
   },
 
-
   // ── decline ─────────────────────────────────────────────────────────────────
   decline(id, reviewerId = 'project_officer', reason = '') {
     const rows = readAll()
@@ -268,7 +269,7 @@ export const localReports = {
     if (idx === -1) throw new Error('Report not found')
 
     const ts = now()
-    
+
     if (rows[idx].report_type === 'task') {
       rows[idx] = {
         ...rows[idx],
@@ -331,12 +332,10 @@ export const localReports = {
     if (role === 'Project Officer') {
       return {
         pending: rows.filter(
-          (r) =>
-            r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
+          (r) => r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
         ).length,
         total: rows.filter(
-          (r) =>
-            r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
+          (r) => r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
         ).length,
       }
     }
@@ -405,9 +404,11 @@ export const localReports = {
     const all = readAll()
     if (all.length >= 5) {
       this.approve(all[0].id, 'po_001')
-      this.decline(all[2].id, 'po_001', 'Receipt image is blurry. Please re-upload a clear photo of the transport bill.')
+      this.decline(
+        all[2].id,
+        'po_001',
+        'Receipt image is blurry. Please re-upload a clear photo of the transport bill.',
+      )
     }
   },
 }
-
-
