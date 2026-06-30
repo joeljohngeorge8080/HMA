@@ -51,8 +51,8 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 
-const AdminExpensePage = React.lazy(
-  () => import('../modules/ems/expense-management/AdminExpensePage'),
+const ExpenseManagementPage = React.lazy(
+  () => import('../modules/ems/expense-management/ExpenseManagementPage'),
 )
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
@@ -156,7 +156,7 @@ export const emsRoutes = [
   {
     path: '/ems/expense-management',
     name: 'Expense Management',
-    element: AdminExpensePage,
+    element: ExpenseManagementPage,
     module: MODULE.EXPENSE_MANAGEMENT,
   },
 

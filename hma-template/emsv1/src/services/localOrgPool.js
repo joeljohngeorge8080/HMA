@@ -192,8 +192,9 @@ export const localOrgPool = {
   },
 
   /**
-   * Returns all installments for a project with their full budget breakdown
-   * for the budget visualiser in ProjectDetailPage.
+   * Returns all installments for a project with their full budget breakdown.
+   * HR/Core monthly budget = (project_value × pct%) ÷ total project months,
+   * distributed equally across all installment months.
    *
    * Each installment row contains:
    *  - projectBudget       85% of installment amount  (for project spend)
@@ -227,9 +228,32 @@ export const localOrgPool = {
       ? null
       : Math.round(((pv * (corePct / 100)) / tpm) * 100) / 100
 
-    return (p.installments || []).map((inst) => {
+    // Pool-specific pct and installment list (sridd3 equal-distribution approach)
+    const pct = pool === 'core' ? corePct : hrPct
+    const installments = p.installments || []
+
+    // Total project value for pool budget (use best available field)
+    const totalProjectValue =
+      p.project_value || p.project_valuation || p.amount_sanctioned || 0
+    const totalHRBudget = totalProjectValue * (pct / 100)
+
+    // Count total months across ALL installments combined
+    const totalMonths = Math.max(
+      1,
+      installments.reduce((sum, inst) => {
+        const endField = inst.end_date || inst.target_date || ''
+        return sum + monthsBetween(inst.start_date, endField)
+      }, 0),
+    )
+
+    // Equal monthly share for every month of the project
+    const monthlyBudget = Math.round((totalHRBudget / totalMonths) * 100) / 100
+
+    return installments.map((inst) => {
       const endField = inst.end_date || inst.target_date || ''
       const instMonths = monthsBetween(inst.start_date, endField)
+      const months = instMonths
+      const instPoolBudget = Math.round(monthlyBudget * months * 100) / 100
 
       // Project spend receives the remaining percentage
       const projectPct = 100 - ADMIN_PCT - hrPct - corePct
@@ -278,7 +302,9 @@ export const localOrgPool = {
 
         // Duration
         instMonths,
+        months,
         totalProjectMonths: tpm,
+        totalMonths,
         monthList,
 
         // Budget breakdown
@@ -296,6 +322,9 @@ export const localOrgPool = {
         projectPct,
         adminPct: ADMIN_PCT,
 
+        // sridd3 equal-distribution fields
+        totalHRBudget: Math.round(totalHRBudget * 100) / 100,
+
         // Flags
         budgetNotForeseen,
         budgetDesignedByOfficer: inst.budget_designed_by_officer || null,
@@ -306,6 +335,7 @@ export const localOrgPool = {
       }
     })
   },
+
 
   /**
    * Splits a given expense amount proportionally across all activated projects
