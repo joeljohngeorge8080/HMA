@@ -94,14 +94,6 @@ const emsNav = [
     icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
   },
-  {
-    component: CNavItem,
-    name: 'Project Overheads',
-    to: '/ems/projects/overheads',
-    icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
-
   // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
