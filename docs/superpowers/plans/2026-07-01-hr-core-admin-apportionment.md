@@ -12,6 +12,18 @@
 
 - No backend exists yet — every change here is frontend-only, `localStorage`-backed, per the existing pattern in `localProjects.js` / `localOrgPool.js`. Do not introduce API calls.
 - No automated test framework is configured in this repo. Each task's verification step is: (a) `npm run lint` from `hma-template/emsv1/`, (b) `npm run build` from the same directory, and (c) a manual browser-devtools-console check script (provided per task) run against the app's `localStorage` state, since these services read/write `localStorage` directly and cannot run under plain `node`. Do not add a test framework as part of this plan — out of scope.
+- **Lint baseline warning:** `npm run lint` on an unmodified checkout of this branch already reports 523 pre-existing errors / 14 warnings repo-wide (confirmed by running it before any task started) — it does **not** exit 0 today and is not expected to. Do not attempt to fix pre-existing lint errors in files you didn't otherwise touch for your task — that is out of scope and would blow up the diff. Every task's lint step runs `npm run lint -- <path-to-the-file(s)-you-changed>` (eslint accepts specific file paths) scoped to only the files that task touches, and compares the reported error count against this pre-existing per-file baseline (also confirmed by running it before any task started):
+
+  | File | Baseline error count |
+  |---|---|
+  | `src/services/localOrgPool.js` | 2 |
+  | `src/services/localProjects.js` | 0 |
+  | `src/modules/pms/project-associate/ProjectDetailPage.jsx` | 56 |
+  | `src/modules/ems/expense-management/ExpenseManagementPage.jsx` | 38 |
+  | `src/modules/ems/projects/ProjectOverheadsList.jsx` | 1 |
+
+  The bar for every task's lint step is: **the scoped lint run's error count must not exceed the baseline number above for that file.** It is fine if the count is lower (e.g. a rewrite happens to fix a pre-existing formatting error in a block you replaced) — do not chase the baseline errors down to 0, that is out of scope.
+- `npm run build` **does** exit 0 cleanly on an unmodified checkout (only non-fatal "chunk size" warnings) — treat any build failure as a real regression from your change.
 - Follow existing code style: no semicolons are used inconsistently in this codebase (mixed) — match the file you're editing line-by-line rather than reformatting.
 - Money values are always rounded to 2 decimals with `Math.round(x * 100) / 100`, matching every existing calculation in `localOrgPool.js`.
 - Dates for months are always `'YYYY-MM'` strings; use `.slice(0, 7)` on ISO date strings to get the month.
@@ -110,8 +122,8 @@ In the same file, inside `export const localOrgPool = {` (the object literal sta
 
 - [ ] **Step 4: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0, no errors. (`getEffectiveLedger`, `rateForMonth`, `currentMonth` aren't called anywhere yet, so no "unused" lint errors should fire since they're used later in this same task's remaining steps — if lint flags them as unused at this point, that's expected until Task 3 wires them in; if it hard-fails the build, temporarily reference them with `void rateForMonth, void getEffectiveLedger, void currentMonth` at the bottom of the file and remove that line in Task 3.)
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/services/localOrgPool.js`
+Expected: `npm run build` exits 0. This file has a pre-existing lint baseline of 2 errors (see Global Constraints table) — the scoped lint run should report 2 or fewer, plus it may additionally report `no-unused-vars` for `currentMonth`/`rateForMonth`/`getEffectiveLedger` — that's expected at this point, since Task 3 is what wires them into `getActiveProjectMonthlyBudgets`/`getProjectInstallmentBudgets`. If lint hard-fails the build itself (rather than just reporting the unused-vars warning/error), temporarily reference them with `void rateForMonth, void getEffectiveLedger, void currentMonth` at the bottom of the file and remove that line in Task 3. Do not compare against this repo's full unscoped `npm run lint` — see Global Constraints.
 
 - [ ] **Step 5: Manual verification via browser console**
 
@@ -225,8 +237,8 @@ to:
 
 - [ ] **Step 4: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/services/localOrgPool.js src/services/localProjects.js`
+Expected: `npm run build` exits 0. Combined pre-existing baseline for these two files is 2 errors (2 in `localOrgPool.js`, 0 in `localProjects.js` — see Global Constraints table); the scoped lint run should report 2 or fewer.
 
 - [ ] **Step 5: Manual verification via browser console**
 
@@ -450,8 +462,8 @@ And within the same `.map`, find every remaining reference to the old bare-strin
 
 - [ ] **Step 5: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0. Pay attention to any lingering `ym` (bare string) usages the linter or a manual `grep -n "ym)" hma-template/emsv1/src/modules/ems/expense-management/ExpenseManagementPage.jsx` might reveal — every `ym` in this component must now be an object.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/services/localOrgPool.js src/modules/ems/expense-management/ExpenseManagementPage.jsx`
+Expected: `npm run build` exits 0. Combined pre-existing baseline for these two files is 40 errors (2 in `localOrgPool.js`, 38 in `ExpenseManagementPage.jsx` — see Global Constraints table); the scoped lint run should report 40 or fewer. Pay attention to any lingering `ym` (bare string) usages a manual `grep -n "ym)" hma-template/emsv1/src/modules/ems/expense-management/ExpenseManagementPage.jsx` might reveal — every `ym` in this component must now be an object.
 
 - [ ] **Step 6: Manual verification via browser console**
 
@@ -653,8 +665,8 @@ Check whether `CTooltip` is already imported at the top of the file (search `gre
 
 - [ ] **Step 6: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/services/localProjects.js src/modules/pms/project-associate/ProjectDetailPage.jsx`
+Expected: `npm run build` exits 0. Combined pre-existing baseline for these two files is 56 errors (0 in `localProjects.js`, 56 in `ProjectDetailPage.jsx` — see Global Constraints table); the scoped lint run should report 56 or fewer.
 
 - [ ] **Step 7: Manual verification via browser console + UI**
 
@@ -755,8 +767,8 @@ Add this method to the `localOrgPool` object, right after `recordAdminCredit`/`g
 
 - [ ] **Step 2: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0 (this method isn't called from any UI yet — that's Task 6 — but it must not break the build).
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/services/localOrgPool.js`
+Expected: `npm run build` exits 0 (this method isn't called from any UI yet — that's Task 6 — but it must not break the build). This file has a pre-existing lint baseline of 2 errors (see Global Constraints table); the scoped lint run should report 2 or fewer.
 
 - [ ] **Step 3: Manual verification via browser console**
 
@@ -991,8 +1003,8 @@ Check that `CInputGroup`, `CInputGroupText`, `CFormInput` are already imported (
 
 - [ ] **Step 5: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/modules/pms/project-associate/ProjectDetailPage.jsx`
+Expected: `npm run build` exits 0. This file has a pre-existing lint baseline of 56 errors (see Global Constraints table); the scoped lint run should report 56 or fewer.
 
 - [ ] **Step 6: Manual verification in the browser**
 
@@ -1120,8 +1132,8 @@ Change `budget` to:
 
 - [ ] **Step 5: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/modules/ems/expense-management/ExpenseManagementPage.jsx src/modules/pms/project-associate/ProjectDetailPage.jsx`
+Expected: `npm run build` exits 0. Combined pre-existing baseline for these two files is 94 errors (38 in `ExpenseManagementPage.jsx`, 56 in `ProjectDetailPage.jsx` — see Global Constraints table); the scoped lint run should report 94 or fewer.
 
 - [ ] **Step 6: Manual verification in the browser**
 
@@ -1169,8 +1181,8 @@ with:
 
 - [ ] **Step 2: Verify it lints and builds**
 
-Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run lint && npm run build`
-Expected: both exit 0.
+Run: `cd /home/jojo/labs/git-lab/HMA/hma-template/emsv1 && npm run build && npm run lint -- src/modules/ems/projects/ProjectOverheadsList.jsx`
+Expected: `npm run build` exits 0. This file has a pre-existing lint baseline of 1 error (see Global Constraints table); the scoped lint run should report 1 or fewer.
 
 - [ ] **Step 3: Manual verification in the browser**
 
