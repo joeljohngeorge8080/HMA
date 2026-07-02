@@ -644,6 +644,9 @@ const ProjectDetailPage = () => {
     () => (project ? localTasks.getByProject(project.id).length : 0),
     [project],
   )
+  // Activation requires both a task assigned AND a completed monthly plan —
+  // the Project Officer must plan the budget before it can go live.
+  const hasMonthlyPlan = Boolean(project?.monthly_plan?.length)
   const isBudgetAdmin =
     role === ROLE.CEO ||
     role === ROLE.FINANCE ||
@@ -797,7 +800,16 @@ const ProjectDetailPage = () => {
               ⏸ Not Activated — assign a task first
             </CBadge>
           )}
-          {!project.is_operations_active && projectTaskCount > 0 && (
+          {!project.is_operations_active && projectTaskCount > 0 && !hasMonthlyPlan && (
+            <CBadge
+              color="secondary"
+              className="px-3 py-2 d-flex align-items-center"
+              style={{ fontSize: '0.8rem' }}
+            >
+              ⏸ Not Activated — plan the monthly budget first
+            </CBadge>
+          )}
+          {!project.is_operations_active && projectTaskCount > 0 && hasMonthlyPlan && (
             <CButton
               color="success"
               className="fw-semibold flex-shrink-0"
