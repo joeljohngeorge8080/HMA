@@ -28,7 +28,7 @@ import {
   CFormTextarea,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilTrash, cilArrowThickTop, cilArrowThickBottom } from '@coreui/icons'
+import { cilPlus, cilTrash } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
 import {
   computeWorkingPool,
@@ -367,48 +367,137 @@ const monthLabel = (ym) => {
   return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
-const PctStepper = ({ value, onChange, disabled = false }) => (
-  <div className="d-flex align-items-center gap-1">
-    <CButton
-      size="sm"
-      color="secondary"
-      variant="ghost"
-      style={{ padding: '2px 6px' }}
-      disabled={disabled}
-      onClick={() => onChange(Math.max(0, Math.round((value - 0.5) * 10) / 10))}
-    >
-      <CIcon icon={cilArrowThickBottom} size="sm" />
-    </CButton>
-    <span className="fw-semibold" style={{ minWidth: 40, textAlign: 'center' }}>
-      {value}%
-    </span>
-    <CButton
-      size="sm"
-      color="secondary"
-      variant="ghost"
-      style={{ padding: '2px 6px' }}
-      disabled={disabled}
-      onClick={() => onChange(Math.round((value + 0.5) * 10) / 10)}
-    >
-      <CIcon icon={cilArrowThickTop} size="sm" />
-    </CButton>
-  </div>
-)
+const POOL_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
 
-PctStepper.propTypes = {
-  value: PropTypes.number.isRequired,
-  onChange: PropTypes.func.isRequired,
-  disabled: PropTypes.bool,
-}
+const WithdrawModal = ({ visible, onClose, project, month, onProjectChange, currentUser }) => {
+  const [pools, setPools] = useState([])
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
 
-const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
-  const workingPool = computeWorkingPool(project)
-  const validation = validatePlanTotal(project.monthly_plan, workingPool)
+  const togglePool = (pool) =>
+    setPools((prev) => (prev.includes(pool) ? prev.filter((p) => p !== pool) : [...prev, pool]))
 
-  const handlePctChange = (month, patch) => {
-    const updated = localProjects.updateMonthPct(project.id, month, patch)
+  const existing = (project.pool_adjustments || []).filter((a) => a.month === month)
+
+  const handleSubmit = () => {
+    setError('')
+    try {
+      const updated = localProjects.addPoolAdjustment(project.id, {
+        pools,
+        month,
+        amount: parseFloat(amount),
+        reason,
+        createdBy: currentUser,
+      })
+      onProjectChange(updated)
+      setPools([])
+      setAmount('')
+      setReason('')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  const handleRemove = (adjustmentId) => {
+    const updated = localProjects.removePoolAdjustment(project.id, adjustmentId)
     onProjectChange(updated)
   }
+
+  return (
+    <CModal visible={visible} onClose={onClose} alignment="center">
+      <CModalHeader>
+        <CModalTitle>Withdraw for {monthLabel(month)}</CModalTitle>
+      </CModalHeader>
+      <CModalBody>
+        <p className="small text-body-secondary">Split evenly across every pool selected below.</p>
+        <div className="d-flex gap-3 mb-3">
+          {['admin', 'hr', 'core'].map((pool) => (
+            <CFormCheck
+              key={pool}
+              label={POOL_LABELS[pool]}
+              checked={pools.includes(pool)}
+              onChange={() => togglePool(pool)}
+            />
+          ))}
+        </div>
+        <CInputGroup size="sm" className="mb-2">
+          <CInputGroupText>₹</CInputGroupText>
+          <CFormInput
+            type="number"
+            min="0"
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </CInputGroup>
+        <CFormTextarea
+          size="sm"
+          placeholder="Reason (required)"
+          rows={2}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        {error && (
+          <CAlert color="danger" className="py-2 small mt-2">
+            {error}
+          </CAlert>
+        )}
+        {existing.length > 0 && (
+          <div className="mt-3">
+            <div className="small fw-semibold mb-1">Existing withdrawals this month</div>
+            {existing.map((a) => (
+              <div
+                key={a.id}
+                className="d-flex justify-content-between align-items-center small mb-1"
+              >
+                <span>
+                  {POOL_LABELS[a.pool]} — {fmt(a.amount)} — {a.reason}
+                </span>
+                <CButton
+                  size="sm"
+                  color="danger"
+                  variant="ghost"
+                  onClick={() => handleRemove(a.id)}
+                >
+                  <CIcon icon={cilTrash} size="sm" />
+                </CButton>
+              </div>
+            ))}
+          </div>
+        )}
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" onClick={onClose}>
+          Close
+        </CButton>
+        <CButton color="warning" onClick={handleSubmit}>
+          Withdraw
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  )
+}
+
+WithdrawModal.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  project: PropTypes.object.isRequired,
+  month: PropTypes.string,
+  onProjectChange: PropTypes.func.isRequired,
+  currentUser: PropTypes.string,
+}
+
+const PlanTable = ({
+  project,
+  onProjectChange,
+  canEdit = false,
+  canWithdraw = false,
+  currentUser = 'Unknown',
+}) => {
+  const workingPool = computeWorkingPool(project)
+  const validation = validatePlanTotal(project.monthly_plan, workingPool)
+  const [withdrawMonth, setWithdrawMonth] = useState(null)
 
   const handleAmountChange = (month, phaseIdx, amount) => {
     const monthEntry = project.monthly_plan.find((m) => m.month === month)
@@ -426,7 +515,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
         <CBadge color={validation.valid ? 'success' : 'danger'}>
           {validation.valid
             ? `Balanced — ${fmt(validation.planTotal)}`
-            : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs pool ${fmt(validation.workingPool)})`}
+            : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
         </CBadge>
       </CCardHeader>
       <CCardBody className="p-0">
@@ -435,16 +524,22 @@ const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
             <CTableHead color="light">
               <CTableRow>
                 <CTableHeaderCell>Month</CTableHeaderCell>
-                <CTableHeaderCell>Phase Breakdown</CTableHeaderCell>
-                <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">HR %</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">Core %</CTableHeaderCell>
-                <CTableHeaderCell className="text-end">Project / HR / Core</CTableHeaderCell>
+                <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Project Total</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Admin</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">HR</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Core</CTableHeaderCell>
+                {canWithdraw && (
+                  <CTableHeaderCell className="text-center">Withdraw</CTableHeaderCell>
+                )}
               </CTableRow>
             </CTableHead>
             <CTableBody>
               {project.monthly_plan.map((m) => {
-                const split = computeMonthSplit(m)
+                const adjustedFor = (pool) =>
+                  (project.pool_adjustments || []).some(
+                    (a) => a.pool === pool && a.month === m.month,
+                  )
                 return (
                   <CTableRow key={m.month}>
                     <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
@@ -473,25 +568,33 @@ const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
                       ))}
                     </CTableDataCell>
                     <CTableDataCell className="text-end fw-bold">{fmt(m.total)}</CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <PctStepper
-                        value={m.hr_pct}
-                        onChange={(v) => handlePctChange(m.month, { hr_pct: v })}
-                        disabled={!canEdit}
-                      />
-                    </CTableDataCell>
-                    <CTableDataCell className="text-center">
-                      <PctStepper
-                        value={m.core_pct}
-                        onChange={(v) => handlePctChange(m.month, { core_pct: v })}
-                        disabled={!canEdit}
-                      />
-                    </CTableDataCell>
-                    <CTableDataCell className="text-end">
-                      <div className="text-primary">{fmt(split.projectAmount)}</div>
-                      <div className="text-info">{fmt(split.hrAmount)}</div>
-                      <div className="text-danger">{fmt(split.coreAmount)}</div>
-                    </CTableDataCell>
+                    {['admin', 'hr', 'core'].map((pool) => (
+                      <CTableDataCell key={pool} className="text-end">
+                        {fmt(computeEffectivePoolMonthly(project, pool, m.month))}
+                        {adjustedFor(pool) && (
+                          <CBadge
+                            color="warning"
+                            shape="rounded-pill"
+                            className="ms-1"
+                            style={{ fontSize: '0.6rem' }}
+                          >
+                            adjusted
+                          </CBadge>
+                        )}
+                      </CTableDataCell>
+                    ))}
+                    {canWithdraw && (
+                      <CTableDataCell className="text-center">
+                        <CButton
+                          size="sm"
+                          color="warning"
+                          variant="ghost"
+                          onClick={() => setWithdrawMonth(m.month)}
+                        >
+                          Withdraw
+                        </CButton>
+                      </CTableDataCell>
+                    )}
                   </CTableRow>
                 )
               })}
@@ -499,6 +602,16 @@ const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
           </CTable>
         </div>
       </CCardBody>
+      {canWithdraw && (
+        <WithdrawModal
+          visible={Boolean(withdrawMonth)}
+          onClose={() => setWithdrawMonth(null)}
+          project={project}
+          month={withdrawMonth}
+          onProjectChange={onProjectChange}
+          currentUser={currentUser}
+        />
+      )}
     </CCard>
   )
 }
@@ -507,6 +620,8 @@ PlanTable.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
   canEdit: PropTypes.bool,
+  canWithdraw: PropTypes.bool,
+  currentUser: PropTypes.string,
 }
 
 const MonthlyPlanPanel = ({
