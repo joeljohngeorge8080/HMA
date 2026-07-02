@@ -13,11 +13,22 @@ import {
   CButton,
   CAlert,
   CBadge,
+  CTable,
+  CTableHead,
+  CTableRow,
+  CTableHeaderCell,
+  CTableBody,
+  CTableDataCell,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilTrash } from '@coreui/icons'
+import { cilPlus, cilTrash, cilArrowThickTop, cilArrowThickBottom } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
-import { computeWorkingPool, monthsInRange } from '../../../services/monthlyApportionment'
+import {
+  computeWorkingPool,
+  monthsInRange,
+  computeMonthSplit,
+  validatePlanTotal,
+} from '../../../services/monthlyApportionment'
 
 const PHASE_OPTIONS = [
   { value: 'design', label: 'Design' },
@@ -158,11 +169,152 @@ TemplateEditor.propTypes = {
   onProjectChange: PropTypes.func.isRequired,
 }
 
+const monthLabel = (ym) => {
+  if (!ym) return '—'
+  const [y, m] = ym.split('-')
+  return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+}
+
+const PctStepper = ({ value, onChange }) => (
+  <div className="d-flex align-items-center gap-1">
+    <CButton
+      size="sm"
+      color="secondary"
+      variant="ghost"
+      style={{ padding: '2px 6px' }}
+      onClick={() => onChange(Math.max(0, Math.round((value - 0.5) * 10) / 10))}
+    >
+      <CIcon icon={cilArrowThickBottom} size="sm" />
+    </CButton>
+    <span className="fw-semibold" style={{ minWidth: 40, textAlign: 'center' }}>
+      {value}%
+    </span>
+    <CButton
+      size="sm"
+      color="secondary"
+      variant="ghost"
+      style={{ padding: '2px 6px' }}
+      onClick={() => onChange(Math.round((value + 0.5) * 10) / 10)}
+    >
+      <CIcon icon={cilArrowThickTop} size="sm" />
+    </CButton>
+  </div>
+)
+
+PctStepper.propTypes = {
+  value: PropTypes.number.isRequired,
+  onChange: PropTypes.func.isRequired,
+}
+
+const PlanTable = ({ project, onProjectChange }) => {
+  const workingPool = computeWorkingPool(project)
+  const validation = validatePlanTotal(project.monthly_plan, workingPool)
+
+  const handlePctChange = (month, patch) => {
+    const updated = localProjects.updateMonthPct(project.id, month, patch)
+    onProjectChange(updated)
+  }
+
+  const handleAmountChange = (month, phaseIdx, amount) => {
+    const monthEntry = project.monthly_plan.find((m) => m.month === month)
+    const phases = monthEntry.phases.map((ph, i) =>
+      i === phaseIdx ? { ...ph, amount: parseFloat(amount) || 0 } : ph,
+    )
+    const { project: updated } = localProjects.updateMonthPlan(project.id, month, phases)
+    onProjectChange(updated)
+  }
+
+  return (
+    <CCard className="shadow-sm mb-4">
+      <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>📊 Monthly Plan</span>
+        <CBadge color={validation.valid ? 'success' : 'danger'}>
+          {validation.valid
+            ? `Balanced — ${fmt(validation.planTotal)}`
+            : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs pool ${fmt(validation.workingPool)})`}
+        </CBadge>
+      </CCardHeader>
+      <CCardBody className="p-0">
+        <div style={{ overflowX: 'auto' }}>
+          <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
+            <CTableHead color="light">
+              <CTableRow>
+                <CTableHeaderCell>Month</CTableHeaderCell>
+                <CTableHeaderCell>Phase Breakdown</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
+                <CTableHeaderCell className="text-center">HR %</CTableHeaderCell>
+                <CTableHeaderCell className="text-center">Core %</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Project / HR / Core</CTableHeaderCell>
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {project.monthly_plan.map((m) => {
+                const split = computeMonthSplit(m)
+                return (
+                  <CTableRow key={m.month}>
+                    <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
+                    <CTableDataCell>
+                      {m.phases.map((ph, i) => (
+                        <div key={i} className="d-flex align-items-center gap-2 mb-1">
+                          <CBadge
+                            color="secondary"
+                            shape="rounded-pill"
+                            style={{ fontSize: '0.65rem' }}
+                          >
+                            {ph.phase}
+                          </CBadge>
+                          <span className="text-body-secondary">{ph.label}</span>
+                          <CInputGroup size="sm" style={{ maxWidth: 130 }}>
+                            <CInputGroupText>₹</CInputGroupText>
+                            <CFormInput
+                              type="number"
+                              min="0"
+                              value={ph.amount}
+                              onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
+                            />
+                          </CInputGroup>
+                        </div>
+                      ))}
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end fw-bold">{fmt(m.total)}</CTableDataCell>
+                    <CTableDataCell className="text-center">
+                      <PctStepper
+                        value={m.hr_pct}
+                        onChange={(v) => handlePctChange(m.month, { hr_pct: v })}
+                      />
+                    </CTableDataCell>
+                    <CTableDataCell className="text-center">
+                      <PctStepper
+                        value={m.core_pct}
+                        onChange={(v) => handlePctChange(m.month, { core_pct: v })}
+                      />
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      <div className="text-primary">{fmt(split.projectAmount)}</div>
+                      <div className="text-info">{fmt(split.hrAmount)}</div>
+                      <div className="text-danger">{fmt(split.coreAmount)}</div>
+                    </CTableDataCell>
+                  </CTableRow>
+                )
+              })}
+            </CTableBody>
+          </CTable>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
+PlanTable.propTypes = {
+  project: PropTypes.object.isRequired,
+  onProjectChange: PropTypes.func.isRequired,
+}
+
 const MonthlyPlanPanel = ({ project, onProjectChange }) => {
   if (!project.monthly_plan || project.monthly_plan.length === 0) {
     return <TemplateEditor project={project} onProjectChange={onProjectChange} />
   }
-  return <div>Plan table goes here (Task 5)</div>
+  return <PlanTable project={project} onProjectChange={onProjectChange} />
 }
 
 MonthlyPlanPanel.propTypes = {
