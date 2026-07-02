@@ -2212,7 +2212,11 @@ const ProjectDetailPage = () => {
 
             {/* Monthly Plan Tab */}
             <CTabPane visible={activeTab === 6}>
-              <MonthlyPlanPanel project={project} onProjectChange={setProject} />
+              <MonthlyPlanPanel
+                project={project}
+                onProjectChange={setProject}
+                canEdit={isBudgetAdmin}
+              />
             </CTabPane>
           </CTabContent>
         </CCardBody>

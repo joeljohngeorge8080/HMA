@@ -45,7 +45,7 @@ const fmt = (n) =>
 
 const emptyLine = () => ({ phase: 'design', label: '', amount: '' })
 
-const TemplateEditor = ({ project, onProjectChange }) => {
+const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
   const [lines, setLines] = useState([emptyLine()])
   const [error, setError] = useState('')
 
@@ -76,6 +76,21 @@ const TemplateEditor = ({ project, onProjectChange }) => {
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  if (!canEdit) {
+    return (
+      <CCard className="shadow-sm mb-4">
+        <CCardHeader className="bg-transparent fw-semibold pt-3">
+          📅 Plan One Month — Generate Across the Full Duration
+        </CCardHeader>
+        <CCardBody>
+          <CAlert color="info" className="mb-0 small">
+            You don&apos;t have permission to plan this project&apos;s budget.
+          </CAlert>
+        </CCardBody>
+      </CCard>
+    )
   }
 
   return (
@@ -167,6 +182,7 @@ const TemplateEditor = ({ project, onProjectChange }) => {
 TemplateEditor.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
+  canEdit: PropTypes.bool,
 }
 
 const monthLabel = (ym) => {
@@ -175,13 +191,14 @@ const monthLabel = (ym) => {
   return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
-const PctStepper = ({ value, onChange }) => (
+const PctStepper = ({ value, onChange, disabled = false }) => (
   <div className="d-flex align-items-center gap-1">
     <CButton
       size="sm"
       color="secondary"
       variant="ghost"
       style={{ padding: '2px 6px' }}
+      disabled={disabled}
       onClick={() => onChange(Math.max(0, Math.round((value - 0.5) * 10) / 10))}
     >
       <CIcon icon={cilArrowThickBottom} size="sm" />
@@ -194,6 +211,7 @@ const PctStepper = ({ value, onChange }) => (
       color="secondary"
       variant="ghost"
       style={{ padding: '2px 6px' }}
+      disabled={disabled}
       onClick={() => onChange(Math.round((value + 0.5) * 10) / 10)}
     >
       <CIcon icon={cilArrowThickTop} size="sm" />
@@ -204,9 +222,10 @@ const PctStepper = ({ value, onChange }) => (
 PctStepper.propTypes = {
   value: PropTypes.number.isRequired,
   onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
 }
 
-const PlanTable = ({ project, onProjectChange }) => {
+const PlanTable = ({ project, onProjectChange, canEdit = false }) => {
   const workingPool = computeWorkingPool(project)
   const validation = validatePlanTotal(project.monthly_plan, workingPool)
 
@@ -270,6 +289,7 @@ const PlanTable = ({ project, onProjectChange }) => {
                               type="number"
                               min="0"
                               value={ph.amount}
+                              disabled={!canEdit}
                               onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
                             />
                           </CInputGroup>
@@ -281,12 +301,14 @@ const PlanTable = ({ project, onProjectChange }) => {
                       <PctStepper
                         value={m.hr_pct}
                         onChange={(v) => handlePctChange(m.month, { hr_pct: v })}
+                        disabled={!canEdit}
                       />
                     </CTableDataCell>
                     <CTableDataCell className="text-center">
                       <PctStepper
                         value={m.core_pct}
                         onChange={(v) => handlePctChange(m.month, { core_pct: v })}
+                        disabled={!canEdit}
                       />
                     </CTableDataCell>
                     <CTableDataCell className="text-end">
@@ -308,18 +330,20 @@ const PlanTable = ({ project, onProjectChange }) => {
 PlanTable.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
+  canEdit: PropTypes.bool,
 }
 
-const MonthlyPlanPanel = ({ project, onProjectChange }) => {
+const MonthlyPlanPanel = ({ project, onProjectChange, canEdit = false }) => {
   if (!project.monthly_plan || project.monthly_plan.length === 0) {
-    return <TemplateEditor project={project} onProjectChange={onProjectChange} />
+    return <TemplateEditor project={project} onProjectChange={onProjectChange} canEdit={canEdit} />
   }
-  return <PlanTable project={project} onProjectChange={onProjectChange} />
+  return <PlanTable project={project} onProjectChange={onProjectChange} canEdit={canEdit} />
 }
 
 MonthlyPlanPanel.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
+  canEdit: PropTypes.bool,
 }
 
 export default MonthlyPlanPanel
