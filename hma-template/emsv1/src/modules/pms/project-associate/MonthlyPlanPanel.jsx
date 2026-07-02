@@ -135,15 +135,30 @@ const MonthAccordion = ({
   const [expandedMonth, setExpandedMonth] = useState(null)
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [error, setError] = useState('')
+  const [hasAutoReplicated, setHasAutoReplicated] = useState(() =>
+    Boolean(project.plan_blocks?.length),
+  )
+
+  const isUntouched = (entry) => entry.lines.every((l) => !l.label.trim() && !l.amount)
 
   const updateLine = (month, lineIdx, patch) => {
-    setMonthEntries((prev) =>
-      prev.map((e) =>
+    setMonthEntries((prev) => {
+      const next = prev.map((e) =>
         e.month === month
           ? { ...e, lines: e.lines.map((l, li) => (li === lineIdx ? { ...l, ...patch } : l)) }
           : e,
-      ),
-    )
+      )
+      if (hasAutoReplicated) return next
+      const editedEntry = next.find((e) => e.month === month)
+      const hasValidLine = editedEntry.lines.some((l) => l.label.trim() && parseFloat(l.amount) > 0)
+      if (!hasValidLine) return next
+      setHasAutoReplicated(true)
+      return next.map((e) =>
+        e.month === month || !isUntouched(e)
+          ? e
+          : { ...e, lines: editedEntry.lines.map((l) => ({ ...l })) },
+      )
+    })
   }
   const addLine = (month) => {
     setMonthEntries((prev) =>
@@ -226,10 +241,11 @@ const MonthAccordion = ({
           <div className="text-body-secondary small mb-3">
             Project baseline: <strong>{fmt(workingPool)}</strong> across{' '}
             <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} — suggestion:{' '}
-            <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly. Click a month to plan
-            it, or use &quot;Copy to all months&quot; to reuse one month&apos;s plan everywhere as a
-            starting point. Months you leave empty are filled evenly with what&apos;s left when you
-            Generate.
+            <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly. Click a month to plan it
+            — the first month you fill in is copied to every other empty month automatically as a
+            starting point, and every month stays independently editable after that (use &quot;Copy
+            to all months&quot; any time to re-sync manually). Months you leave empty are filled
+            evenly with what&apos;s left when you Generate.
           </div>
 
           {monthCount > 0 && <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />}
@@ -701,6 +717,100 @@ PlanTable.propTypes = {
   currentUser: PropTypes.string,
 }
 
+const PlanningSummary = ({ project }) => {
+  const workingPool = computeWorkingPool(project)
+  const validation = validatePlanTotal(project.monthly_plan, workingPool)
+
+  const projectTotal = project.monthly_plan.reduce((s, m) => s + (m.total || 0), 0)
+  const poolTotal = (pool) =>
+    project.monthly_plan.reduce(
+      (s, m) => s + computeEffectivePoolMonthly(project, pool, m.month),
+      0,
+    )
+  const adminTotal = poolTotal('admin')
+  const hrTotal = poolTotal('hr')
+  const coreTotal = poolTotal('core')
+  const grandTotal = projectTotal + adminTotal + hrTotal + coreTotal
+
+  const phaseTotals = { design: 0, implementation: 0, monitoring: 0 }
+  let lineCount = 0
+  project.monthly_plan.forEach((m) => {
+    m.phases.forEach((ph) => {
+      phaseTotals[ph.phase] = (phaseTotals[ph.phase] || 0) + (ph.amount || 0)
+      lineCount += 1
+    })
+  })
+
+  return (
+    <CCard className="shadow-sm mb-4">
+      <CCardHeader className="bg-transparent fw-semibold pt-3">📈 Planning Summary</CCardHeader>
+      <CCardBody>
+        <CAlert color={validation.valid ? 'success' : 'danger'} className="py-2 small">
+          {validation.valid
+            ? '✅ Can run as planned — the plan balances against the project baseline.'
+            : `❌ Off by ${fmt(Math.abs(validation.diff))} — won't run as planned.`}
+        </CAlert>
+
+        <CRow className="g-3 mb-3">
+          {[
+            { label: 'Project', value: projectTotal, color: 'text-primary' },
+            { label: 'Admin', value: adminTotal, color: 'text-warning' },
+            { label: 'HR', value: hrTotal, color: 'text-info' },
+            { label: 'Core', value: coreTotal, color: 'text-danger' },
+            { label: 'Grand Total', value: grandTotal, color: 'text-dark fw-bold' },
+          ].map((row) => (
+            <CCol key={row.label} xs={6} md={2} className="text-center">
+              <div className="small text-body-secondary">{row.label}</div>
+              <div className={row.color}>{fmt(row.value)}</div>
+            </CCol>
+          ))}
+        </CRow>
+
+        <div className="small text-body-secondary mb-2">
+          {lineCount} task line{lineCount !== 1 ? 's' : ''} planned · Design{' '}
+          {fmt(phaseTotals.design)} · Implementation {fmt(phaseTotals.implementation)} · Monitoring{' '}
+          {fmt(phaseTotals.monitoring)}
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
+            <CTableHead color="light">
+              <CTableRow>
+                <CTableHeaderCell>Month</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Project</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Admin</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">HR</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Core</CTableHeaderCell>
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {project.monthly_plan.map((m) => (
+                <CTableRow key={m.month}>
+                  <CTableDataCell>{monthLabel(m.month)}</CTableDataCell>
+                  <CTableDataCell className="text-end">{fmt(m.total)}</CTableDataCell>
+                  <CTableDataCell className="text-end">
+                    {fmt(computeEffectivePoolMonthly(project, 'admin', m.month))}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-end">
+                    {fmt(computeEffectivePoolMonthly(project, 'hr', m.month))}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-end">
+                    {fmt(computeEffectivePoolMonthly(project, 'core', m.month))}
+                  </CTableDataCell>
+                </CTableRow>
+              ))}
+            </CTableBody>
+          </CTable>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
+PlanningSummary.propTypes = {
+  project: PropTypes.object.isRequired,
+}
+
 const MonthlyPlanPanel = ({
   project,
   onProjectChange,
@@ -718,13 +828,16 @@ const MonthlyPlanPanel = ({
         defaultCollapsed={hasPlan}
       />
       {hasPlan && (
-        <PlanTable
-          project={project}
-          onProjectChange={onProjectChange}
-          canEdit={canEdit}
-          canWithdraw={canWithdraw}
-          currentUser={currentUser}
-        />
+        <>
+          <PlanTable
+            project={project}
+            onProjectChange={onProjectChange}
+            canEdit={canEdit}
+            canWithdraw={canWithdraw}
+            currentUser={currentUser}
+          />
+          <PlanningSummary project={project} />
+        </>
       )}
     </>
   )
