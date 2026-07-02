@@ -72,6 +72,7 @@ import { localPayroll } from '../../../services/localPayroll'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import useRole from '../../../hooks/useRole'
+import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
 import MonthlyPlanPanel from './MonthlyPlanPanel'
 
@@ -640,6 +641,7 @@ const ProjectDetailPage = () => {
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
 
   const role = useRole()
+  const { user } = useAuth()
   const projectTaskCount = useMemo(
     () => (project ? localTasks.getByProject(project.id).length : 0),
     [project],
@@ -2233,6 +2235,8 @@ const ProjectDetailPage = () => {
                 project={project}
                 onProjectChange={setProject}
                 canEdit={canEditMonthlyPlan}
+                canWithdraw={isBudgetAdmin}
+                currentUser={user?.full_name || user?.employee_id || 'Unknown'}
               />
             </CTabPane>
           </CTabContent>
