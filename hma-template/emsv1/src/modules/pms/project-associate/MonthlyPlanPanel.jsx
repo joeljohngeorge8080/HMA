@@ -45,12 +45,51 @@ const fmt = (n) =>
 
 const emptyLine = () => ({ phase: 'design', label: '', amount: '' })
 
+const monthLabelShort = (ym) => {
+  if (!ym) return '—'
+  const [y, m] = ym.split('-')
+  return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+}
+
+const BaselineTable = ({ months, baselinePerMonth }) => (
+  <div className="mb-3">
+    <div style={{ overflowX: 'auto' }}>
+      <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.8rem' }}>
+        <CTableHead color="light">
+          <CTableRow>
+            {months.map((m) => (
+              <CTableHeaderCell key={m} className="text-center text-nowrap">
+                {monthLabelShort(m)}
+              </CTableHeaderCell>
+            ))}
+          </CTableRow>
+        </CTableHead>
+        <CTableBody>
+          <CTableRow>
+            {months.map((m) => (
+              <CTableDataCell key={m} className="text-center text-nowrap">
+                {fmt(baselinePerMonth)}
+              </CTableDataCell>
+            ))}
+          </CTableRow>
+        </CTableBody>
+      </CTable>
+    </div>
+  </div>
+)
+
+BaselineTable.propTypes = {
+  months: PropTypes.arrayOf(PropTypes.string).isRequired,
+  baselinePerMonth: PropTypes.number.isRequired,
+}
+
 const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
   const [lines, setLines] = useState([emptyLine()])
   const [error, setError] = useState('')
 
   const workingPool = computeWorkingPool(project)
-  const monthCount = monthsInRange(project.start_date, project.end_date).length
+  const months = monthsInRange(project.start_date, project.end_date)
+  const monthCount = months.length
   const baselinePerMonth = monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
   const templateTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0)
 
@@ -103,9 +142,11 @@ const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
           Working pool: <strong>{fmt(workingPool)}</strong> (project value minus the locked admin
           share) across <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} — baseline
           suggestion: <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly. Build one
-          month&apos;s phase breakdown below, then Generate repeats it across every month of the
-          project.
+          month&apos;s phase breakdown below, then Generate keeps month 1 as entered and spreads the
+          rest of the pool across the remaining months.
         </div>
+
+        {monthCount > 0 && <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />}
 
         {lines.map((line, i) => (
           <CRow key={i} className="g-2 mb-2 align-items-center">
