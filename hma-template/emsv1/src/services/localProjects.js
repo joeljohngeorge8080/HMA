@@ -729,11 +729,21 @@ export const localProjects = {
   // ── Monthly Planning ────────────────────────────────────────────────────────
 
   /**
-   * Replicates `templatePhases` (an array of { phase, label, amount }) across
-   * every month of the project's duration, producing project.monthly_plan.
-   * Throws if the resulting plan doesn't balance against the working pool
-   * (project_value - admin_pool_amount) — the Generate action is the plan's
-   * hard validation gate (spec Section 3).
+   * Builds project.monthly_plan by keeping month 1 exactly as entered via
+   * `templatePhases`, then spreading the *remainder* of the working pool
+   * (workingPool - firstMonthTotal) evenly across the remaining months,
+   * using month 1's phase mix scaled proportionally as their starting
+   * point — real projects don't spend identically every month, so the
+   * remaining months are a sensible scaled copy the Project Officer can
+   * then hand-edit per month via `updateMonthPlan` (unaffected by this).
+   *
+   * - Single-month projects keep the old exact-match requirement: there's
+   *   no "remainder" to spread, so the template total must equal the
+   *   working pool (within tolerance) or this throws.
+   * - Multi-month projects only throw when month 1 alone already exceeds
+   *   the working pool, when dates are missing, or when the final plan
+   *   still fails to balance after rounding-drift reconciliation (a real
+   *   bug in the math, not normal user error).
    */
   generateMonthlyPlan(projectId, templatePhases) {
     const projects = read(PROJECTS_KEY)
@@ -746,23 +756,99 @@ export const localProjects = {
       throw new Error('Project must have a start_date and end_date before generating a plan')
     }
 
-    const monthTotal =
-      Math.round(templatePhases.reduce((s, ph) => s + (parseFloat(ph.amount) || 0), 0) * 100) / 100
-
-    const monthlyPlan = months.map((month) => ({
-      month,
-      phases: templatePhases.map((ph) => ({ ...ph, amount: parseFloat(ph.amount) || 0 })),
-      total: monthTotal,
+    const firstMonthPhases = templatePhases.map((ph) => ({
+      ...ph,
+      amount: parseFloat(ph.amount) || 0,
+    }))
+    const firstMonthTotal =
+      Math.round(firstMonthPhases.reduce((s, ph) => s + ph.amount, 0) * 100) / 100
+    const firstMonthEntry = {
+      month: months[0],
+      phases: firstMonthPhases,
+      total: firstMonthTotal,
       hr_pct: 5,
       core_pct: 5,
-    }))
+    }
 
     const workingPool = computeWorkingPool(project)
-    const { valid, planTotal, diff } = validatePlanTotal(monthlyPlan, workingPool)
-    if (!valid) {
+    const remainingMonths = months.length - 1
+
+    let monthlyPlan
+
+    if (remainingMonths === 0) {
+      // Single-month project — no remainder to spread, so this is still an
+      // exact-match gate.
+      monthlyPlan = [firstMonthEntry]
+      const { valid, planTotal, diff } = validatePlanTotal(monthlyPlan, workingPool)
+      if (!valid) {
+        throw new Error(
+          `Plan total (${planTotal}) does not match the working pool (${workingPool}) — ` +
+            `difference of ${diff}. Adjust the template amounts and try again.`,
+        )
+      }
+      projects[idx] = { ...project, monthly_plan: monthlyPlan, updated_at: now() }
+      write(PROJECTS_KEY, projects)
+      return projects[idx]
+    }
+
+    const remainingPool = Math.round((workingPool - firstMonthTotal) * 100) / 100
+    if (remainingPool < 0) {
       throw new Error(
-        `Plan total (${planTotal}) does not match the working pool (${workingPool}) — ` +
-          `difference of ${diff}. Adjust the template amounts and try again.`,
+        `Month 1's total (₹${firstMonthTotal}) already exceeds the working pool ` +
+          `(₹${workingPool}) — reduce month 1's amounts.`,
+      )
+    }
+
+    const remainingPerMonth = Math.round((remainingPool / remainingMonths) * 100) / 100
+    const scaleFactor = firstMonthTotal > 0 ? remainingPerMonth / firstMonthTotal : 0
+
+    const restEntries = months.slice(1).map((month) => {
+      const phases =
+        firstMonthTotal > 0
+          ? firstMonthPhases.map((ph) => ({
+              ...ph,
+              amount: Math.round(ph.amount * scaleFactor * 100) / 100,
+            }))
+          : [{ phase: 'design', label: 'Planned budget', amount: remainingPerMonth }]
+      const total = Math.round(phases.reduce((s, ph) => s + ph.amount, 0) * 100) / 100
+      return { month, phases, total, hr_pct: 5, core_pct: 5 }
+    })
+
+    monthlyPlan = [firstMonthEntry, ...restEntries]
+
+    // Rounding-drift reconciliation: independently-rounded months can drift
+    // a few paise from the working pool. Patch the last month's first phase
+    // line item so the plan balances exactly. A drift of ₹1 or more means
+    // the math above is wrong, not normal rounding noise — surface it.
+    const drift = validatePlanTotal(monthlyPlan, workingPool)
+    if (!drift.valid) {
+      if (Math.abs(drift.diff) >= 1) {
+        throw new Error(
+          `Plan total (${drift.planTotal}) does not match the working pool (${workingPool}) — ` +
+            `difference of ${drift.diff}. This is larger than normal rounding drift and indicates ` +
+            `a bug in the plan-generation algorithm.`,
+        )
+      }
+      const lastIdx = monthlyPlan.length - 1
+      const lastEntry = monthlyPlan[lastIdx]
+      const adjustedPhases = lastEntry.phases.map((ph, i) =>
+        i === 0 ? { ...ph, amount: Math.round((ph.amount - drift.diff) * 100) / 100 } : ph,
+      )
+      monthlyPlan = [
+        ...monthlyPlan.slice(0, lastIdx),
+        {
+          ...lastEntry,
+          phases: adjustedPhases,
+          total: Math.round((lastEntry.total - drift.diff) * 100) / 100,
+        },
+      ]
+    }
+
+    const final = validatePlanTotal(monthlyPlan, workingPool)
+    if (!final.valid) {
+      throw new Error(
+        `Plan total (${final.planTotal}) does not match the working pool (${workingPool}) — ` +
+          `difference of ${final.diff}. Adjust the template amounts and try again.`,
       )
     }
 
