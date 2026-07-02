@@ -269,8 +269,9 @@ console.log(monthsInRange('2026-01-01', '2026-10-31'))
 // expect ['2026-01','2026-02',...,'2026-10'] (10 entries)
 
 console.log(computeMonthSplit({ total: 95000, hr_pct: 5, core_pct: 5 }))
-// expect { projectAmount: 85000, hrAmount: 4750, coreAmount: 4750 }
-// (5% of 95000 = 4750, not 5000 - percentages are of that month's pot, not a flat 5K reference)
+// expect { projectAmount: 85500, hrAmount: 4750, coreAmount: 4750 }
+// (5% of 95000 = 4750 each for HR/Core, not 5000 - percentages are of that month's pot, not
+// a flat 5K reference; projectAmount is the 95000 residual after both are carved out: 85500)
 
 const plan = Array.from({length: 10}, (_, i) => ({ month: \`2026-\${String(i+1).padStart(2,'0')}\`, total: 95000, hr_pct: 5, core_pct: 5 }))
 console.log(sumPlanTotal(plan)) // expect 950000
