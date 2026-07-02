@@ -36,6 +36,7 @@ import {
   cilList,
   cilPencil,
   cilX,
+  cilCash,
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
@@ -798,6 +799,7 @@ const ApportionmentSheet = () => {
 // ── Lazy-loaded Admin Expense content ────────────────────────────────────────
 
 const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
+const GeneralExpensesTab = React.lazy(() => import('./GeneralExpensesTab'))
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -838,6 +840,11 @@ const ExpenseManagementPage = () => {
               <CIcon icon={cilChartPie} className="me-1" />Apportionment Sheet
             </CNavLink>
           </CNavItem>
+          <CNavItem>
+            <CNavLink active={activeTab === 3} onClick={() => setActiveTab(3)} role="button" className="fw-medium" id="tab-general-expenses">
+              <CIcon icon={cilCash} className="me-1" />General Expenses
+            </CNavLink>
+          </CNavItem>
         </CNav>
       )}
 
@@ -861,6 +868,13 @@ const ExpenseManagementPage = () => {
         {/* Tab 2: Apportionment Sheet */}
         <CTabPane visible={activeTab === 2 && !drillProject}>
           <ApportionmentSheet />
+        </CTabPane>
+
+        {/* Tab 3: General Expenses (HR & Admin actual + forecast) */}
+        <CTabPane visible={activeTab === 3 && !drillProject}>
+          <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
+            <GeneralExpensesTab />
+          </React.Suspense>
         </CTabPane>
       </CTabContent>
     </>
