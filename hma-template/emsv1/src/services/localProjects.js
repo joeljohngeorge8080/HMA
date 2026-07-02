@@ -4,6 +4,7 @@
  */
 
 import { localOrgPool } from './localOrgPool'
+import { computeWorkingPool, monthsInRange, validatePlanTotal } from './monthlyApportionment'
 
 const PROJECTS_KEY = 'hma_projects_v9'
 const OFFICERS_KEY = 'hma_project_officers_v6'
@@ -721,6 +722,100 @@ export const localProjects = {
       projects[idx].phase = 'implementation'
     }
     projects[idx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    return projects[idx]
+  },
+
+  // ── Monthly Planning ────────────────────────────────────────────────────────
+
+  /**
+   * Replicates `templatePhases` (an array of { phase, label, amount }) across
+   * every month of the project's duration, producing project.monthly_plan.
+   * Throws if the resulting plan doesn't balance against the working pool
+   * (project_value - admin_pool_amount) — the Generate action is the plan's
+   * hard validation gate (spec Section 3).
+   */
+  generateMonthlyPlan(projectId, templatePhases) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+
+    const months = monthsInRange(project.start_date, project.end_date)
+    if (months.length === 0) {
+      throw new Error('Project must have a start_date and end_date before generating a plan')
+    }
+
+    const monthTotal =
+      Math.round(templatePhases.reduce((s, ph) => s + (parseFloat(ph.amount) || 0), 0) * 100) / 100
+
+    const monthlyPlan = months.map((month) => ({
+      month,
+      phases: templatePhases.map((ph) => ({ ...ph, amount: parseFloat(ph.amount) || 0 })),
+      total: monthTotal,
+      hr_pct: 5,
+      core_pct: 5,
+    }))
+
+    const workingPool = computeWorkingPool(project)
+    const { valid, planTotal, diff } = validatePlanTotal(monthlyPlan, workingPool)
+    if (!valid) {
+      throw new Error(
+        `Plan total (${planTotal}) does not match the working pool (${workingPool}) — ` +
+          `difference of ${diff}. Adjust the template amounts and try again.`,
+      )
+    }
+
+    projects[idx] = { ...project, monthly_plan: monthlyPlan, updated_at: now() }
+    write(PROJECTS_KEY, projects)
+    return projects[idx]
+  },
+
+  /**
+   * Replaces one month's phase line items. Does not block on an unbalanced
+   * total (single-month edits routinely go out of balance mid-edit) — the
+   * returned `validation` field tells the caller whether the *overall* plan
+   * still balances, so the UI can flag it live.
+   */
+  updateMonthPlan(projectId, month, phases) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+    const plan = project.monthly_plan || []
+    const mIdx = plan.findIndex((m) => m.month === month)
+    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+
+    const total =
+      Math.round(phases.reduce((s, ph) => s + (parseFloat(ph.amount) || 0), 0) * 100) / 100
+    const updatedPlan = [...plan]
+    updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
+
+    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
+    write(PROJECTS_KEY, projects)
+
+    const validation = validatePlanTotal(updatedPlan, computeWorkingPool(projects[idx]))
+    return { project: projects[idx], validation }
+  },
+
+  /** Updates one month's HR%/Core%. */
+  updateMonthPct(projectId, month, { hr_pct, core_pct }) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+    const plan = project.monthly_plan || []
+    const mIdx = plan.findIndex((m) => m.month === month)
+    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+
+    const updatedPlan = [...plan]
+    updatedPlan[mIdx] = {
+      ...updatedPlan[mIdx],
+      hr_pct: hr_pct ?? updatedPlan[mIdx].hr_pct,
+      core_pct: core_pct ?? updatedPlan[mIdx].core_pct,
+    }
+
+    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
     write(PROJECTS_KEY, projects)
     return projects[idx]
   },
