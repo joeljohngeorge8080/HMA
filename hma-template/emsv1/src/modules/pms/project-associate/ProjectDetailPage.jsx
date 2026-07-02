@@ -71,6 +71,7 @@ import { localTasks } from '../../../services/localTasks'
 import { localPayroll } from '../../../services/localPayroll'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
@@ -173,9 +174,13 @@ const ExpenseCard = ({
       ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
       : ''
 
-  // Separate org-level (EMS synced) from project-specific expenses
+  // Separate org-level (EMS vendor ledger), project-actual (EMS Project
+  // Expenses tab), and project-specific (added directly in this card) expenses
   const orgExpenses = expenses.filter((e) => e.source === 'hr_admin')
-  const projExpenses = expenses.filter((e) => e.source !== 'hr_admin')
+  const actualExpenses = expenses.filter((e) => e.source === 'project_actual')
+  const projExpenses = expenses.filter(
+    (e) => e.source !== 'hr_admin' && e.source !== 'project_actual',
+  )
 
   return (
     <CCard className="shadow-sm h-100">
@@ -241,6 +246,44 @@ const ExpenseCard = ({
                     </div>
                   </div>
                   <span className="fw-bold small ms-2 text-nowrap">{fmtShort(exp.amount)}/mo</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Project-actual expenses (logged via EMS Project Expenses tab) ── */}
+        {actualExpenses.length > 0 && (
+          <div className="mb-3">
+            <div className="d-flex align-items-center gap-2 mb-2">
+              <span
+                className="small fw-semibold text-body-secondary text-uppercase"
+                style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}
+              >
+                Project Actual
+              </span>
+              <CBadge color="info" style={{ fontSize: '0.6rem' }}>
+                Logged via EMS
+              </CBadge>
+            </div>
+            <div className="d-flex flex-column gap-2">
+              {actualExpenses.map((exp) => (
+                <div
+                  key={exp.id}
+                  className="d-flex align-items-start justify-content-between border rounded px-3 py-2"
+                  style={{
+                    background: 'rgba(13,110,253,0.06)',
+                    borderColor: 'rgba(13,110,253,0.3) !important',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="fw-semibold small">{exp.label}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      {fmtDate(exp.date)}
+                      {exp.notes && ` · ${exp.notes}`}
+                    </div>
+                  </div>
+                  <span className="fw-bold small ms-2 text-nowrap">{fmtShort(exp.amount)}</span>
                 </div>
               ))}
             </div>
@@ -2052,10 +2095,23 @@ const ProjectDetailPage = () => {
                         <CRow className="g-3">
                           <CCol xs={12} md={4}>
                             {(() => {
-                              // Merge org-level EMS expenses (read-only) with project-specific admin expenses
+                              // Merge org-level EMS expenses (read-only), this project's
+                              // actual admin spend (from the EMS Project Expenses tab), and
+                              // project-specific admin expenses added directly in this card
                               const orgAdminExpenses = localAdminExpenses.asProjectExpenses()
+                              const projectActualAdminExpenses = localProjectExpenses
+                                .list({ projectId: project.id, pool: 'admin' })
+                                .map((e) => ({
+                                  id: e.id,
+                                  label: e.label,
+                                  amount: e.amount,
+                                  date: e.createdAt,
+                                  notes: `Logged by ${e.createdBy}`,
+                                  source: 'project_actual',
+                                }))
                               const mergedAdminExpenses = [
                                 ...orgAdminExpenses,
+                                ...projectActualAdminExpenses,
                                 ...(project.admin_expenses || []),
                               ]
                               return (
