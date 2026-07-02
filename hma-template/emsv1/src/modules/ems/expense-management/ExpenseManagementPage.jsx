@@ -801,6 +801,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
 // ─── Lazy-loaded Admin Expense content ───────────────────────────────────────
 
 const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
+const ProjectExpensesPage = React.lazy(() => import('./ProjectExpensesPage'))
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -855,6 +856,18 @@ const ExpenseManagementPage = () => {
               Consolidated Sheet
             </CNavLink>
           </CNavItem>
+          <CNavItem>
+            <CNavLink
+              active={activeTab === 2}
+              onClick={() => setActiveTab(2)}
+              role="button"
+              className="fw-medium"
+              id="tab-project-expenses"
+            >
+              <CIcon icon={cilDollar} className="me-1" />
+              Project Expenses
+            </CNavLink>
+          </CNavItem>
         </CNav>
       )}
 
@@ -879,6 +892,19 @@ const ExpenseManagementPage = () => {
           ) : (
             <ConsolidatedSheet onDrillDown={handleDrillDown} />
           )}
+        </CTabPane>
+
+        {/* ── Tab 2: Project Expenses ───────────────────────────────────── */}
+        <CTabPane visible={activeTab === 2 && !drillProject}>
+          <React.Suspense
+            fallback={
+              <div className="text-center py-5">
+                <CSpinner color="primary" />
+              </div>
+            }
+          >
+            <ProjectExpensesPage />
+          </React.Suspense>
         </CTabPane>
       </CTabContent>
     </>
