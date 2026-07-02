@@ -6,7 +6,7 @@
  */
 import { SDP_PROJECTS } from './sdpProjectsData'
 
-const PROJECTS_KEY = 'hma_projects_v10'   // bumped → forces reseed with CSV data
+const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -83,6 +83,19 @@ const resolvePhase = (phases = [], csvStatus) => {
   return 'implementation'
 }
 
+/** Helper to parse CSV dates like 15/04/2025 or 10.03.2026 into YYYY-MM-DD */
+const parseSdpDate = (dateStr) => {
+  if (!dateStr) return ''
+  const str = String(dateStr).trim()
+  const match = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/)
+  if (match) {
+    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+  }
+  const parsed = new Date(str)
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0]
+  return str
+}
+
 /**
  * Map a CSV SDP project record → the full localProjects schema.
  * This is the single source of truth for the PMS All Projects page.
@@ -99,10 +112,10 @@ const mapSdpToLocal = (p) => {
     percentage: p.value > 0 ? Math.round((inst.amount / p.value) * 100) : 0,
     amount: inst.amount || 0,
     phase_name: inst.label || `Phase ${idx + 1}`,
-    start_date: p.start_date || '',
-    end_date: inst.uc_date || p.end_date || '',
-    target_date: inst.uc_date || '',
-    actual_date: inst.status === 'Received' ? (inst.uc_date || now()) : null,
+    start_date: parseSdpDate(p.start_date),
+    end_date: parseSdpDate(inst.uc_date || p.end_date),
+    target_date: parseSdpDate(inst.uc_date),
+    actual_date: inst.status === 'Received' ? parseSdpDate(inst.uc_date || now()) : null,
     uc_status: inst.uc_status || (inst.status === 'Received' ? 'Submitted' : 'Pending'),
   }))
 
@@ -111,8 +124,8 @@ const mapSdpToLocal = (p) => {
     id: `ms_${p.id}_${idx + 1}`,
     title: ph.phase || `Phase ${idx + 1}`,
     amount: 0,
-    target_date: ph.pending_date || '',
-    actual_date: (ph.status || '').toLowerCase() === 'completed' ? ph.pending_date || '' : null,
+    target_date: parseSdpDate(ph.pending_date),
+    actual_date: (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
     uc_status: (ph.status || '').toLowerCase() === 'completed' ? 'Approved'
                : (ph.status || '').toLowerCase() === 'ongoing'  ? 'Submitted' : 'Pending',
   }))
@@ -154,8 +167,8 @@ const mapSdpToLocal = (p) => {
     amount_utilized: p.expense_accounted || 0,
     expense_accounted: p.expense_accounted || 0,
     committed_expense: p.committed_expense || 0,
-    start_date: p.start_date || '',
-    end_date: p.end_date || '',
+    start_date: parseSdpDate(p.start_date),
+    end_date: parseSdpDate(p.end_date),
     duration: p.duration || '',
     beneficiaries_target: p.beneficiaries_target || 0,
     beneficiaries_completed: p.beneficiaries_completed || 0,
