@@ -625,7 +625,8 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                       style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
                     >
                       This month: Project {fmtL(p.newMonthSplit.projectAmount)} · HR{' '}
-                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)} · Admin {fmtL(p.newMonthSplit.adminAmount)}
+                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)} ·{' '}
+                      Admin {fmtL(p.newMonthSplit.adminAmount)}
                     </div>
                   )}
                 </th>
