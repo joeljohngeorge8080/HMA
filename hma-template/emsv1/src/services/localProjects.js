@@ -3,6 +3,8 @@
  * Merged version supporting both Project Associate and Project Officer flows.
  */
 
+import { localOrgPool } from './localOrgPool'
+
 const PROJECTS_KEY = 'hma_projects_v9'
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
@@ -675,6 +677,16 @@ export const localProjects = {
       created_at: now(),
       updated_at: now(),
     }
+    if (newProject.project_value > 0) {
+      newProject.admin_pool_amount = localOrgPool.computeAdminPoolAmount(newProject)
+      newProject.admin_pool_credited = true
+      newProject.admin_credited_at = now()
+      localOrgPool.recordAdminCredit(newProject.id, newProject.admin_pool_amount)
+    } else {
+      newProject.admin_pool_amount = 0
+      newProject.admin_pool_credited = false
+      newProject.admin_credited_at = null
+    }
     projects.unshift(newProject)
     write(PROJECTS_KEY, projects)
     return newProject
@@ -684,7 +696,16 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
-    projects[idx] = { ...projects[idx], ...data, updated_at: now() }
+    const updated = { ...projects[idx], ...data, updated_at: now() }
+
+    if (!updated.admin_pool_credited && updated.project_value > 0) {
+      updated.admin_pool_amount = localOrgPool.computeAdminPoolAmount(updated)
+      updated.admin_pool_credited = true
+      updated.admin_credited_at = now()
+      localOrgPool.recordAdminCredit(updated.id, updated.admin_pool_amount)
+    }
+
+    projects[idx] = updated
     write(PROJECTS_KEY, projects)
     return projects[idx]
   },
