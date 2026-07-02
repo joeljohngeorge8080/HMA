@@ -5,10 +5,9 @@
  * Seed data sourced from: /docs/Projects sdp .csv
  */
 import { SDP_PROJECTS } from './sdpProjectsData'
-import { localOrgPool } from './localOrgPool'
 import { computeWorkingPool, monthsInRange, validatePlanTotal } from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v10'   // bumped → forces reseed with CSV data
+const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -296,16 +295,6 @@ export const localProjects = {
       created_at: now(),
       updated_at: now(),
     }
-    if (newProject.project_value > 0) {
-      newProject.admin_pool_amount = localOrgPool.computeAdminPoolAmount(newProject)
-      newProject.admin_pool_credited = true
-      newProject.admin_credited_at = now()
-      localOrgPool.recordAdminCredit(newProject.id, newProject.admin_pool_amount)
-    } else {
-      newProject.admin_pool_amount = 0
-      newProject.admin_pool_credited = false
-      newProject.admin_credited_at = null
-    }
     projects.unshift(newProject)
     write(PROJECTS_KEY, projects)
     notify()
@@ -317,13 +306,6 @@ export const localProjects = {
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
     const updated = { ...projects[idx], ...data, updated_at: now() }
-
-    if (!updated.admin_pool_credited && updated.project_value > 0) {
-      updated.admin_pool_amount = localOrgPool.computeAdminPoolAmount(updated)
-      updated.admin_pool_credited = true
-      updated.admin_credited_at = now()
-      localOrgPool.recordAdminCredit(updated.id, updated.admin_pool_amount)
-    }
 
     projects[idx] = updated
     write(PROJECTS_KEY, projects)
