@@ -38,7 +38,7 @@ export const localProjectExpenses = {
     if (!project_id) throw new Error('A project is required.')
     if (!VALID_POOLS.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
     if (!month) throw new Error('A month is required.')
-    const amt = parseFloat(amount) || 0
+    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
     if (amt <= 0) throw new Error('Amount must be greater than zero.')
     if (!label || !label.trim()) throw new Error('A label is required.')
 
