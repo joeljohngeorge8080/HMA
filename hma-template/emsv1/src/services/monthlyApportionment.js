@@ -6,13 +6,18 @@
  */
 
 /**
- * Working pool = total project value minus the (already-credited, locked)
- * admin lump sum. This is what the monthly plan (Task 3) must sum to.
+ * Working pool = the project's own baseline share of total value — the
+ * residual after Admin, HR, and Core's percentages (each independently
+ * pct% of total value, not carved out of this pool). This is what the
+ * monthly plan (generateMonthlyPlan) must sum to.
  */
 export const computeWorkingPool = (project) => {
   const pv = project.project_value || project.project_valuation || 0
-  const admin = project.admin_pool_amount || 0
-  return Math.round((pv - admin) * 100) / 100
+  const adminPct = project.admin_pct ?? 5
+  const hrPct = project.hr_pct ?? 5
+  const corePct = project.core_pct ?? 5
+  const projectPct = 100 - adminPct - hrPct - corePct
+  return Math.round(pv * (projectPct / 100) * 100) / 100
 }
 
 /**
@@ -37,20 +42,6 @@ export const monthsInRange = (startDate, endDate) => {
   return months
 }
 
-/**
- * Splits one month's planned total into Project/HR/Core, carving HR/Core
- * out of the same pot (not additive on top) per spec Section 4.
- */
-export const computeMonthSplit = (monthEntry) => {
-  const total = monthEntry.total || 0
-  const hrPct = monthEntry.hr_pct ?? 5
-  const corePct = monthEntry.core_pct ?? 5
-  const hrAmount = Math.round(total * (hrPct / 100) * 100) / 100
-  const coreAmount = Math.round(total * (corePct / 100) * 100) / 100
-  const projectAmount = Math.round((total - hrAmount - coreAmount) * 100) / 100
-  return { projectAmount, hrAmount, coreAmount }
-}
-
 /** Sum of every month's total in a monthly plan. */
 export const sumPlanTotal = (monthlyPlan) =>
   Math.round((monthlyPlan || []).reduce((s, m) => s + (m.total || 0), 0) * 100) / 100
@@ -63,4 +54,38 @@ export const validatePlanTotal = (monthlyPlan, workingPool) => {
   const planTotal = sumPlanTotal(monthlyPlan)
   const diff = Math.round((planTotal - workingPool) * 100) / 100
   return { valid: Math.abs(diff) < 0.01, planTotal, workingPool, diff }
+}
+
+/**
+ * Flat monthly rate for one pool ('admin'|'hr'|'core') — pct% of total
+ * project value, divided evenly across the project's duration. Identical
+ * every month; recomputed live from current project fields, never cached.
+ */
+export const computeFlatMonthlyRate = (project, pool) => {
+  const pv = project.project_value || project.project_valuation || 0
+  const pct = project[`${pool}_pct`] ?? 5
+  const months = monthsInRange(project.start_date, project.end_date)
+  if (months.length === 0) return 0
+  return Math.round(((pv * (pct / 100)) / months.length) * 100) / 100
+}
+
+/** Sum of adjustment amounts recorded against one exact (pool, month) pair. */
+export const sumPoolAdjustments = (adjustments, pool, month) =>
+  Math.round(
+    (adjustments || [])
+      .filter((a) => a.pool === pool && a.month === month)
+      .reduce((s, a) => s + (a.amount || 0), 0) * 100,
+  ) / 100
+
+/**
+ * Effective monthly figure for one pool/month after manual withdrawals:
+ * the flat rate minus every adjustment recorded against that exact
+ * (pool, month) pair. Not clamped at 0 — a negative figure legitimately
+ * represents a pool in deficit for that project that month; callers that
+ * display this should warn, not block, on a negative result.
+ */
+export const computeEffectivePoolMonthly = (project, pool, month) => {
+  const flat = computeFlatMonthlyRate(project, pool)
+  const withdrawn = sumPoolAdjustments(project.pool_adjustments, pool, month)
+  return Math.round((flat - withdrawn) * 100) / 100
 }
