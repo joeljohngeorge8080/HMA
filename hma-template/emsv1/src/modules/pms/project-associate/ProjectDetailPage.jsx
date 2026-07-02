@@ -73,6 +73,7 @@ import { localOrgPool } from '../../../services/localOrgPool'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import useRole from '../../../hooks/useRole'
 import { ROLE } from '../../../constants/roles'
+import MonthlyPlanPanel from './MonthlyPlanPanel'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -639,6 +640,10 @@ const ProjectDetailPage = () => {
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
 
   const role = useRole()
+  const projectTaskCount = useMemo(
+    () => (project ? localTasks.getByProject(project.id).length : 0),
+    [project],
+  )
   const isBudgetAdmin =
     role === ROLE.CEO ||
     role === ROLE.FINANCE ||
@@ -778,7 +783,16 @@ const ProjectDetailPage = () => {
             <CIcon icon={cilPen} className="me-1" />
             Edit Project
           </CButton>
-          {!project.is_operations_active && (
+          {!project.is_operations_active && projectTaskCount === 0 && (
+            <CBadge
+              color="secondary"
+              className="px-3 py-2 d-flex align-items-center"
+              style={{ fontSize: '0.8rem' }}
+            >
+              ⏸ Not Activated — assign a task first
+            </CBadge>
+          )}
+          {!project.is_operations_active && projectTaskCount > 0 && (
             <CButton
               color="success"
               className="fw-semibold flex-shrink-0"
@@ -927,6 +941,7 @@ const ProjectDetailPage = () => {
               'Project Financials',
               'Project Milestones',
               'Budget & Payroll',
+              'Monthly Plan',
             ].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
@@ -2193,6 +2208,11 @@ const ProjectDetailPage = () => {
                   </div>
                 )
               })()}
+            </CTabPane>
+
+            {/* Monthly Plan Tab */}
+            <CTabPane visible={activeTab === 6}>
+              <MonthlyPlanPanel project={project} onProjectChange={setProject} />
             </CTabPane>
           </CTabContent>
         </CCardBody>
