@@ -33,7 +33,6 @@ import { localProjects } from '../../../services/localProjects'
 import {
   computeWorkingPool,
   monthsInRange,
-  computeFlatMonthlyRate,
   computeEffectivePoolMonthly,
   validatePlanTotal,
 } from '../../../services/monthlyApportionment'
