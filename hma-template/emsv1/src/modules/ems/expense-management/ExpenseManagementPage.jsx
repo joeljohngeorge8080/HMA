@@ -39,7 +39,7 @@ import {
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
-import { computeMonthSplit } from '../../../services/monthlyApportionment'
+import { computeEffectivePoolMonthly } from '../../../services/monthlyApportionment'
 
 // ─── Shared Formatters ────────────────────────────────────────────────────────
 
@@ -467,14 +467,21 @@ const EXPENSE_ROWS = [
 
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 
-/** Resolves a project's Project/HR/Core split for the current month from its
- * monthly_plan, if one exists. Returns null for projects still on the old
- * (pre-monthly-plan) model. */
+/** Resolves a project's Admin/HR/Core/Project figures for the current
+ * month from its monthly_plan, if one exists. Returns null for projects
+ * still on the old (pre-monthly-plan) model. */
 const currentMonthSplitFor = (project) => {
   if (!project?.monthly_plan?.length) return null
-  const entry = project.monthly_plan.find((m) => m.month === currentMonth())
+  const month = currentMonth()
+  const entry = project.monthly_plan.find((m) => m.month === month)
   if (!entry) return null
-  return { ...computeMonthSplit(entry), monthTotal: entry.total }
+  return {
+    projectAmount: entry.total,
+    hrAmount: computeEffectivePoolMonthly(project, 'hr', month),
+    coreAmount: computeEffectivePoolMonthly(project, 'core', month),
+    adminAmount: computeEffectivePoolMonthly(project, 'admin', month),
+    monthTotal: entry.total,
+  }
 }
 
 const ConsolidatedSheet = ({ onDrillDown }) => {
@@ -618,7 +625,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                       style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
                     >
                       This month: Project {fmtL(p.newMonthSplit.projectAmount)} · HR{' '}
-                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)}
+                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)} · Admin {fmtL(p.newMonthSplit.adminAmount)}
                     </div>
                   )}
                 </th>
