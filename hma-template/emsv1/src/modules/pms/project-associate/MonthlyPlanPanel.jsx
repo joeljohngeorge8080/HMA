@@ -19,6 +19,13 @@ import {
   CTableHeaderCell,
   CTableBody,
   CTableDataCell,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
+  CFormCheck,
+  CFormTextarea,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash, cilArrowThickTop, cilArrowThickBottom } from '@coreui/icons'
@@ -26,7 +33,8 @@ import { localProjects } from '../../../services/localProjects'
 import {
   computeWorkingPool,
   monthsInRange,
-  computeMonthSplit,
+  computeFlatMonthlyRate,
+  computeEffectivePoolMonthly,
   validatePlanTotal,
 } from '../../../services/monthlyApportionment'
 
@@ -83,35 +91,88 @@ BaselineTable.propTypes = {
   baselinePerMonth: PropTypes.number.isRequired,
 }
 
-const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
-  const [lines, setLines] = useState([emptyLine()])
-  const [error, setError] = useState('')
+const emptyBlock = (months) => ({
+  id: null,
+  startMonth: months[0] || '',
+  endMonth: months[0] || '',
+  lines: [emptyLine()],
+})
 
-  const workingPool = computeWorkingPool(project)
+const BlockPlanner = ({ project, onProjectChange, canEdit = false, defaultCollapsed = false }) => {
   const months = monthsInRange(project.start_date, project.end_date)
+  const workingPool = computeWorkingPool(project)
   const monthCount = months.length
   const baselinePerMonth = monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
-  const templateTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0)
 
-  const updateLine = (i, patch) => {
-    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
+  const seedBlocks = () =>
+    project.plan_blocks?.length
+      ? project.plan_blocks.map((b) => ({
+          id: b.id,
+          startMonth: b.startMonth,
+          endMonth: b.endMonth,
+          lines: b.phases.map((ph) => ({
+            phase: ph.phase,
+            label: ph.label,
+            amount: String(ph.amount),
+          })),
+        }))
+      : [emptyBlock(months)]
+
+  const [blocks, setBlocks] = useState(seedBlocks)
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const [error, setError] = useState('')
+
+  const updateBlock = (i, patch) => {
+    setBlocks((prev) => prev.map((b, idx) => (idx === i ? { ...b, ...patch } : b)))
   }
+  const updateBlockLine = (i, lineIdx, patch) => {
+    setBlocks((prev) =>
+      prev.map((b, idx) =>
+        idx === i
+          ? { ...b, lines: b.lines.map((l, li) => (li === lineIdx ? { ...l, ...patch } : l)) }
+          : b,
+      ),
+    )
+  }
+  const addBlock = () => setBlocks((prev) => [...prev, emptyBlock(months)])
+  const removeBlock = (i) => setBlocks((prev) => prev.filter((_, idx) => idx !== i))
+  const addBlockLine = (i) =>
+    setBlocks((prev) =>
+      prev.map((b, idx) => (idx === i ? { ...b, lines: [...b.lines, emptyLine()] } : b)),
+    )
+  const removeBlockLine = (i, lineIdx) =>
+    setBlocks((prev) =>
+      prev.map((b, idx) =>
+        idx === i ? { ...b, lines: b.lines.filter((_, li) => li !== lineIdx) } : b,
+      ),
+    )
 
-  const addLine = () => setLines((prev) => [...prev, emptyLine()])
-  const removeLine = (i) => setLines((prev) => prev.filter((_, idx) => idx !== i))
+  const blockedTotal = blocks.reduce(
+    (s, b) => s + b.lines.reduce((s2, l) => s2 + (parseFloat(l.amount) || 0), 0),
+    0,
+  )
 
   const handleGenerate = () => {
     setError('')
     try {
-      const templatePhases = lines
-        .filter((l) => l.label.trim() && parseFloat(l.amount) > 0)
-        .map((l) => ({ phase: l.phase, label: l.label.trim(), amount: parseFloat(l.amount) }))
-      if (templatePhases.length === 0) {
-        setError('Add at least one phase line item with a label and amount.')
-        return
+      const payload = blocks.map((b) => ({
+        id: b.id,
+        startMonth: b.startMonth,
+        endMonth: b.endMonth,
+        phases: b.lines
+          .filter((l) => l.label.trim() && parseFloat(l.amount) > 0)
+          .map((l) => ({ phase: l.phase, label: l.label.trim(), amount: parseFloat(l.amount) })),
+      }))
+      const nonEmpty = payload.filter((b) => b.phases.length > 0)
+      if (project.monthly_plan?.length) {
+        const ok = window.confirm(
+          'Regenerating will overwrite all manual month edits made in the table below — continue?',
+        )
+        if (!ok) return
       }
-      const updated = localProjects.generateMonthlyPlan(project.id, templatePhases)
+      const updated = localProjects.generateMonthlyPlan(project.id, nonEmpty)
       onProjectChange(updated)
+      setCollapsed(true)
     } catch (e) {
       setError(e.message)
     }
@@ -120,9 +181,7 @@ const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
   if (!canEdit) {
     return (
       <CCard className="shadow-sm mb-4">
-        <CCardHeader className="bg-transparent fw-semibold pt-3">
-          📅 Plan One Month — Generate Across the Full Duration
-        </CCardHeader>
+        <CCardHeader className="bg-transparent fw-semibold pt-3">📅 Plan the Budget</CCardHeader>
         <CCardBody>
           <CAlert color="info" className="mb-0 small">
             You don&apos;t have permission to plan this project&apos;s budget.
@@ -134,96 +193,172 @@ const TemplateEditor = ({ project, onProjectChange, canEdit = false }) => {
 
   return (
     <CCard className="shadow-sm mb-4">
-      <CCardHeader className="bg-transparent fw-semibold pt-3">
-        📅 Plan One Month — Generate Across the Full Duration
-      </CCardHeader>
-      <CCardBody>
-        <div className="text-body-secondary small mb-3">
-          Working pool: <strong>{fmt(workingPool)}</strong> (project value minus the locked admin
-          share) across <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} — baseline
-          suggestion: <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly. Build one
-          month&apos;s phase breakdown below, then Generate keeps month 1 as entered and spreads the
-          rest of the pool across the remaining months.
-        </div>
-
-        {monthCount > 0 && <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />}
-
-        {lines.map((line, i) => (
-          <CRow key={i} className="g-2 mb-2 align-items-center">
-            <CCol xs={12} md={3}>
-              <CFormSelect
-                size="sm"
-                value={line.phase}
-                onChange={(e) => updateLine(i, { phase: e.target.value })}
-              >
-                {PHASE_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </CFormSelect>
-            </CCol>
-            <CCol xs={12} md={5}>
-              <CFormInput
-                size="sm"
-                placeholder="Task / activity"
-                value={line.label}
-                onChange={(e) => updateLine(i, { label: e.target.value })}
-              />
-            </CCol>
-            <CCol xs={8} md={3}>
-              <CInputGroup size="sm">
-                <CInputGroupText>₹</CInputGroupText>
-                <CFormInput
-                  type="number"
-                  min="0"
-                  value={line.amount}
-                  onChange={(e) => updateLine(i, { amount: e.target.value })}
-                />
-              </CInputGroup>
-            </CCol>
-            <CCol xs={4} md={1}>
-              <CButton
-                size="sm"
-                color="danger"
-                variant="ghost"
-                disabled={lines.length === 1}
-                onClick={() => removeLine(i)}
-              >
-                <CIcon icon={cilTrash} />
-              </CButton>
-            </CCol>
-          </CRow>
-        ))}
-
-        <CButton size="sm" color="secondary" variant="outline" className="mb-3" onClick={addLine}>
-          <CIcon icon={cilPlus} className="me-1" />
-          Add Line
-        </CButton>
-
-        <div className="d-flex align-items-center gap-2 mb-3">
-          <span className="small text-body-secondary">Month total:</span>
-          <CBadge color={templateTotal > 0 ? 'primary' : 'secondary'}>{fmt(templateTotal)}</CBadge>
-        </div>
-
-        {error && (
-          <CAlert color="danger" className="py-2 small">
-            {error}
-          </CAlert>
+      <CCardHeader
+        className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center"
+        role="button"
+        onClick={() => project.monthly_plan?.length && setCollapsed((c) => !c)}
+      >
+        <span>📅 Manage Planning Blocks</span>
+        {project.monthly_plan?.length > 0 && (
+          <CBadge color="secondary">{collapsed ? 'Show' : 'Hide'}</CBadge>
         )}
+      </CCardHeader>
+      {!collapsed && (
+        <CCardBody>
+          <div className="text-body-secondary small mb-3">
+            Project baseline: <strong>{fmt(workingPool)}</strong> across{' '}
+            <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} — suggestion:{' '}
+            <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly. Add one or more planning
+            blocks, each covering a range of months with its own phase breakdown — any months you
+            don&apos;t cover are filled evenly with what&apos;s left.
+          </div>
 
-        <CButton color="success" onClick={handleGenerate}>
-          Generate {project.start_date && project.end_date ? 'Full' : ''} Plan
-        </CButton>
-      </CCardBody>
+          {monthCount > 0 && <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />}
+
+          {blocks.map((block, bi) => (
+            <CCard key={bi} className="mb-3 border">
+              <CCardBody>
+                <CRow className="g-2 mb-2 align-items-center">
+                  <CCol xs={12} md={5}>
+                    <CFormSelect
+                      size="sm"
+                      value={block.startMonth}
+                      onChange={(e) => updateBlock(bi, { startMonth: e.target.value })}
+                    >
+                      {months.map((m) => (
+                        <option key={m} value={m}>
+                          {monthLabelShort(m)}
+                        </option>
+                      ))}
+                    </CFormSelect>
+                  </CCol>
+                  <CCol xs={12} md={5}>
+                    <CFormSelect
+                      size="sm"
+                      value={block.endMonth}
+                      onChange={(e) => updateBlock(bi, { endMonth: e.target.value })}
+                    >
+                      {months.map((m) => (
+                        <option key={m} value={m}>
+                          {monthLabelShort(m)}
+                        </option>
+                      ))}
+                    </CFormSelect>
+                  </CCol>
+                  <CCol xs={12} md={2}>
+                    <CButton
+                      size="sm"
+                      color="danger"
+                      variant="ghost"
+                      disabled={blocks.length === 1}
+                      onClick={() => removeBlock(bi)}
+                    >
+                      <CIcon icon={cilTrash} className="me-1" />
+                      Block
+                    </CButton>
+                  </CCol>
+                </CRow>
+
+                {block.lines.map((line, li) => (
+                  <CRow key={li} className="g-2 mb-2 align-items-center">
+                    <CCol xs={12} md={3}>
+                      <CFormSelect
+                        size="sm"
+                        value={line.phase}
+                        onChange={(e) => updateBlockLine(bi, li, { phase: e.target.value })}
+                      >
+                        {PHASE_OPTIONS.map((p) => (
+                          <option key={p.value} value={p.value}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </CCol>
+                    <CCol xs={12} md={5}>
+                      <CFormInput
+                        size="sm"
+                        placeholder="Task / activity"
+                        value={line.label}
+                        onChange={(e) => updateBlockLine(bi, li, { label: e.target.value })}
+                      />
+                    </CCol>
+                    <CCol xs={8} md={3}>
+                      <CInputGroup size="sm">
+                        <CInputGroupText>₹</CInputGroupText>
+                        <CFormInput
+                          type="number"
+                          min="0"
+                          value={line.amount}
+                          onChange={(e) => updateBlockLine(bi, li, { amount: e.target.value })}
+                        />
+                      </CInputGroup>
+                    </CCol>
+                    <CCol xs={4} md={1}>
+                      <CButton
+                        size="sm"
+                        color="danger"
+                        variant="ghost"
+                        disabled={block.lines.length === 1}
+                        onClick={() => removeBlockLine(bi, li)}
+                      >
+                        <CIcon icon={cilTrash} />
+                      </CButton>
+                    </CCol>
+                  </CRow>
+                ))}
+
+                <CButton
+                  size="sm"
+                  color="secondary"
+                  variant="outline"
+                  onClick={() => addBlockLine(bi)}
+                >
+                  <CIcon icon={cilPlus} className="me-1" />
+                  Add Line
+                </CButton>
+              </CCardBody>
+            </CCard>
+          ))}
+
+          <CButton
+            size="sm"
+            color="secondary"
+            variant="outline"
+            className="mb-3"
+            onClick={addBlock}
+          >
+            <CIcon icon={cilPlus} className="me-1" />
+            Add Block
+          </CButton>
+
+          <div className="d-flex align-items-center gap-2 mb-3">
+            <span className="small text-body-secondary">Blocked total:</span>
+            <CBadge color={blockedTotal > 0 ? 'primary' : 'secondary'}>{fmt(blockedTotal)}</CBadge>
+            <span className="small text-body-secondary">
+              of {fmt(workingPool)} project baseline
+            </span>
+          </div>
+
+          {error && (
+            <CAlert color="danger" className="py-2 small">
+              {error}
+            </CAlert>
+          )}
+
+          <CButton color="success" onClick={handleGenerate}>
+            Generate Plan
+          </CButton>
+        </CCardBody>
+      )}
     </CCard>
   )
 }
 
-TemplateEditor.propTypes = {
+BlockPlanner.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
   canEdit: PropTypes.bool,
+  defaultCollapsed: PropTypes.bool,
 }
 
 const monthLabel = (ym) => {
@@ -374,17 +509,41 @@ PlanTable.propTypes = {
   canEdit: PropTypes.bool,
 }
 
-const MonthlyPlanPanel = ({ project, onProjectChange, canEdit = false }) => {
-  if (!project.monthly_plan || project.monthly_plan.length === 0) {
-    return <TemplateEditor project={project} onProjectChange={onProjectChange} canEdit={canEdit} />
-  }
-  return <PlanTable project={project} onProjectChange={onProjectChange} canEdit={canEdit} />
+const MonthlyPlanPanel = ({
+  project,
+  onProjectChange,
+  canEdit = false,
+  canWithdraw = false,
+  currentUser = 'Unknown',
+}) => {
+  const hasPlan = Boolean(project.monthly_plan?.length)
+  return (
+    <>
+      <BlockPlanner
+        project={project}
+        onProjectChange={onProjectChange}
+        canEdit={canEdit}
+        defaultCollapsed={hasPlan}
+      />
+      {hasPlan && (
+        <PlanTable
+          project={project}
+          onProjectChange={onProjectChange}
+          canEdit={canEdit}
+          canWithdraw={canWithdraw}
+          currentUser={currentUser}
+        />
+      )}
+    </>
+  )
 }
 
 MonthlyPlanPanel.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
   canEdit: PropTypes.bool,
+  canWithdraw: PropTypes.bool,
+  currentUser: PropTypes.string,
 }
 
 export default MonthlyPlanPanel
