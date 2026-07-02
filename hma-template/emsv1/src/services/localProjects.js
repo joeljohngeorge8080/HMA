@@ -526,26 +526,59 @@ export const localProjects = {
     return { project: projects[idx], validation }
   },
 
-  /** Updates one month's HR%/Core%. */
-  updateMonthPct(projectId, month, { hr_pct, core_pct }) {
+  /**
+   * Manually withdraws money from Admin/HR/Core for one specific month —
+   * a targeted, one-month deduction (not spread across future months).
+   * `amount` is split evenly across every pool named in `pools`: e.g.
+   * pools=['hr','core'], amount=2000 records ₹1000 against hr and ₹1000
+   * against core. One record per selected pool.
+   */
+  addPoolAdjustment(projectId, { pools, month, amount, reason, createdBy }) {
     const projects = read(PROJECTS_KEY)
-    const idx = projects.findIndex((p) => p.id === projectId)
-    if (idx === -1) throw new Error('Project not found')
-    const project = projects[idx]
-    const plan = project.monthly_plan || []
-    const mIdx = plan.findIndex((m) => m.month === month)
-    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
 
-    const updatedPlan = [...plan]
-    updatedPlan[mIdx] = {
-      ...updatedPlan[mIdx],
-      hr_pct: hr_pct ?? updatedPlan[mIdx].hr_pct,
-      core_pct: core_pct ?? updatedPlan[mIdx].core_pct,
-    }
+    const validPools = ['admin', 'hr', 'core']
+    const chosen = (pools || []).filter((p) => validPools.includes(p))
+    if (chosen.length === 0) throw new Error('Select at least one pool to withdraw from.')
+    const amt = parseFloat(amount) || 0
+    if (amt <= 0) throw new Error('Withdrawal amount must be greater than zero.')
+    if (!month) throw new Error('A month is required.')
+    if (!reason || !reason.trim()) throw new Error('A reason is required for audit purposes.')
 
-    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
+    const months = monthsInRange(projects[pIdx].start_date, projects[pIdx].end_date)
+    if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
+
+    const perPool = Math.round((amt / chosen.length) * 100) / 100
+    const records = chosen.map((pool) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      pool,
+      month,
+      amount: perPool,
+      reason: reason.trim(),
+      createdBy: createdBy || 'Unknown',
+      createdAt: now(),
+    }))
+
+    projects[pIdx].pool_adjustments = [...(projects[pIdx].pool_adjustments || []), ...records]
+    projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
-    return projects[idx]
+    notify()
+    return projects[pIdx]
+  },
+
+  /** Reverses one withdrawal record (hard delete, matching removeExpense's convention). */
+  removePoolAdjustment(projectId, adjustmentId) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    projects[pIdx].pool_adjustments = (projects[pIdx].pool_adjustments || []).filter(
+      (a) => a.id !== adjustmentId,
+    )
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
   },
 
   // ── Installment Management ─────────────────────────────────────────────────
