@@ -30,6 +30,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import {
   computeWorkingPool,
   monthsInRange,
@@ -811,6 +812,72 @@ PlanningSummary.propTypes = {
   project: PropTypes.object.isRequired,
 }
 
+const ActualSpendPanel = ({ project }) => {
+  const entries = localProjectExpenses.list({ projectId: project.id, pool: 'admin' })
+  const actualForMonth = (month) =>
+    entries.filter((e) => e.month === month).reduce((s, e) => s + e.amount, 0)
+
+  return (
+    <CCard className="shadow-sm mb-4">
+      <CCardHeader className="bg-transparent fw-semibold pt-3">💸 Actual Spend</CCardHeader>
+      <CCardBody>
+        <div className="small text-body-secondary mb-3">
+          Real money spent against this project, month by month, compared to the planned pool rates.
+          Admin actuals are logged by HR in EMS → Expense Management → Project Expenses.
+          Project/HR/Core actual tracking is not yet wired up.
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
+            <CTableHead color="light">
+              <CTableRow>
+                <CTableHeaderCell>Month</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Planned Admin</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Actual Admin</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Variance</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Project</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">HR</CTableHeaderCell>
+                <CTableHeaderCell className="text-end">Core</CTableHeaderCell>
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {project.monthly_plan.map((m) => {
+                const planned = computeEffectivePoolMonthly(project, 'admin', m.month)
+                const actual = actualForMonth(m.month)
+                const variance = planned - actual
+                return (
+                  <CTableRow key={m.month}>
+                    <CTableDataCell>{monthLabel(m.month)}</CTableDataCell>
+                    <CTableDataCell className="text-end">{fmt(planned)}</CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      {actual === 0 ? 'None' : fmt(actual)}
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      <CBadge color={variance >= 0 ? 'success' : 'danger'}>{fmt(variance)}</CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end text-body-tertiary">
+                      — not yet tracked
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end text-body-tertiary">
+                      — not yet tracked
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end text-body-tertiary">
+                      — not yet tracked
+                    </CTableDataCell>
+                  </CTableRow>
+                )
+              })}
+            </CTableBody>
+          </CTable>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
+ActualSpendPanel.propTypes = {
+  project: PropTypes.object.isRequired,
+}
+
 const MonthlyPlanPanel = ({
   project,
   onProjectChange,
@@ -837,6 +904,7 @@ const MonthlyPlanPanel = ({
             currentUser={currentUser}
           />
           <PlanningSummary project={project} />
+          <ActualSpendPanel project={project} />
         </>
       )}
     </>
