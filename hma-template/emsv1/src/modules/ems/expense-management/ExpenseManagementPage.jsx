@@ -612,6 +612,15 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                   <div className="text-body-secondary" style={{ fontSize: '0.68rem', marginTop: 2 }}>
                     {p.sharePct?.toFixed(1)}% share
                   </div>
+                  {p.newMonthSplit && (
+                    <div
+                      className="text-body-secondary"
+                      style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
+                    >
+                      This month: Project {fmtL(p.newMonthSplit.projectAmount)} · HR{' '}
+                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
