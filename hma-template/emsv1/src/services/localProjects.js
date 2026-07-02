@@ -1,9 +1,12 @@
 /**
  * localProjects.js — Local-storage backed mock service for Projects & Project Officers.
  * Merged version supporting both Project Associate and Project Officer flows.
+ *
+ * Seed data sourced from: /docs/Projects sdp .csv
  */
+import { SDP_PROJECTS } from './sdpProjectsData'
 
-const PROJECTS_KEY = 'hma_projects_v9'
+const PROJECTS_KEY = 'hma_projects_v10'   // bumped → forces reseed with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -24,6 +27,11 @@ const write = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data))
 }
 
+/** Broadcast a DOM event so any mounted component can react immediately */
+const notify = () => {
+  window.dispatchEvent(new CustomEvent('hma_projects_changed'))
+}
+
 export const PROJECT_PHASE = {
   PIPELINE: 'pipeline',
   APPROVED: 'approved',
@@ -40,542 +48,152 @@ export const PHASE_CONFIG = {
   design: { label: 'Design', color: 'info' },
 }
 
-// ─── Seed Data ─────────────────────────────────────────────────────────────────
+// ─── Seed Officers — derived from real project officer names in the CSV ────────
 
 const DEMO_OFFICERS = [
-  {
-    id: 'po_001',
-    name: 'Arjun Sharma',
-    email: 'arjun.sharma@hma.org',
-    phone: '+91-98765-43210',
-    designation: 'Senior Project Officer',
-    status: 'active',
-    projects_assigned: ['proj_001', 'proj_003'],
-    created_at: '2024-01-10T09:00:00Z',
-  },
-  {
-    id: 'po_002',
-    name: 'Priya Nair',
-    email: 'priya.nair@hma.org',
-    phone: '+91-98765-12345',
-    designation: 'Project Officer',
-    status: 'active',
-    projects_assigned: ['proj_002'],
-    created_at: '2024-02-15T10:00:00Z',
-  },
+  { id: 'po_csv_01', name: 'Dr. Arjuna V Nath',  email: 'arjuna.nath@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_01'],             created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_02', name: 'Syamili.M',           email: 'syamili.m@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_02','sdp_05','sdp_16','sdp_17'], created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_03', name: 'Shone Kiran K.S.',    email: 'shone.kiran@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_03'],             created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_04', name: 'Anjali A.S.',          email: 'anjali.as@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_04','sdp_14'],    created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_05', name: 'K Anakha Soman',       email: 'anakha.soman@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_06'],             created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_06', name: 'Dr. Bhavya RJ',        email: 'bhavya.rj@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_07'],             created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_07', name: 'Rejitha Ravi',          email: 'rejitha.ravi@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_08','sdp_09'],    created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_08', name: 'Rakhi Mohan',           email: 'rakhi.mohan@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_10','sdp_11'],    created_at: '2026-01-01T00:00:00Z' },
+  { id: 'po_csv_09', name: 'Swathy Krishna',        email: 'swathy.krishna@hma.org',  phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_12','sdp_13'],   created_at: '2026-01-01T00:00:00Z' },
 ]
 
-const DEMO_PROJECTS = [
-  {
-    id: 'proj_001',
-    project_code: 'RWS-W-001',
-    project_type: 'Other Public Health',
-    name: 'Rural Water Supply Scheme — Wayanad',
-    title: 'Rural Water Supply Scheme — Wayanad',
-    description:
-      'Installation of drinking water pipelines and storage tanks across 12 tribal villages in Wayanad district.',
-    funding_agency: 'NABARD',
-    implementing_partner: 'Kerala Water Authority',
-    location: 'Wayanad, Kerala',
-    district: 'Wayanad',
-    status: 'ongoing',
-    phase: 'implementation',
-    project_value: 4500000,
-    project_valuation: 4500000,
-    amount_received: 2800000,
-    amount_sanctioned: 4500000,
-    amount_released: 2800000,
-    amount_spent: 1950000,
-    amount_utilized: 1950000,
-    expense_accounted: 1950000,
-    committed_expense: 380000,
-    start_date: '2024-03-01',
-    end_date: '2025-02-28',
-    beneficiaries_target: 12000,
-    beneficiaries_completed: 12000,
-    officer_id: 'po_001',
-    assigned_officer_id: 'po_001',
-    officer_name: 'Arjun Sharma',
-    officer_email: 'arjun.sharma@hma.org',
-    email_sent: true,
-    field_personnel: [
-      {
-        name: 'Rajesh Kumar',
-        email: 'rajesh.kumar@hll.in',
-        status: 'active',
-        invited_at: '2025-04-05T09:00:00Z',
-      },
-    ],
-    created_at: '2024-02-20T09:00:00Z',
-    updated_at: '2024-12-10T14:30:00Z',
-    is_operations_active: true,
-    operations_activated_at: '2024-03-01T09:00:00Z',
-    tasks_count: 8,
-    tasks_completed: 5,
-    pending_approvals: 2,
-    milestones: [
-      {
-        id: 'ms_1',
-        title: 'Installment 1 (25%)',
-        amount: 1125000,
-        target_date: '2024-04-15',
-        actual_date: '2024-04-10',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'ms_2',
-        title: 'Installment 2 (50%)',
-        amount: 2250000,
-        target_date: '2024-09-15',
-        actual_date: '2024-09-20',
-        uc_status: 'Submitted',
-      },
-      {
-        id: 'ms_3',
-        title: 'Installment 3 (25%)',
-        amount: 1125000,
-        target_date: '2025-02-15',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-    ],
-    core_pct: 5,
-    hr_pct: 5,
-    admin_pct: 5,
-    hr_expenses: [],
-    admin_expenses: [
-      {
-        id: 'adm_1',
-        label: 'Electricity Bill',
-        amount: 4500,
-        date: '2024-02-05',
-        notes: 'Jan-Feb',
-        is_recurring: true,
-        recurring_type: 'electricity',
-      },
-      {
-        id: 'adm_2',
-        label: 'Internet',
-        amount: 1200,
-        date: '2024-02-05',
-        notes: '',
-        is_recurring: true,
-        recurring_type: 'internet',
-      },
-    ],
-    installments: [
-      {
-        id: 'inst_1_1',
-        label: 'Installment 1',
-        percentage: 25,
-        amount: 1125000,
-        phase_name: 'Phase 1 — Planning & Survey',
-        start_date: '2024-03-01',
-        end_date: '2024-05-31',
-        actual_date: '2024-03-20',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'inst_1_2',
-        label: 'Installment 2',
-        percentage: 50,
-        amount: 2250000,
-        phase_name: 'Phase 2 — Construction & Laying',
-        start_date: '2024-06-01',
-        end_date: '2024-10-31',
-        actual_date: '2024-06-25',
-        uc_status: 'Submitted',
-      },
-      {
-        id: 'inst_1_3',
-        label: 'Installment 3',
-        percentage: 25,
-        amount: 1125000,
-        phase_name: 'Phase 3 — Commissioning & Handover',
-        start_date: '2024-11-01',
-        end_date: '2025-02-28',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-    ],
-    risks: [
-      {
-        id: 'r_1',
-        title: 'Delay in land acquisition for storage tanks',
-        severity: 'High',
-        status: 'Open',
-      },
-      {
-        id: 'r_2',
-        title: 'Monsoon weather delaying pipeline laying',
-        severity: 'Medium',
-        status: 'Mitigated',
-      },
-    ],
-  },
-  {
-    id: 'proj_002',
-    project_code: 'SE-I-002',
-    project_type: 'Consultancy',
-    name: 'Solar Electrification — Idukki Villages',
-    title: 'Solar Electrification — Idukki Villages',
-    description:
-      'Solar panel installation and micro-grid setup for 6 remote villages in Idukki to provide 24/7 electricity.',
-    funding_agency: 'MNRE',
-    implementing_partner: 'KSEB',
-    location: 'Idukki, Kerala',
-    district: 'Idukki',
-    status: 'ongoing',
-    phase: 'design',
-    project_value: 7200000,
-    project_valuation: 7200000,
-    amount_received: 3600000,
-    amount_sanctioned: 7200000,
-    amount_released: 3600000,
-    amount_spent: 890000,
-    amount_utilized: 890000,
-    expense_accounted: 890000,
-    committed_expense: 1200000,
-    start_date: '2024-06-01',
-    end_date: '2025-05-31',
-    beneficiaries_target: 6000,
-    beneficiaries_completed: 450,
-    officer_id: 'po_002',
-    assigned_officer_id: 'po_002',
-    officer_name: 'Priya Nair',
-    officer_email: 'priya.nair@hma.org',
-    email_sent: true,
-    field_personnel: [],
-    created_at: '2024-05-10T10:00:00Z',
-    updated_at: '2024-11-25T11:00:00Z',
-    is_operations_active: true,
-    operations_activated_at: '2024-06-01T10:00:00Z',
-    tasks_count: 6,
-    tasks_completed: 1,
-    pending_approvals: 1,
-    milestones: [
-      {
-        id: 'ms_1',
-        title: 'Installment 1 (40%)',
-        amount: 2880000,
-        target_date: '2024-07-01',
-        actual_date: '2024-07-05',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'ms_2',
-        title: 'Installment 2 (40%)',
-        amount: 2880000,
-        target_date: '2024-11-01',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'ms_3',
-        title: 'Installment 3 (20%)',
-        amount: 1440000,
-        target_date: '2025-04-01',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-    ],
-    core_pct: 5,
-    hr_pct: 5,
-    admin_pct: 5,
-    hr_expenses: [],
-    admin_expenses: [
-      {
-        id: 'adm_4',
-        label: 'Water Bill',
-        amount: 800,
-        date: '2024-07-02',
-        notes: '',
-        is_recurring: true,
-        recurring_type: 'water',
-      },
-    ],
-    installments: [
-      {
-        id: 'inst_2_1',
-        label: 'Installment 1',
-        percentage: 40,
-        amount: 2880000,
-        phase_name: 'Phase 1 — Site Assessment & Design',
-        start_date: '2024-06-01',
-        end_date: '2024-08-31',
-        actual_date: '2024-07-05',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'inst_2_2',
-        label: 'Installment 2',
-        percentage: 40,
-        amount: 2880000,
-        phase_name: 'Phase 2 — Panel Installation',
-        start_date: '2024-09-01',
-        end_date: '2024-11-30',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'inst_2_3',
-        label: 'Installment 3',
-        percentage: 20,
-        amount: 1440000,
-        phase_name: 'Phase 3 — Grid Integration & Testing',
-        start_date: '2024-12-01',
-        end_date: '2025-04-30',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-    ],
-    risks: [
-      {
-        id: 'r_1',
-        title: 'Vendor delay in solar panel delivery',
-        severity: 'High',
-        status: 'Open',
-      },
-    ],
-  },
-  {
-    id: 'proj_003',
-    project_code: 'LTC-M-003',
-    project_type: 'M-CUP',
-    name: 'Livelihood Training Centre — Malappuram',
-    description:
-      'Construction and equipping of a vocational training centre for skill development of youth in Malappuram.',
-    funding_agency: 'NRLM',
-    implementing_partner: 'Kudumbashree',
-    location: 'Malappuram, Kerala',
-    district: 'Malappuram',
-    status: 'ongoing',
-    phase: 'implementation',
-    project_value: 2800000,
-    amount_received: 2800000,
-    amount_spent: 2200000,
-    amount_utilized: 2200000,
-    expense_accounted: 2200000,
-    committed_expense: 95000,
-    start_date: '2023-09-01',
-    end_date: '2024-08-31',
-    beneficiaries_target: 500,
-    beneficiaries_completed: 300,
-    officer_id: 'po_001',
-    assigned_officer_id: 'po_001',
-    officer_name: 'Arjun Sharma',
-    officer_email: 'arjun.sharma@hma.org',
-    email_sent: true,
-    field_personnel: [],
-    created_at: '2023-08-15T08:00:00Z',
-    updated_at: '2024-08-01T16:00:00Z',
-    is_operations_active: true,
-    operations_activated_at: '2023-09-01T08:00:00Z',
-    tasks_count: 10,
-    tasks_completed: 9,
-    pending_approvals: 0,
-    milestones: [
-      {
-        id: 'ms_1',
-        title: 'Installment 1 (50%)',
-        amount: 1400000,
-        target_date: '2023-10-01',
-        actual_date: '2023-10-05',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'ms_2',
-        title: 'Installment 2 (50%)',
-        amount: 1400000,
-        target_date: '2024-03-01',
-        actual_date: '2024-03-10',
-        uc_status: 'Approved',
-      },
-    ],
+/** Map officer name → officer id for quick lookup */
+const OFFICER_BY_NAME = Object.fromEntries(
+  DEMO_OFFICERS.map(o => [o.name.trim().toLowerCase(), o])
+)
+
+/** Resolve the phase string from CSV phases array */
+const resolvePhase = (phases = [], csvStatus) => {
+  const lower = (csvStatus || '').toLowerCase()
+  if (lower === 'completed') return 'completed'
+  if (lower === 'approved')  return 'approved'
+  // find the active phase
+  const activePhase = phases.find(ph => (ph.status || '').toLowerCase() === 'ongoing')
+  if (activePhase) {
+    const phLower = (activePhase.phase || '').toLowerCase()
+    if (phLower.includes('design') || phLower.includes('initiation')) return 'design_and_initiation'
+    if (phLower.includes('implement'))  return 'implementation'
+    if (phLower.includes('monitoring')) return 'monitoring_and_evaluation'
+  }
+  return 'implementation'
+}
+
+/**
+ * Map a CSV SDP project record → the full localProjects schema.
+ * This is the single source of truth for the PMS All Projects page.
+ */
+const mapSdpToLocal = (p) => {
+  const officerNameKey = (p.project_officer || '').trim().toLowerCase()
+  const officer = OFFICER_BY_NAME[officerNameKey] || null
+  const statusLower = (p.status || 'Ongoing').toLowerCase()
+
+  // Map CSV installments → localProjects installment schema
+  const installments = (p.installments || []).map((inst, idx) => ({
+    id: `inst_${p.id}_${idx + 1}`,
+    label: inst.label || `Installment ${idx + 1}`,
+    percentage: p.value > 0 ? Math.round((inst.amount / p.value) * 100) : 0,
+    amount: inst.amount || 0,
+    phase_name: inst.label || `Phase ${idx + 1}`,
+    start_date: p.start_date || '',
+    end_date: inst.uc_date || p.end_date || '',
+    target_date: inst.uc_date || '',
+    actual_date: inst.status === 'Received' ? (inst.uc_date || now()) : null,
+    uc_status: inst.uc_status || (inst.status === 'Received' ? 'Submitted' : 'Pending'),
+  }))
+
+  // Map CSV phases → milestones array
+  const milestones = (p.phases || []).map((ph, idx) => ({
+    id: `ms_${p.id}_${idx + 1}`,
+    title: ph.phase || `Phase ${idx + 1}`,
+    amount: 0,
+    target_date: ph.pending_date || '',
+    actual_date: (ph.status || '').toLowerCase() === 'completed' ? ph.pending_date || '' : null,
+    uc_status: (ph.status || '').toLowerCase() === 'completed' ? 'Approved'
+               : (ph.status || '').toLowerCase() === 'ongoing'  ? 'Submitted' : 'Pending',
+  }))
+
+  // Build risks from phase risk fields
+  const risks = (p.phases || [])
+    .filter(ph => ph.risk)
+    .map((ph, idx) => ({
+      id: `r_${p.id}_${idx + 1}`,
+      title: ph.risk,
+      severity: 'Medium',
+      status: 'Open',
+    }))
+
+  // Amount received = sum of received installments
+  const amountReceived = (p.installments || [])
+    .filter(i => i.status === 'Received')
+    .reduce((s, i) => s + (i.amount || 0), 0)
+
+  return {
+    id: p.id,
+    project_code: p.project_number || '',
+    project_type: p.type,
+    name: p.name,
+    title: p.name,
+    description: p.components || '',
+    funding_agency: p.funding_agency,
+    implementing_partner: p.implementing_partner,
+    location: p.location,
+    district: (p.location || '').split(',')[0].trim(),
+    status: statusLower === 'ongoing' ? 'ongoing' : statusLower === 'approved' ? 'approved' : statusLower === 'completed' ? 'completed' : 'pipeline',
+    phase: resolvePhase(p.phases, p.status),
+    project_value: p.value,
+    project_valuation: p.value,
+    amount_received: amountReceived,
+    amount_sanctioned: p.value,
+    amount_released: amountReceived,
+    amount_spent: p.expense_accounted || 0,
+    amount_utilized: p.expense_accounted || 0,
+    expense_accounted: p.expense_accounted || 0,
+    committed_expense: p.committed_expense || 0,
+    start_date: p.start_date || '',
+    end_date: p.end_date || '',
+    duration: p.duration || '',
+    beneficiaries_target: p.beneficiaries_target || 0,
+    beneficiaries_completed: p.beneficiaries_completed || 0,
+    officer_id: officer ? officer.id : null,
+    assigned_officer_id: officer ? officer.id : null,
+    officer_name: p.project_officer || null,
+    officer_email: officer ? officer.email : null,
+    email_sent: !!p.project_officer,
+    field_personnel: p.field_team
+      ? p.field_team.split(',').map(name => ({ name: name.trim(), email: '', status: 'active', invited_at: now() })).filter(fp => fp.name)
+      : [],
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: now(),
+    is_operations_active: statusLower === 'ongoing' || statusLower === 'completed',
+    operations_activated_at: statusLower === 'ongoing' ? p.start_date || now() : null,
+    tasks_count: (p.phases || []).length,
+    tasks_completed: (p.phases || []).filter(ph => (ph.status || '').toLowerCase() === 'completed').length,
+    pending_approvals: statusLower === 'approved' ? 1 : 0,
+    milestones,
+    installments,
+    risks,
     core_pct: 5,
     hr_pct: 5,
     admin_pct: 5,
     hr_expenses: [],
     admin_expenses: [],
-    installments: [
-      {
-        id: 'inst_3_1',
-        label: 'Installment 1',
-        percentage: 50,
-        amount: 1400000,
-        start_date: '2023-09-01',
-        end_date: '2024-02-28',
-        actual_date: '2023-10-05',
-        uc_status: 'Approved',
-      },
-      {
-        id: 'inst_3_2',
-        label: 'Installment 2',
-        percentage: 50,
-        amount: 1400000,
-        start_date: '2024-03-01',
-        end_date: '2024-08-31',
-        actual_date: '2024-04-10',
-        uc_status: 'Approved',
-      },
-    ],
-    risks: [],
-  },
-  {
-    id: 'proj_004',
-    project_code: 'CHP-T-004',
-    project_type: 'Other Public Health',
-    name: 'Community Health Post — Thrissur',
-    description:
-      'Establishment of a primary health post with telemedicine facilities in underserved areas of Thrissur.',
-    funding_agency: 'NHM',
-    implementing_partner: 'District Medical Office',
-    location: 'Thrissur, Kerala',
-    district: 'Thrissur',
-    status: 'pipeline',
-    phase: 'pipeline',
-    project_value: 3100000,
-    amount_received: 0,
-    amount_spent: 0,
-    amount_utilized: 0,
-    expense_accounted: 0,
-    committed_expense: 0,
-    start_date: '2025-01-01',
-    end_date: '2025-12-31',
-    beneficiaries_target: 8000,
-    beneficiaries_completed: 0,
-    officer_id: 'po_003',
-    officer_name: 'Kavitha Reddy',
-    officer_email: 'k.reddy@hma.org',
-    email_sent: false,
-    field_personnel: [],
-    created_at: '2024-12-01T09:00:00Z',
-    updated_at: '2024-12-01T09:00:00Z',
-    tasks_count: 0,
-    tasks_completed: 0,
-    pending_approvals: 0,
-    milestones: [
-      {
-        id: 'ms_1',
-        title: 'Installment 1 (30%)',
-        amount: 930000,
-        target_date: '2025-02-01',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'ms_2',
-        title: 'Installment 2 (40%)',
-        amount: 1240000,
-        target_date: '2025-06-01',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'ms_3',
-        title: 'Installment 3 (30%)',
-        amount: 930000,
-        target_date: '2025-10-01',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-    ],
-    core_pct: 5,
-    hr_pct: 5,
-    admin_pct: 5,
-    hr_expenses: [],
-    admin_expenses: [],
-    installments: [
-      {
-        id: 'inst_4_1',
-        label: 'Installment 1',
-        percentage: 30,
-        amount: 930000,
-        start_date: '2024-11-01',
-        end_date: '2025-02-28',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'inst_4_2',
-        label: 'Installment 2',
-        percentage: 40,
-        amount: 1240000,
-        start_date: '2025-03-01',
-        end_date: '2025-06-30',
-        actual_date: null,
-        uc_status: 'Pending',
-      },
-      {
-        id: 'inst_4_3',
-        label: 'Installment 3',
-        percentage: 30,
-        amount: 930000,
-        start_date: '2025-07-01',
-        end_date: '2025-10-31',
-        actual_date: null,
-        uc_status: 'Pending',
-        core_pct: 5,
-        hr_pct: 5,
-        admin_pct: 5,
-        core_budget: 46500,
-        hr_budget: 46500,
-        admin_budget: 46500,
-        hr_expenses: [],
-        admin_expenses: [],
-      },
-    ],
-    risks: [
-      {
-        id: 'r_1',
-        title: 'Pending government approvals for location',
-        severity: 'Medium',
-        status: 'Open',
-      },
-    ],
-  },
-  {
-    id: 'proj_005',
-    project_code: 'OFC-P-005',
-    project_type: 'Consultancy',
-    name: 'Organic Farming Collective — Palakkad',
-    description:
-      'Support for formation and capacity building of organic farming collectives in Palakkad district.',
-    funding_agency: 'SFAC',
-    implementing_partner: 'Agriculture Department',
-    location: 'Palakkad, Kerala',
-    district: 'Palakkad',
-    status: 'completed',
-    phase: 'completed',
-    project_value: 1500000,
-    amount_received: 1500000,
-    amount_spent: 1490000,
-    amount_utilized: 1490000,
-    expense_accounted: 1490000,
-    committed_expense: 0,
-    start_date: '2023-01-01',
-    end_date: '2023-12-31',
-    beneficiaries_completed: 50,
-    officer_id: null,
-    officer_name: null,
-    officer_email: null,
-    email_sent: false,
-    field_personnel: [],
-    created_at: '2022-12-10T07:00:00Z',
-    updated_at: '2024-01-05T12:00:00Z',
-    tasks_count: 12,
-    tasks_completed: 12,
-    pending_approvals: 0,
-    milestones: [],
-    installments: [],
-    risks: [],
-  },
-]
+    remarks: p.remarks || '',
+    components: p.components || '',
+  }
+}
 
-// ─── Projects API ──────────────────────────────────────────────────────────────
+/** All 17 CSV projects mapped to the localProjects schema */
+const DEMO_PROJECTS = SDP_PROJECTS.map(mapSdpToLocal)
+
 
 export const localProjects = {
   seedDemoData() {
+    // Always seed projects from CSV data (key v10 forces fresh reseed on upgrade)
     if (!localStorage.getItem(PROJECTS_KEY)) {
       write(PROJECTS_KEY, DEMO_PROJECTS)
     }
@@ -583,6 +201,7 @@ export const localProjects = {
       write(OFFICERS_KEY, DEMO_OFFICERS)
     }
   },
+
 
   list({ search = '', status = '', phase = '', officerId = '', page = 1, pageSize = 50 } = {}) {
     let items = read(PROJECTS_KEY)
@@ -679,6 +298,7 @@ export const localProjects = {
     }
     projects.unshift(newProject)
     write(PROJECTS_KEY, projects)
+    notify()
     return newProject
   },
 
@@ -688,6 +308,7 @@ export const localProjects = {
     if (idx === -1) throw new Error('Project not found')
     projects[idx] = { ...projects[idx], ...data, updated_at: now() }
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[idx]
   },
 
@@ -706,6 +327,7 @@ export const localProjects = {
     }
     projects[idx].updated_at = nowStr
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[idx]
   },
 
@@ -761,6 +383,7 @@ export const localProjects = {
     projects[pIdx].installments[iIdx] = merged
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[pIdx]
   },
 
@@ -777,6 +400,7 @@ export const localProjects = {
     projects[pIdx][key] = [...(projects[pIdx][key] || []), newExp]
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[pIdx]
   },
 
@@ -788,6 +412,7 @@ export const localProjects = {
     projects[pIdx][key] = (projects[pIdx][key] || []).filter((e) => e.id !== expenseId)
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[pIdx]
   },
 
@@ -801,6 +426,7 @@ export const localProjects = {
     )
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[pIdx]
   },
 
@@ -838,6 +464,7 @@ export const localProjects = {
 
     write(PROJECTS_KEY, projects)
     write(OFFICERS_KEY, officers)
+    notify()
     return projects[pIdx]
   },
 
@@ -861,6 +488,7 @@ export const localProjects = {
     rows[idx].updated_at = now()
 
     write(PROJECTS_KEY, rows)
+    notify()
     return rows[idx]
   },
 
@@ -873,6 +501,7 @@ export const localProjects = {
     rows[idx].updated_at = now()
 
     write(PROJECTS_KEY, rows)
+    notify()
     return rows[idx]
   },
 
