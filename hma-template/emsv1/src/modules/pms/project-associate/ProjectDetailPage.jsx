@@ -649,6 +649,11 @@ const ProjectDetailPage = () => {
     role === ROLE.FINANCE ||
     role === ROLE.HR ||
     role === ROLE.PROJECT_COORDINATOR
+  // Monthly budget planning is specifically the Project Officer's/Project
+  // Associate's job (spec) — they need Monthly Plan tab edit access too,
+  // in addition to (not instead of) everything isBudgetAdmin already covers.
+  const canEditMonthlyPlan =
+    isBudgetAdmin || role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
 
   useEffect(() => {
     localProjects.seedDemoData()
@@ -2215,7 +2220,7 @@ const ProjectDetailPage = () => {
               <MonthlyPlanPanel
                 project={project}
                 onProjectChange={setProject}
-                canEdit={isBudgetAdmin}
+                canEdit={canEditMonthlyPlan}
               />
             </CTabPane>
           </CTabContent>
