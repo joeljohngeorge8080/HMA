@@ -497,6 +497,7 @@ const PlanTable = ({
   const workingPool = computeWorkingPool(project)
   const validation = validatePlanTotal(project.monthly_plan, workingPool)
   const [withdrawMonth, setWithdrawMonth] = useState(null)
+  const [saved, setSaved] = useState(false)
 
   const handleAmountChange = (month, phaseIdx, amount) => {
     const monthEntry = project.monthly_plan.find((m) => m.month === month)
@@ -507,16 +508,31 @@ const PlanTable = ({
     onProjectChange(updated)
   }
 
+  const handleSave = () => {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
   return (
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>📊 Monthly Plan</span>
-        <CBadge color={validation.valid ? 'success' : 'danger'}>
-          {validation.valid
-            ? `Balanced — ${fmt(validation.planTotal)}`
-            : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
-        </CBadge>
+        <div className="d-flex align-items-center gap-2">
+          <CBadge color={validation.valid ? 'success' : 'danger'}>
+            {validation.valid
+              ? `Balanced — ${fmt(validation.planTotal)}`
+              : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
+          </CBadge>
+          <CButton size="sm" color="primary" onClick={handleSave}>
+            💾 Save Monthly Plan
+          </CButton>
+        </div>
       </CCardHeader>
+      {saved && (
+        <CAlert color="success" className="mb-0 py-2 small rounded-0 text-center">
+          ✓ Monthly plan saved
+        </CAlert>
+      )}
       <CCardBody className="p-0">
         <div style={{ overflowX: 'auto' }}>
           <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
