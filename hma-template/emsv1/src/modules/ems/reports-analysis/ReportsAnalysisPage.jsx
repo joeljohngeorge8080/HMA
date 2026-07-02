@@ -7,10 +7,17 @@
  *   ② Projects SDP   — Power BI-style projects overview (existing dashboard)
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Chart, registerables } from 'chart.js'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import {
+  SDP_PROJECTS,
+  SDP_TYPES,
+  SDP_FUNDING_AGENCIES,
+  SDP_PARTNERS,
+  resolveCoords,
+} from '../../../services/sdpProjectsData'
 
 Chart.register(...registerables)
 
@@ -23,32 +30,27 @@ const fmtCompact = (n) =>
   new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ─── PROJECT SDP DATA ─────────────────────────────────────────────────────────
+// ─── SDP PROJECT DATA (sourced from /docs/Projects sdp .csv) ─────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ALL_PROJECTS = [
-  { id: 1,  name: 'Supply of Biomedical Equipment to PHCs',       type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'IOCL Kochi',             implementingPartner: 'HMA', value: 3200000, beneficiaries: 12000, location: { lat: 9.9312,  lng: 76.2673, label: 'Kochi' } },
-  { id: 2,  name: 'Supply of Van (KSBT) for Mobile Medical Unit', type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'ALIMCO',                 implementingPartner: 'HCS', value: 2850000, beneficiaries: 8500,  location: { lat: 25.3176, lng: 82.9739, label: 'Varanasi' } },
-  { id: 3,  name: 'Project Poshan – District Level',              type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'CPCL',                   implementingPartner: 'H&ND', value: 1800000, beneficiaries: 5200, location: { lat: 13.0827, lng: 80.2707, label: 'Chennai' } },
-  { id: 4,  name: 'Providing Health Care Services – Rural',       type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'HLL',                    implementingPartner: 'HCD', value: 1456356, beneficiaries: 4100,  location: { lat: 28.6139, lng: 77.2090, label: 'Delhi' } },
-  { id: 5,  name: 'Navajeevana – Inclusive Health Initiative',    type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'IOCL ERPL Kolkata',      implementingPartner: 'SPD', value: 1272000, beneficiaries: 3800,  location: { lat: 22.5726, lng: 88.3639, label: 'Kolkata' } },
-  { id: 6,  name: 'CPCL Nilgiris Community Health',               type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'CPCL',                   implementingPartner: 'HMA', value: 2720000, beneficiaries: 6700,  location: { lat: 11.4064, lng: 76.6932, label: 'Nilgiris' } },
-  { id: 7,  name: 'Promoting Menstrual Hygiene – District',       type: 'M Cup Project – CSR', status: 'Ongoing',   fundingAgency: 'IOCL SERP Bhubaneswar',  implementingPartner: 'HMA', value: 2519529, beneficiaries: 9200,  location: { lat: 20.2961, lng: 85.8245, label: 'Bhubaneswar' } },
-  { id: 8,  name: 'Skill Advancement Training Program',           type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'IREDA',                  implementingPartner: 'HCD', value: 2000000, beneficiaries: 3400,  location: { lat: 26.8467, lng: 80.9462, label: 'Lucknow' } },
-  { id: 9,  name: 'Powergrid – Awareness & Livelihood',           type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'Powergrid',              implementingPartner: 'H&ND', value: 1850100, beneficiaries: 2800, location: { lat: 17.3850, lng: 78.4867, label: 'Hyderabad' } },
-  { id: 10, name: 'Providing Healthcare – Urban Slums',           type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'Terumo F.',              implementingPartner: 'HCS', value: 1456356, beneficiaries: 5600,  location: { lat: 19.0760, lng: 72.8777, label: 'Mumbai' } },
-  { id: 11, name: 'TB Nutrition Kit Project – Phase II',          type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'IOCL SERP Bhubaneswar',  implementingPartner: 'SPD', value: 1272000, beneficiaries: 1900,  location: { lat: 20.2961, lng: 85.8245, label: 'Bhubaneswar' } },
-  { id: 12, name: 'Terumo Penpol – School Health Drive',          type: 'Other Public Health',  status: 'Ongoing',   fundingAgency: 'Terumo F.',              implementingPartner: 'HCS', value: 1260000, beneficiaries: 7800,  location: { lat: 8.5241,  lng: 76.9366, label: 'Trivandrum' } },
-  { id: 13, name: 'HLL Beed – Thinkal Maternal Health',           type: 'Consultancy Project',  status: 'Ongoing',   fundingAgency: 'HLL',                    implementingPartner: 'HCD', value: 1000000, beneficiaries: 2300,  location: { lat: 18.9876, lng: 75.7597, label: 'Beed' } },
-  { id: 14, name: 'Aksharam – Smart Anganwadi Initiative',        type: 'Other Public Health',  status: 'Approved',  fundingAgency: 'ALIMCO',                 implementingPartner: 'HMA', value: 1000000, beneficiaries: 4400,  location: { lat: 12.9716, lng: 77.5946, label: 'Bangalore' } },
-  { id: 15, name: 'TB Mukt Bharat Abhiyan',                       type: 'Other Public Health',  status: 'Approved',  fundingAgency: 'ALIMCO',                 implementingPartner: 'H&ND', value: 1000000, beneficiaries: 3100, location: { lat: 23.2599, lng: 77.4126, label: 'Bhopal' } },
-  { id: 16, name: 'Education Support – Tribal Districts',         type: 'Other Public Health',  status: 'Completed', fundingAgency: 'CPCL',                   implementingPartner: 'SPD', value: 212625,  beneficiaries: 1500,  location: { lat: 23.6102, lng: 85.2799, label: 'Ranchi' } },
-]
+/**
+ * Map a sdpProjectsData record → the display shape expected by charts and map.
+ * Fields come directly from the CSV parse; no synthetic or hardcoded values.
+ */
+const toSdpDisplayShape = (p) => ({
+  id:                 p.id,
+  name:              p.name,
+  type:              p.type,
+  status:            p.status,           // already 'Ongoing' | 'Approved' | 'Completed'
+  fundingAgency:     p.funding_agency,
+  implementingPartner: p.implementing_partner,
+  value:             p.value,
+  beneficiaries:     p.beneficiaries_target || p.beneficiaries_completed || 0,
+  location:          resolveCoords(p.location),
+})
 
-const STATUSES        = ['Ongoing', 'Approved', 'Completed']
-const TYPES           = ['Consultancy Project', 'M Cup Project – CSR', 'Other Public Health']
-const FUNDING_AGENCIES = ['HLL', 'IOCL Kochi', 'ALIMCO', 'CPCL', 'IOCL ERPL Kolkata', 'IOCL SERP Bhubaneswar', 'IREDA', 'Powergrid', 'Terumo F.']
-const IMPLEMENTING_PARTNERS = ['H&ND', 'HCD', 'HCS', 'HMA', 'SPD']
+/** Pre-convert all CSV projects to the display shape once at module load */
+const ALL_SDP_DISPLAY = SDP_PROJECTS.map(toSdpDisplayShape)
 
 const STATUS_COLORS = { Ongoing: '#1e40af', Approved: '#7c3aed', Completed: '#059669' }
 
@@ -468,26 +470,36 @@ const HRDashboard = () => (
 const SDP_TABS = ['Overview', 'Milestone', 'Finance', 'LSGB']
 
 const ProjectsSDP = () => {
-  const [activeTab, setActiveTab]       = useState('Overview')
-  const [selectedTypes, setSelectedTypes]       = useState([...TYPES])
-  const [selectedFunding, setSelectedFunding]   = useState([...FUNDING_AGENCIES])
-  const [selectedPartners, setSelectedPartners] = useState([...IMPLEMENTING_PARTNERS])
+  // ── Data from CSV (via sdpProjectsData.js) ────────────────────────────────
+  const allProjects = ALL_SDP_DISPLAY   // 17 projects from /docs/Projects sdp .csv
 
-  const toggle = (list, setList, item) =>
-    setList(prev => prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item])
+  const [activeTab, setActiveTab]           = useState('Overview')
+  const [selectedTypes, setSelectedTypes]   = useState(null)   // null = all selected
+  const [selectedFunding, setSelectedFunding]   = useState(null)
+  const [selectedPartners, setSelectedPartners] = useState(null)
 
-  const filtered = ALL_PROJECTS.filter(p =>
-    selectedTypes.includes(p.type) &&
-    selectedFunding.includes(p.fundingAgency) &&
-    selectedPartners.includes(p.implementingPartner)
+  // null means "all" — fall back to full list from CSV
+  const effectiveTypes    = selectedTypes    ?? SDP_TYPES
+  const effectiveFunding  = selectedFunding  ?? SDP_FUNDING_AGENCIES
+  const effectivePartners = selectedPartners ?? SDP_PARTNERS
+
+  const toggle = (current, setCurrent, allItems, item) => {
+    const base = current ?? allItems
+    setCurrent(base.includes(item) ? base.filter(x => x !== item) : [...base, item])
+  }
+
+  const filtered = allProjects.filter(p =>
+    effectiveTypes.includes(p.type) &&
+    effectiveFunding.includes(p.fundingAgency) &&
+    effectivePartners.includes(p.implementingPartner)
   )
 
-  const totalProjects     = filtered.length
-  const totalValue        = filtered.reduce((s, p) => s + p.value, 0)
-  const totalBeneficiaries= filtered.reduce((s, p) => s + p.beneficiaries, 0)
-  const completed         = filtered.filter(p => p.status === 'Completed').length
-  const ongoing           = filtered.filter(p => p.status === 'Ongoing').length
-  const approved          = filtered.filter(p => p.status === 'Approved').length
+  const totalProjects      = filtered.length
+  const totalValue         = filtered.reduce((s, p) => s + p.value, 0)
+  const totalBeneficiaries = filtered.reduce((s, p) => s + p.beneficiaries, 0)
+  const completed          = filtered.filter(p => p.status === 'Completed').length
+  const ongoing            = filtered.filter(p => p.status === 'Ongoing').length
+  const approved           = filtered.filter(p => p.status === 'Approved').length
 
   const statusData = { Ongoing: ongoing, Approved: approved, Completed: completed }
 
@@ -496,11 +508,22 @@ const ProjectsSDP = () => {
 
   return (
     <>
-      {/* PBI sub-tabs */}
-      <div style={S.tabBar}>
-        {SDP_TABS.map(tab => (
-          <button key={tab} style={S.tab(tab === activeTab)} onClick={() => setActiveTab(tab)}>{tab}</button>
-        ))}
+      {/* PBI sub-tabs + live badge */}
+      <div style={{ ...S.tabBar, justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex' }}>
+          {SDP_TABS.map(tab => (
+            <button key={tab} style={S.tab(tab === activeTab)} onClick={() => setActiveTab(tab)}>{tab}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 16, fontSize: 11, color: '#059669', fontWeight: 700 }}>
+          <span style={{
+            display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#059669',
+            boxShadow: '0 0 0 0 rgba(5,150,105,0.4)',
+            animation: 'sdp-pulse 1.8s infinite',
+          }} />
+          CSV SOURCE
+          <style>{`@keyframes sdp-pulse { 0%{box-shadow:0 0 0 0 rgba(5,150,105,0.4)} 70%{box-shadow:0 0 0 6px rgba(5,150,105,0)} 100%{box-shadow:0 0 0 0 rgba(5,150,105,0)} }`}</style>
+        </div>
       </div>
 
       <div style={S.body}>
@@ -509,7 +532,7 @@ const ProjectsSDP = () => {
             {/* KPI row */}
             <div style={S.kpiRow6}>
               <KpiCard label="Total Projects"        value={totalProjects} />
-              <KpiCard label="Total Project Value"   value={`₹${fmtCompact(totalValue)}`}             sub={`₹${fmt(totalValue)}`} />
+              <KpiCard label="Total Project Value"   value={`₹${fmtCompact(totalValue)}`}              sub={`₹${fmt(totalValue)}`} />
               <KpiCard label="Total Beneficiaries"   value={totalBeneficiaries.toLocaleString('en-IN')} />
               <KpiCard label="Completed Projects"    value={completed} />
               <KpiCard label="Ongoing Projects"      value={ongoing} />
@@ -518,20 +541,44 @@ const ProjectsSDP = () => {
 
             {/* Main grid */}
             <div style={S.mainGrid}>
-              <FilterPanel title="Project Type"        items={TYPES}               selected={selectedTypes}    onToggle={i => toggle(selectedTypes, setSelectedTypes, i)}       onSelectAll={() => setSelectedTypes([...TYPES])} />
-              <ChartCard title="Project by Status"     bodyStyle={{ minHeight: 200, display: 'flex', alignItems: 'center' }}><StatusDonut key={JSON.stringify(statusData)} data={statusData} /></ChartCard>
+              <FilterPanel
+                title="Project Type"
+                items={SDP_TYPES}
+                selected={effectiveTypes}
+                onToggle={i => toggle(selectedTypes, setSelectedTypes, SDP_TYPES, i)}
+                onSelectAll={() => setSelectedTypes(null)}
+              />
+              <ChartCard title="Project by Status" bodyStyle={{ minHeight: 200, display: 'flex', alignItems: 'center' }}>
+                <StatusDonut key={JSON.stringify(statusData)} data={statusData} />
+              </ChartCard>
               <div style={S.chartCard}>
                 <div style={S.chartCardHeader}>Project Location</div>
                 <div style={{ padding: 0, height: 260 }}><IndiaMap projects={filtered} /></div>
               </div>
-              <ChartCard title="Project by Value"      bodyStyle={{ overflowY: 'auto', maxHeight: 240 }}><ValueBar key={filtered.map(p => p.id).join()} data={filtered} /></ChartCard>
+              <ChartCard title="Project by Value" bodyStyle={{ overflowY: 'auto', maxHeight: 240 }}>
+                <ValueBar key={filtered.map(p => p.id).join()} data={filtered} />
+              </ChartCard>
             </div>
 
             {/* Bottom grid */}
             <div style={S.bottomGrid}>
-              <FilterPanel title="Funding Agency"        items={FUNDING_AGENCIES}        selected={selectedFunding}  onToggle={i => toggle(selectedFunding, setSelectedFunding, i)}   onSelectAll={() => setSelectedFunding([...FUNDING_AGENCIES])} />
-              <FilterPanel title="Implementing Partner"  items={IMPLEMENTING_PARTNERS}   selected={selectedPartners} onToggle={i => toggle(selectedPartners, setSelectedPartners, i)} onSelectAll={() => setSelectedPartners([...IMPLEMENTING_PARTNERS])} />
-              <ChartCard title="Project by Funding Agency"><FundingBar key={JSON.stringify(fundingCount)} data={fundingCount} /></ChartCard>
+              <FilterPanel
+                title="Funding Agency"
+                items={SDP_FUNDING_AGENCIES}
+                selected={effectiveFunding}
+                onToggle={i => toggle(selectedFunding, setSelectedFunding, SDP_FUNDING_AGENCIES, i)}
+                onSelectAll={() => setSelectedFunding(null)}
+              />
+              <FilterPanel
+                title="Implementing Partner"
+                items={SDP_PARTNERS}
+                selected={effectivePartners}
+                onToggle={i => toggle(selectedPartners, setSelectedPartners, SDP_PARTNERS, i)}
+                onSelectAll={() => setSelectedPartners(null)}
+              />
+              <ChartCard title="Project by Funding Agency">
+                <FundingBar key={JSON.stringify(fundingCount)} data={fundingCount} />
+              </ChartCard>
             </div>
           </>
         ) : (
