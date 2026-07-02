@@ -26,8 +26,10 @@ const ProjectOverheadsList = () => {
   useEffect(() => {
     // Only fetch projects that are active/ongoing to show overheads
     const all = localProjects
-      .getAll()
-      .filter((p) => p.is_operations_active && ['ongoing', 'active', 'approved'].includes(p.status))
+      .list({ pageSize: 1000 })
+      .items.filter(
+        (p) => p.is_operations_active && ['ongoing', 'active', 'approved'].includes(p.status),
+      )
 
     // Enrich with hr/core budgets
     const hrBudgets = localOrgPool.getActiveProjectMonthlyBudgets('hr')

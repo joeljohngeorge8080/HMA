@@ -3,6 +3,9 @@
  * Merged version supporting both Project Associate and Project Officer flows.
  */
 
+import { localOrgPool } from './localOrgPool'
+import { computeWorkingPool, monthsInRange, validatePlanTotal } from './monthlyApportionment'
+
 const PROJECTS_KEY = 'hma_projects_v9'
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
@@ -675,6 +678,16 @@ export const localProjects = {
       created_at: now(),
       updated_at: now(),
     }
+    if (newProject.project_value > 0) {
+      newProject.admin_pool_amount = localOrgPool.computeAdminPoolAmount(newProject)
+      newProject.admin_pool_credited = true
+      newProject.admin_credited_at = now()
+      localOrgPool.recordAdminCredit(newProject.id, newProject.admin_pool_amount)
+    } else {
+      newProject.admin_pool_amount = 0
+      newProject.admin_pool_credited = false
+      newProject.admin_credited_at = null
+    }
     projects.unshift(newProject)
     write(PROJECTS_KEY, projects)
     return newProject
@@ -684,7 +697,16 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
-    projects[idx] = { ...projects[idx], ...data, updated_at: now() }
+    const updated = { ...projects[idx], ...data, updated_at: now() }
+
+    if (!updated.admin_pool_credited && updated.project_value > 0) {
+      updated.admin_pool_amount = localOrgPool.computeAdminPoolAmount(updated)
+      updated.admin_pool_credited = true
+      updated.admin_credited_at = now()
+      localOrgPool.recordAdminCredit(updated.id, updated.admin_pool_amount)
+    }
+
+    projects[idx] = updated
     write(PROJECTS_KEY, projects)
     return projects[idx]
   },
@@ -700,6 +722,186 @@ export const localProjects = {
       projects[idx].phase = 'implementation'
     }
     projects[idx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    return projects[idx]
+  },
+
+  // ── Monthly Planning ────────────────────────────────────────────────────────
+
+  /**
+   * Builds project.monthly_plan by keeping month 1 exactly as entered via
+   * `templatePhases`, then spreading the *remainder* of the working pool
+   * (workingPool - firstMonthTotal) evenly across the remaining months,
+   * using month 1's phase mix scaled proportionally as their starting
+   * point — real projects don't spend identically every month, so the
+   * remaining months are a sensible scaled copy the Project Officer can
+   * then hand-edit per month via `updateMonthPlan` (unaffected by this).
+   *
+   * - Single-month projects keep the old exact-match requirement: there's
+   *   no "remainder" to spread, so the template total must equal the
+   *   working pool (within tolerance) or this throws.
+   * - Multi-month projects only throw when month 1 alone already exceeds
+   *   the working pool, when dates are missing, or when the final plan
+   *   still fails to balance after rounding-drift reconciliation (a real
+   *   bug in the math, not normal user error).
+   */
+  generateMonthlyPlan(projectId, templatePhases) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+
+    const months = monthsInRange(project.start_date, project.end_date)
+    if (months.length === 0) {
+      throw new Error('Project must have a start_date and end_date before generating a plan')
+    }
+
+    const firstMonthPhases = templatePhases.map((ph) => ({
+      ...ph,
+      amount: parseFloat(ph.amount) || 0,
+    }))
+    const firstMonthTotal =
+      Math.round(firstMonthPhases.reduce((s, ph) => s + ph.amount, 0) * 100) / 100
+    const firstMonthEntry = {
+      month: months[0],
+      phases: firstMonthPhases,
+      total: firstMonthTotal,
+      hr_pct: 5,
+      core_pct: 5,
+    }
+
+    const workingPool = computeWorkingPool(project)
+    const remainingMonths = months.length - 1
+
+    let monthlyPlan
+
+    if (remainingMonths === 0) {
+      // Single-month project — no remainder to spread, so this is still an
+      // exact-match gate.
+      monthlyPlan = [firstMonthEntry]
+      const { valid, planTotal, diff } = validatePlanTotal(monthlyPlan, workingPool)
+      if (!valid) {
+        throw new Error(
+          `Plan total (${planTotal}) does not match the working pool (${workingPool}) — ` +
+            `difference of ${diff}. Adjust the template amounts and try again.`,
+        )
+      }
+      projects[idx] = { ...project, monthly_plan: monthlyPlan, updated_at: now() }
+      write(PROJECTS_KEY, projects)
+      return projects[idx]
+    }
+
+    const remainingPool = Math.round((workingPool - firstMonthTotal) * 100) / 100
+    if (remainingPool < 0) {
+      throw new Error(
+        `Month 1's total (₹${firstMonthTotal}) already exceeds the working pool ` +
+          `(₹${workingPool}) — reduce month 1's amounts.`,
+      )
+    }
+
+    const remainingPerMonth = Math.round((remainingPool / remainingMonths) * 100) / 100
+    const scaleFactor = firstMonthTotal > 0 ? remainingPerMonth / firstMonthTotal : 0
+
+    const restEntries = months.slice(1).map((month) => {
+      const phases =
+        firstMonthTotal > 0
+          ? firstMonthPhases.map((ph) => ({
+              ...ph,
+              amount: Math.round(ph.amount * scaleFactor * 100) / 100,
+            }))
+          : [{ phase: 'design', label: 'Planned budget', amount: remainingPerMonth }]
+      const total = Math.round(phases.reduce((s, ph) => s + ph.amount, 0) * 100) / 100
+      return { month, phases, total, hr_pct: 5, core_pct: 5 }
+    })
+
+    monthlyPlan = [firstMonthEntry, ...restEntries]
+
+    // Rounding-drift reconciliation: independently-rounded months can drift
+    // a few paise from the working pool. Patch the last month's first phase
+    // line item so the plan balances exactly. A drift of ₹1 or more means
+    // the math above is wrong, not normal rounding noise — surface it.
+    const drift = validatePlanTotal(monthlyPlan, workingPool)
+    if (!drift.valid) {
+      if (Math.abs(drift.diff) >= 1) {
+        throw new Error(
+          `Plan total (${drift.planTotal}) does not match the working pool (${workingPool}) — ` +
+            `difference of ${drift.diff}. This is larger than normal rounding drift and indicates ` +
+            `a bug in the plan-generation algorithm.`,
+        )
+      }
+      const lastIdx = monthlyPlan.length - 1
+      const lastEntry = monthlyPlan[lastIdx]
+      const adjustedPhases = lastEntry.phases.map((ph, i) =>
+        i === 0 ? { ...ph, amount: Math.round((ph.amount - drift.diff) * 100) / 100 } : ph,
+      )
+      monthlyPlan = [
+        ...monthlyPlan.slice(0, lastIdx),
+        {
+          ...lastEntry,
+          phases: adjustedPhases,
+          total: Math.round((lastEntry.total - drift.diff) * 100) / 100,
+        },
+      ]
+    }
+
+    const final = validatePlanTotal(monthlyPlan, workingPool)
+    if (!final.valid) {
+      throw new Error(
+        `Plan total (${final.planTotal}) does not match the working pool (${workingPool}) — ` +
+          `difference of ${final.diff}. Adjust the template amounts and try again.`,
+      )
+    }
+
+    projects[idx] = { ...project, monthly_plan: monthlyPlan, updated_at: now() }
+    write(PROJECTS_KEY, projects)
+    return projects[idx]
+  },
+
+  /**
+   * Replaces one month's phase line items. Does not block on an unbalanced
+   * total (single-month edits routinely go out of balance mid-edit) — the
+   * returned `validation` field tells the caller whether the *overall* plan
+   * still balances, so the UI can flag it live.
+   */
+  updateMonthPlan(projectId, month, phases) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+    const plan = project.monthly_plan || []
+    const mIdx = plan.findIndex((m) => m.month === month)
+    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+
+    const total =
+      Math.round(phases.reduce((s, ph) => s + (parseFloat(ph.amount) || 0), 0) * 100) / 100
+    const updatedPlan = [...plan]
+    updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
+
+    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
+    write(PROJECTS_KEY, projects)
+
+    const validation = validatePlanTotal(updatedPlan, computeWorkingPool(projects[idx]))
+    return { project: projects[idx], validation }
+  },
+
+  /** Updates one month's HR%/Core%. */
+  updateMonthPct(projectId, month, { hr_pct, core_pct }) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+    const plan = project.monthly_plan || []
+    const mIdx = plan.findIndex((m) => m.month === month)
+    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+
+    const updatedPlan = [...plan]
+    updatedPlan[mIdx] = {
+      ...updatedPlan[mIdx],
+      hr_pct: hr_pct ?? updatedPlan[mIdx].hr_pct,
+      core_pct: core_pct ?? updatedPlan[mIdx].core_pct,
+    }
+
+    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
     write(PROJECTS_KEY, projects)
     return projects[idx]
   },

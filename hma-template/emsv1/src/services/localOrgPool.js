@@ -649,4 +649,25 @@ export const localOrgPool = {
   getAllCoreExpenses() {
     return readPool().core_expenses || []
   },
+
+  /** 5% (admin_pct) of total project value — credited once, as a lump sum. */
+  computeAdminPoolAmount(project) {
+    const pv = projectValue(project)
+    const pct = project.admin_pct ?? 5
+    return Math.round(pv * (pct / 100) * 100) / 100
+  },
+
+  /** Appends a lump-sum admin credit record (org-wide ledger, mirrors hr/core expense arrays). */
+  recordAdminCredit(projectId, amount) {
+    const pool = readPool()
+    const record = { id: uid(), projectId, amount, createdAt: new Date().toISOString() }
+    pool.admin_pool_credits = [...(pool.admin_pool_credits || []), record]
+    writePool(pool)
+    return record
+  },
+
+  /** Returns all admin pool lump-sum credit records. */
+  getAdminPoolCredits() {
+    return readPool().admin_pool_credits || []
+  },
 }

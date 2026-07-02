@@ -39,6 +39,7 @@ import {
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
+import { computeMonthSplit } from '../../../services/monthlyApportionment'
 
 // ─── Shared Formatters ────────────────────────────────────────────────────────
 
@@ -464,6 +465,18 @@ const EXPENSE_ROWS = [
   },
 ]
 
+const currentMonth = () => new Date().toISOString().slice(0, 7)
+
+/** Resolves a project's Project/HR/Core split for the current month from its
+ * monthly_plan, if one exists. Returns null for projects still on the old
+ * (pre-monthly-plan) model. */
+const currentMonthSplitFor = (project) => {
+  if (!project?.monthly_plan?.length) return null
+  const entry = project.monthly_plan.find((m) => m.month === currentMonth())
+  if (!entry) return null
+  return { ...computeMonthSplit(entry), monthTotal: entry.total }
+}
+
 const ConsolidatedSheet = ({ onDrillDown }) => {
   const [projects, setProjects] = useState([])
   const [budgets, setBudgets] = useState({ hr: [], core: [] })
@@ -489,7 +502,15 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
       }
     })
 
-    setProjects(projs)
+    const enrichedProjs = projs.map((p) => {
+      const fullProject = localProjects.getById(p.projectId)
+      const newSplit = currentMonthSplitFor(fullProject)
+      if (!newSplit) return p
+      // p.sharePct (cross-project share) still comes from the old ledger for now — Part 2 replaces this too
+      return { ...p, newMonthSplit: newSplit }
+    })
+
+    setProjects(enrichedProjs)
     setBudgets({ hr: hrBudgets, core: coreBudgets })
     setSummaries(sums)
     setLoading(false)
@@ -591,6 +612,15 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                   <div className="text-body-secondary" style={{ fontSize: '0.68rem', marginTop: 2 }}>
                     {p.sharePct?.toFixed(1)}% share
                   </div>
+                  {p.newMonthSplit && (
+                    <div
+                      className="text-body-secondary"
+                      style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
+                    >
+                      This month: Project {fmtL(p.newMonthSplit.projectAmount)} · HR{' '}
+                      {fmtL(p.newMonthSplit.hrAmount)} · Core {fmtL(p.newMonthSplit.coreAmount)}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
