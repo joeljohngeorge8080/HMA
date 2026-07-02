@@ -285,6 +285,8 @@ export const localProjects = {
       email_sent: false,
       is_operations_active: false,
       operations_activated_at: null,
+      operations_activated_month: null,   // YYYY-MM — set when activated
+      pool_pct_adjustments: [],           // [{ from_month, hr_pct, core_pct }]
       core_pct: 5,
       hr_pct: 5,
       admin_pct: 5,
@@ -327,16 +329,58 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
+    const nowStr = now()
     projects[idx].is_operations_active = true
-    projects[idx].operations_activated_at = now()
+    projects[idx].operations_activated_at = nowStr
+    // Record the YYYY-MM when HR/Core pool distribution begins
+    projects[idx].operations_activated_month = nowStr.slice(0, 7)
     if (projects[idx].status === 'pipeline' || projects[idx].status === 'approved') {
       projects[idx].status = 'ongoing'
       projects[idx].phase = 'implementation'
     }
-    projects[idx].updated_at = now()
+    projects[idx].updated_at = nowStr
     write(PROJECTS_KEY, projects)
     notify()
     return projects[idx]
+  },
+
+  // ── Pool % Adjustment API ──────────────────────────────────────────────────────
+
+  /**
+   * Upsert a pool % adjustment for a project from a given month onwards.
+   * Reducing hr_pct/core_pct increases the project direct budget for that month+.
+   * @param {string} projectId
+   * @param {{ from_month: string, hr_pct: number, core_pct: number }} adjustment
+   */
+  addPoolPctAdjustment(projectId, { from_month, hr_pct, core_pct }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const existing = projects[pIdx].pool_pct_adjustments || []
+    // Replace any existing entry for the same month, then push new one
+    const filtered = existing.filter((a) => a.from_month !== from_month)
+    filtered.push({
+      from_month,
+      hr_pct: Math.max(0, Math.min(100, parseFloat(hr_pct) || 0)),
+      core_pct: Math.max(0, Math.min(100, parseFloat(core_pct) || 0)),
+    })
+    filtered.sort((a, b) => a.from_month.localeCompare(b.from_month))
+    projects[pIdx].pool_pct_adjustments = filtered
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    return projects[pIdx]
+  },
+
+  removePoolPctAdjustment(projectId, from_month) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    projects[pIdx].pool_pct_adjustments = (projects[pIdx].pool_pct_adjustments || []).filter(
+      (a) => a.from_month !== from_month,
+    )
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    return projects[pIdx]
   },
 
   // ── Installment Management ─────────────────────────────────────────────────
