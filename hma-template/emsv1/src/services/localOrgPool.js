@@ -547,11 +547,16 @@ export const localOrgPool = {
     const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
     const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
 
-    // Only allocate to projects the portion funded by the project pool
-    const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
-    const allocations = revenueSources.includes('project_pool')
-      ? this.computeAllocations('hr', projectPoolAmt)
-      : []
+    // Use caller-provided allocations (user-edited) if present, else auto-compute
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('hr', projectPoolAmt)
+        : []
+    }
 
     const newExp = {
       id: uid(),
@@ -567,7 +572,7 @@ export const localOrgPool = {
       revenue_sources: revenueSources,
       hr_revenue_pct: hrRevenuePct,
       project_pool_pct: projectPoolPct,
-      // Project allocations (may be empty if fully HR-revenue funded)
+      // Project allocations — may be user-customised or auto-computed
       project_allocations: allocations,
       created_at: new Date().toISOString(),
     }

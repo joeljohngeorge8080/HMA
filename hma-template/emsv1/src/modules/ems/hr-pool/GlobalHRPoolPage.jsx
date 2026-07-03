@@ -557,6 +557,7 @@ const GlobalHRPoolPage = () => {
   const [editForm, setEditForm] = useState({})
   const [allExpenses, setAllExpenses] = useState([])
   const [previewAllocs, setPreviewAllocs] = useState([])
+  const [customAllocs, setCustomAllocs] = useState(null) // null = use auto previewAllocs
   const [activeProjects, setActiveProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
@@ -578,6 +579,7 @@ const GlobalHRPoolPage = () => {
     setHrRevPct(0)
     setProjPoolPct(100)
     setPreviewAllocs([])
+    setCustomAllocs(null)
   }
 
   // Live allocation preview — recomputes whenever amount, pool%, or source changes
@@ -586,11 +588,50 @@ const GlobalHRPoolPage = () => {
     const hasPool = revSources.includes('project_pool')
     if (amt > 0 && hasPool) {
       const poolAmt = Math.round(amt * (projPoolPct / 100) * 100) / 100
-      setPreviewAllocs(localOrgPool.computeAllocations('hr', poolAmt))
+      const computed = localOrgPool.computeAllocations('hr', poolAmt)
+      setPreviewAllocs(computed)
+      setCustomAllocs(null) // reset custom overrides when base changes
     } else {
       setPreviewAllocs([])
+      setCustomAllocs(null)
     }
   }, [form.amount, projPoolPct, revSources])
+
+  // Displayed allocations: use custom if user has edited, else auto
+  const displayAllocs = customAllocs ?? previewAllocs
+
+  /**
+   * When user edits one project's %, redistribute the remaining (100 - newPct)%
+   * proportionally across all other projects.
+   */
+  const handleAllocPctChange = (projectId, newPct) => {
+    const base = customAllocs ?? previewAllocs
+    if (!base.length) return
+    const clamped = Math.max(0, Math.min(100, parseFloat(newPct) || 0))
+    const others = base.filter((a) => a.projectId !== projectId)
+    const othersTotal = others.reduce((s, a) => s + a.sharePct, 0)
+    const remaining = 100 - clamped
+    const totalAmt = parseFloat(form.amount) || 0
+    const poolAmt = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
+
+    const updated = base.map((a) => {
+      if (a.projectId === projectId) {
+        return {
+          ...a,
+          sharePct: clamped,
+          amountCharged: Math.round(poolAmt * (clamped / 100) * 100) / 100,
+        }
+      }
+      const weight = othersTotal > 0 ? a.sharePct / othersTotal : 1 / others.length
+      const pct = Math.round(remaining * weight * 100) / 100
+      return {
+        ...a,
+        sharePct: pct,
+        amountCharged: Math.round(poolAmt * (pct / 100) * 100) / 100,
+      }
+    })
+    setCustomAllocs(updated)
+  }
 
   const handleYearlyPriceChange = (val, isEdit = false) => {
     const yp = parseFloat(val) || 0
@@ -626,12 +667,15 @@ const GlobalHRPoolPage = () => {
   const handleAdd = () => {
     if (!form.label || !form.amount) return
     if (!isSplitValid()) return
+    // Use user-edited allocations if customised, otherwise auto-compute inside service
+    const allocsToSave = customAllocs ?? previewAllocs
     localOrgPool.addHRExpense(
       {
         ...form,
         revenue_sources: revSources,
         hr_revenue_pct: hrRevPct,
         project_pool_pct: projPoolPct,
+        project_allocations: allocsToSave.length > 0 ? allocsToSave : undefined,
       },
       'global',
     )
@@ -794,30 +838,92 @@ const GlobalHRPoolPage = () => {
                 setProjPoolPct={setProjPoolPct}
               />
 
-              {/* ── Allocation Preview ── */}
-              {hasPool && previewAllocs.length > 0 && (
+              {/* ── Allocation Preview (editable) ── */}
+              {hasPool && displayAllocs.length > 0 && (
                 <div
                   className="mb-3 p-3 rounded bg-success bg-opacity-10 border border-success"
                   style={{ fontSize: '0.85rem' }}
                 >
-                  <div className="fw-semibold text-success mb-2">
-                    Allocation Preview Across Active Projects
-                    {revSources.includes('hr_revenue') && revSources.includes('project_pool') && (
-                      <span className="text-body-secondary fw-normal ms-2" style={{ fontSize: '0.75rem' }}>
-                        (Project Pool portion: {projPoolPct}% of total amount)
-                      </span>
+                  <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                    <div className="fw-semibold text-success">
+                      Allocation Preview Across Active Projects
+                      {revSources.includes('hr_revenue') && revSources.includes('project_pool') && (
+                        <span className="text-body-secondary fw-normal ms-2" style={{ fontSize: '0.75rem' }}>
+                          (Project Pool portion: {projPoolPct}% of total amount)
+                        </span>
+                      )}
+                    </div>
+                    {customAllocs && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 text-warning"
+                        style={{ fontSize: '0.73rem', textDecoration: 'underline' }}
+                        onClick={() => setCustomAllocs(null)}
+                      >
+                        ↺ Reset to auto
+                      </button>
                     )}
                   </div>
-                  <CRow className="g-2">
-                    {previewAllocs.map((a) => (
-                      <CCol xs={12} md={6} lg={4} key={a.projectId}>
-                        <div className="d-flex justify-content-between text-body-secondary bg-body-secondary p-2 rounded border">
-                          <span className="fw-medium text-truncate me-2" title={a.projectName}>{a.projectName}</span>
-                          <span className="text-nowrap">{a.sharePct}% → <strong className="text-success">{fmt(a.amountCharged)}</strong></span>
+                  {/* Editable project rows */}
+                  <div className="d-flex flex-column gap-2">
+                    {displayAllocs.map((a) => {
+                      const totalPct = displayAllocs.reduce((s, x) => s + x.sharePct, 0)
+                      const pctValid = Math.abs(totalPct - 100) < 0.5
+                      return (
+                        <div
+                          key={a.projectId}
+                          className="d-flex align-items-center gap-2 bg-body-secondary rounded border px-2 py-2"
+                          style={{ fontSize: '0.82rem' }}
+                        >
+                          {/* Project name */}
+                          <span
+                            className="fw-medium text-truncate flex-grow-1"
+                            title={a.projectName}
+                            style={{ minWidth: 0 }}
+                          >
+                            {a.projectName}
+                          </span>
+                          {/* Editable % */}
+                          <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
+                            <CInputGroup size="sm" style={{ width: 90 }}>
+                              <CFormInput
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={a.sharePct}
+                                onChange={(e) => handleAllocPctChange(a.projectId, e.target.value)}
+                                style={{
+                                  textAlign: 'right',
+                                  fontWeight: 600,
+                                  color: pctValid ? 'inherit' : '#ff6b6b',
+                                  padding: '2px 6px',
+                                }}
+                              />
+                              <CInputGroupText style={{ fontSize: '0.75rem', padding: '2px 6px' }}>%</CInputGroupText>
+                            </CInputGroup>
+                            <span className="text-nowrap text-success fw-semibold" style={{ minWidth: 56, textAlign: 'right' }}>
+                              → {fmt(a.amountCharged)}
+                            </span>
+                          </div>
                         </div>
-                      </CCol>
-                    ))}
-                  </CRow>
+                      )
+                    })}
+                  </div>
+                  {/* Total check */}
+                  {(() => {
+                    const total = displayAllocs.reduce((s, a) => s + a.sharePct, 0)
+                    const diff = Math.abs(total - 100)
+                    return diff > 0.5 ? (
+                      <div className="text-danger small mt-2" style={{ fontSize: '0.73rem' }}>
+                        ⚠ Percentages sum to {Math.round(total * 100) / 100}% — must equal 100%
+                      </div>
+                    ) : (
+                      <div className="text-success small mt-2" style={{ fontSize: '0.73rem' }}>
+                        ✓ Total: {Math.round(total * 100) / 100}%{customAllocs ? ' (custom weights)' : ' (auto)'}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 
@@ -837,7 +943,10 @@ const GlobalHRPoolPage = () => {
                   size="sm"
                   color="success"
                   onClick={handleAdd}
-                  disabled={!form.label || !form.amount || !isSplitValid()}
+                  disabled={!form.label || !form.amount || !isSplitValid() || (
+                    displayAllocs.length > 0 &&
+                    Math.abs(displayAllocs.reduce((s, a) => s + a.sharePct, 0) - 100) > 0.5
+                  )}
                 >
                   Add &amp; Distribute Expense
                 </CButton>
