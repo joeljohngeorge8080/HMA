@@ -28,7 +28,6 @@ import { MODULE } from '../../../constants/modules'
 import useAuth from '../../../hooks/useAuth'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
-import { computeFlatMonthlyRate, monthsInRange } from '../../../services/monthlyApportionment'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -43,21 +42,37 @@ const monthLabel = (ym) => {
   return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
-const EMPTY_FORM = { month: '', pool: 'admin', amount: '', label: '' }
+const POOL_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
+
+const EMPTY_FORM = { month: '', pool: '', amount: '', label: '' }
 
 const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, onChanged }) => {
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
 
-  const months = monthsInRange(project.start_date, project.end_date)
-  const adminRate = computeFlatMonthlyRate(project, 'admin')
-  const entries = localProjectExpenses.list({ projectId: project.id, pool: 'admin' })
+  const sentAllocations = project.sent_allocations || []
+  const entries = localProjectExpenses.list({ projectId: project.id })
   const totalActual = entries.reduce((s, e) => s + e.amount, 0)
+  const totalSent = sentAllocations.reduce((s, a) => s + a.amount, 0)
+
+  const sentPools = [...new Set(sentAllocations.map((a) => a.pool))]
+  const monthsForPool = (pool) => sentAllocations.filter((a) => a.pool === pool).map((a) => a.month)
+  const sentAmountFor = (pool, month) =>
+    sentAllocations.find((a) => a.pool === pool && a.month === month)?.amount || 0
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleAdd = () => {
     setError('')
+    if (!form.pool || !form.month) {
+      setError('Select a pool and month that the PO has sent.')
+      return
+    }
+    const cap = sentAmountFor(form.pool, form.month)
+    if (cap <= 0) {
+      setError('This project has not sent that pool+month yet — nothing to log against.')
+      return
+    }
     try {
       localProjectExpenses.create({
         project_id: project.id,
@@ -89,7 +104,7 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
         <span>{project.name || project.title}</span>
         <div className="d-flex align-items-center gap-2">
           <CBadge color="warning" textColor="dark">
-            Admin rate: {fmt(adminRate)}/mo
+            Sent: {fmt(totalSent)}
           </CBadge>
           <CBadge color="info">Actual logged: {fmt(totalActual)}</CBadge>
           <span>{expanded ? '▲' : '▼'}</span>
@@ -105,21 +120,6 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
 
           {canEdit && (
             <CRow className="g-2 mb-3 align-items-end">
-              <CCol xs={12} md={3}>
-                <label className="small text-body-secondary">Month</label>
-                <CFormSelect
-                  size="sm"
-                  value={form.month}
-                  onChange={(e) => set('month', e.target.value)}
-                >
-                  <option value="">Select month…</option>
-                  {months.map((m) => (
-                    <option key={m} value={m}>
-                      {monthLabel(m)}
-                    </option>
-                  ))}
-                </CFormSelect>
-              </CCol>
               <CCol xs={12} md={2}>
                 <label className="small text-body-secondary">Pool</label>
                 <CFormSelect
@@ -127,13 +127,29 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
                   value={form.pool}
                   onChange={(e) => set('pool', e.target.value)}
                 >
-                  <option value="admin">Admin</option>
-                  <option value="hr" disabled>
-                    HR (coming soon)
-                  </option>
-                  <option value="core" disabled>
-                    Core (coming soon)
-                  </option>
+                  <option value="">Select pool…</option>
+                  {['admin', 'hr', 'core'].map((pool) => (
+                    <option key={pool} value={pool} disabled={!sentPools.includes(pool)}>
+                      {POOL_LABELS[pool]}
+                      {!sentPools.includes(pool) ? ' (nothing sent)' : ''}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+              <CCol xs={12} md={3}>
+                <label className="small text-body-secondary">Month</label>
+                <CFormSelect
+                  size="sm"
+                  value={form.month}
+                  disabled={!form.pool}
+                  onChange={(e) => set('month', e.target.value)}
+                >
+                  <option value="">Select month…</option>
+                  {monthsForPool(form.pool).map((m) => (
+                    <option key={m} value={m}>
+                      {monthLabel(m)} — sent {fmt(sentAmountFor(form.pool, m))}
+                    </option>
+                  ))}
                 </CFormSelect>
               </CCol>
               <CCol xs={12} md={3}>
@@ -166,12 +182,13 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
 
           {entries.length === 0 ? (
             <div className="text-center text-body-tertiary small py-3">
-              No admin expenses logged yet for this project.
+              No expenses logged yet for this project.
             </div>
           ) : (
             <CTable small align="middle" className="mb-0" style={{ fontSize: '0.8rem' }}>
               <CTableHead color="light">
                 <CTableRow>
+                  <CTableHeaderCell>Pool</CTableHeaderCell>
                   <CTableHeaderCell>Month</CTableHeaderCell>
                   <CTableHeaderCell>Label</CTableHeaderCell>
                   <CTableHeaderCell className="text-end">Amount</CTableHeaderCell>
@@ -182,6 +199,7 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
               <CTableBody>
                 {entries.map((e) => (
                   <CTableRow key={e.id}>
+                    <CTableDataCell>{POOL_LABELS[e.pool] || e.pool}</CTableDataCell>
                     <CTableDataCell>{monthLabel(e.month)}</CTableDataCell>
                     <CTableDataCell>{e.label}</CTableDataCell>
                     <CTableDataCell className="text-end">{fmt(e.amount)}</CTableDataCell>
@@ -225,27 +243,28 @@ const ProjectExpensesPage = () => {
   const [expandedId, setExpandedId] = useState(null)
   const [, forceRefresh] = useState(0)
 
-  const activeProjects = localProjects
+  const sendableProjects = localProjects
     .list({ pageSize: 1000 })
-    .items.filter((p) => p.is_operations_active === true)
+    .items.filter((p) => p.is_operations_active === true && p.sent_allocations?.length > 0)
 
   return (
     <>
       <div className="mb-3">
         <p className="text-body-secondary small mb-0">
-          Log actual Admin-pool expenses against an activated project. Only projects that have
-          completed planning and been activated appear here. HR/Core expense tracking is coming
-          later — Admin is wired up first.
+          Log actual Admin/HR/Core expenses against a project's sent allocations. The Project
+          Officer sends each month's pool amount from the project's PMS Expense tab — only projects
+          with at least one pool+month sent appear here, and only the sent pool+months can be logged
+          against.
         </p>
       </div>
 
-      {activeProjects.length === 0 ? (
+      {sendableProjects.length === 0 ? (
         <div className="text-center text-body-tertiary py-5">
-          No activated projects yet. A project must complete its Monthly Plan and be activated
-          before its expenses can be logged here.
+          No projects have sent any expense allocations yet. A Project Officer must send a month's
+          pool amount from PMS → Expense before it appears here.
         </div>
       ) : (
-        activeProjects.map((project) => (
+        sendableProjects.map((project) => (
           <ProjectExpenseRow
             key={project.id}
             project={project}

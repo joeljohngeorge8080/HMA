@@ -73,7 +73,7 @@ import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
-import MonthlyPlanPanel from './MonthlyPlanPanel'
+import MonthlyPlanPanel, { ExpenseSendPanel } from './MonthlyPlanPanel'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -1002,6 +1002,7 @@ const ProjectDetailPage = () => {
               'Project Milestones',
               'Budget & Payroll',
               'Monthly Plan',
+              'Expense',
             ].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
@@ -2252,6 +2253,16 @@ const ProjectDetailPage = () => {
             {/* Monthly Plan Tab */}
             <CTabPane visible={activeTab === 6}>
               <MonthlyPlanPanel
+                project={project}
+                onProjectChange={setProject}
+                canEdit={canEditMonthlyPlan}
+                currentUser={user?.full_name || user?.employee_id || 'Unknown'}
+              />
+            </CTabPane>
+
+            {/* Expense Tab */}
+            <CTabPane visible={activeTab === 7}>
+              <ExpenseSendPanel
                 project={project}
                 onProjectChange={setProject}
                 canEdit={canEditMonthlyPlan}

@@ -637,6 +637,65 @@ export const localProjects = {
     return projects[pIdx]
   },
 
+  // ── Send-to-EMS Allocations ──────────────────────────────────────────────────
+
+  /**
+   * PO confirms sending one month's pool amount to EMS — this is what
+   * unlocks HR to log actual expenses against that exact project+pool+
+   * month in EMS → Project Expenses (capped at this amount there). Upserts
+   * (replaces any prior sent record for the same pool+month, not stacking).
+   * A month/pool that's never sent stays at 0 in EMS — that's the PO's
+   * restriction; there's no separate "restrict" action beyond simply not
+   * sending.
+   */
+  sendPoolAllocation(projectId, { pool, month, amount, sentBy }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+
+    const validPools = ['admin', 'hr', 'core']
+    if (!validPools.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
+    if (!month) throw new Error('A month is required.')
+
+    const months = monthsInRange(projects[pIdx].start_date, projects[pIdx].end_date)
+    if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
+
+    const amt = parseFloat(amount) || 0
+    if (amt <= 0) throw new Error('Sent amount must be greater than zero.')
+
+    const withoutExisting = (projects[pIdx].sent_allocations || []).filter(
+      (a) => !(a.pool === pool && a.month === month),
+    )
+    const record = {
+      id: `sent_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      pool,
+      month,
+      amount: amt,
+      sentBy: sentBy || 'Unknown',
+      sentAt: now(),
+    }
+
+    projects[pIdx].sent_allocations = [...withoutExisting, record]
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  /** Reverses a send — the pool+month goes back to unavailable in EMS. */
+  revokePoolAllocation(projectId, { pool, month }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    projects[pIdx].sent_allocations = (projects[pIdx].sent_allocations || []).filter(
+      (a) => !(a.pool === pool && a.month === month),
+    )
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
   // ── Pool % Adjustment API ──────────────────────────────────────────────────────
 
   /**

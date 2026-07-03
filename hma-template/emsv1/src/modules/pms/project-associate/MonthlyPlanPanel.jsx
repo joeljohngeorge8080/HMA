@@ -771,6 +771,140 @@ ActualSpendPanel.propTypes = {
   project: PropTypes.object.isRequired,
 }
 
+const POOL_SEND_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
+
+/**
+ * PO-facing "confirm & send" surface: mirrors the Monthly Plan's computed
+ * Admin/HR/Core split per month, and lets the PO send each pool+month to
+ * EMS individually — that's what unlocks HR to log actual expenses
+ * against it there (see localProjects.sendPoolAllocation). A pool+month
+ * that's never sent simply never becomes available in EMS — that IS the
+ * PO's restriction; there's no separate block/restrict action.
+ */
+const ExpenseSendPanel = ({
+  project,
+  onProjectChange,
+  canEdit = false,
+  currentUser = 'Unknown',
+}) => {
+  const sentFor = (pool, month) =>
+    (project.sent_allocations || []).find((a) => a.pool === pool && a.month === month)
+
+  const handleSend = (pool, month) => {
+    const amount = computeEffectivePoolMonthly(project, pool, month)
+    const updated = localProjects.sendPoolAllocation(project.id, {
+      pool,
+      month,
+      amount,
+      sentBy: currentUser,
+    })
+    onProjectChange(updated)
+  }
+
+  const handleRevoke = (pool, month) => {
+    const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
+    onProjectChange(updated)
+  }
+
+  if (!project.monthly_plan?.length) {
+    return (
+      <CCard className="shadow-sm mb-4">
+        <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
+        <CCardBody>
+          <div className="text-center text-body-tertiary small py-3">
+            No Monthly Plan yet — plan the project first.
+          </div>
+        </CCardBody>
+      </CCard>
+    )
+  }
+
+  return (
+    <CCard className="shadow-sm mb-4">
+      <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
+      <CCardBody>
+        <div className="small text-body-secondary mb-3">
+          Confirm and send each month's Admin/HR/Core split to EMS. Sending a pool+month unlocks HR
+          to log actual expenses against it there, capped at the sent amount. A pool+month that's
+          never sent stays unavailable in EMS — simply don't send it to restrict that month.
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
+            <CTableHead color="light">
+              <CTableRow>
+                <CTableHeaderCell>Month</CTableHeaderCell>
+                {['admin', 'hr', 'core'].map((pool) => (
+                  <CTableHeaderCell key={pool} className="text-center">
+                    {POOL_SEND_LABELS[pool]}
+                  </CTableHeaderCell>
+                ))}
+              </CTableRow>
+            </CTableHead>
+            <CTableBody>
+              {project.monthly_plan.map((m) => (
+                <CTableRow key={m.month}>
+                  <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
+                  {['admin', 'hr', 'core'].map((pool) => {
+                    const amount = computeEffectivePoolMonthly(project, pool, m.month)
+                    const sent = sentFor(pool, m.month)
+                    return (
+                      <CTableDataCell key={pool} className="text-center">
+                        <div className="fw-medium">{fmt(amount)}</div>
+                        {sent ? (
+                          <div className="d-flex flex-column align-items-center gap-1 mt-1">
+                            <CBadge
+                              color="success"
+                              shape="rounded-pill"
+                              style={{ fontSize: '0.62rem' }}
+                            >
+                              Sent: {fmt(sent.amount)}
+                            </CBadge>
+                            {canEdit && (
+                              <CButton
+                                size="sm"
+                                color="secondary"
+                                variant="ghost"
+                                onClick={() => handleRevoke(pool, m.month)}
+                              >
+                                Revoke
+                              </CButton>
+                            )}
+                          </div>
+                        ) : (
+                          canEdit && (
+                            <CButton
+                              size="sm"
+                              color="primary"
+                              variant="outline"
+                              className="mt-1"
+                              onClick={() => handleSend(pool, m.month)}
+                            >
+                              Send
+                            </CButton>
+                          )
+                        )}
+                      </CTableDataCell>
+                    )
+                  })}
+                </CTableRow>
+              ))}
+            </CTableBody>
+          </CTable>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
+ExpenseSendPanel.propTypes = {
+  project: PropTypes.object.isRequired,
+  onProjectChange: PropTypes.func.isRequired,
+  canEdit: PropTypes.bool,
+  currentUser: PropTypes.string,
+}
+
+export { ExpenseSendPanel }
+
 const MonthlyPlanPanel = ({
   project,
   onProjectChange,
