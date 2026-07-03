@@ -70,13 +70,11 @@ import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
 import { localTasks } from '../../../services/localTasks'
 import { localPayroll } from '../../../services/localPayroll'
-import { localOrgPool } from '../../../services/localOrgPool'
-import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
-import MonthlyPlanPanel from './MonthlyPlanPanel'
+import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -1035,6 +1033,7 @@ const ProjectDetailPage = () => {
               'Project Milestones',
               'Budget & Payroll',
               'Monthly Plan',
+              'Expense',
             ].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
@@ -2030,14 +2029,15 @@ const ProjectDetailPage = () => {
               {(() => {
                 const installments = project.installments || []
 
-                const hrSummary = localOrgPool.getProjectHRBudgetSummary(project.id)
-                const coreSummary = localOrgPool.getProjectCoreBudgetSummary(project.id)
-                const hrCharges = localOrgPool
-                  .getProjectHRCharges(project.id)
-                  .map((c) => ({ ...c, amount: c.myAmount }))
-                const coreCharges = localOrgPool
-                  .getProjectCoreCharges(project.id)
-                  .map((c) => ({ ...c, amount: c.myAmount }))
+                const poolExpensesFor = (pool) =>
+                  localProjectExpenses.list({ projectId: project.id, pool }).map((e) => ({
+                    id: e.id,
+                    label: e.label,
+                    amount: e.amount,
+                    date: e.createdAt,
+                    notes: `Logged by ${e.createdBy}`,
+                    source: 'project_actual',
+                  }))
 
                 const saveActualDate = (instId) => {
                   const updated = localProjects.updateInstallment(project.id, instId, {
@@ -2052,22 +2052,6 @@ const ProjectDetailPage = () => {
                   const updated = localProjects.update(project.id, {
                     [field]: parseFloat(val) || 0,
                   })
-                  setProject(updated)
-                }
-
-                const handleAddExpense = (pool, expense) => {
-                  const updated = localProjects.addExpense(project.id, pool, expense)
-                  setProject(updated)
-                  setToast({ color: 'success', message: `${pool.toUpperCase()} expense added.` })
-                }
-
-                const handleRemoveExpense = (pool, expId) => {
-                  const updated = localProjects.removeExpense(project.id, pool, expId)
-                  setProject(updated)
-                }
-
-                const handleEditExpense = (pool, expId, data) => {
-                  const updated = localProjects.updateExpense(project.id, pool, expId, data)
                   setProject(updated)
                 }
 
@@ -2150,50 +2134,28 @@ const ProjectDetailPage = () => {
                       <CCardBody>
                         <CRow className="g-3">
                           <CCol xs={12} md={4}>
-                            {(() => {
-                              // Merge org-level EMS expenses (read-only), this project's
-                              // actual admin spend (from the EMS Project Expenses tab), and
-                              // project-specific admin expenses added directly in this card
-                              const orgAdminExpenses = localAdminExpenses.asProjectExpenses()
-                              const projectActualAdminExpenses = localProjectExpenses
-                                .list({ projectId: project.id, pool: 'admin' })
-                                .map((e) => ({
-                                  id: e.id,
-                                  label: e.label,
-                                  amount: e.amount,
-                                  date: e.createdAt,
-                                  notes: `Logged by ${e.createdBy}`,
-                                  source: 'project_actual',
-                                }))
-                              const mergedAdminExpenses = [
-                                ...orgAdminExpenses,
-                                ...projectActualAdminExpenses,
-                                ...(project.admin_expenses || []),
-                              ]
-                              return (
-                                <ExpenseCard
-                                  title="🏛 Admin Expenses"
-                                  color="warning"
-                                  budget={
-                                    (project.project_valuation || project.project_value || 0) *
-                                    ((project.admin_pct ?? 5) / 100)
-                                  }
-                                  expenses={mergedAdminExpenses}
-                                  isAdmin={true}
-                                  projectId={project.id}
-                                  onAdd={(exp) => handleAddExpense('admin', exp)}
-                                  onRemove={(expId) => handleRemoveExpense('admin', expId)}
-                                  onEdit={(expId, data) => handleEditExpense('admin', expId, data)}
-                                />
-                              )
-                            })()}
+                            <ExpenseCard
+                              title="🏛 Admin Expenses"
+                              color="warning"
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.admin_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('admin')}
+                              isAdmin={true}
+                              projectId={project.id}
+                              isReadOnly={true}
+                            />
                           </CCol>
                           <CCol xs={12} md={4}>
                             <ExpenseCard
                               title="👥 HR Pool Charges"
                               color="primary"
-                              budget={hrSummary.poolBudget}
-                              expenses={hrCharges}
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.hr_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('hr')}
                               isAdmin={false}
                               projectId={project.id}
                               isReadOnly={true}
@@ -2203,8 +2165,11 @@ const ProjectDetailPage = () => {
                             <ExpenseCard
                               title="⚡ Core Pool Charges"
                               color="danger"
-                              budget={coreSummary.poolBudget}
-                              expenses={coreCharges}
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.core_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('core')}
                               isAdmin={false}
                               projectId={project.id}
                               isReadOnly={true}
@@ -2347,7 +2312,16 @@ const ProjectDetailPage = () => {
                 project={project}
                 onProjectChange={setProject}
                 canEdit={canEditMonthlyPlan}
-                canWithdraw={isBudgetAdmin}
+                currentUser={user?.full_name || user?.employee_id || 'Unknown'}
+              />
+            </CTabPane>
+
+            {/* Expense Tab */}
+            <CTabPane visible={activeTab === 7}>
+              <ExpensePanel
+                project={project}
+                onProjectChange={setProject}
+                canEdit={canEditMonthlyPlan}
                 currentUser={user?.full_name || user?.employee_id || 'Unknown'}
               />
             </CTabPane>
