@@ -2,12 +2,13 @@
  * ExpenseManagementPage.jsx
  * EMS › Expense Management
  *
- * Five tabs:
+ * Six tabs:
  *  1. Admin Expenses — per-org expense register
  *  2. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
  *  3. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
  *  4. General Expenses — HR & Admin actual + forecast
- *  5. Project Expenses — HR logs actual admin-pool spend per activated project
+ *  5. Project Expenses — HR logs actual admin-pool spend per sent pool+month
+ *  6. Revenue — HR revenue (recruitment/training/internship) + project pool shares
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
@@ -842,6 +843,7 @@ const ApportionmentSheet = () => {
 const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
 const ProjectExpensesPage = React.lazy(() => import('./ProjectExpensesPage'))
 const GeneralExpensesTab = React.lazy(() => import('./GeneralExpensesTab'))
+const RevenuePage = React.lazy(() => import('./RevenuePage'))
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -899,6 +901,18 @@ const ExpenseManagementPage = () => {
               Project Expenses
             </CNavLink>
           </CNavItem>
+          <CNavItem>
+            <CNavLink
+              active={activeTab === 5}
+              onClick={() => setActiveTab(5)}
+              role="button"
+              className="fw-medium"
+              id="tab-revenue"
+            >
+              <CIcon icon={cilCash} className="me-1" />
+              Revenue
+            </CNavLink>
+          </CNavItem>
         </CNav>
       )}
 
@@ -941,6 +955,19 @@ const ExpenseManagementPage = () => {
             }
           >
             <ProjectExpensesPage />
+          </React.Suspense>
+        </CTabPane>
+
+        {/* ── Tab 5: Revenue ─────────────────────────────────────────────── */}
+        <CTabPane visible={activeTab === 5 && !drillProject}>
+          <React.Suspense
+            fallback={
+              <div className="text-center py-5">
+                <CSpinner color="primary" />
+              </div>
+            }
+          >
+            <RevenuePage />
           </React.Suspense>
         </CTabPane>
       </CTabContent>
