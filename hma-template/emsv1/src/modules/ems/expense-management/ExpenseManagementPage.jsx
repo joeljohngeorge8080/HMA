@@ -6,7 +6,7 @@
  *  1. Admin Expenses — per-org expense register
  *  2. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
  *  3. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
- *  4. General Expenses — HR & Admin actual + forecast
+ *  4. Forecast Expense — HR & Admin actual + forecast
  *  5. Project Expenses — HR logs actual admin-pool spend per sent pool+month
  *  6. Revenue — HR revenue (recruitment/training/internship) + project pool shares
  */
@@ -917,7 +917,7 @@ const ExpenseManagementPage = () => {
           </CNavItem>
           <CNavItem>
             <CNavLink active={activeTab === 3} onClick={() => setActiveTab(3)} role="button" className="fw-medium" id="tab-general-expenses">
-              <CIcon icon={cilCash} className="me-1" />General Expenses
+              <CIcon icon={cilCash} className="me-1" />Forecast Expense
             </CNavLink>
           </CNavItem>
           <CNavItem>
