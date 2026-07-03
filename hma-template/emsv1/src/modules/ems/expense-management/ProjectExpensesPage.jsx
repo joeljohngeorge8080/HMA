@@ -118,6 +118,61 @@ const ProjectExpenseRow = ({ project, canEdit, currentUser, expanded, onToggle, 
             </CAlert>
           )}
 
+          <div style={{ overflowX: 'auto' }} className="mb-3">
+            <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.75rem' }}>
+              <CTableHead color="light">
+                <CTableRow>
+                  <CTableHeaderCell>Month</CTableHeaderCell>
+                  {['admin', 'hr', 'core'].map((pool) => (
+                    <CTableHeaderCell key={pool} className="text-center">
+                      {POOL_LABELS[pool]}
+                    </CTableHeaderCell>
+                  ))}
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {(project.monthly_plan || []).map((m) => (
+                  <CTableRow key={m.month}>
+                    <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
+                    {['admin', 'hr', 'core'].map((pool) => {
+                      const sent = sentAllocations.find(
+                        (a) => a.pool === pool && a.month === m.month,
+                      )
+                      return (
+                        <CTableDataCell
+                          key={pool}
+                          className="text-center"
+                          style={
+                            sent
+                              ? undefined
+                              : {
+                                  background: 'var(--cui-tertiary-bg)',
+                                  color: 'var(--cui-secondary-color)',
+                                }
+                          }
+                        >
+                          {sent ? (
+                            <CBadge
+                              color="success"
+                              shape="rounded-pill"
+                              style={{ fontSize: '0.6rem' }}
+                            >
+                              {fmt(sent.amount)}
+                            </CBadge>
+                          ) : (
+                            <span className="text-body-tertiary" style={{ fontSize: '0.68rem' }}>
+                              🔒 Not allowed
+                            </span>
+                          )}
+                        </CTableDataCell>
+                      )
+                    })}
+                  </CTableRow>
+                ))}
+              </CTableBody>
+            </CTable>
+          </div>
+
           {canEdit && (
             <CRow className="g-2 mb-3 align-items-end">
               <CCol xs={12} md={2}>
@@ -243,28 +298,28 @@ const ProjectExpensesPage = () => {
   const [expandedId, setExpandedId] = useState(null)
   const [, forceRefresh] = useState(0)
 
-  const sendableProjects = localProjects
+  const plannedProjects = localProjects
     .list({ pageSize: 1000 })
-    .items.filter((p) => p.is_operations_active === true && p.sent_allocations?.length > 0)
+    .items.filter((p) => p.monthly_plan?.length > 0)
 
   return (
     <>
       <div className="mb-3">
         <p className="text-body-secondary small mb-0">
-          Log actual Admin/HR/Core expenses against a project's sent allocations. The Project
-          Officer sends each month's pool amount from the project's PMS Expense tab — only projects
-          with at least one pool+month sent appear here, and only the sent pool+months can be logged
-          against.
+          Every project with a saved Monthly Plan appears here, month by month, as soon as the
+          Project Officer plans it. A pool+month shows greyed out and "Not allowed" until the
+          Project Officer sends it from the project's PMS Expense tab — only sent pool+months can be
+          logged against.
         </p>
       </div>
 
-      {sendableProjects.length === 0 ? (
+      {plannedProjects.length === 0 ? (
         <div className="text-center text-body-tertiary py-5">
-          No projects have sent any expense allocations yet. A Project Officer must send a month's
-          pool amount from PMS → Expense before it appears here.
+          No projects have a saved Monthly Plan yet. A Project Officer must plan and save a
+          project's Monthly Plan before it appears here.
         </div>
       ) : (
-        sendableProjects.map((project) => (
+        plannedProjects.map((project) => (
           <ProjectExpenseRow
             key={project.id}
             project={project}
