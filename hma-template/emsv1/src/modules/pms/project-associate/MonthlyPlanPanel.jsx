@@ -796,6 +796,7 @@ const TASK_STATUS_COLORS = { active: 'primary', completed: 'success', cancelled:
 const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser = 'Unknown' }) => {
   const months = (project.monthly_plan || []).map((m) => m.month)
   const [selectedMonth, setSelectedMonth] = useState(months[0] || '')
+  const [sendError, setSendError] = useState('')
   const month = months.includes(selectedMonth) ? selectedMonth : months[0]
 
   if (!months.length) {
@@ -831,17 +832,29 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
     (project.sent_allocations || []).find((a) => a.pool === pool && a.month === month)
 
   const handleSend = (pool) => {
+    setSendError('')
     const amount = computeEffectivePoolMonthly(project, pool, month)
-    const updated = localProjects.sendPoolAllocation(project.id, {
-      pool,
-      month,
-      amount,
-      sentBy: currentUser,
-    })
-    onProjectChange(updated)
+    if (amount <= 0) {
+      setSendError(
+        `${POOL_SEND_LABELS[pool]} for ${monthLabel(month)} is not allowed to take — there's no amount available to send (${fmt(amount)}).`,
+      )
+      return
+    }
+    try {
+      const updated = localProjects.sendPoolAllocation(project.id, {
+        pool,
+        month,
+        amount,
+        sentBy: currentUser,
+      })
+      onProjectChange(updated)
+    } catch (e) {
+      setSendError(e.message)
+    }
   }
 
   const handleRevoke = (pool) => {
+    setSendError('')
     const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
     onProjectChange(updated)
   }
@@ -961,9 +974,15 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
             <CCard className="h-100">
               <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
               <CCardBody className="p-2">
+                {sendError && (
+                  <CAlert color="danger" className="py-2 small mb-2">
+                    {sendError}
+                  </CAlert>
+                )}
                 {['admin', 'hr', 'core'].map((pool) => {
                   const amount = computeEffectivePoolMonthly(project, pool, month)
                   const sent = sentFor(pool)
+                  const notAllowed = amount <= 0
                   return (
                     <div
                       key={pool}
@@ -995,6 +1014,10 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
                             </CButton>
                           )}
                         </div>
+                      ) : notAllowed ? (
+                        <CBadge color="danger" shape="rounded-pill" style={{ fontSize: '0.62rem' }}>
+                          Not allowed to take
+                        </CBadge>
                       ) : (
                         canEdit && (
                           <CButton
