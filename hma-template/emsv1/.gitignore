@@ -8,6 +8,9 @@ yarn.lock
 # testing
 /coverage
 
+# build output
+/build
+
 # misc
 .eslintcache
 .DS_Store

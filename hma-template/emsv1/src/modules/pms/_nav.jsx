@@ -18,6 +18,7 @@ import {
   cilMoney,
   cilTask,
   cilChart,
+  cilGroup,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -149,6 +150,12 @@ const pmsNav = [
     name: 'Implementing Partners',
     to: '/pms/implementing-partners',
     icon: <CIcon icon={cilBuilding} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Beneficiary Records',
+    to: '/pms/beneficiary',
+    icon: <CIcon icon={cilGroup} customClassName="nav-icon" />,
   },
   {
     component: CNavGroup,

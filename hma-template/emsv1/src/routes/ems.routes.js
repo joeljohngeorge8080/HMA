@@ -56,6 +56,9 @@ const ExpenseManagementPage = React.lazy(
 )
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
+const ReportsAnalysisPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/ReportsAnalysisPage'),
+)
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -128,7 +131,6 @@ export const emsRoutes = [
     element: RecruitmentPage,
     module: MODULE.RECRUITMENT,
   },
-
   {
     path: '/ems/hr-pool/global',
     name: 'Global HR Pool',
@@ -237,7 +239,7 @@ export const emsRoutes = [
   {
     path: '/ems/reports-analysis',
     name: 'Reports & Analysis',
-    element: placeholder('Reports & Analysis'),
+    element: ReportsAnalysisPage,
     module: MODULE.REPORTS,
   },
   {
