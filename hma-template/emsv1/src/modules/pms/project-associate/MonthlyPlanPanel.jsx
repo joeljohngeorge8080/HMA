@@ -24,6 +24,7 @@ import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
+import { localTasks } from '../../../services/localTasks'
 import {
   computeWorkingPool,
   monthsInRange,
@@ -773,40 +774,31 @@ ActualSpendPanel.propTypes = {
 
 const POOL_SEND_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
 
+const monthBounds = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` }
+}
+
+const TASK_STATUS_COLORS = { active: 'primary', completed: 'success', cancelled: 'secondary' }
+
 /**
- * PO-facing "confirm & send" surface: mirrors the Monthly Plan's computed
- * Admin/HR/Core split per month, and lets the PO send each pool+month to
- * EMS individually — that's what unlocks HR to log actual expenses
- * against it there (see localProjects.sendPoolAllocation). A pool+month
- * that's never sent simply never becomes available in EMS — that IS the
- * PO's restriction; there's no separate block/restrict action.
+ * The PO's month-by-month execution surface: pick a month from the
+ * dropdown and see everything relevant to running it — that month's tasks,
+ * milestones (installments overlapping it), assignees, and the
+ * Admin/HR/Core expense split with Send/Revoke actions (see
+ * localProjects.sendPoolAllocation/revokePoolAllocation). Sending a
+ * pool+month is what unlocks HR to log actual expenses against it in EMS,
+ * capped at the sent amount; a pool+month that's never sent simply never
+ * becomes available there — that IS the PO's restriction, no separate
+ * block action needed.
  */
-const ExpenseSendPanel = ({
-  project,
-  onProjectChange,
-  canEdit = false,
-  currentUser = 'Unknown',
-}) => {
-  const sentFor = (pool, month) =>
-    (project.sent_allocations || []).find((a) => a.pool === pool && a.month === month)
+const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser = 'Unknown' }) => {
+  const months = (project.monthly_plan || []).map((m) => m.month)
+  const [selectedMonth, setSelectedMonth] = useState(months[0] || '')
+  const month = months.includes(selectedMonth) ? selectedMonth : months[0]
 
-  const handleSend = (pool, month) => {
-    const amount = computeEffectivePoolMonthly(project, pool, month)
-    const updated = localProjects.sendPoolAllocation(project.id, {
-      pool,
-      month,
-      amount,
-      sentBy: currentUser,
-    })
-    onProjectChange(updated)
-  }
-
-  const handleRevoke = (pool, month) => {
-    const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
-    onProjectChange(updated)
-  }
-
-  if (!project.monthly_plan?.length) {
+  if (!months.length) {
     return (
       <CCard className="shadow-sm mb-4">
         <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
@@ -819,91 +811,235 @@ const ExpenseSendPanel = ({
     )
   }
 
+  const { start: monthStart, end: monthEnd } = monthBounds(month)
+
+  const monthTasks = localTasks
+    .getByProject(project.id)
+    .filter((t) => (t.due_date || t.target_date || '').slice(0, 7) === month)
+
+  const monthInstallments = (project.installments || []).filter((inst) => {
+    const instEnd = inst.end_date || inst.target_date
+    if (!inst.start_date || !instEnd) return false
+    return inst.start_date <= monthEnd && instEnd >= monthStart
+  })
+
+  const assignees = [...new Set(monthTasks.map((t) => t.assignee).filter(Boolean))]
+
+  const actualEntries = localProjectExpenses.list({ projectId: project.id, month })
+
+  const sentFor = (pool) =>
+    (project.sent_allocations || []).find((a) => a.pool === pool && a.month === month)
+
+  const handleSend = (pool) => {
+    const amount = computeEffectivePoolMonthly(project, pool, month)
+    const updated = localProjects.sendPoolAllocation(project.id, {
+      pool,
+      month,
+      amount,
+      sentBy: currentUser,
+    })
+    onProjectChange(updated)
+  }
+
+  const handleRevoke = (pool) => {
+    const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
+    onProjectChange(updated)
+  }
+
   return (
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
       <CCardBody>
         <div className="small text-body-secondary mb-3">
-          Confirm and send each month's Admin/HR/Core split to EMS. Sending a pool+month unlocks HR
-          to log actual expenses against it there, capped at the sent amount. A pool+month that's
-          never sent stays unavailable in EMS — simply don't send it to restrict that month.
+          Pick a month to see everything relevant to running it — tasks, milestones, assignees, and
+          the Admin/HR/Core split. Sending a pool+month unlocks HR to log actual expenses against it
+          in EMS, capped at the sent amount. A pool+month that's never sent stays unavailable there
+          — simply don't send it to restrict that month.
         </div>
-        <div style={{ overflowX: 'auto' }}>
-          <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
-            <CTableHead color="light">
-              <CTableRow>
-                <CTableHeaderCell>Month</CTableHeaderCell>
-                {['admin', 'hr', 'core'].map((pool) => (
-                  <CTableHeaderCell key={pool} className="text-center">
-                    {POOL_SEND_LABELS[pool]}
-                  </CTableHeaderCell>
-                ))}
-              </CTableRow>
-            </CTableHead>
-            <CTableBody>
-              {project.monthly_plan.map((m) => (
-                <CTableRow key={m.month}>
-                  <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
-                  {['admin', 'hr', 'core'].map((pool) => {
-                    const amount = computeEffectivePoolMonthly(project, pool, m.month)
-                    const sent = sentFor(pool, m.month)
-                    return (
-                      <CTableDataCell key={pool} className="text-center">
-                        <div className="fw-medium">{fmt(amount)}</div>
-                        {sent ? (
-                          <div className="d-flex flex-column align-items-center gap-1 mt-1">
-                            <CBadge
-                              color="success"
-                              shape="rounded-pill"
-                              style={{ fontSize: '0.62rem' }}
-                            >
-                              Sent: {fmt(sent.amount)}
-                            </CBadge>
-                            {canEdit && (
-                              <CButton
-                                size="sm"
-                                color="secondary"
-                                variant="ghost"
-                                onClick={() => handleRevoke(pool, m.month)}
-                              >
-                                Revoke
-                              </CButton>
-                            )}
-                          </div>
-                        ) : (
-                          canEdit && (
+
+        <CFormSelect
+          value={month}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+          style={{ maxWidth: 220 }}
+          className="mb-3"
+        >
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {monthLabel(m)}
+            </option>
+          ))}
+        </CFormSelect>
+
+        <CRow className="g-3">
+          <CCol xs={12} md={6}>
+            <CCard className="h-100">
+              <CCardHeader className="bg-transparent fw-semibold py-2">
+                ✅ Tasks <CBadge color="secondary">{monthTasks.length}</CBadge>
+              </CCardHeader>
+              <CCardBody className="p-2">
+                {monthTasks.length === 0 ? (
+                  <div className="text-center text-body-tertiary small py-2">
+                    No tasks due this month.
+                  </div>
+                ) : (
+                  monthTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="d-flex justify-content-between align-items-start border-bottom py-1 small"
+                    >
+                      <div>
+                        <div className="fw-medium">{t.title}</div>
+                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                          {t.assignee || 'Unassigned'} · Due{' '}
+                          {monthLabel((t.due_date || t.target_date || '').slice(0, 7))}
+                        </div>
+                      </div>
+                      <CBadge color={TASK_STATUS_COLORS[t.status] || 'secondary'}>
+                        {t.status}
+                      </CBadge>
+                    </div>
+                  ))
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+
+          <CCol xs={12} md={6}>
+            <CCard className="h-100">
+              <CCardHeader className="bg-transparent fw-semibold py-2">
+                🏁 Milestones <CBadge color="secondary">{monthInstallments.length}</CBadge>
+              </CCardHeader>
+              <CCardBody className="p-2">
+                {monthInstallments.length === 0 ? (
+                  <div className="text-center text-body-tertiary small py-2">
+                    No installment overlaps this month.
+                  </div>
+                ) : (
+                  monthInstallments.map((inst) => (
+                    <div
+                      key={inst.id}
+                      className="d-flex justify-content-between align-items-start border-bottom py-1 small"
+                    >
+                      <div>
+                        <div className="fw-medium">{inst.label}</div>
+                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                          {inst.percentage}% · {fmt(inst.amount)}
+                        </div>
+                      </div>
+                      <CBadge color="info">{inst.uc_status || 'Pending'}</CBadge>
+                    </div>
+                  ))
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+
+          <CCol xs={12} md={6}>
+            <CCard className="h-100">
+              <CCardHeader className="bg-transparent fw-semibold py-2">
+                👤 Assignees <CBadge color="secondary">{assignees.length}</CBadge>
+              </CCardHeader>
+              <CCardBody className="p-2">
+                {assignees.length === 0 ? (
+                  <div className="text-center text-body-tertiary small py-2">
+                    No assignees on this month's tasks.
+                  </div>
+                ) : (
+                  <div className="d-flex flex-wrap gap-2">
+                    {assignees.map((a) => (
+                      <CBadge key={a} color="primary" shape="rounded-pill">
+                        {a}
+                      </CBadge>
+                    ))}
+                  </div>
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+
+          <CCol xs={12} md={6}>
+            <CCard className="h-100">
+              <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
+              <CCardBody className="p-2">
+                {['admin', 'hr', 'core'].map((pool) => {
+                  const amount = computeEffectivePoolMonthly(project, pool, month)
+                  const sent = sentFor(pool)
+                  return (
+                    <div
+                      key={pool}
+                      className="d-flex justify-content-between align-items-center border-bottom py-1 small"
+                    >
+                      <div>
+                        <div className="fw-medium">{POOL_SEND_LABELS[pool]}</div>
+                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                          Planned {fmt(amount)}
+                        </div>
+                      </div>
+                      {sent ? (
+                        <div className="d-flex align-items-center gap-2">
+                          <CBadge
+                            color="success"
+                            shape="rounded-pill"
+                            style={{ fontSize: '0.62rem' }}
+                          >
+                            Sent {fmt(sent.amount)}
+                          </CBadge>
+                          {canEdit && (
                             <CButton
                               size="sm"
-                              color="primary"
-                              variant="outline"
-                              className="mt-1"
-                              onClick={() => handleSend(pool, m.month)}
+                              color="secondary"
+                              variant="ghost"
+                              onClick={() => handleRevoke(pool)}
                             >
-                              Send
+                              Revoke
                             </CButton>
-                          )
-                        )}
-                      </CTableDataCell>
-                    )
-                  })}
-                </CTableRow>
-              ))}
-            </CTableBody>
-          </CTable>
-        </div>
+                          )}
+                        </div>
+                      ) : (
+                        canEdit && (
+                          <CButton
+                            size="sm"
+                            color="primary"
+                            variant="outline"
+                            onClick={() => handleSend(pool)}
+                          >
+                            Send
+                          </CButton>
+                        )
+                      )}
+                    </div>
+                  )
+                })}
+                {actualEntries.length > 0 && (
+                  <div className="mt-2">
+                    <div className="small fw-semibold mb-1">Actual logged this month</div>
+                    {actualEntries.map((e) => (
+                      <div key={e.id} className="d-flex justify-content-between small">
+                        <span>
+                          {POOL_SEND_LABELS[e.pool]} — {e.label}
+                        </span>
+                        <span>{fmt(e.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CCardBody>
+            </CCard>
+          </CCol>
+        </CRow>
       </CCardBody>
     </CCard>
   )
 }
 
-ExpenseSendPanel.propTypes = {
+ExpensePanel.propTypes = {
   project: PropTypes.object.isRequired,
   onProjectChange: PropTypes.func.isRequired,
   canEdit: PropTypes.bool,
   currentUser: PropTypes.string,
 }
 
-export { ExpenseSendPanel }
+export { ExpensePanel }
 
 const MonthlyPlanPanel = ({
   project,

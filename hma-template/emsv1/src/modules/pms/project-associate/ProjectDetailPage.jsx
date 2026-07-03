@@ -73,7 +73,7 @@ import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
-import MonthlyPlanPanel, { ExpenseSendPanel } from './MonthlyPlanPanel'
+import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -2262,7 +2262,7 @@ const ProjectDetailPage = () => {
 
             {/* Expense Tab */}
             <CTabPane visible={activeTab === 7}>
-              <ExpenseSendPanel
+              <ExpensePanel
                 project={project}
                 onProjectChange={setProject}
                 canEdit={canEditMonthlyPlan}
