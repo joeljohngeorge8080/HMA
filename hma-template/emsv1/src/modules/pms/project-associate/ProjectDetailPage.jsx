@@ -64,6 +64,7 @@ import {
   cilWallet,
   cilChevronBottom,
   cilChevronTop,
+  cilCloudUpload,
 } from '@coreui/icons'
 import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
@@ -738,6 +739,27 @@ const ProjectDetailPage = () => {
       : 0
   const sm = STATUS_META[project.status] || { label: project.status, color: 'secondary' }
 
+  let ucAlert = null
+  const pendingUcs = project.installments?.filter(i => i.uc_status !== 'Approved' && i.uc_status !== 'Submitted') || []
+  if (pendingUcs.length > 0) {
+    let overdue = 0
+    let dueSoon = 0
+    pendingUcs.forEach(inst => {
+      const tStr = inst.end_date || inst.target_date
+      if (!tStr) return
+      const [ty, tm, td] = tStr.split('-').map(Number)
+      const target = new Date(ty, tm - 1, td)
+      const now = new Date()
+      target.setHours(0,0,0,0)
+      now.setHours(0,0,0,0)
+      const diff = Math.ceil((now.getTime() - target.getTime()) / (1000 * 60 * 60 * 24))
+      if (diff > 0) overdue++
+      else if (diff >= -7) dueSoon++
+    })
+    if (overdue > 0) ucAlert = { color: 'danger', text: `⚠️ ${overdue} UC(s) Overdue` }
+    else if (dueSoon > 0) ucAlert = { color: 'warning', text: `⏳ ${dueSoon} UC(s) Due Soon` }
+  }
+
   const handleApprove = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'approved' } : a)))
     setApproveModal({ visible: false, item: null })
@@ -870,6 +892,15 @@ const ProjectDetailPage = () => {
               style={{ fontSize: '0.8rem' }}
             >
               Operations Active
+            </CBadge>
+          )}
+          {ucAlert && (
+            <CBadge
+              color={ucAlert.color}
+              className={`px-3 py-2 d-flex align-items-center ${ucAlert.color === 'warning' ? 'text-dark' : 'text-white'}`}
+              style={{ fontSize: '0.8rem' }}
+            >
+              {ucAlert.text}
             </CBadge>
           )}
         </div>
@@ -1500,7 +1531,7 @@ const ProjectDetailPage = () => {
               <div
                 className="d-none d-md-grid mb-3 px-1"
                 style={{
-                  gridTemplateColumns: '2fr 2fr 1fr 1fr 80px',
+                  gridTemplateColumns: '2fr 2fr 1fr 1fr 120px',
                   gap: '0 1rem',
                   fontSize: '0.72rem',
                   fontWeight: 600,
@@ -1630,9 +1661,34 @@ const ProjectDetailPage = () => {
                           {/* Actions */}
                           <div
                             className="d-flex align-items-center gap-1 flex-shrink-0"
-                            style={{ width: 80, justifyContent: 'flex-end' }}
+                            style={{ width: 120, justifyContent: 'flex-end' }}
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <div className="position-relative" title="Upload UC">
+                              <CButton
+                                color="secondary"
+                                variant="ghost"
+                                size="sm"
+                                style={{ padding: '4px 8px' }}
+                                onClick={(e) => {
+                                  const fileInput = e.currentTarget.nextElementSibling
+                                  if (fileInput) fileInput.click()
+                                }}
+                              >
+                                <CIcon icon={cilCloudUpload} size="sm" />
+                              </CButton>
+                              <input 
+                                type="file" 
+                                hidden 
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    console.log('UC Uploaded:', e.target.files[0])
+                                    // Add handle upload functionality here
+                                  }
+                                }} 
+                              />
+                            </div>
                             <CButton
                               color="secondary"
                               variant="ghost"
