@@ -73,7 +73,7 @@ const emsNav = [
         name: 'Activity',
         items: [
           { component: CNavItem, name: 'Internship', to: '/ems/internship' },
-          { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
+          { component: CNavItem, name: 'Recruitment & Training', to: '/ems/recruitment' },
         ],
       },
     ],
