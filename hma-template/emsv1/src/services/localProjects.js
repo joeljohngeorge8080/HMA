@@ -10,6 +10,9 @@ import {
   monthsInRange,
   sumPlanTotal,
   validatePlanTotal,
+  computeFlatMonthlyRate,
+  computeCascadeAdjustments,
+  validatePlanTotalWithCascade,
 } from './monthlyApportionment'
 
 const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
@@ -523,6 +526,17 @@ export const localProjects = {
    * returned `validation` field tells the caller whether the *overall* plan
    * still balances, so the UI can flag it live.
    */
+  /**
+   * Replaces one month's phase line items, then recomputes the whole
+   * project's auto_cascade pool_adjustments from scratch against the
+   * updated plan (any month's Project total exceeding its baseline share
+   * automatically pulls from HR/Core — see computeCascadeAdjustments).
+   * Manual adjustments (and any legacy adjustment without an auto_cascade
+   * source tag) are preserved untouched. Does not block on an unbalanced
+   * total (single-month edits routinely go out of balance mid-edit) — the
+   * returned `validation` field (cascade-aware) tells the caller whether
+   * the *overall* plan still balances, so the UI can flag it live.
+   */
   updateMonthPlan(projectId, month, phases) {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === projectId)
@@ -537,62 +551,86 @@ export const localProjects = {
     const updatedPlan = [...plan]
     updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
 
-    projects[idx] = { ...project, monthly_plan: updatedPlan, updated_at: now() }
+    const preservedAdjustments = (project.pool_adjustments || []).filter(
+      (a) => a.source !== 'auto_cascade',
+    )
+    const cascadeAdjustments = computeCascadeAdjustments({
+      ...project,
+      monthly_plan: updatedPlan,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      reason: 'Auto-funded from Project overage',
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [...preservedAdjustments, ...cascadeAdjustments]
+
+    projects[idx] = {
+      ...project,
+      monthly_plan: updatedPlan,
+      pool_adjustments: poolAdjustments,
+      updated_at: now(),
+    }
     write(PROJECTS_KEY, projects)
 
-    const validation = validatePlanTotal(updatedPlan, computeWorkingPool(projects[idx]))
+    const validation = validatePlanTotalWithCascade(
+      updatedPlan,
+      computeWorkingPool(projects[idx]),
+      poolAdjustments,
+    )
     return { project: projects[idx], validation }
   },
 
   /**
-   * Manually withdraws money from Admin/HR/Core for one specific month —
-   * a targeted, one-month deduction (not spread across future months).
-   * `amount` is split evenly across every pool named in `pools`: e.g.
-   * pools=['hr','core'], amount=2000 records ₹1000 against hr and ₹1000
-   * against core. One record per selected pool.
+   * Directly sets a pool's effective figure for one month by upserting a
+   * single manual pool_adjustment — replacing any prior manual adjustment
+   * for that exact pool+month (not stacking). `newAmount` is the desired
+   * effective value; the stored adjustment amount is however much that
+   * differs from the flat rate (delta = flat − newAmount). Delta can be
+   * negative (a manual top-up above the flat rate) — not clamped,
+   * consistent with this codebase's existing pool-adjustment behavior. If
+   * the delta rounds to within half a paisa of zero, any existing manual
+   * adjustment for that pool+month is removed instead of storing a no-op
+   * record (back to the flat rate).
    */
-  addPoolAdjustment(projectId, { pools, month, amount, reason, createdBy }) {
+  setManualPoolAdjustment(projectId, { pool, month, newAmount, createdBy }) {
     const projects = read(PROJECTS_KEY)
     const pIdx = projects.findIndex((p) => p.id === projectId)
     if (pIdx === -1) throw new Error('Project not found')
 
     const validPools = ['admin', 'hr', 'core']
-    const chosen = (pools || []).filter((p) => validPools.includes(p))
-    if (chosen.length === 0) throw new Error('Select at least one pool to withdraw from.')
-    const amt = parseFloat(amount) || 0
-    if (amt <= 0) throw new Error('Withdrawal amount must be greater than zero.')
+    if (!validPools.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
     if (!month) throw new Error('A month is required.')
-    if (!reason || !reason.trim()) throw new Error('A reason is required for audit purposes.')
 
     const months = monthsInRange(projects[pIdx].start_date, projects[pIdx].end_date)
     if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
 
-    const perPool = Math.round((amt / chosen.length) * 100) / 100
-    const records = chosen.map((pool) => ({
-      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      pool,
-      month,
-      amount: perPool,
-      reason: reason.trim(),
-      createdBy: createdBy || 'Unknown',
-      createdAt: now(),
-    }))
+    const flat = computeFlatMonthlyRate(projects[pIdx], pool)
+    const delta = Math.round((flat - (parseFloat(newAmount) || 0)) * 100) / 100
 
-    projects[pIdx].pool_adjustments = [...(projects[pIdx].pool_adjustments || []), ...records]
-    projects[pIdx].updated_at = now()
-    write(PROJECTS_KEY, projects)
-    notify()
-    return projects[pIdx]
-  },
-
-  /** Reverses one withdrawal record (hard delete, matching removeExpense's convention). */
-  removePoolAdjustment(projectId, adjustmentId) {
-    const projects = read(PROJECTS_KEY)
-    const pIdx = projects.findIndex((p) => p.id === projectId)
-    if (pIdx === -1) throw new Error('Project not found')
-    projects[pIdx].pool_adjustments = (projects[pIdx].pool_adjustments || []).filter(
-      (a) => a.id !== adjustmentId,
+    const withoutExistingManual = (projects[pIdx].pool_adjustments || []).filter(
+      (a) => !(a.source === 'manual' && a.pool === pool && a.month === month),
     )
+
+    const nextAdjustments =
+      Math.abs(delta) < 0.01
+        ? withoutExistingManual
+        : [
+            ...withoutExistingManual,
+            {
+              id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+              pool,
+              month,
+              amount: delta,
+              source: 'manual',
+              reason: 'Direct edit',
+              createdBy: createdBy || 'Unknown',
+              createdAt: now(),
+            },
+          ]
+
+    projects[pIdx].pool_adjustments = nextAdjustments
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
     notify()
