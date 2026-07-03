@@ -1,5 +1,5 @@
 /**
- * Reports & Analysis — dual-mode dashboard
+ * Visual Model — dual-mode dashboard
  *
  * Top-level section switcher:
  *   ① HR Dashboard   — headcount KPIs, department breakdown, attendance trend,
@@ -602,7 +602,7 @@ const SECTIONS = [
   { id: 'sdp', label: 'Projects SDP',   icon: '📊', color: '#7c3aed', sub: 'SDP Projects Overview' },
 ]
 
-const ReportsAnalysisPage = () => {
+const VisualModelPage = () => {
   const [section, setSection] = useState('hr')
 
   const active = SECTIONS.find(s => s.id === section)
@@ -616,7 +616,7 @@ const ReportsAnalysisPage = () => {
             {active.icon} {active.sub}
           </h1>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.8, marginTop: 2 }}>
-            Reports &amp; Analysis · HMA IEMS
+            Visual Model · HMA IEMS
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -657,4 +657,4 @@ const ReportsAnalysisPage = () => {
   )
 }
 
-export default ReportsAnalysisPage
+export default VisualModelPage

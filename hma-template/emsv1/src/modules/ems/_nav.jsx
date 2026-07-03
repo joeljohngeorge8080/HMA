@@ -144,11 +144,13 @@ const emsNav = [
     ],
   },
   {
-    component: CNavItem,
+    component: CNavGroup,
     name: 'Reports & Analysis',
-    to: '/ems/reports-analysis',
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
+    items: [
+      { component: CNavItem, name: 'Visual Model', to: '/ems/reports-analysis/visual-model' },
+    ],
   },
   {
     component: CNavItem,
