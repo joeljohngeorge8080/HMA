@@ -32,6 +32,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPencil, cilInfo, cilPlus, cilX, cilChart } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
+import { localRecruitments } from '../../../services/localRecruitments'
+import { localInternships } from '../../../services/localInternships'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -684,13 +686,27 @@ const GeneralExpensesTab = () => {
     }))
   )
 
-  // HR Revenue entries state
-  const [hrRevenues, setHrRevenues] = useState([
-    { id: 'rev_1', label: 'Internship', amount: 0 },
-    { id: 'rev_2', label: 'Training', amount: 0 },
-    { id: 'rev_3', label: 'Recruitment', amount: 0 },
-    { id: 'rev_4', label: 'Hall Rent', amount: 0 },
-  ])
+  // HR Revenue entries state — Internship/Training/Recruitment seed from the
+  // real ledgers (localInternships/localRecruitments) so this tab reflects
+  // actual data instead of manually re-entered zeros; still editable here
+  // afterwards (e.g. Hall Rent has no other source and stays manual).
+  const [hrRevenues, setHrRevenues] = useState(() => {
+    const recruitmentTotal = localRecruitments
+      .list({ activity_type: 'recruitment' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const trainingTotal = localRecruitments
+      .list({ activity_type: 'training' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const internshipTotal = localInternships
+      .list()
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    return [
+      { id: 'rev_1', label: 'Internship', amount: internshipTotal },
+      { id: 'rev_2', label: 'Training', amount: trainingTotal },
+      { id: 'rev_3', label: 'Recruitment', amount: recruitmentTotal },
+      { id: 'rev_4', label: 'Hall Rent', amount: 0 },
+    ]
+  })
 
   // Modals
   const [editModal, setEditModal] = useState(null) // monthKey

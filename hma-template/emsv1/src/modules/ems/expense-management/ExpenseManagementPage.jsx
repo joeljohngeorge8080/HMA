@@ -44,6 +44,7 @@ import {
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import { computeEffectivePoolMonthly } from '../../../services/monthlyApportionment'
 
 // ── Shared Formatters ─────────────────────────────────────────────────────────
@@ -300,6 +301,9 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
         const hrSummary   = localOrgPool.getProjectHRBudgetSummary(p.id)
         const coreSummary = localOrgPool.getProjectCoreBudgetSummary(p.id)
+        const adminUsed = localProjectExpenses
+          .list({ projectId: p.id, pool: 'admin' })
+          .reduce((s, e) => s + e.amount, 0)
         const activationMonth = p.operations_activated_month ||
           (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
         return {
@@ -309,6 +313,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
           projectValue: pv,
           activationMonth,
           totalAdmin, totalHr, totalCore, totalDirect,
+          adminUsed,
           hrUsed: hrSummary.totalCharged || 0,
           coreUsed: coreSummary.totalCharged || 0,
         }
@@ -339,12 +344,34 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   const sumHr     = rows.reduce((s, r) => s + r.totalHr,     0)
   const sumCore   = rows.reduce((s, r) => s + r.totalCore,   0)
   const sumDirect = rows.reduce((s, r) => s + r.totalDirect, 0)
+  const sumAdminUsed = rows.reduce((s, r) => s + r.adminUsed, 0)
   const sumHrUsed = rows.reduce((s, r) => s + r.hrUsed,      0)
+  const sumCoreUsed = rows.reduce((s, r) => s + r.coreUsed, 0)
 
   const SHEET_ROWS = [
-    { key: 'admin',  label: 'HMA Admin Expenses',      color: 'warning', badge: '5%',  getBudget: (r) => r.totalAdmin,  getUsed: () => 0,       totalBudget: sumAdmin,  totalUsed: 0,       note: 'Always active'   },
+    {
+      key: 'admin',
+      label: 'HMA Admin Expenses',
+      color: 'warning',
+      badge: '5%',
+      getBudget: (r) => r.totalAdmin,
+      getUsed: (r) => r.adminUsed,
+      totalBudget: sumAdmin,
+      totalUsed: sumAdminUsed,
+      note: 'Always active',
+    },
     { key: 'hr',     label: 'HR Expenses',             color: 'primary', badge: '5%',  getBudget: (r) => r.totalHr,     getUsed: (r) => r.hrUsed,   totalBudget: sumHr,     totalUsed: sumHrUsed, note: 'Post-activation' },
-    { key: 'core',   label: 'Core Team Salary',        color: 'info',    badge: '5%',  getBudget: (r) => r.totalCore,   getUsed: () => 0,       totalBudget: sumCore,   totalUsed: 0,       note: 'Post-activation' },
+    {
+      key: 'core',
+      label: 'Core Team Salary',
+      color: 'info',
+      badge: '5%',
+      getBudget: (r) => r.totalCore,
+      getUsed: (r) => r.coreUsed,
+      totalBudget: sumCore,
+      totalUsed: sumCoreUsed,
+      note: 'Post-activation',
+    },
     { key: 'direct', label: 'Project Direct Expenses', color: 'success', badge: '85%+',getBudget: (r) => r.totalDirect, getUsed: () => 0,       totalBudget: sumDirect, totalUsed: 0,       note: 'From installment' },
   ]
 
@@ -562,6 +589,9 @@ const ApportionmentSheet = () => {
           const totalHr     = bd.reduce((s, m) => s + m.hrBudget,     0)
           const totalCore   = bd.reduce((s, m) => s + m.coreBudget,   0)
           const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
+          const actualAdmin = localProjectExpenses
+            .list({ projectId: p.id, pool: 'admin' })
+            .reduce((s, e) => s + e.amount, 0)
 
           return (
             <CCard key={p.id} className="shadow-sm border-0">
@@ -594,6 +624,7 @@ const ApportionmentSheet = () => {
                       { l: 'HR',     v: totalHr,     c: 'primary' },
                       { l: 'Core',   v: totalCore,   c: 'info'    },
                       { l: 'Direct', v: totalDirect, c: 'success' },
+                      { l: 'Actual (Admin)', v: actualAdmin, c: 'danger' },
                     ].map((s) => (
                       <div key={s.l} className="text-center px-3 py-1 rounded-3 border" style={{ fontSize: '0.72rem', minWidth: 72 }}>
                         <div className={`fw-bold text-${s.c}`}>{fmtL(s.v)}</div>
