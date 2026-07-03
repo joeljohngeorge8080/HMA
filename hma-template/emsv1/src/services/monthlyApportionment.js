@@ -91,6 +91,23 @@ export const computeEffectivePoolMonthly = (project, pool, month) => {
 }
 
 /**
+ * A pool's effective monthly figure re-expressed as a % of that month's
+ * slice of total project value (project_value ÷ duration). Purely a
+ * derived display/edit convenience — there is no separate stored
+ * per-month percentage; an unedited month always shows exactly the
+ * project's own admin_pct/hr_pct/core_pct, since flat rate ÷ monthly
+ * value recovers it exactly by construction.
+ */
+export const computeEffectivePoolPct = (project, pool, month) => {
+  const pv = project.project_value || project.project_valuation || 0
+  const months = monthsInRange(project.start_date, project.end_date)
+  if (months.length === 0 || pv === 0) return 0
+  const monthlyValue = pv / months.length
+  const amount = computeEffectivePoolMonthly(project, pool, month)
+  return Math.round((amount / monthlyValue) * 100 * 100) / 100
+}
+
+/**
  * A project's normal Project-column share for one month — the working
  * pool spread evenly across the project's duration. This is the "baseline"
  * (B) a month's Project total is compared against to decide whether it

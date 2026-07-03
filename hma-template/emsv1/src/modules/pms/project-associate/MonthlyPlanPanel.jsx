@@ -28,6 +28,7 @@ import {
   computeWorkingPool,
   monthsInRange,
   computeEffectivePoolMonthly,
+  computeEffectivePoolPct,
   validatePlanTotalWithCascade,
 } from '../../../services/monthlyApportionment'
 
@@ -431,6 +432,20 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     onProjectChange(updated)
   }
 
+  const handlePoolPctChange = (pool, month, newPct) => {
+    const pv = project.project_value || project.project_valuation || 0
+    const months = monthsInRange(project.start_date, project.end_date)
+    const monthlyValue = months.length > 0 ? pv / months.length : 0
+    const newAmount = ((parseFloat(newPct) || 0) / 100) * monthlyValue
+    const updated = localProjects.setManualPoolAdjustment(project.id, {
+      pool,
+      month,
+      newAmount,
+      createdBy: currentUser,
+    })
+    onProjectChange(updated)
+  }
+
   const handleSave = () => {
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -538,20 +553,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                       )}
                     </CTableDataCell>
                     <CTableDataCell className="text-end fw-bold">{fmt(m.total)}</CTableDataCell>
-                    <CTableDataCell className="text-end">
-                      {fmt(computeEffectivePoolMonthly(project, 'admin', m.month))}
-                      {adjustedFor('admin') && (
-                        <CBadge
-                          color="warning"
-                          shape="rounded-pill"
-                          className="ms-1"
-                          style={{ fontSize: '0.6rem' }}
-                        >
-                          adjusted
-                        </CBadge>
-                      )}
-                    </CTableDataCell>
-                    {['hr', 'core'].map((pool) => (
+                    {['admin', 'hr', 'core'].map((pool) => (
                       <CTableDataCell key={pool} className="text-end">
                         <CInputGroup size="sm" style={{ maxWidth: 130, marginLeft: 'auto' }}>
                           <CInputGroupText>₹</CInputGroupText>
@@ -561,6 +563,19 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                             disabled={!canEdit}
                             onChange={(e) => handlePoolAmountChange(pool, m.month, e.target.value)}
                           />
+                        </CInputGroup>
+                        <CInputGroup
+                          size="sm"
+                          style={{ maxWidth: 90, marginLeft: 'auto', marginTop: 4 }}
+                        >
+                          <CFormInput
+                            type="number"
+                            step="0.1"
+                            value={computeEffectivePoolPct(project, pool, m.month)}
+                            disabled={!canEdit}
+                            onChange={(e) => handlePoolPctChange(pool, m.month, e.target.value)}
+                          />
+                          <CInputGroupText>%</CInputGroupText>
                         </CInputGroup>
                         {adjustedFor(pool) && (
                           <CBadge
