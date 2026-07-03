@@ -405,24 +405,28 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
   )
 }
 
-// ─── Revenue Source Selector ──────────────────────────────────────────────────
+// ─── Revenue Source Selector ─────────────────────────────────────────────────────
 
-const RevenueSourceSelector = ({ revSources, setRevSources, hrRevPct, setHrRevPct, projPoolPct, setProjPoolPct }) => {
+const RevenueSourceSelector = ({
+  revSources, setRevSources,
+  hrRevPct, setHrRevPct,
+  projPoolPct, setProjPoolPct,
+  totalAmount,
+}) => {
   const hasHR = revSources.includes('hr_revenue')
   const hasPool = revSources.includes('project_pool')
   const bothSelected = hasHR && hasPool
+  const total = parseFloat(totalAmount) || 0
 
   const toggle = (src) => {
     setRevSources((prev) => {
       if (prev.includes(src)) {
         const next = prev.filter((s) => s !== src)
-        // Rebalance to 100% if only one remains
         if (src === 'hr_revenue') { setHrRevPct(0); setProjPoolPct(100) }
         if (src === 'project_pool') { setProjPoolPct(0); setHrRevPct(100) }
-        return next.length > 0 ? next : ['project_pool'] // always at least one
+        return next.length > 0 ? next : ['project_pool']
       }
       const next = [...prev, src]
-      // When both selected, default to 50/50
       if (next.includes('hr_revenue') && next.includes('project_pool')) {
         setHrRevPct(50)
         setProjPoolPct(50)
@@ -431,20 +435,43 @@ const RevenueSourceSelector = ({ revSources, setRevSources, hrRevPct, setHrRevPc
     })
   }
 
+  // Change handlers — by % or by ₹ amount
   const handleHrPctChange = (val) => {
     const v = Math.max(0, Math.min(100, parseFloat(val) || 0))
     setHrRevPct(v)
     setProjPoolPct(Math.round((100 - v) * 100) / 100)
   }
-
+  const handleHrAmtChange = (val) => {
+    if (total <= 0) return
+    const amt = Math.max(0, Math.min(total, parseFloat(val) || 0))
+    const pct = Math.round((amt / total) * 10000) / 100
+    setHrRevPct(pct)
+    setProjPoolPct(Math.round((100 - pct) * 100) / 100)
+  }
   const handlePoolPctChange = (val) => {
     const v = Math.max(0, Math.min(100, parseFloat(val) || 0))
     setProjPoolPct(v)
     setHrRevPct(Math.round((100 - v) * 100) / 100)
   }
+  const handlePoolAmtChange = (val) => {
+    if (total <= 0) return
+    const amt = Math.max(0, Math.min(total, parseFloat(val) || 0))
+    const pct = Math.round((amt / total) * 10000) / 100
+    setProjPoolPct(pct)
+    setHrRevPct(Math.round((100 - pct) * 100) / 100)
+  }
 
+  const hrAmt = total > 0 ? Math.round(total * (hrRevPct / 100) * 100) / 100 : 0
+  const poolAmt = total > 0 ? Math.round(total * (projPoolPct / 100) * 100) / 100 : 0
   const totalPct = Math.round((hrRevPct + projPoolPct) * 100) / 100
   const pctValid = !bothSelected || totalPct === 100
+
+  const rowStyle = {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    padding: '10px 14px',
+  }
 
   return (
     <div
@@ -458,76 +485,122 @@ const RevenueSourceSelector = ({ revSources, setRevSources, hrRevPct, setHrRevPc
       <div className="fw-semibold text-body mb-2" style={{ fontSize: '0.82rem' }}>
         Revenue Source
       </div>
-      <div className="d-flex flex-wrap gap-3 mb-2">
-        {/* HR Revenue checkbox */}
-        <div className="d-flex align-items-center gap-2">
-          <input
-            type="checkbox"
-            id="rev-hr"
-            checked={hasHR}
-            onChange={() => toggle('hr_revenue')}
-            style={{ accentColor: '#4cc9f0', width: 15, height: 15, cursor: 'pointer' }}
-          />
-          <label htmlFor="rev-hr" className="mb-0 text-body fw-medium" style={{ cursor: 'pointer' }}>
-            HR Revenue
-          </label>
-          {bothSelected && hasHR && (
-            <CInputGroup size="sm" style={{ maxWidth: 90 }}>
-              <CFormInput
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={hrRevPct}
-                onChange={(e) => handleHrPctChange(e.target.value)}
-                style={{ textAlign: 'right' }}
-              />
-              <CInputGroupText>%</CInputGroupText>
-            </CInputGroup>
-          )}
+
+      <div className="d-flex flex-column gap-2">
+        {/* ─ HR Revenue row ─ */}
+        <div style={rowStyle}>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <input
+              type="checkbox"
+              id="rev-hr"
+              checked={hasHR}
+              onChange={() => toggle('hr_revenue')}
+              style={{ accentColor: '#4cc9f0', width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+            />
+            <label htmlFor="rev-hr" className="mb-0 fw-semibold" style={{ cursor: 'pointer', color: '#4cc9f0', minWidth: 96 }}>
+              HR Revenue
+            </label>
+            {hasHR && bothSelected && (
+              <>
+                {/* % field */}
+                <CInputGroup size="sm" style={{ width: 90 }}>
+                  <CFormInput
+                    type="number" min="0" max="100" step="0.1"
+                    value={hrRevPct}
+                    onChange={(e) => handleHrPctChange(e.target.value)}
+                    style={{ textAlign: 'right', fontWeight: 600 }}
+                  />
+                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>%</CInputGroupText>
+                </CInputGroup>
+                {/* ₹ amount field */}
+                <CInputGroup size="sm" style={{ width: 120 }}>
+                  <CInputGroupText style={{ fontSize: '0.8rem' }}>&#8377;</CInputGroupText>
+                  <CFormInput
+                    type="number" min="0"
+                    value={hrAmt || ''}
+                    placeholder="Amount"
+                    onChange={(e) => handleHrAmtChange(e.target.value)}
+                    style={{ textAlign: 'right' }}
+                  />
+                </CInputGroup>
+                {total > 0 && (
+                  <span className="text-body-secondary" style={{ fontSize: '0.73rem' }}>
+                    of {fmt(total)}
+                  </span>
+                )}
+              </>
+            )}
+            {hasHR && !bothSelected && total > 0 && (
+              <span className="text-body-secondary ms-auto" style={{ fontSize: '0.78rem' }}>
+                100% — {fmt(total)}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Project Pool checkbox */}
-        <div className="d-flex align-items-center gap-2">
-          <input
-            type="checkbox"
-            id="rev-pool"
-            checked={hasPool}
-            onChange={() => toggle('project_pool')}
-            style={{ accentColor: '#06d6a0', width: 15, height: 15, cursor: 'pointer' }}
-          />
-          <label htmlFor="rev-pool" className="mb-0 text-body fw-medium" style={{ cursor: 'pointer' }}>
-            Project 5% Pool
-          </label>
-          {bothSelected && hasPool && (
-            <CInputGroup size="sm" style={{ maxWidth: 90 }}>
-              <CFormInput
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={projPoolPct}
-                onChange={(e) => handlePoolPctChange(e.target.value)}
-                style={{ textAlign: 'right' }}
-              />
-              <CInputGroupText>%</CInputGroupText>
-            </CInputGroup>
-          )}
+        {/* ─ Project Pool row ─ */}
+        <div style={rowStyle}>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <input
+              type="checkbox"
+              id="rev-pool"
+              checked={hasPool}
+              onChange={() => toggle('project_pool')}
+              style={{ accentColor: '#06d6a0', width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+            />
+            <label htmlFor="rev-pool" className="mb-0 fw-semibold" style={{ cursor: 'pointer', color: '#06d6a0', minWidth: 96 }}>
+              Project 5% Pool
+            </label>
+            {hasPool && bothSelected && (
+              <>
+                <CInputGroup size="sm" style={{ width: 90 }}>
+                  <CFormInput
+                    type="number" min="0" max="100" step="0.1"
+                    value={projPoolPct}
+                    onChange={(e) => handlePoolPctChange(e.target.value)}
+                    style={{ textAlign: 'right', fontWeight: 600 }}
+                  />
+                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>%</CInputGroupText>
+                </CInputGroup>
+                <CInputGroup size="sm" style={{ width: 120 }}>
+                  <CInputGroupText style={{ fontSize: '0.8rem' }}>&#8377;</CInputGroupText>
+                  <CFormInput
+                    type="number" min="0"
+                    value={poolAmt || ''}
+                    placeholder="Amount"
+                    onChange={(e) => handlePoolAmtChange(e.target.value)}
+                    style={{ textAlign: 'right' }}
+                  />
+                </CInputGroup>
+                {total > 0 && (
+                  <span className="text-body-secondary" style={{ fontSize: '0.73rem' }}>
+                    of {fmt(total)}
+                  </span>
+                )}
+              </>
+            )}
+            {hasPool && !bothSelected && total > 0 && (
+              <span className="text-body-secondary ms-auto" style={{ fontSize: '0.78rem' }}>
+                100% — {fmt(total)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Validation message */}
       {bothSelected && (
         <div
-          className={`small mt-1 d-flex align-items-center gap-2 ${pctValid ? 'text-success' : 'text-danger'}`}
+          className={`small mt-2 d-flex align-items-center gap-2 ${pctValid ? 'text-success' : 'text-danger'}`}
           style={{ fontSize: '0.74rem' }}
         >
           {pctValid ? (
             <>
               <CIcon icon={cilCheck} style={{ width: 12, height: 12 }} />
-              Percentages sum to 100% — HR Revenue: {hrRevPct}% &nbsp;·&nbsp; Project Pool: {projPoolPct}%
+              Percentages sum to 100% — HR Revenue: {hrRevPct}% · Project Pool: {projPoolPct}%
             </>
           ) : (
-            <>⚠ Percentages must sum to 100% (currently {totalPct}%)</>
+            <>&#9888; Percentages must sum to 100% (currently {totalPct}%)</>
           )}
         </div>
       )}
@@ -836,6 +909,7 @@ const GlobalHRPoolPage = () => {
                 setHrRevPct={setHrRevPct}
                 projPoolPct={projPoolPct}
                 setProjPoolPct={setProjPoolPct}
+                totalAmount={form.amount}
               />
 
               {/* ── Allocation Preview (editable) ── */}
@@ -869,43 +943,71 @@ const GlobalHRPoolPage = () => {
                     {displayAllocs.map((a) => {
                       const totalPct = displayAllocs.reduce((s, x) => s + x.sharePct, 0)
                       const pctValid = Math.abs(totalPct - 100) < 0.5
+                      const poolTotal = parseFloat(form.amount) * (projPoolPct / 100) || 0
                       return (
                         <div
                           key={a.projectId}
-                          className="d-flex align-items-center gap-2 bg-body-secondary rounded border px-2 py-2"
-                          style={{ fontSize: '0.82rem' }}
+                          className="d-flex align-items-center gap-2 bg-body-secondary rounded border px-3 py-2"
+                          style={{ fontSize: '0.83rem' }}
                         >
                           {/* Project name */}
                           <span
-                            className="fw-medium text-truncate flex-grow-1"
+                            className="fw-medium text-truncate"
                             title={a.projectName}
-                            style={{ minWidth: 0 }}
+                            style={{ minWidth: 0, flex: '1 1 0' }}
                           >
                             {a.projectName}
                           </span>
-                          {/* Editable % */}
+
+                          {/* % badge + input */}
                           <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
-                            <CInputGroup size="sm" style={{ width: 90 }}>
+                            <span
+                              className="rounded-2 px-2 py-1 fw-bold"
+                              style={{
+                                background: pctValid ? 'rgba(6,214,160,0.15)' : 'rgba(255,107,107,0.15)',
+                                color: pctValid ? '#06d6a0' : '#ff6b6b',
+                                fontSize: '0.8rem',
+                                minWidth: 54,
+                                textAlign: 'center',
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {a.sharePct % 1 === 0 ? a.sharePct : parseFloat(a.sharePct).toFixed(2)}%
+                            </span>
+                            <CInputGroup size="sm" style={{ width: 80 }}>
                               <CFormInput
                                 type="number"
                                 min="0"
                                 max="100"
-                                step="0.1"
-                                value={a.sharePct}
+                                step="0.01"
+                                value={a.sharePct % 1 === 0 ? a.sharePct : parseFloat(a.sharePct).toFixed(2)}
                                 onChange={(e) => handleAllocPctChange(a.projectId, e.target.value)}
-                                style={{
-                                  textAlign: 'right',
-                                  fontWeight: 600,
-                                  color: pctValid ? 'inherit' : '#ff6b6b',
-                                  padding: '2px 6px',
-                                }}
+                                style={{ textAlign: 'right', fontWeight: 600, padding: '3px 6px', fontSize: '0.8rem' }}
+                                title="Edit % for this project"
                               />
-                              <CInputGroupText style={{ fontSize: '0.75rem', padding: '2px 6px' }}>%</CInputGroupText>
+                              <CInputGroupText style={{ fontSize: '0.75rem', padding: '3px 5px' }}>%</CInputGroupText>
                             </CInputGroup>
-                            <span className="text-nowrap text-success fw-semibold" style={{ minWidth: 56, textAlign: 'right' }}>
-                              → {fmt(a.amountCharged)}
-                            </span>
                           </div>
+
+                          {/* ₹ Amount input — auto-calculates % */}
+                          <CInputGroup size="sm" style={{ width: 120, flexShrink: 0 }}>
+                            <CInputGroupText style={{ fontSize: '0.78rem', padding: '3px 6px' }}>&#8377;</CInputGroupText>
+                            <CFormInput
+                              type="number"
+                              min="0"
+                              value={a.amountCharged}
+                              onChange={(e) => {
+                                // Convert amount back to % of pool total and update
+                                const enteredAmt = parseFloat(e.target.value) || 0
+                                const newPct = poolTotal > 0
+                                  ? Math.round((enteredAmt / poolTotal) * 10000) / 100
+                                  : 0
+                                handleAllocPctChange(a.projectId, newPct)
+                              }}
+                              style={{ textAlign: 'right', fontWeight: 600, padding: '3px 6px', fontSize: '0.8rem' }}
+                              title="Edit amount for this project"
+                            />
+                          </CInputGroup>
                         </div>
                       )
                     })}
