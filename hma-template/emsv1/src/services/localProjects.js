@@ -12,7 +12,7 @@ import {
   validatePlanTotal,
 } from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model
+const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -89,6 +89,19 @@ const resolvePhase = (phases = [], csvStatus) => {
   return 'implementation'
 }
 
+/** Helper to parse CSV dates like 15/04/2025 or 10.03.2026 into YYYY-MM-DD */
+const parseSdpDate = (dateStr) => {
+  if (!dateStr) return ''
+  const str = String(dateStr).trim()
+  const match = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/)
+  if (match) {
+    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+  }
+  const parsed = new Date(str)
+  if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0]
+  return str
+}
+
 /**
  * Map a CSV SDP project record → the full localProjects schema.
  * This is the single source of truth for the PMS All Projects page.
@@ -105,10 +118,10 @@ const mapSdpToLocal = (p) => {
     percentage: p.value > 0 ? Math.round((inst.amount / p.value) * 100) : 0,
     amount: inst.amount || 0,
     phase_name: inst.label || `Phase ${idx + 1}`,
-    start_date: p.start_date || '',
-    end_date: inst.uc_date || p.end_date || '',
-    target_date: inst.uc_date || '',
-    actual_date: inst.status === 'Received' ? (inst.uc_date || now()) : null,
+    start_date: parseSdpDate(p.start_date),
+    end_date: parseSdpDate(inst.uc_date || p.end_date),
+    target_date: parseSdpDate(inst.uc_date),
+    actual_date: inst.status === 'Received' ? parseSdpDate(inst.uc_date || now()) : null,
     uc_status: inst.uc_status || (inst.status === 'Received' ? 'Submitted' : 'Pending'),
   }))
 
@@ -117,8 +130,8 @@ const mapSdpToLocal = (p) => {
     id: `ms_${p.id}_${idx + 1}`,
     title: ph.phase || `Phase ${idx + 1}`,
     amount: 0,
-    target_date: ph.pending_date || '',
-    actual_date: (ph.status || '').toLowerCase() === 'completed' ? ph.pending_date || '' : null,
+    target_date: parseSdpDate(ph.pending_date),
+    actual_date: (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
     uc_status: (ph.status || '').toLowerCase() === 'completed' ? 'Approved'
                : (ph.status || '').toLowerCase() === 'ongoing'  ? 'Submitted' : 'Pending',
   }))
@@ -160,8 +173,8 @@ const mapSdpToLocal = (p) => {
     amount_utilized: p.expense_accounted || 0,
     expense_accounted: p.expense_accounted || 0,
     committed_expense: p.committed_expense || 0,
-    start_date: p.start_date || '',
-    end_date: p.end_date || '',
+    start_date: parseSdpDate(p.start_date),
+    end_date: parseSdpDate(p.end_date),
     duration: p.duration || '',
     beneficiaries_target: p.beneficiaries_target || 0,
     beneficiaries_completed: p.beneficiaries_completed || 0,
@@ -278,6 +291,8 @@ export const localProjects = {
       email_sent: false,
       is_operations_active: false,
       operations_activated_at: null,
+      operations_activated_month: null,   // YYYY-MM — set when activated
+      pool_pct_adjustments: [],           // [{ from_month, hr_pct, core_pct }]
       core_pct: 5,
       hr_pct: 5,
       admin_pct: 5,
@@ -322,13 +337,16 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
+    const nowStr = now()
     projects[idx].is_operations_active = true
-    projects[idx].operations_activated_at = now()
+    projects[idx].operations_activated_at = nowStr
+    // Record the YYYY-MM when HR/Core pool distribution begins
+    projects[idx].operations_activated_month = nowStr.slice(0, 7)
     if (projects[idx].status === 'pipeline' || projects[idx].status === 'approved') {
       projects[idx].status = 'ongoing'
       projects[idx].phase = 'implementation'
     }
-    projects[idx].updated_at = now()
+    projects[idx].updated_at = nowStr
     write(PROJECTS_KEY, projects)
     notify()
     return projects[idx]
@@ -578,6 +596,45 @@ export const localProjects = {
     projects[pIdx].updated_at = now()
     write(PROJECTS_KEY, projects)
     notify()
+    return projects[pIdx]
+  },
+
+  // ── Pool % Adjustment API ──────────────────────────────────────────────────────
+
+  /**
+   * Upsert a pool % adjustment for a project from a given month onwards.
+   * Reducing hr_pct/core_pct increases the project direct budget for that month+.
+   * @param {string} projectId
+   * @param {{ from_month: string, hr_pct: number, core_pct: number }} adjustment
+   */
+  addPoolPctAdjustment(projectId, { from_month, hr_pct, core_pct }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const existing = projects[pIdx].pool_pct_adjustments || []
+    // Replace any existing entry for the same month, then push new one
+    const filtered = existing.filter((a) => a.from_month !== from_month)
+    filtered.push({
+      from_month,
+      hr_pct: Math.max(0, Math.min(100, parseFloat(hr_pct) || 0)),
+      core_pct: Math.max(0, Math.min(100, parseFloat(core_pct) || 0)),
+    })
+    filtered.sort((a, b) => a.from_month.localeCompare(b.from_month))
+    projects[pIdx].pool_pct_adjustments = filtered
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    return projects[pIdx]
+  },
+
+  removePoolPctAdjustment(projectId, from_month) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    projects[pIdx].pool_pct_adjustments = (projects[pIdx].pool_pct_adjustments || []).filter(
+      (a) => a.from_month !== from_month,
+    )
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
     return projects[pIdx]
   },
 
