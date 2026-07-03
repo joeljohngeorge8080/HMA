@@ -1,5 +1,5 @@
 // src/modules/ems/expense-management/RevenuePage.jsx
-import React from 'react'
+import React, { useState } from 'react'
 import {
   CCard,
   CCardBody,
@@ -7,6 +7,7 @@ import {
   CRow,
   CCol,
   CBadge,
+  CFormSelect,
   CTable,
   CTableHead,
   CTableRow,
@@ -25,6 +26,12 @@ const fmt = (n) =>
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(n || 0)
+
+const monthLabel = (ym) => {
+  if (!ym) return '—'
+  const [y, m] = ym.split('-')
+  return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+}
 
 const StatCard = ({ label, value, color }) => (
   <CCard className={`border-top border-top-${color} border-3 text-center h-100`}>
@@ -47,6 +54,8 @@ const StatCard = ({ label, value, color }) => (
  *    rolled up company-wide here).
  */
 const RevenuePage = () => {
+  const [selectedMonth, setSelectedMonth] = useState('')
+
   const recruitmentRows = localRecruitments.list()
   const recruitmentRevenue = recruitmentRows
     .filter((r) => (r.activity_type || 'recruitment') === 'recruitment')
@@ -64,17 +73,27 @@ const RevenuePage = () => {
     .list({ pageSize: 1000 })
     .items.filter((p) => p.monthly_plan?.length > 0)
 
-  const projectShareRows = plannedProjects.map((p) => {
-    const poolTotal = (pool) =>
-      p.monthly_plan.reduce((s, m) => s + computeEffectivePoolMonthly(p, pool, m.month), 0)
-    return {
+  const allMonths = [
+    ...new Set(plannedProjects.flatMap((p) => p.monthly_plan.map((m) => m.month))),
+  ].sort()
+
+  const poolTotalForProject = (p, pool) => {
+    if (!selectedMonth) {
+      return p.monthly_plan.reduce((s, m) => s + computeEffectivePoolMonthly(p, pool, m.month), 0)
+    }
+    const hasMonth = p.monthly_plan.some((m) => m.month === selectedMonth)
+    return hasMonth ? computeEffectivePoolMonthly(p, pool, selectedMonth) : 0
+  }
+
+  const projectShareRows = plannedProjects
+    .filter((p) => !selectedMonth || p.monthly_plan.some((m) => m.month === selectedMonth))
+    .map((p) => ({
       id: p.id,
       name: p.name || p.title,
-      admin: poolTotal('admin'),
-      hr: poolTotal('hr'),
-      core: poolTotal('core'),
-    }
-  })
+      admin: poolTotalForProject(p, 'admin'),
+      hr: poolTotalForProject(p, 'hr'),
+      core: poolTotalForProject(p, 'core'),
+    }))
   const adminShare = projectShareRows.reduce((s, r) => s + r.admin, 0)
   const hrShare = projectShareRows.reduce((s, r) => s + r.hr, 0)
   const coreShare = projectShareRows.reduce((s, r) => s + r.core, 0)
@@ -186,7 +205,22 @@ const RevenuePage = () => {
 
       {/* Project Shares */}
       <CCard className="mb-4">
-        <CCardHeader className="bg-transparent fw-semibold">🏗 Project Shares</CCardHeader>
+        <CCardHeader className="bg-transparent fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span>🏗 Project Shares</span>
+          <CFormSelect
+            size="sm"
+            style={{ maxWidth: 200 }}
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          >
+            <option value="">All months</option>
+            {allMonths.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </CFormSelect>
+        </CCardHeader>
         <CCardBody>
           <CRow className="g-3 mb-3">
             <CCol xs={6} md={3}>
@@ -218,7 +252,9 @@ const RevenuePage = () => {
                 {projectShareRows.length === 0 ? (
                   <CTableRow>
                     <CTableDataCell colSpan={5} className="text-center text-body-secondary py-4">
-                      No planned projects yet.
+                      {selectedMonth
+                        ? `No projects have a share for ${monthLabel(selectedMonth)}.`
+                        : 'No planned projects yet.'}
                     </CTableDataCell>
                   </CTableRow>
                 ) : (
