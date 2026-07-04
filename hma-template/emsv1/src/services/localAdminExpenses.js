@@ -1,6 +1,9 @@
 // Local store for Admin Expenses (vendor recurring contracts).
 // Tracks vendor name, expense category, frequency, and annual contract value.
 // Monthly equivalent is always derived: annual_amount / 12.
+// monthly_actuals additionally records what was really spent in a given
+// 'YYYY-MM', so month-specific consumers (e.g. the Forecast Expense tab)
+// read/write the same records shown here instead of keeping their own copy.
 
 const KEY = 'hma_admin_expenses'
 const VERSION_KEY = 'hma_admin_expenses_seed_v'
@@ -28,6 +31,7 @@ const _row = (vendor, category, frequency, annual, status = 'Active', remarks = 
   expense_category: category,
   frequency,
   annual_amount: annual,
+  monthly_actuals: {},
   status,
   remarks,
   created_at: SEED_TS,
@@ -90,6 +94,16 @@ export const localAdminExpenses = {
     return row
   },
 
+  /** Find an entry by exact vendor + category match, if one exists. */
+  findByVendorCategory(vendor_name, expense_category) {
+    _ensureSeeded()
+    return (
+      read().find(
+        (r) => r.vendor_name === vendor_name && r.expense_category === expense_category,
+      ) || null
+    )
+  },
+
   create(data) {
     _ensureSeeded()
     const rows = read()
@@ -100,6 +114,9 @@ export const localAdminExpenses = {
       expense_category: data.expense_category.trim(),
       frequency: data.frequency,
       annual_amount: parseFloat(data.annual_amount) || 0,
+      monthly_actuals: data.monthly_actuals || {},
+      // 'HR' | 'Admin' — only used by the Forecast Expense tab's card grouping
+      group: data.group || 'Admin',
       status: data.status || 'Active',
       remarks: data.remarks?.trim() || null,
       created_at: ts,
@@ -107,6 +124,20 @@ export const localAdminExpenses = {
     }
     write([...rows, row])
     return row
+  },
+
+  /** Merge a single month's actual spend into an entry's monthly_actuals map. */
+  setMonthlyActual(id, monthKey, amount) {
+    const rows = read()
+    const idx = rows.findIndex((r) => r.id === id)
+    if (idx === -1) throw new Error('Expense not found')
+    rows[idx] = {
+      ...rows[idx],
+      monthly_actuals: { ...(rows[idx].monthly_actuals || {}), [monthKey]: parseFloat(amount) || 0 },
+      updated_at: new Date().toISOString(),
+    }
+    write(rows)
+    return rows[idx]
   },
 
   update(id, patch) {

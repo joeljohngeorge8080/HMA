@@ -2,13 +2,12 @@
  * ExpenseManagementPage.jsx
  * EMS › Expense Management
  *
- * Six tabs:
- *  1. Admin Expenses — per-org expense register
- *  2. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
- *  3. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
- *  4. Forecast Expense — HR & Admin actual + forecast
- *  5. Project Expenses — HR logs actual admin-pool spend per sent pool+month
- *  6. Revenue — HR revenue (recruitment/training/internship) + project pool shares
+ * Five tabs:
+ *  1. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
+ *  2. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
+ *  3. Forecast Expense — HR & Admin actual + forecast
+ *  4. Project Expenses — HR logs actual admin-pool spend per sent pool+month
+ *  5. Revenue — HR revenue (recruitment/training/internship) + project pool shares
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
@@ -37,7 +36,6 @@ import {
   cilChartPie,
   cilArrowLeft,
   cilNotes,
-  cilList,
   cilPencil,
   cilX,
   cilCash,
@@ -287,11 +285,11 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Same source as PMS › All Projects (localProjects.list with no filters) —
+    // every project entered there shows up here, not just activated ones.
     const allProjects = localProjects.list({ pageSize: 1000 }).items || []
 
     const built = allProjects
-      .filter((p) => p.is_operations_active &&
-        (p.status === 'ongoing' || p.status === 'active' || p.status === 'approved'))
       .map((p) => {
         const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
         const totalAdmin  = bd.reduce((s, m) => s + m.adminBudget,  0)
@@ -335,7 +333,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   if (rows.length === 0) {
     return (
       <div className="text-center text-body-secondary py-5 small">
-        No active projects in the pool. Activate projects in PMS to see them here.
+        No projects found. Add a project in PMS › All Projects to see it here.
       </div>
     )
   }
@@ -381,12 +379,12 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         <div>
           <h6 className="fw-bold mb-0">Cross-Project Expense Consolidated Sheet</h6>
           <div className="text-body-secondary small">
-            Budget across {rows.length} active project{rows.length !== 1 ? 's' : ''}
+            Budget across {rows.length} project{rows.length !== 1 ? 's' : ''} from PMS › All Projects
             {' · '}Admin always active · HR/Core from activation · Click project to drill down
           </div>
         </div>
         <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
-          {rows.length} Active Projects
+          {rows.length} Project{rows.length !== 1 ? 's' : ''}
         </CBadge>
       </div>
 
@@ -869,9 +867,8 @@ const ApportionmentSheet = () => {
   )
 }
 
-// ── Lazy-loaded Admin Expense content ────────────────────────────────────────
+// ── Lazy-loaded tab content ──────────────────────────────────────────────────
 
-const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
 const ProjectExpensesPage = React.lazy(() => import('./ProjectExpensesPage'))
 const GeneralExpensesTab = React.lazy(() => import('./GeneralExpensesTab'))
 const RevenuePage = React.lazy(() => import('./RevenuePage'))
@@ -901,29 +898,24 @@ const ExpenseManagementPage = () => {
       {!drillProject && (
         <CNav variant="underline" className="mb-4">
           <CNavItem>
-            <CNavLink active={activeTab === 0} onClick={() => setActiveTab(0)} role="button" className="fw-medium" id="tab-admin-expenses">
-              <CIcon icon={cilList} className="me-1" />Admin Expenses
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)} role="button" className="fw-medium" id="tab-consolidated-sheet">
+            <CNavLink active={activeTab === 0} onClick={() => setActiveTab(0)} role="button" className="fw-medium" id="tab-consolidated-sheet">
               <CIcon icon={cilNotes} className="me-1" />Consolidated Sheet
             </CNavLink>
           </CNavItem>
           <CNavItem>
-            <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)} role="button" className="fw-medium" id="tab-apportionment-sheet">
+            <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)} role="button" className="fw-medium" id="tab-apportionment-sheet">
               <CIcon icon={cilChartPie} className="me-1" />Apportionment Sheet
             </CNavLink>
           </CNavItem>
           <CNavItem>
-            <CNavLink active={activeTab === 3} onClick={() => setActiveTab(3)} role="button" className="fw-medium" id="tab-general-expenses">
+            <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)} role="button" className="fw-medium" id="tab-general-expenses">
               <CIcon icon={cilCash} className="me-1" />Forecast Expense
             </CNavLink>
           </CNavItem>
           <CNavItem>
             <CNavLink
-              active={activeTab === 4}
-              onClick={() => setActiveTab(4)}
+              active={activeTab === 3}
+              onClick={() => setActiveTab(3)}
               role="button"
               className="fw-medium"
               id="tab-project-expenses"
@@ -934,8 +926,8 @@ const ExpenseManagementPage = () => {
           </CNavItem>
           <CNavItem>
             <CNavLink
-              active={activeTab === 5}
-              onClick={() => setActiveTab(5)}
+              active={activeTab === 4}
+              onClick={() => setActiveTab(4)}
               role="button"
               className="fw-medium"
               id="tab-revenue"
@@ -948,15 +940,8 @@ const ExpenseManagementPage = () => {
       )}
 
       <CTabContent>
-        {/* Tab 0: Admin Expenses */}
-        <CTabPane visible={activeTab === 0 && !drillProject}>
-          <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
-            <AdminExpensePage />
-          </React.Suspense>
-        </CTabPane>
-
-        {/* Tab 1: Consolidated Sheet or drill-down */}
-        <CTabPane visible={activeTab === 1 || !!drillProject}>
+        {/* Tab 0: Consolidated Sheet or drill-down */}
+        <CTabPane visible={activeTab === 0 || !!drillProject}>
           {drillProject ? (
             <MonthlyDrillDown project={drillProject} onBack={handleBack} />
           ) : (
@@ -964,20 +949,20 @@ const ExpenseManagementPage = () => {
           )}
         </CTabPane>
 
-        {/* Tab 2: Apportionment Sheet */}
-        <CTabPane visible={activeTab === 2 && !drillProject}>
+        {/* Tab 1: Apportionment Sheet */}
+        <CTabPane visible={activeTab === 1 && !drillProject}>
           <ApportionmentSheet />
         </CTabPane>
 
-        {/* Tab 3: General Expenses (HR & Admin actual + forecast) */}
-        <CTabPane visible={activeTab === 3 && !drillProject}>
+        {/* Tab 2: General Expenses (HR & Admin actual + forecast) */}
+        <CTabPane visible={activeTab === 2 && !drillProject}>
           <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
             <GeneralExpensesTab />
           </React.Suspense>
         </CTabPane>
 
-        {/* ── Tab 4: Project Expenses ───────────────────────────────────── */}
-        <CTabPane visible={activeTab === 4 && !drillProject}>
+        {/* ── Tab 3: Project Expenses ───────────────────────────────────── */}
+        <CTabPane visible={activeTab === 3 && !drillProject}>
           <React.Suspense
             fallback={
               <div className="text-center py-5">
@@ -989,8 +974,8 @@ const ExpenseManagementPage = () => {
           </React.Suspense>
         </CTabPane>
 
-        {/* ── Tab 5: Revenue ─────────────────────────────────────────────── */}
-        <CTabPane visible={activeTab === 5 && !drillProject}>
+        {/* ── Tab 4: Revenue ─────────────────────────────────────────────── */}
+        <CTabPane visible={activeTab === 4 && !drillProject}>
           <React.Suspense
             fallback={
               <div className="text-center py-5">
