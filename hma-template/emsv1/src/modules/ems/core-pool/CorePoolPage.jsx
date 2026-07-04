@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   CCard,
   CCardBody,
@@ -44,6 +44,7 @@ import {
   cilX,
 } from '@coreui/icons'
 import { localPayroll } from '../../../services/localPayroll'
+import { localAttendance } from '../../../services/localAttendance'
 
 // ── Core Salary Expense store ─────────────────────────────────────────────────
 // Tracks which employees' salaries are formally registered as core overhead.
@@ -80,6 +81,185 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 const CATEGORY_COLOR = { Permanent: 'primary', FTC: 'warning', TPC: 'info' }
+
+const MONTHS_OPT = [
+  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' }, { v: 4, l: 'April' },
+  { v: 5, l: 'May' }, { v: 6, l: 'June' }, { v: 7, l: 'July' }, { v: 8, l: 'August' },
+  { v: 9, l: 'September' }, { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+]
+const THIS_YEAR = new Date().getFullYear()
+const THIS_MONTH = new Date().getMonth() + 1
+const YEARS = [THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
+
+// ── Salary saved from employee absence ────────────────────────────────────────
+// Reuses the exact Absent/Half-day/excess-Late deduction formula from
+// Attendance → Deductions (paid leave — CL/SL/OD/COFF — is still not
+// deducted); this just surfaces that money-not-paid total here as savings,
+// split by whether the employee is Core (unassigned) or Project-Assigned.
+
+const computeEmployeeDeduction = (emp, summary, year, month) => {
+  const salary = parseFloat(emp.current_salary || 0)
+  const absentCount = summary?.absent_count || 0
+  const halfDayCount = summary?.half_day_count || 0
+  const excessLateUnits = summary?.excess_late_units || 0
+  if (salary <= 0 || !summary) {
+    return { absentDeduction: 0, halfDayDeduction: 0, lateDeduction: 0, totalDeduction: 0, absentCount, halfDayCount, excessLateUnits }
+  }
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const perDayRate = salary / daysInMonth
+  const absentDeduction = absentCount * perDayRate
+  const halfDayDeduction = halfDayCount * (perDayRate / 2)
+  const lateDeduction = excessLateUnits * (perDayRate / 32)
+  return {
+    absentDeduction,
+    halfDayDeduction,
+    lateDeduction,
+    totalDeduction: absentDeduction + halfDayDeduction + lateDeduction,
+    absentCount,
+    halfDayCount,
+    excessLateUnits,
+  }
+}
+
+const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
+  const [year, setYear] = useState(THIS_YEAR)
+  const [month, setMonth] = useState(THIS_MONTH)
+  const [summaries, setSummaries] = useState([])
+
+  useEffect(() => {
+    setSummaries(localAttendance.listMonthlySummaries({ year, month }))
+  }, [year, month])
+
+  const summaryByEmpId = useMemo(() => {
+    const map = {}
+    summaries.forEach((s) => { map[s.employee_id] = s })
+    return map
+  }, [summaries])
+
+  const computeGroup = useCallback(
+    (employees, groupLabel) => {
+      const rows = employees
+        .map((emp) => ({
+          emp,
+          groupLabel,
+          ...computeEmployeeDeduction(emp, summaryByEmpId[emp.employee_id], year, month),
+        }))
+        .filter((r) => r.totalDeduction > 0)
+        .sort((a, b) => b.totalDeduction - a.totalDeduction)
+      const total = rows.reduce((s, r) => s + r.totalDeduction, 0)
+      return { rows, total }
+    },
+    [summaryByEmpId, year, month],
+  )
+
+  const core = useMemo(() => computeGroup(coreEmployees, 'Core'), [computeGroup, coreEmployees])
+  const assigned = useMemo(
+    () => computeGroup(assignedEmployees, 'Project-Assigned'),
+    [computeGroup, assignedEmployees],
+  )
+  const allRows = useMemo(
+    () => [...core.rows, ...assigned.rows].sort((a, b) => b.totalDeduction - a.totalDeduction),
+    [core.rows, assigned.rows],
+  )
+
+  return (
+    <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>
+      <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+        <div>
+          <div className="fw-semibold">Salary Saved from Employee Absence</div>
+          <div className="text-body-secondary small">
+            Money not paid due to Absent days, Half-days and excess Late arrivals — paid leave
+            (CL/SL/OD/COFF) isn't deducted, same as Attendance → Deductions.
+          </div>
+        </div>
+        <div className="d-flex gap-2">
+          <CFormSelect
+            size="sm"
+            value={month}
+            onChange={(e) => setMonth(parseInt(e.target.value))}
+            style={{ width: 130 }}
+          >
+            {MONTHS_OPT.map((m) => (
+              <option key={m.v} value={m.v}>{m.l}</option>
+            ))}
+          </CFormSelect>
+          <CFormSelect
+            size="sm"
+            value={year}
+            onChange={(e) => setYear(parseInt(e.target.value))}
+            style={{ width: 90 }}
+          >
+            {YEARS.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </CFormSelect>
+        </div>
+      </CCardHeader>
+      <CCardBody>
+        <CRow className="g-3 mb-3">
+          <CCol xs={12} md={6}>
+            <div className="border rounded-3 p-3 text-center h-100">
+              <div className="fw-bold fs-5" style={{ color: '#06d6a0' }}>{fmt(core.total)}</div>
+              <div className="small text-body-secondary">
+                Saved — Core Employees ({core.rows.length} affected)
+              </div>
+            </div>
+          </CCol>
+          <CCol xs={12} md={6}>
+            <div className="border rounded-3 p-3 text-center h-100">
+              <div className="fw-bold fs-5" style={{ color: '#4361ee' }}>{fmt(assigned.total)}</div>
+              <div className="small text-body-secondary">
+                Saved — Project-Assigned Employees ({assigned.rows.length} affected)
+              </div>
+            </div>
+          </CCol>
+        </CRow>
+
+        {allRows.length === 0 ? (
+          <div className="text-body-secondary small text-center py-3">
+            No absence-related deductions for {MONTHS_OPT.find((m) => m.v === month)?.l} {year}.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <CTable hover align="middle" small className="mb-0" style={{ fontSize: '0.82rem' }}>
+              <CTableHead className="bg-body-tertiary">
+                <CTableRow>
+                  <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2">Group</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-center">Absent</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-center">Half-Day</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-center">Late (excess)</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-end">Saved</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {allRows.map((r) => (
+                  <CTableRow key={r.emp.id}>
+                    <CTableDataCell>
+                      <div className="fw-semibold">{r.emp.employee_name}</div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>{r.emp.employee_id}</div>
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      <CBadge color={r.groupLabel === 'Core' ? 'warning' : 'success'} shape="rounded-pill">
+                        {r.groupLabel}
+                      </CBadge>
+                    </CTableDataCell>
+                    <CTableDataCell className="text-center">{r.absentCount || '—'}</CTableDataCell>
+                    <CTableDataCell className="text-center">{r.halfDayCount || '—'}</CTableDataCell>
+                    <CTableDataCell className="text-center">{r.excessLateUnits || '—'}</CTableDataCell>
+                    <CTableDataCell className="text-end fw-semibold" style={{ color: '#06d6a0' }}>
+                      {fmt(r.totalDeduction)}
+                    </CTableDataCell>
+                  </CTableRow>
+                ))}
+              </CTableBody>
+            </CTable>
+          </div>
+        )}
+      </CCardBody>
+    </CCard>
+  )
+}
 
 // ── Employee detail expand row ────────────────────────────────────────────────
 
@@ -447,8 +627,13 @@ const CoreExpensesTab = ({ allEmployees }) => {
   const existingIds = entries.map((e) => e.employee_id)
   const totalMonthly = entries.reduce((s, e) => s + (e.salary || 0), 0)
 
+  const coreEmployees = allEmployees.filter((e) => e.isOverhead)
+  const assignedEmployees = allEmployees.filter((e) => !e.isOverhead)
+
   return (
     <>
+      <LeaveSavingsSummary coreEmployees={coreEmployees} assignedEmployees={assignedEmployees} />
+
       {/* Summary */}
       <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
