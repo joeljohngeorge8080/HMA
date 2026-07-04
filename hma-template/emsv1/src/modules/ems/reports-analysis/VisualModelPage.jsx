@@ -19,6 +19,7 @@ import {
   resolveCoords,
 } from '../../../services/sdpProjectsData'
 import { localEmployees } from '../../../services/localEmployees'
+import { localAttendance } from '../../../services/localAttendance'
 
 Chart.register(...registerables)
 
@@ -78,11 +79,49 @@ const buildDepartments = () => {
   return Object.values(byDept).sort((a, b) => b.headcount - a.headcount)
 }
 
-const HR_ATTENDANCE_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-const HR_ATTENDANCE = {
-  present: [88, 85, 90, 87, 82, 91],
-  absent: [7, 9, 6, 8, 11, 6],
-  leave: [5, 6, 4, 5, 7, 3],
+/**
+ * Live attendance trend for the trailing 6 calendar months (ending this month).
+ * A month with no imported attendance data shows 0%, not a fabricated value.
+ */
+const buildAttendanceTrend = () => {
+  const today = new Date()
+  const months = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    months.push({
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      label: d.toLocaleDateString('en-IN', { month: 'short' }),
+    })
+  }
+
+  const present = []
+  const absent = []
+  const leave = []
+  for (const m of months) {
+    const rows = localAttendance.listMonthlySummaries({ year: m.year, month: m.month })
+    if (rows.length === 0) {
+      present.push(0)
+      absent.push(0)
+      leave.push(0)
+      continue
+    }
+    let p = 0
+    let a = 0
+    let l = 0
+    for (const r of rows) {
+      const total = (r.present_count || 0) + (r.absent_count || 0) + (r.leave_count || 0)
+      if (total === 0) continue
+      p += (r.present_count || 0) / total
+      a += (r.absent_count || 0) / total
+      l += (r.leave_count || 0) / total
+    }
+    present.push(Math.round((p / rows.length) * 100))
+    absent.push(Math.round((a / rows.length) * 100))
+    leave.push(Math.round((l / rows.length) * 100))
+  }
+
+  return { months: months.map((m) => m.label), present, absent, leave }
 }
 
 const HR_PAYROLL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
@@ -444,7 +483,7 @@ const DeptBar = ({ departments }) => {
 }
 
 /** Stacked area line – attendance trend */
-const AttendanceTrend = () => {
+const AttendanceTrend = ({ months, present, absent, leave }) => {
   const ref = useRef(null)
   useChart(
     ref,
@@ -452,11 +491,11 @@ const AttendanceTrend = () => {
       new Chart(canvas, {
         type: 'line',
         data: {
-          labels: HR_ATTENDANCE_MONTHS,
+          labels: months,
           datasets: [
             {
               label: 'Present %',
-              data: HR_ATTENDANCE.present,
+              data: present,
               borderColor: '#059669',
               backgroundColor: 'rgba(5,150,105,0.08)',
               fill: true,
@@ -466,7 +505,7 @@ const AttendanceTrend = () => {
             },
             {
               label: 'Absent %',
-              data: HR_ATTENDANCE.absent,
+              data: absent,
               borderColor: '#ef4444',
               backgroundColor: 'rgba(239,68,68,0.08)',
               fill: true,
@@ -476,9 +515,9 @@ const AttendanceTrend = () => {
             },
             {
               label: 'On Leave %',
-              data: HR_ATTENDANCE.leave,
-              borderColor: '#f59e0b',
-              backgroundColor: 'rgba(245,158,11,0.08)',
+              data: leave,
+              borderColor: '#d97706',
+              backgroundColor: 'rgba(217,119,6,0.08)',
               fill: true,
               tension: 0.4,
               pointRadius: 4,
@@ -500,7 +539,7 @@ const AttendanceTrend = () => {
           },
         },
       }),
-    [],
+    [months.join(), present.join(), absent.join(), leave.join()],
   )
   return <canvas ref={ref} height={180} />
 }
@@ -724,9 +763,6 @@ const S = {
 // ─── HR DASHBOARD SECTION ─────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const avgAttendance = Math.round(
-  HR_ATTENDANCE.present.reduce((s, v) => s + v, 0) / HR_ATTENDANCE.present.length,
-)
 const latestPayroll = HR_PAYROLL_TOTALS[HR_PAYROLL_TOTALS.length - 1]
 
 const HRDashboard = () => {
@@ -734,6 +770,10 @@ const HRDashboard = () => {
   const totalHeadcount = departments.reduce((s, d) => s + d.headcount, 0)
   const totalMale = departments.reduce((s, d) => s + d.male, 0)
   const totalFemale = departments.reduce((s, d) => s + d.female, 0)
+  const attendance = buildAttendanceTrend()
+  const avgAttendance = Math.round(
+    attendance.present.reduce((s, v) => s + v, 0) / attendance.present.length,
+  )
 
   return (
     <>
@@ -797,7 +837,12 @@ const HRDashboard = () => {
       {/* Row 2: Attendance trend + Payroll bar */}
       <div style={S.twoCol}>
         <ChartCard title="Attendance Trend (%) — Last 6 Months">
-          <AttendanceTrend />
+          <AttendanceTrend
+            months={attendance.months}
+            present={attendance.present}
+            absent={attendance.absent}
+            leave={attendance.leave}
+          />
         </ChartCard>
         <ChartCard title="Monthly Payroll Outflow — Last 6 Months">
           <PayrollBar />
