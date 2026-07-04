@@ -149,6 +149,40 @@ export function applySalary20000Migration() {
   }
 }
 
+const CORE_SALARY_SYNC_FLAG = 'hma_core_salary_expenses_synced_20000_v1'
+const CORE_SAL_KEY = 'hma_core_salary_expenses'
+
+/**
+ * One-time migration: Core Pool "Core Expenses" (modules/ems/core-pool/CorePoolPage.jsx)
+ * snapshots an employee's salary into a separate persisted record when they're added
+ * as a core overhead expense — it does not read current_salary live afterward. Any
+ * entry added before applySalary20000Migration() ran is now stale. This brings existing
+ * entries in line with the new ₹20,000 baseline; entries added from now on already
+ * snapshot the live (updated) current_salary at add-time, so only pre-existing entries
+ * need this one-time correction.
+ * Runs once per browser (guarded by CORE_SALARY_SYNC_FLAG); call after applySalary20000Migration().
+ */
+export function syncCoreSalaryExpenses() {
+  if (localStorage.getItem(CORE_SALARY_SYNC_FLAG)) return // already synced
+
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]')
+    const employeeById = new Map(employees.map((e) => [e.id, e]))
+
+    const entries = JSON.parse(localStorage.getItem(CORE_SAL_KEY) || '[]')
+    const updated = entries.map((entry) => {
+      const emp = employeeById.get(entry.employee_id)
+      if (!emp) return entry
+      return { ...entry, salary: parseFloat(emp.current_salary) || 0 }
+    })
+
+    localStorage.setItem(CORE_SAL_KEY, JSON.stringify(updated))
+    localStorage.setItem(CORE_SALARY_SYNC_FLAG, '1')
+  } catch (err) {
+    console.warn('[syncCoreSalaryExpenses] Failed to sync core salary expenses:', err)
+  }
+}
+
 export function seedLocalEmployees() {
   if (localStorage.getItem(SEED_FLAG)) return // already on v2
 

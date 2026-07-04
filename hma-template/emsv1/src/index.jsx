@@ -6,11 +6,16 @@ import 'core-js'
 
 import App from './App'
 import store from './store'
-import { seedLocalEmployees, applySalary20000Migration } from './services/seedLocalEmployees'
+import {
+  seedLocalEmployees,
+  applySalary20000Migration,
+  syncCoreSalaryExpenses,
+} from './services/seedLocalEmployees'
 
 // Pre-populate localStorage with HMA manpower data (runs once on first load)
 seedLocalEmployees()
 applySalary20000Migration()
+syncCoreSalaryExpenses()
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
