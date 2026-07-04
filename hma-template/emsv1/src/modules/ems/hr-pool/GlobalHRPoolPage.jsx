@@ -631,6 +631,7 @@ const GlobalHRPoolPage = () => {
   const [allExpenses, setAllExpenses] = useState([])
   const [previewAllocs, setPreviewAllocs] = useState([])
   const [customAllocs, setCustomAllocs] = useState(null) // null = use auto previewAllocs
+  const [draftAmounts, setDraftAmounts] = useState({}) // projectId -> string being typed
   const [activeProjects, setActiveProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
@@ -653,6 +654,7 @@ const GlobalHRPoolPage = () => {
     setProjPoolPct(100)
     setPreviewAllocs([])
     setCustomAllocs(null)
+    setDraftAmounts({})
   }
 
   // Live allocation preview — recomputes whenever amount, pool%, or source changes
@@ -664,9 +666,11 @@ const GlobalHRPoolPage = () => {
       const computed = localOrgPool.computeAllocations('hr', poolAmt)
       setPreviewAllocs(computed)
       setCustomAllocs(null) // reset custom overrides when base changes
+      setDraftAmounts({})  // clear drafts when base recalculates
     } else {
       setPreviewAllocs([])
       setCustomAllocs(null)
+      setDraftAmounts({})
     }
   }, [form.amount, projPoolPct, revSources])
 
@@ -705,6 +709,44 @@ const GlobalHRPoolPage = () => {
     })
     setCustomAllocs(updated)
   }
+  /**
+   * Commit the draft ₹ amount for one project, recalculate its %,
+   * and redistribute the remaining % proportionally across other projects.
+   */
+  const handleRecalculate = (projectId) => {
+    const base = customAllocs ?? previewAllocs
+    if (!base.length) return
+    const totalAmt = parseFloat(form.amount) || 0
+    const poolAmt = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
+    if (poolAmt <= 0) return
+
+    const enteredAmt = parseFloat(draftAmounts[projectId] ?? '') 
+    if (isNaN(enteredAmt)) return
+
+    const clampedAmt = Math.max(0, Math.min(poolAmt, enteredAmt))
+    const newPct = Math.round((clampedAmt / poolAmt) * 10000) / 100
+
+    const others = base.filter((a) => a.projectId !== projectId)
+    const othersTotal = others.reduce((s, a) => s + a.sharePct, 0)
+    const remaining = 100 - newPct
+
+    const updated = base.map((a) => {
+      if (a.projectId === projectId) {
+        return { ...a, sharePct: newPct, amountCharged: clampedAmt }
+      }
+      const weight = othersTotal > 0 ? a.sharePct / othersTotal : 1 / others.length
+      const pct = Math.round(remaining * weight * 100) / 100
+      return { ...a, sharePct: pct, amountCharged: Math.round(poolAmt * (pct / 100) * 100) / 100 }
+    })
+    setCustomAllocs(updated)
+    // Clear the draft for this project so the input shows the committed value
+    setDraftAmounts((d) => {
+      const next = { ...d }
+      delete next[projectId]
+      return next
+    })
+  }
+
 
   const handleYearlyPriceChange = (val, isEdit = false) => {
     const yp = parseFloat(val) || 0
@@ -989,25 +1031,49 @@ const GlobalHRPoolPage = () => {
                             </CInputGroup>
                           </div>
 
-                          {/* ₹ Amount input — auto-calculates % */}
-                          <CInputGroup size="sm" style={{ width: 120, flexShrink: 0 }}>
-                            <CInputGroupText style={{ fontSize: '0.78rem', padding: '3px 6px' }}>&#8377;</CInputGroupText>
-                            <CFormInput
-                              type="number"
-                              min="0"
-                              value={a.amountCharged}
-                              onChange={(e) => {
-                                // Convert amount back to % of pool total and update
-                                const enteredAmt = parseFloat(e.target.value) || 0
-                                const newPct = poolTotal > 0
-                                  ? Math.round((enteredAmt / poolTotal) * 10000) / 100
-                                  : 0
-                                handleAllocPctChange(a.projectId, newPct)
-                              }}
-                              style={{ textAlign: 'right', fontWeight: 600, padding: '3px 6px', fontSize: '0.8rem' }}
-                              title="Edit amount for this project"
-                            />
-                          </CInputGroup>
+                          {/* ₹ Amount input with Recalculate */}
+                          {(() => {
+                            const draftVal = draftAmounts[a.projectId]
+                            const isDraft = draftVal !== undefined && draftVal !== String(a.amountCharged)
+                            return (
+                              <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
+                                <CInputGroup size="sm" style={{ width: 130 }}>
+                                  <CInputGroupText style={{ fontSize: '0.78rem', padding: '3px 6px' }}>&#8377;</CInputGroupText>
+                                  <CFormInput
+                                    type="number"
+                                    min="0"
+                                    value={draftVal !== undefined ? draftVal : a.amountCharged}
+                                    onChange={(e) => {
+                                      setDraftAmounts((d) => ({ ...d, [a.projectId]: e.target.value }))
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleRecalculate(a.projectId)
+                                    }}
+                                    style={{
+                                      textAlign: 'right',
+                                      fontWeight: 600,
+                                      padding: '3px 6px',
+                                      fontSize: '0.8rem',
+                                      borderColor: isDraft ? '#f4a261' : undefined,
+                                    }}
+                                    title="Type an amount then click Recalculate"
+                                  />
+                                </CInputGroup>
+                                {isDraft && (
+                                  <CButton
+                                    size="sm"
+                                    color="warning"
+                                    variant="outline"
+                                    style={{ padding: '2px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                    onClick={() => handleRecalculate(a.projectId)}
+                                    title="Recalculate distribution based on this amount"
+                                  >
+                                    ↺ Recalc
+                                  </CButton>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       )
                     })}
