@@ -636,6 +636,7 @@ const GlobalHRPoolPage = () => {
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
   const [poolBudgetSummary, setPoolBudgetSummary] = useState({ totalMonthlyBudget: 0, usedThisMonth: 0, remaining: 0 })
+  const [projectRemainingMap, setProjectRemainingMap] = useState({})
 
   const reload = () => {
     setAllExpenses(localOrgPool.getHRExpenses())
@@ -643,6 +644,7 @@ const GlobalHRPoolPage = () => {
     setActiveProjects(ap)
     setSelectedProjectId((prev) => prev || (ap[0]?.projectId ?? ''))
     setPoolBudgetSummary(localOrgPool.getMonthlyHRPoolBudgetSummary())
+    setProjectRemainingMap(localOrgPool.getProjectsMonthlyHRRemaining())
   }
 
   useEffect(() => {
@@ -1041,14 +1043,24 @@ const GlobalHRPoolPage = () => {
                           className="d-flex align-items-center gap-2 bg-body-secondary rounded border px-3 py-2"
                           style={{ fontSize: '0.83rem' }}
                         >
-                          {/* Project name */}
-                          <span
-                            className="fw-medium text-truncate"
-                            title={a.projectName}
-                            style={{ minWidth: 0, flex: '1 1 0' }}
-                          >
-                            {a.projectName}
-                          </span>
+                          {/* Project name + remaining badge */}
+                          <div className="d-flex flex-column" style={{ minWidth: 0, flex: '1 1 0' }}>
+                            <span className="fw-medium text-truncate" title={a.projectName}>
+                              {a.projectName}
+                            </span>
+                            {(() => {
+                              const rem = projectRemainingMap[a.projectId]
+                              if (!rem) return null
+                              const isOver = rem.remaining < 0
+                              const isTight = !isOver && rem.monthlyBudget > 0 && rem.remaining < rem.monthlyBudget * 0.2
+                              const color = isOver ? '#ff6b6b' : isTight ? '#f4a261' : '#06d6a0'
+                              return (
+                                <span style={{ fontSize: '0.68rem', color, marginTop: 1 }}>
+                                  Monthly budget: {fmt(rem.monthlyBudget)} • Remaining: <strong style={{ color }}>{fmt(rem.remaining)}</strong>
+                                </span>
+                              )
+                            })()}
+                          </div>
 
                           {/* % badge + input */}
                           <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>

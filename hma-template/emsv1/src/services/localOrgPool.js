@@ -697,6 +697,52 @@ export const localOrgPool = {
    *     (i.e. updateExpenseProjectAllocation was called), use that stored value.
    *  2. Otherwise fall back to the live proportional share based on monthly budgets.
    */
+  /**
+   * Returns a map of projectId -> { monthlyBudget, usedThisMonth, remaining }
+   * for all active projects. Used to show per-project remaining funds in the UI.
+   */
+  getProjectsMonthlyHRRemaining() {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const expenses = this.getHRExpenses()
+    const currentMonth = new Date().toISOString().slice(0, 7)
+
+    // Build per-project used-this-month totals from stored allocations
+    const usedMap = {}
+    for (const exp of expenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : currentMonth
+      if (eMonth !== currentMonth) continue
+      const sources = exp.revenue_sources || ['project_pool']
+      if (!sources.includes('project_pool')) continue
+
+      const allocs = exp.project_allocations || []
+      if (allocs.length > 0) {
+        for (const a of allocs) {
+          usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
+        }
+      } else {
+        // Fallback: distribute by live share
+        const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+        for (const b of budgets) {
+          const share = total > 0 ? b.monthlyBudget / total : 0
+          const poolPct = parseFloat(exp.project_pool_pct) ?? 100
+          const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
+          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+        }
+      }
+    }
+
+    const result = {}
+    for (const b of budgets) {
+      const used = Math.round((usedMap[b.projectId] || 0) * 100) / 100
+      result[b.projectId] = {
+        monthlyBudget: b.monthlyBudget,
+        usedThisMonth: used,
+        remaining: Math.round((b.monthlyBudget - used) * 100) / 100,
+      }
+    }
+    return result
+  },
+
   getProjectHRCharges(projectId) {
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const mine = budgets.find((b) => b.projectId === projectId)
