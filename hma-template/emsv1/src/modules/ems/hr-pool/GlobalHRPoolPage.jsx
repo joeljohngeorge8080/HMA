@@ -635,12 +635,14 @@ const GlobalHRPoolPage = () => {
   const [activeProjects, setActiveProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
+  const [poolBudgetSummary, setPoolBudgetSummary] = useState({ totalMonthlyBudget: 0, usedThisMonth: 0, remaining: 0 })
 
   const reload = () => {
     setAllExpenses(localOrgPool.getHRExpenses())
     const ap = localOrgPool.getActiveProjectMonthlyBudgets('hr')
     setActiveProjects(ap)
     setSelectedProjectId((prev) => prev || (ap[0]?.projectId ?? ''))
+    setPoolBudgetSummary(localOrgPool.getMonthlyHRPoolBudgetSummary())
   }
 
   useEffect(() => {
@@ -954,6 +956,53 @@ const GlobalHRPoolPage = () => {
                 totalAmount={form.amount}
               />
 
+              {/* ── Budget Cap Alert ── */}
+              {hasPool && (() => {
+                const totalAmt = parseFloat(form.amount) || 0
+                const poolPortion = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
+                const { totalMonthlyBudget, usedThisMonth, remaining } = poolBudgetSummary
+                if (totalAmt <= 0 || totalMonthlyBudget <= 0) return null
+                const overage = Math.round((poolPortion - remaining) * 100) / 100
+                const pctUsed = Math.round((poolPortion / totalMonthlyBudget) * 100)
+                const isOver = overage > 0
+                if (!isOver) {
+                  // Only show a soft info if close (>80% of remaining)
+                  if (poolPortion < remaining * 0.8) return null
+                  return (
+                    <div
+                      className="mb-3 p-2 rounded d-flex align-items-center gap-2"
+                      style={{ background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.35)', fontSize: '0.78rem' }}
+                    >
+                      <span style={{ fontSize: '1rem' }}>⚡</span>
+                      <span className="text-warning">
+                        This expense will use <strong>{fmt(poolPortion)}</strong> of the <strong>{fmt(remaining)}</strong> remaining monthly pool budget ({pctUsed}%).
+                      </span>
+                    </div>
+                  )
+                }
+                return (
+                  <div
+                    className="mb-3 p-3 rounded"
+                    style={{ background: 'rgba(220,53,69,0.12)', border: '1.5px solid rgba(220,53,69,0.5)', fontSize: '0.82rem' }}
+                  >
+                    <div className="d-flex align-items-center gap-2 fw-bold text-danger mb-1">
+                      <span style={{ fontSize: '1.05rem' }}>🚫</span>
+                      Project Pool budget exceeded for this month
+                    </div>
+                    <div className="d-flex flex-wrap gap-3 mt-1" style={{ fontSize: '0.77rem', color: 'rgba(255,255,255,0.75)' }}>
+                      <span>Monthly budget: <strong className="text-body">{fmt(totalMonthlyBudget)}</strong></span>
+                      <span>Already used: <strong className="text-body">{fmt(usedThisMonth)}</strong></span>
+                      <span>Remaining: <strong className="text-warning">{fmt(remaining)}</strong></span>
+                      <span>This expense (pool portion): <strong className="text-danger">{fmt(poolPortion)}</strong></span>
+                      <span>Overage: <strong className="text-danger">+{fmt(overage)}</strong></span>
+                    </div>
+                    <div className="mt-2 small text-body-secondary" style={{ fontSize: '0.73rem' }}>
+                      Reduce the expense amount, reduce the Project Pool %, or route more to HR Revenue to stay within budget.
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* ── Allocation Preview (editable) ── */}
               {hasPool && displayAllocs.length > 0 && (
                 <div
@@ -1114,7 +1163,12 @@ const GlobalHRPoolPage = () => {
                   disabled={!form.label || !form.amount || !isSplitValid() || (
                     displayAllocs.length > 0 &&
                     Math.abs(displayAllocs.reduce((s, a) => s + a.sharePct, 0) - 100) > 0.5
-                  )}
+                  ) || (() => {
+                    if (!hasPool) return false
+                    const totalAmt = parseFloat(form.amount) || 0
+                    const poolPortion = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
+                    return poolBudgetSummary.totalMonthlyBudget > 0 && poolPortion > poolBudgetSummary.remaining
+                  })()}
                 >
                   Add &amp; Distribute Expense
                 </CButton>

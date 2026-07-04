@@ -538,6 +538,41 @@ export const localOrgPool = {
     })
   },
 
+  /**
+   * Returns the total monthly HR project-pool budget across all active projects,
+   * and how much has already been used (charged to project_pool) this month.
+   *
+   * @returns {{ totalMonthlyBudget: number, usedThisMonth: number, remaining: number }}
+   */
+  getMonthlyHRPoolBudgetSummary() {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
+
+    // Sum project_pool portions of all existing monthly HR expenses
+    const expenses = this.getHRExpenses()
+    const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
+
+    const usedThisMonth = expenses
+      .filter((e) => {
+        // Include if the expense is for this month (date field) or if no date (still counts as monthly)
+        const eMonth = e.date ? e.date.slice(0, 7) : currentMonth
+        return eMonth === currentMonth
+      })
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || ['project_pool']
+        if (!sources.includes('project_pool')) return sum
+        const poolPct = parseFloat(e.project_pool_pct) ?? 100
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
+      }, 0)
+
+    return {
+      totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
+      usedThisMonth: Math.round(usedThisMonth * 100) / 100,
+      remaining: Math.round((totalMonthlyBudget - usedThisMonth) * 100) / 100,
+    }
+  },
+
   addHRExpense(expense, enteredByProjectId) {
     const pool = readPool()
     const totalAmt = parseFloat(expense.amount) || 0
