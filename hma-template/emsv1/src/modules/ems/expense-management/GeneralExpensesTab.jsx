@@ -1061,6 +1061,181 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
   )
 }
 
+// ── Profit / Loss Report ──────────────────────────────────────────────────────
+// Not an income-vs-expense statement — a trend check: is the forecast month
+// costing more than actual historical spend (Loss) or holding/falling (Profit)?
+
+const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, monthTotals, avgActual, forecastTotal }) => {
+  const lastActualTotal = monthTotals[monthTotals.length - 1]?.total || 0
+  const netChangeVsAvg = forecastTotal - avgActual
+  const pctVsAvg = avgActual > 0 ? (netChangeVsAvg / avgActual) * 100 : null
+  const netChangeVsLast = forecastTotal - lastActualTotal
+  const isLoss = netChangeVsAvg > 0
+
+  const catStats = useMemo(() => {
+    return ['HR', 'Admin'].map((cat) => {
+      const catRows = rows.filter((r) => r.category === cat)
+      const monthlyTotals = dataMonths.map((m) => catRows.reduce((s, r) => s + (r.values[m] || 0), 0))
+      const avg = monthlyTotals.length
+        ? Math.round(monthlyTotals.reduce((a, b) => a + b, 0) / monthlyTotals.length)
+        : 0
+      const forecast = catRows.reduce((s, r) => s + (forecastValues[r.id] || 0), 0)
+      return { cat, avg, forecast, diff: forecast - avg }
+    })
+  }, [rows, dataMonths, forecastValues])
+
+  const rowStats = useMemo(() => {
+    return rows
+      .map((r) => {
+        const known = dataMonths.map((m) => r.values[m]).filter((v) => v !== undefined && v !== null)
+        const baseline = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : null
+        const forecast = forecastValues[r.id] || 0
+        const diff = baseline === null ? null : forecast - baseline
+        const pct = baseline ? (diff / baseline) * 100 : null
+        return { ...r, baseline, forecast, diff, pct }
+      })
+      .sort((a, b) => (b.diff ?? -Infinity) - (a.diff ?? -Infinity))
+  }, [rows, dataMonths, forecastValues])
+
+  return (
+    <CCard className="border-0 shadow-sm mt-4">
+      <CCardHeader className="py-3">
+        <h6 className="fw-bold mb-0">Profit / Loss Report — {monthLabel(forecastMonth)} Outlook</h6>
+      </CCardHeader>
+      <CCardBody>
+        {/* Verdict banner */}
+        <div
+          className="d-flex align-items-center gap-3 rounded-3 p-3 mb-4"
+          style={{
+            background: isLoss ? 'rgba(255,107,107,0.08)' : 'rgba(6,214,160,0.08)',
+            border: `1px solid ${isLoss ? 'rgba(255,107,107,0.3)' : 'rgba(6,214,160,0.3)'}`,
+          }}
+        >
+          <div style={{ fontSize: '2rem' }}>{isLoss ? '📈' : '📉'}</div>
+          <div>
+            <div className="fw-bold" style={{ fontSize: '1.1rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}>
+              {isLoss ? 'LOSS — Expenses trending up' : 'PROFIT — Expenses stable or falling'}
+            </div>
+            <div className="small text-body-secondary">
+              {monthLabel(forecastMonth)} is forecasted at {fmtINR(forecastTotal)}, {isLoss ? 'up' : 'down'}{' '}
+              {fmtINR(Math.abs(netChangeVsAvg))}
+              {pctVsAvg !== null && ` (${Math.abs(pctVsAvg).toFixed(1)}%)`}
+              {' '}compared to the {dataMonths.length}-month actual average of {fmtINR(avgActual)}.
+            </div>
+          </div>
+        </div>
+
+        {/* Headline figures */}
+        <div className="d-flex flex-wrap gap-4 mb-4">
+          <div>
+            <div className="text-body-secondary small">{dataMonths.length}-month Avg Actual</div>
+            <div className="fw-bold" style={{ fontSize: '1.05rem' }}>{fmtINR(avgActual)}</div>
+          </div>
+          <div>
+            <div className="text-body-secondary small">{monthLabel(forecastMonth)} Forecast</div>
+            <div className="fw-bold" style={{ fontSize: '1.05rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}>
+              {fmtINR(forecastTotal)}
+            </div>
+          </div>
+          <div>
+            <div className="text-body-secondary small">
+              vs Last Actual Month ({monthLabel(dataMonths[dataMonths.length - 1])})
+            </div>
+            <div
+              className="fw-bold"
+              style={{ fontSize: '1.05rem', color: netChangeVsLast > 0 ? '#ff6b6b' : '#06d6a0' }}
+            >
+              {netChangeVsLast > 0 ? '+' : ''}{fmtINR(netChangeVsLast)}
+            </div>
+          </div>
+        </div>
+
+        {/* Category breakdown */}
+        <div className="mb-4">
+          <div className="fw-semibold small mb-2">By Category</div>
+          <div className="d-flex flex-wrap gap-3">
+            {catStats.map((c) => (
+              <div key={c.cat} className="border rounded-3 p-3" style={{ minWidth: 220, flex: '1 1 220px' }}>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <span className="fw-semibold">{c.cat} Expenses</span>
+                  <CBadge color={c.diff > 0 ? 'danger' : 'success'} shape="rounded-pill">
+                    {c.diff > 0 ? 'Loss' : 'Profit'}
+                  </CBadge>
+                </div>
+                <div className="d-flex justify-content-between small text-body-secondary">
+                  <span>Avg Actual</span><span>{fmtINR(c.avg)}</span>
+                </div>
+                <div className="d-flex justify-content-between small text-body-secondary">
+                  <span>Forecast</span><span>{fmtINR(c.forecast)}</span>
+                </div>
+                <div
+                  className="d-flex justify-content-between small fw-semibold mt-1"
+                  style={{ color: c.diff > 0 ? '#ff6b6b' : '#06d6a0' }}
+                >
+                  <span>Change</span><span>{c.diff > 0 ? '+' : ''}{fmtINR(c.diff)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Per-line-item detail — biggest projected increases first */}
+        <div className="fw-semibold small mb-2">By Expense Line</div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table table-bordered table-sm align-middle mb-0" style={{ fontSize: '0.8rem' }}>
+            <thead>
+              <tr className="bg-body-tertiary">
+                <th>Expense</th>
+                <th className="text-end">Avg Actual</th>
+                <th className="text-end">Forecast</th>
+                <th className="text-end">Change</th>
+                <th className="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowStats.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <div className="fw-medium">{r.service}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>{r.vendor}</div>
+                  </td>
+                  <td className="text-end">
+                    {r.baseline !== null ? fmtINR(r.baseline) : <span className="text-body-tertiary">—</span>}
+                  </td>
+                  <td className="text-end">
+                    {r.forecast > 0 ? fmtINR(r.forecast) : <span className="text-body-tertiary">—</span>}
+                  </td>
+                  <td className="text-end" style={{ color: r.diff === null ? undefined : r.diff > 0 ? '#ff6b6b' : '#06d6a0' }}>
+                    {r.diff === null ? (
+                      <span className="text-body-secondary">New</span>
+                    ) : (
+                      <>
+                        {r.diff > 0 ? '+' : ''}{fmtINR(r.diff)}
+                        {r.pct !== null && (
+                          <div style={{ fontSize: '0.65rem' }}>({r.pct > 0 ? '+' : ''}{r.pct.toFixed(0)}%)</div>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td className="text-center">
+                    {r.diff === null ? (
+                      <CBadge color="secondary" shape="rounded-pill">New</CBadge>
+                    ) : (
+                      <CBadge color={r.diff > 0 ? 'danger' : 'success'} shape="rounded-pill">
+                        {r.diff > 0 ? 'Loss' : 'Profit'}
+                      </CBadge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const GeneralExpensesTab = () => {
@@ -1309,7 +1484,7 @@ const GeneralExpensesTab = () => {
               onClick={() => setShowDetail((v) => !v)}
             >
               <CIcon icon={cilChart} className="me-1" style={{ width: 13, height: 13 }} />
-              {showDetail ? 'Hide Detail' : 'Show Detail'}
+              {showDetail ? 'Hide Detail & Report' : 'Show Detail & Report'}
             </CButton>
           </div>
           <div className="d-flex gap-2 align-items-center">
@@ -1485,6 +1660,19 @@ const GeneralExpensesTab = () => {
             />
           </CCardBody>
         </CCard>
+      )}
+
+      {/* Profit / Loss Report (toggle) */}
+      {showDetail && (
+        <ProfitLossReport
+          rows={visibleRows}
+          dataMonths={dataMonths}
+          forecastMonth={forecastMonth}
+          forecastValues={forecastValues}
+          monthTotals={monthTotals}
+          avgActual={avgActual}
+          forecastTotal={forecastTotal}
+        />
       )}
 
       {/* Edit Modal */}
