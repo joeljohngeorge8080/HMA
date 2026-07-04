@@ -493,15 +493,22 @@ export const localOrgPool = {
    * Splits a given expense amount proportionally across all activated projects
    * by their monthly HR or Core contribution weight.
    */
-  computeAllocations(pool, amount) {
-    const budgets = this.getActiveProjectMonthlyBudgets(pool)
-    return budgets.map((b) => ({
-      projectId: b.projectId,
-      projectName: b.projectName,
-      installmentId: b.installmentId,
-      sharePct: b.sharePct,
-      amountCharged: Math.round(amount * (b.sharePct / 100) * 100) / 100,
-    }))
+  computeAllocations(pool, amount, allowedProjectIds) {
+    let budgets = this.getActiveProjectMonthlyBudgets(pool)
+    if (allowedProjectIds) {
+      budgets = budgets.filter((b) => allowedProjectIds.includes(b.projectId))
+    }
+    const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    return budgets.map((b) => {
+      const sharePct = total > 0 ? Math.round((b.monthlyBudget / total) * 10000) / 100 : 0
+      return {
+        projectId: b.projectId,
+        projectName: b.projectName,
+        installmentId: b.installmentId,
+        sharePct,
+        amountCharged: Math.round(amount * (sharePct / 100) * 100) / 100,
+      }
+    })
   },
 
   // ── HR Expense CRUD ────────────────────────────────────────────────────────
