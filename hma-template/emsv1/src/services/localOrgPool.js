@@ -544,19 +544,17 @@ export const localOrgPool = {
    *
    * @returns {{ totalMonthlyBudget: number, usedThisMonth: number, remaining: number }}
    */
-  getMonthlyHRPoolBudgetSummary() {
+  getMonthlyHRPoolBudgetSummary(month) {
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
 
-    // Sum project_pool portions of all existing monthly HR expenses
     const expenses = this.getHRExpenses()
-    const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
+    const targetMonth = month || new Date().toISOString().slice(0, 7) // YYYY-MM
 
     const usedThisMonth = expenses
       .filter((e) => {
-        // Include if the expense is for this month (date field) or if no date (still counts as monthly)
-        const eMonth = e.date ? e.date.slice(0, 7) : currentMonth
-        return eMonth === currentMonth
+        const eMonth = e.date ? e.date.slice(0, 7) : targetMonth
+        return eMonth === targetMonth
       })
       .reduce((sum, e) => {
         const sources = e.revenue_sources || ['project_pool']
@@ -697,20 +695,15 @@ export const localOrgPool = {
    *     (i.e. updateExpenseProjectAllocation was called), use that stored value.
    *  2. Otherwise fall back to the live proportional share based on monthly budgets.
    */
-  /**
-   * Returns a map of projectId -> { monthlyBudget, usedThisMonth, remaining }
-   * for all active projects. Used to show per-project remaining funds in the UI.
-   */
-  getProjectsMonthlyHRRemaining() {
+  getProjectsMonthlyHRRemaining(month) {
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const expenses = this.getHRExpenses()
-    const currentMonth = new Date().toISOString().slice(0, 7)
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
 
-    // Build per-project used-this-month totals from stored allocations
     const usedMap = {}
     for (const exp of expenses) {
-      const eMonth = exp.date ? exp.date.slice(0, 7) : currentMonth
-      if (eMonth !== currentMonth) continue
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
       const sources = exp.revenue_sources || ['project_pool']
       if (!sources.includes('project_pool')) continue
 
@@ -720,7 +713,6 @@ export const localOrgPool = {
           usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
         }
       } else {
-        // Fallback: distribute by live share
         const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
         for (const b of budgets) {
           const share = total > 0 ? b.monthlyBudget / total : 0

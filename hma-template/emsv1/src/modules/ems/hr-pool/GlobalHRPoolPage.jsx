@@ -617,7 +617,7 @@ const GlobalHRPoolPage = () => {
     frequency: 'Monthly',
     yearly_price: '',
     amount: '',
-    date: '',
+    expenseMonth: new Date().toISOString().slice(0, 7), // YYYY-MM
     notes: '',
   })
   // Revenue source state for the add form
@@ -652,7 +652,11 @@ const GlobalHRPoolPage = () => {
   }, [])
 
   const resetAddForm = () => {
-    setForm({ vendor: '', label: '', frequency: 'Monthly', yearly_price: '', amount: '', date: '', notes: '' })
+    setForm({
+      vendor: '', label: '', frequency: 'Monthly', yearly_price: '', amount: '',
+      expenseMonth: new Date().toISOString().slice(0, 7),
+      notes: '',
+    })
     setRevSources(['project_pool'])
     setHrRevPct(0)
     setProjPoolPct(100)
@@ -660,6 +664,12 @@ const GlobalHRPoolPage = () => {
     setCustomAllocs(null)
     setDraftAmounts({})
   }
+
+  // Refresh month-scoped budget figures when selected month changes
+  useEffect(() => {
+    setPoolBudgetSummary(localOrgPool.getMonthlyHRPoolBudgetSummary(form.expenseMonth))
+    setProjectRemainingMap(localOrgPool.getProjectsMonthlyHRRemaining(form.expenseMonth))
+  }, [form.expenseMonth, allExpenses])
 
   // Live allocation preview — recomputes whenever amount, pool%, or source changes
   useEffect(() => {
@@ -784,11 +794,11 @@ const GlobalHRPoolPage = () => {
   const handleAdd = () => {
     if (!form.label || !form.amount) return
     if (!isSplitValid()) return
-    // Use user-edited allocations if customised, otherwise auto-compute inside service
     const allocsToSave = customAllocs ?? previewAllocs
     localOrgPool.addHRExpense(
       {
         ...form,
+        date: form.expenseMonth, // store as YYYY-MM for month-based filtering
         revenue_sources: revSources,
         hr_revenue_pct: hrRevPct,
         project_pool_pct: projPoolPct,
