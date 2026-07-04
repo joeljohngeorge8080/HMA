@@ -10,7 +10,7 @@ const KEYS = {
 }
 
 // Bump this whenever DEFAULT_EXPENSES changes so existing localStorage gets refreshed.
-const SEED_VERSION = 3
+const SEED_VERSION = 4
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -42,6 +42,7 @@ const CAT_IDS = {
   IMPREST: 'cat-00000000-0010',
   MISCELLANEOUS: 'cat-00000000-0011',
   OUTSOURCED_SVC: 'cat-00000000-0012',
+  HR_OPERATIONS: 'cat-00000000-0013',
 }
 
 const SEED_TS = '2025-09-01T00:00:00.000Z'
@@ -139,6 +140,15 @@ const DEFAULT_CATEGORIES = [
     id: CAT_IDS.OUTSOURCED_SVC,
     name: 'Outsourced Services',
     description: 'HK, security, and city salaries',
+    is_active: true,
+    created_at: SEED_TS,
+    updated_at: SEED_TS,
+  },
+  {
+    id: CAT_IDS.HR_OPERATIONS,
+    name: 'HR Operations',
+    description:
+      'HR-booked operational costs: vehicle, website, photocopier, desktop rental, internet',
     is_active: true,
     created_at: SEED_TS,
     updated_at: SEED_TS,
@@ -306,18 +316,27 @@ const MARCH_2026_EXPENSES = [
   _makeExpDated(
     3,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Contract Vehicle',
     'Monthly',
     43661,
     46000,
     'Vendor: Manjith Travels',
   ),
-  _makeExpDated(3, 2026, CAT_IDS.SOFTWARE, 'Website', 'Monthly', 0, null, 'Vendor: Alchemy IBS'),
   _makeExpDated(
     3,
     2026,
-    CAT_IDS.AMC,
+    CAT_IDS.HR_OPERATIONS,
+    'Website',
+    'Monthly',
+    0,
+    null,
+    'Vendor: Alchemy IBS',
+  ),
+  _makeExpDated(
+    3,
+    2026,
+    CAT_IDS.HR_OPERATIONS,
     'Photocopier SDP',
     'Monthly',
     7000,
@@ -327,7 +346,7 @@ const MARCH_2026_EXPENSES = [
   _makeExpDated(
     3,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Desktop Rental',
     'Monthly',
     57652,
@@ -337,7 +356,7 @@ const MARCH_2026_EXPENSES = [
   _makeExpDated(
     3,
     2026,
-    CAT_IDS.INTERNET,
+    CAT_IDS.HR_OPERATIONS,
     'Internet Services',
     'Quarterly',
     0,
@@ -505,18 +524,27 @@ const APRIL_2026_EXPENSES = [
   _makeExpDated(
     4,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Contract Vehicle',
     'Monthly',
     43661,
     46000,
     'Vendor: Manjith Travels',
   ),
-  _makeExpDated(4, 2026, CAT_IDS.SOFTWARE, 'Website', 'Monthly', 0, null, 'Vendor: Alchemy IBS'),
   _makeExpDated(
     4,
     2026,
-    CAT_IDS.AMC,
+    CAT_IDS.HR_OPERATIONS,
+    'Website',
+    'Monthly',
+    0,
+    null,
+    'Vendor: Alchemy IBS',
+  ),
+  _makeExpDated(
+    4,
+    2026,
+    CAT_IDS.HR_OPERATIONS,
     'Photocopier SDP',
     'Monthly',
     7000,
@@ -526,7 +554,7 @@ const APRIL_2026_EXPENSES = [
   _makeExpDated(
     4,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Desktop Rental',
     'Monthly',
     57652,
@@ -536,7 +564,7 @@ const APRIL_2026_EXPENSES = [
   _makeExpDated(
     4,
     2026,
-    CAT_IDS.INTERNET,
+    CAT_IDS.HR_OPERATIONS,
     'Internet Services',
     'Quarterly',
     0,
@@ -706,18 +734,27 @@ const MAY_2026_EXPENSES = [
   _makeExpDated(
     5,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Contract Vehicle',
     'Monthly',
     46000,
     46000,
     'Vendor: Manjith Travels',
   ),
-  _makeExpDated(5, 2026, CAT_IDS.SOFTWARE, 'Website', 'Monthly', 0, null, 'Vendor: Alchemy IBS'),
   _makeExpDated(
     5,
     2026,
-    CAT_IDS.AMC,
+    CAT_IDS.HR_OPERATIONS,
+    'Website',
+    'Monthly',
+    0,
+    null,
+    'Vendor: Alchemy IBS',
+  ),
+  _makeExpDated(
+    5,
+    2026,
+    CAT_IDS.HR_OPERATIONS,
     'Photocopier SDP',
     'Monthly',
     7000,
@@ -727,7 +764,7 @@ const MAY_2026_EXPENSES = [
   _makeExpDated(
     5,
     2026,
-    CAT_IDS.MAINTENANCE,
+    CAT_IDS.HR_OPERATIONS,
     'Desktop Rental',
     'Monthly',
     57652,
@@ -737,7 +774,7 @@ const MAY_2026_EXPENSES = [
   _makeExpDated(
     5,
     2026,
-    CAT_IDS.INTERNET,
+    CAT_IDS.HR_OPERATIONS,
     'Internet Services',
     'Quarterly',
     0,
@@ -747,7 +784,7 @@ const MAY_2026_EXPENSES = [
   _makeExpDated(
     5,
     2026,
-    CAT_IDS.AMC,
+    CAT_IDS.HR_OPERATIONS,
     'Photocopier HR',
     'Monthly',
     8000,
