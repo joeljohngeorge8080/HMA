@@ -124,11 +124,12 @@ const buildAttendanceTrend = () => {
   return { months: months.map((m) => m.label), present, absent, leave }
 }
 
-const HR_PAYROLL_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-const HR_PAYROLL_TOTALS = [1820000, 1850000, 1900000, 1880000, 1920000, 1960000]
-
-const HR_EMPLOYMENT_TYPES = { 'Full-time': 58, 'Part-time': 12, Contract: 15, Intern: 10 }
-const HR_EMPLOYMENT_COLORS = ['#1e40af', '#0891b2', '#7c3aed', '#059669']
+/** Live sum of current_salary across Active employees today (a snapshot, not a trend). */
+const computeTotalMonthlyPayroll = () =>
+  localEmployees
+    .list({ pageSize: 1000 })
+    .items.filter((e) => e.status === 'Active')
+    .reduce((s, e) => s + (parseFloat(e.current_salary) || 0), 0)
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── SHARED UI COMPONENTS ─────────────────────────────────────────────────────
@@ -544,82 +545,6 @@ const AttendanceTrend = ({ months, present, absent, leave }) => {
   return <canvas ref={ref} height={180} />
 }
 
-/** Bar – monthly payroll */
-const PayrollBar = () => {
-  const ref = useRef(null)
-  useChart(
-    ref,
-    (canvas) =>
-      new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: HR_PAYROLL_MONTHS,
-          datasets: [
-            {
-              label: 'Payroll (₹)',
-              data: HR_PAYROLL_TOTALS,
-              backgroundColor: '#6366f1',
-              borderRadius: 5,
-              barThickness: 32,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: (c) => ` ₹${fmtCompact(c.parsed.y)}` } },
-          },
-          scales: {
-            y: {
-              grid: { color: '#f1f5f9' },
-              ticks: { callback: (v) => '₹' + fmtCompact(v), font: { size: 11 } },
-            },
-            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-          },
-        },
-      }),
-    [],
-  )
-  return <canvas ref={ref} height={180} />
-}
-
-/** Doughnut – employment type */
-const EmploymentDonut = () => {
-  const ref = useRef(null)
-  useChart(
-    ref,
-    (canvas) =>
-      new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(HR_EMPLOYMENT_TYPES),
-          datasets: [
-            {
-              data: Object.values(HR_EMPLOYMENT_TYPES),
-              backgroundColor: HR_EMPLOYMENT_COLORS,
-              borderWidth: 2,
-              borderColor: '#fff',
-              hoverOffset: 6,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          cutout: '62%',
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { boxWidth: 12, padding: 10, font: { size: 11 } },
-            },
-          },
-        },
-      }),
-    [],
-  )
-  return <canvas ref={ref} height={160} />
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -763,8 +688,6 @@ const S = {
 // ─── HR DASHBOARD SECTION ─────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const latestPayroll = HR_PAYROLL_TOTALS[HR_PAYROLL_TOTALS.length - 1]
-
 const HRDashboard = () => {
   const departments = buildDepartments()
   const totalHeadcount = departments.reduce((s, d) => s + d.headcount, 0)
@@ -774,6 +697,7 @@ const HRDashboard = () => {
   const avgAttendance = Math.round(
     attendance.present.reduce((s, v) => s + v, 0) / attendance.present.length,
   )
+  const totalMonthlyPayroll = computeTotalMonthlyPayroll()
 
   return (
     <>
@@ -783,8 +707,8 @@ const HRDashboard = () => {
         <KpiCard label="Avg Attendance" value={`${avgAttendance}%`} icon="📅" accent="#059669" />
         <KpiCard
           label="Monthly Payroll"
-          value={`₹${fmtCompact(latestPayroll)}`}
-          sub={`₹${fmt(latestPayroll)}`}
+          value={`₹${fmtCompact(totalMonthlyPayroll)}`}
+          sub={`₹${fmt(totalMonthlyPayroll)} · current snapshot`}
           icon="💰"
           accent="#6366f1"
         />
@@ -796,46 +720,11 @@ const HRDashboard = () => {
         />
       </div>
 
-      {/* Row 1: Dept bar + Employment type donut */}
+      {/* Row 1: Dept bar + Attendance trend */}
       <div style={S.twoCol}>
         <ChartCard title="Headcount by Department & Gender">
           <DeptBar departments={departments} />
         </ChartCard>
-        <ChartCard title="Employment Type Breakdown">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <EmploymentDonut />
-            {/* Totals under donut */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 6,
-                marginTop: 8,
-              }}
-            >
-              {Object.entries(HR_EMPLOYMENT_TYPES).map(([type, count], i) => (
-                <div
-                  key={type}
-                  style={{
-                    background: HR_EMPLOYMENT_COLORS[i] + '15',
-                    borderRadius: 6,
-                    padding: '6px 8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: 16, fontWeight: 800, color: HR_EMPLOYMENT_COLORS[i] }}>
-                    {count}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#64748b' }}>{type}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </ChartCard>
-      </div>
-
-      {/* Row 2: Attendance trend + Payroll bar */}
-      <div style={S.twoCol}>
         <ChartCard title="Attendance Trend (%) — Last 6 Months">
           <AttendanceTrend
             months={attendance.months}
@@ -843,9 +732,6 @@ const HRDashboard = () => {
             absent={attendance.absent}
             leave={attendance.leave}
           />
-        </ChartCard>
-        <ChartCard title="Monthly Payroll Outflow — Last 6 Months">
-          <PayrollBar />
         </ChartCard>
       </div>
 
