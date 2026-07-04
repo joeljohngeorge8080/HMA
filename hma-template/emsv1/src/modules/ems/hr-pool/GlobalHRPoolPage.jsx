@@ -958,37 +958,40 @@ const GlobalHRPoolPage = () => {
                 totalAmount={form.amount}
               />
 
-              {/* ── Budget Cap Alert ── */}
+              {/* ── Budget Cap Alert — always-rendered wrapper prevents layout shift ── */}
               {hasPool && (() => {
                 const totalAmt = parseFloat(form.amount) || 0
                 const poolPortion = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
                 const { totalMonthlyBudget, usedThisMonth, remaining } = poolBudgetSummary
-                if (totalAmt <= 0 || totalMonthlyBudget <= 0) return null
+
+                if (totalAmt <= 0 || totalMonthlyBudget <= 0) return <div className="mb-3" style={{ minHeight: 0 }} />
+
                 const overage = Math.round((poolPortion - remaining) * 100) / 100
                 const pctUsed = Math.round((poolPortion / totalMonthlyBudget) * 100)
                 const isOver = overage > 0
-                if (!isOver) {
-                  // Only show a soft info if close (>80% of remaining)
-                  if (poolPortion < remaining * 0.8) return null
-                  return (
-                    <div
-                      className="mb-3 p-2 rounded d-flex align-items-center gap-2"
-                      style={{ background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.35)', fontSize: '0.78rem' }}
-                    >
-                      <span style={{ fontSize: '1rem' }}>⚡</span>
-                      <span className="text-warning">
-                        This expense will use <strong>{fmt(poolPortion)}</strong> of the <strong>{fmt(remaining)}</strong> remaining monthly pool budget ({pctUsed}%).
-                      </span>
-                    </div>
-                  )
-                }
+                const isWarn = !isOver && poolPortion >= remaining * 0.8
+
+                if (!isOver && !isWarn) return <div className="mb-3" style={{ minHeight: 0 }} />
+
+                if (!isOver) return (
+                  <div
+                    className="mb-3 p-2 rounded d-flex align-items-center gap-2"
+                    style={{ background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.35)', fontSize: '0.78rem' }}
+                  >
+                    <span style={{ fontSize: '1rem' }}>&#9889;</span>
+                    <span className="text-warning">
+                      This expense will use <strong>{fmt(poolPortion)}</strong> of the <strong>{fmt(remaining)}</strong> remaining monthly pool budget ({pctUsed}%).
+                    </span>
+                  </div>
+                )
+
                 return (
                   <div
                     className="mb-3 p-3 rounded"
                     style={{ background: 'rgba(220,53,69,0.12)', border: '1.5px solid rgba(220,53,69,0.5)', fontSize: '0.82rem' }}
                   >
                     <div className="d-flex align-items-center gap-2 fw-bold text-danger mb-1">
-                      <span style={{ fontSize: '1.05rem' }}>🚫</span>
+                      <span style={{ fontSize: '1.05rem' }}>&#128683;</span>
                       Project Pool budget exceeded for this month
                     </div>
                     <div className="d-flex flex-wrap gap-3 mt-1" style={{ fontSize: '0.77rem', color: 'rgba(255,255,255,0.75)' }}>
@@ -1085,6 +1088,7 @@ const GlobalHRPoolPage = () => {
                                 step="0.01"
                                 value={a.sharePct % 1 === 0 ? a.sharePct : parseFloat(a.sharePct).toFixed(2)}
                                 onChange={(e) => handleAllocPctChange(a.projectId, e.target.value)}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 style={{ textAlign: 'right', fontWeight: 600, padding: '3px 6px', fontSize: '0.8rem' }}
                                 title="Edit % for this project"
                               />
@@ -1110,6 +1114,7 @@ const GlobalHRPoolPage = () => {
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') handleRecalculate(a.projectId)
                                     }}
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     style={{
                                       textAlign: 'right',
                                       fontWeight: 600,
