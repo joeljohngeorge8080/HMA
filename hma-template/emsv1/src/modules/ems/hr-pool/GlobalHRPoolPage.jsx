@@ -32,6 +32,12 @@ import {
   cilSave,
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
+import { localGeneralExpenses } from '../../../services/localGeneralExpenses'
+import { localRecruitments } from '../../../services/localRecruitments'
+import { localInternships } from '../../../services/localInternships'
+
+// Outsourced Services — same category DivisionsSummary.jsx treats as the HR division.
+const HR_DIVISION_CATEGORY_ID = 'cat-00000000-0012'
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -412,6 +418,7 @@ const RevenueSourceSelector = ({
   hrRevPct, setHrRevPct,
   projPoolPct, setProjPoolPct,
   totalAmount,
+  hrRevenueTotal,
 }) => {
   const hasHR = revSources.includes('hr_revenue')
   const hasPool = revSources.includes('project_pool')
@@ -536,6 +543,21 @@ const RevenueSourceSelector = ({
               </span>
             )}
           </div>
+          {hasHR &&
+            (() => {
+              const drawn = bothSelected ? hrAmt : total
+              const remaining = (hrRevenueTotal || 0) - drawn
+              const isOver = remaining < 0
+              return (
+                <div
+                  className={`small mt-1 ${isOver ? 'text-danger fw-semibold' : 'text-body-secondary'}`}
+                  style={{ fontSize: '0.74rem' }}
+                >
+                  Available: {fmt(hrRevenueTotal || 0)} &nbsp;−{fmt(drawn)} this expense &nbsp;→&nbsp;
+                  {fmt(remaining)} remaining
+                </div>
+              )
+            })()}
         </div>
 
         {/* ─ Project Pool row ─ */}
@@ -611,6 +633,19 @@ const RevenueSourceSelector = ({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const GlobalHRPoolPage = () => {
+  const hrRevenueTotal = (() => {
+    const recruitmentRevenue = localRecruitments
+      .list({ activity_type: 'recruitment' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const trainingRevenue = localRecruitments
+      .list({ activity_type: 'training' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const internshipRevenue = localInternships
+      .list()
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    return recruitmentRevenue + trainingRevenue + internshipRevenue
+  })()
+
   const [form, setForm] = useState({
     vendor: '',
     label: '',
@@ -630,10 +665,12 @@ const GlobalHRPoolPage = () => {
   const [editId, setEditId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [allExpenses, setAllExpenses] = useState([])
+  const [hrGeneralExpenses, setHrGeneralExpenses] = useState([])
   const [previewAllocs, setPreviewAllocs] = useState([])
   const [customAllocs, setCustomAllocs] = useState(null) // null = use auto previewAllocs
   const [draftAmounts, setDraftAmounts] = useState({}) // projectId -> string being typed
   const [activeProjects, setActiveProjects] = useState([])
+  const [selectedProjectIds, setSelectedProjectIds] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
   const [poolBudgetSummary, setPoolBudgetSummary] = useState({ totalMonthlyBudget: 0, usedThisMonth: 0, remaining: 0 })
@@ -641,9 +678,16 @@ const GlobalHRPoolPage = () => {
 
   const reload = () => {
     setAllExpenses(localOrgPool.getHRExpenses())
+    setHrGeneralExpenses(
+      localGeneralExpenses.expenses.list({
+        category_id: HR_DIVISION_CATEGORY_ID,
+        page_size: 500,
+      }).items,
+    )
     const ap = localOrgPool.getActiveProjectMonthlyBudgets('hr')
     setActiveProjects(ap)
     setSelectedProjectId((prev) => prev || (ap[0]?.projectId ?? ''))
+    setSelectedProjectIds(ap.map((p) => p.projectId))
     setPoolBudgetSummary(localOrgPool.getMonthlyHRPoolBudgetSummary())
     setProjectRemainingMap(localOrgPool.getProjectsMonthlyHRRemaining())
   }
@@ -665,6 +709,28 @@ const GlobalHRPoolPage = () => {
     setPreviewAllocs([])
     setCustomAllocs(null)
     setDraftAmounts({})
+    setSelectedProjectIds(activeProjects.map((p) => p.projectId))
+  }
+
+  const handleExpensePick = (expenseId) => {
+    if (!expenseId) return
+    const picked = hrGeneralExpenses.find((e) => e.id === expenseId)
+    if (!picked) return
+    const amt = picked.actual_amount > 0 ? picked.actual_amount : picked.planned_amount
+    const vendorMatch = /^Vendor:\s*(.+)$/i.exec(picked.remarks || '')
+    setForm((f) => ({
+      ...f,
+      label: picked.expense_name,
+      amount: String(amt),
+      yearly_price: amt ? String(Math.round(amt * 12 * 100) / 100) : '',
+      vendor: vendorMatch ? vendorMatch[1] : f.vendor,
+    }))
+  }
+
+  const toggleSelectedProject = (projectId) => {
+    setSelectedProjectIds((prev) =>
+      prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId],
+    )
   }
 
   // Refresh month-scoped budget figures when selected month changes
@@ -679,7 +745,7 @@ const GlobalHRPoolPage = () => {
     const hasPool = revSources.includes('project_pool')
     if (amt > 0 && hasPool) {
       const poolAmt = Math.round(amt * (projPoolPct / 100) * 100) / 100
-      const computed = localOrgPool.computeAllocations('hr', poolAmt)
+      const computed = localOrgPool.computeAllocations('hr', poolAmt, selectedProjectIds)
       setPreviewAllocs(computed)
       setCustomAllocs(null) // reset custom overrides when base changes
       setDraftAmounts({})  // clear drafts when base recalculates
@@ -688,7 +754,7 @@ const GlobalHRPoolPage = () => {
       setCustomAllocs(null)
       setDraftAmounts({})
     }
-  }, [form.amount, projPoolPct, revSources])
+  }, [form.amount, projPoolPct, revSources, selectedProjectIds])
 
   // Displayed allocations: use custom if user has edited, else auto
   const displayAllocs = customAllocs ?? previewAllocs
@@ -903,6 +969,22 @@ const GlobalHRPoolPage = () => {
                 Add New HR Expense
               </h6>
               <CRow className="g-2 mb-2">
+                <CCol xs={12} md={6}>
+                  <CFormSelect
+                    size="sm"
+                    onChange={(e) => handleExpensePick(e.target.value)}
+                    defaultValue=""
+                  >
+                    <option value="">— Select an expense (optional) —</option>
+                    {hrGeneralExpenses.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.expense_name}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                </CCol>
+              </CRow>
+              <CRow className="g-2 mb-2">
                 <CCol xs={12} md={3}>
                   <CFormInput
                     size="sm"
@@ -977,6 +1059,7 @@ const GlobalHRPoolPage = () => {
                 projPoolPct={projPoolPct}
                 setProjPoolPct={setProjPoolPct}
                 totalAmount={form.amount}
+                hrRevenueTotal={hrRevenueTotal}
               />
 
               {/* ── Budget Cap Alert — always-rendered wrapper prevents layout shift ── */}
@@ -1028,6 +1111,44 @@ const GlobalHRPoolPage = () => {
                   </div>
                 )
               })()}
+
+              {/* ── Project Checklist — choose which active projects this expense applies to ── */}
+              {hasPool && (
+                <div className="mb-3 p-3 rounded border" style={{ fontSize: '0.85rem' }}>
+                  <div className="fw-semibold mb-2" style={{ fontSize: '0.82rem' }}>
+                    Apply to Projects
+                  </div>
+                  {activeProjects.length === 0 ? (
+                    <div className="text-body-secondary small">No active projects in the pool.</div>
+                  ) : (
+                    <div className="d-flex flex-column gap-1">
+                      {activeProjects.map((p) => (
+                        <div key={p.projectId} className="d-flex align-items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`proj-chk-${p.projectId}`}
+                            checked={selectedProjectIds.includes(p.projectId)}
+                            onChange={() => toggleSelectedProject(p.projectId)}
+                            style={{ width: 15, height: 15, cursor: 'pointer' }}
+                          />
+                          <label
+                            htmlFor={`proj-chk-${p.projectId}`}
+                            className="mb-0"
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {p.projectName}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {activeProjects.length > 0 && selectedProjectIds.length === 0 && (
+                    <div className="text-danger small mt-2">
+                      Select at least one project, or remove Project Pool as a revenue source.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ── Allocation Preview (editable) ── */}
               {hasPool && displayAllocs.length > 0 && (
@@ -1198,7 +1319,8 @@ const GlobalHRPoolPage = () => {
                   size="sm"
                   color="success"
                   onClick={handleAdd}
-                  disabled={!form.label || !form.amount || !isSplitValid() || (
+                  disabled={!form.label || !form.amount || !isSplitValid() ||
+                    (hasPool && activeProjects.length > 0 && selectedProjectIds.length === 0) || (
                     displayAllocs.length > 0 &&
                     Math.abs(displayAllocs.reduce((s, a) => s + a.sharePct, 0) - 100) > 0.5
                   ) || (() => {
