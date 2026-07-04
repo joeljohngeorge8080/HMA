@@ -607,6 +607,7 @@ export const localOrgPool = {
       amount: totalAmt,
       date: expense.date || '',
       notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
       entered_by_project_id: enteredByProjectId,
       // Revenue source metadata
       revenue_sources: revenueSources,

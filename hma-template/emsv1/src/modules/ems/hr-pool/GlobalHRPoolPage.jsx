@@ -619,6 +619,7 @@ const GlobalHRPoolPage = () => {
     amount: '',
     expenseMonth: new Date().toISOString().slice(0, 7), // YYYY-MM
     notes: '',
+    bill_no: '',
   })
   // Revenue source state for the add form
   const [revSources, setRevSources] = useState(['project_pool'])
@@ -656,6 +657,7 @@ const GlobalHRPoolPage = () => {
       vendor: '', label: '', frequency: 'Monthly', yearly_price: '', amount: '',
       expenseMonth: new Date().toISOString().slice(0, 7),
       notes: '',
+      bill_no: '',
     })
     setRevSources(['project_pool'])
     setHrRevPct(0)
@@ -952,6 +954,17 @@ const GlobalHRPoolPage = () => {
                       onChange={(e) => handleMonthlyCutChange(e.target.value, false)}
                     />
                   </CInputGroup>
+                </CCol>
+              </CRow>
+
+              <CRow className="g-2 mb-2">
+                <CCol xs={12} md={4}>
+                  <CFormInput
+                    size="sm"
+                    placeholder="Bill No (optional)"
+                    value={form.bill_no}
+                    onChange={(e) => setForm((f) => ({ ...f, bill_no: e.target.value }))}
+                  />
                 </CCol>
               </CRow>
 
@@ -1290,6 +1303,7 @@ const GlobalHRPoolPage = () => {
                       </div>
                       <div className="text-body-secondary small mb-1">
                         {fmtDate(exp.date)} {exp.notes && ` · ${exp.notes}`}
+                        {exp.bill_no && ` · Bill #${exp.bill_no}`}
                       </div>
                       <div className="text-body-tertiary" style={{ fontSize: '0.8rem' }}>
                         Distributed across {exp.allocations?.length || exp.project_allocations?.length || 0} active project(s)
