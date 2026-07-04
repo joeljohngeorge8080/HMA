@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-04
 **Module:** EMS Global HR Pool (`hma-template/emsv1/src/modules/ems/hr-pool/GlobalHRPoolPage.jsx`)
-**Status:** Proposed — written up after the user went unresponsive to design-approval questions; needs review before planning/implementation proceeds.
+**Status:** Approved by user (confirmed the dropdown, project checklist, and added the HR Revenue total requirement in Section 4 below). Sequencing: CSV import (see Non-goals) happens first as a separate task, then this spec's Sections 1–4 are implemented via a plan.
 
 ## Background
 
@@ -81,6 +81,30 @@ When `allowedProjectIds` is omitted (every other call site: `addCoreExpense`, `u
 - `handleAdd()`'s allocations-to-save line (`localOrgPool.addHRExpense(..., project_allocations: allocsToSave...)`) needs no change — `previewAllocs`/`customAllocs` already flow from the filtered computation.
 - New UI: a checklist card, rendered when `hasPool` is true, placed between the Budget Cap Alert and the Allocation Preview block. One row per `activeProjects` entry: a checkbox (`checked={selectedProjectIds.includes(p.projectId)}`) plus the project name. Toggling adds/removes the id from `selectedProjectIds`.
 - **Validation:** if `hasPool` is true and `selectedProjectIds.length === 0`, show an inline warning ("Select at least one project, or remove Project Pool as a revenue source") and add this condition to the existing `disabled` expression on the "Add & Distribute Expense" button.
+
+## Section 4 — HR Revenue total display (with draw-down)
+
+**Source of truth:** there is already a live "HR Revenue" total computed elsewhere in the app — `RevenuePage.jsx`:
+```js
+const recruitmentRevenue = localRecruitments.list({ activity_type: 'recruitment' })
+  .reduce((s, r) => s + (r.amount_received || 0), 0)
+const trainingRevenue = localRecruitments.list({ activity_type: 'training' })
+  .reduce((s, r) => s + (r.amount_received || 0), 0)
+const internshipRevenue = localInternships.list()
+  .reduce((s, r) => s + (r.amount_received || 0), 0)
+const hrRevenueTotal = recruitmentRevenue + trainingRevenue + internshipRevenue
+```
+This is the real figure — `localOrgPool.getHRRevenueBalance()` (reads `pool.hr_revenue_balance`) is an unused stub that nothing ever writes to, and is **not** used for this feature.
+
+**Change to `GlobalHRPoolPage.jsx` / `RevenueSourceSelector`:**
+- Import `localRecruitments` and `localInternships`, compute `hrRevenueTotal` the same way as above (once, on mount — this figure doesn't need to be live-reactive within the form session).
+- Pass `hrRevenueTotal` into `RevenueSourceSelector` as a prop.
+- In the "HR Revenue" row, once the checkbox is checked, show the available total and the draw-down for this expense, e.g.:
+  ```
+  Available: ₹86,207   −₹10,000 this expense   →   ₹76,207 remaining
+  ```
+  where the deducted amount is `hrAmt` (already computed in the component as `total * (hrRevPct / 100)`) and remaining = `hrRevenueTotal - hrAmt`.
+- If `hrAmt > hrRevenueTotal`, style the remaining figure as a warning (reuse the same red/warning treatment as the existing Project Pool budget-cap alert) — this is informational only, not a hard block, since HR Revenue isn't a budget-capped pool like the project pool is.
 
 ## Data shape summary (for the implementation plan)
 
