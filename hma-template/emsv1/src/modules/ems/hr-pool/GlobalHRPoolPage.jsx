@@ -759,7 +759,6 @@ const GlobalHRPoolPage = () => {
       setEditForm((f) => ({ ...f, yearly_price: val, amount: mc }))
     } else {
       setForm((f) => ({ ...f, yearly_price: val, amount: mc }))
-      setPreviewAllocs([])
     }
   }
 
@@ -770,7 +769,6 @@ const GlobalHRPoolPage = () => {
       setEditForm((f) => ({ ...f, amount: val, yearly_price: yp }))
     } else {
       setForm((f) => ({ ...f, amount: val, yearly_price: yp }))
-      setPreviewAllocs([])
     }
   }
 
