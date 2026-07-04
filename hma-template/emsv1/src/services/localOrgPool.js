@@ -538,19 +538,74 @@ export const localOrgPool = {
     })
   },
 
+  /**
+   * Returns the total monthly HR project-pool budget across all active projects,
+   * and how much has already been used (charged to project_pool) this month.
+   *
+   * @returns {{ totalMonthlyBudget: number, usedThisMonth: number, remaining: number }}
+   */
+  getMonthlyHRPoolBudgetSummary(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
+
+    const expenses = this.getHRExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7) // YYYY-MM
+
+    const usedThisMonth = expenses
+      .filter((e) => {
+        const eMonth = e.date ? e.date.slice(0, 7) : targetMonth
+        return eMonth === targetMonth
+      })
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || ['project_pool']
+        if (!sources.includes('project_pool')) return sum
+        const poolPct = parseFloat(e.project_pool_pct) ?? 100
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
+      }, 0)
+
+    return {
+      totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
+      usedThisMonth: Math.round(usedThisMonth * 100) / 100,
+      remaining: Math.round((totalMonthlyBudget - usedThisMonth) * 100) / 100,
+    }
+  },
+
   addHRExpense(expense, enteredByProjectId) {
     const pool = readPool()
-    const allocations = this.computeAllocations('hr', parseFloat(expense.amount) || 0)
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    // Determine revenue sources
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+
+    // Use caller-provided allocations (user-edited) if present, else auto-compute
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('hr', projectPoolAmt)
+        : []
+    }
+
     const newExp = {
       id: uid(),
       label: expense.label || '',
       vendor: expense.vendor || '',
       frequency: expense.frequency || 'Monthly',
       yearly_price: parseFloat(expense.yearly_price) || 0,
-      amount: parseFloat(expense.amount) || 0,
+      amount: totalAmt,
       date: expense.date || '',
       notes: expense.notes || '',
       entered_by_project_id: enteredByProjectId,
+      // Revenue source metadata
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      project_pool_pct: projectPoolPct,
+      // Project allocations — may be user-customised or auto-computed
       project_allocations: allocations,
       created_at: new Date().toISOString(),
     }
@@ -558,6 +613,58 @@ export const localOrgPool = {
     writePool(pool)
     setTimeout(() => this.checkHRBudgetThresholds(), 100)
     return newExp
+  },
+
+  /**
+   * Overrides the allocation share for one project on one expense.
+   * The target project gets newSharePct of the TOTAL expense amount.
+   * All other active projects split the remaining (100 - newSharePct)%
+   * proportionally by their original weights.
+   *
+   * @param {string} expenseId
+   * @param {string} projectId
+   * @param {number} newSharePct  — 0..100
+   */
+  updateExpenseProjectAllocation(expenseId, projectId, newSharePct) {
+    const pool = readPool()
+    pool.hr_expenses = (pool.hr_expenses || []).map((e) => {
+      if (e.id !== expenseId) return e
+
+      const totalAmt = parseFloat(e.amount) || 0
+      const clampedPct = Math.max(0, Math.min(100, newSharePct))
+
+      // Current allocations (use stored or compute fresh)
+      const existing = e.project_allocations?.length
+        ? e.project_allocations
+        : this.computeAllocations('hr', totalAmt)
+
+      // Remaining pct for everyone else
+      const remainingPct = 100 - clampedPct
+      const others = existing.filter((a) => a.projectId !== projectId)
+      const othersTotal = others.reduce((s, a) => s + a.sharePct, 0)
+
+      const newAllocations = existing.map((a) => {
+        if (a.projectId === projectId) {
+          return {
+            ...a,
+            sharePct: Math.round(clampedPct * 100) / 100,
+            amountCharged: Math.round(totalAmt * (clampedPct / 100) * 100) / 100,
+          }
+        }
+        // Redistribute remaining proportionally
+        const weight = othersTotal > 0 ? a.sharePct / othersTotal : 1 / others.length
+        const pct = Math.round(remainingPct * weight * 100) / 100
+        return {
+          ...a,
+          sharePct: pct,
+          amountCharged: Math.round(totalAmt * (pct / 100) * 100) / 100,
+        }
+      })
+
+      return { ...e, project_allocations: newAllocations }
+    })
+    writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
   },
 
   removeHRExpense(expenseId) {
@@ -581,26 +688,92 @@ export const localOrgPool = {
   },
 
   /**
-   * Returns all HR expense records allocated to this project,
-   * with myAmount recomputed dynamically from current active project weights.
-   * This ensures newly added HR expenses always reflect in PMS regardless of
-   * when the expense was created or what project_allocations was stored.
+   * Returns all HR expense records allocated to this project.
+   *
+   * Priority:
+   *  1. If the expense has a per-expense custom allocation for this project
+   *     (i.e. updateExpenseProjectAllocation was called), use that stored value.
+   *  2. Otherwise fall back to the live proportional share based on monthly budgets.
    */
+  getProjectsMonthlyHRRemaining(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const expenses = this.getHRExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedMap = {}
+    for (const exp of expenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || ['project_pool']
+      if (!sources.includes('project_pool')) continue
+
+      const allocs = exp.project_allocations || []
+      if (allocs.length > 0) {
+        for (const a of allocs) {
+          usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
+        }
+      } else {
+        const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+        for (const b of budgets) {
+          const share = total > 0 ? b.monthlyBudget / total : 0
+          const poolPct = parseFloat(exp.project_pool_pct) ?? 100
+          const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
+          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+        }
+      }
+    }
+
+    const result = {}
+    for (const b of budgets) {
+      const used = Math.round((usedMap[b.projectId] || 0) * 100) / 100
+      result[b.projectId] = {
+        monthlyBudget: b.monthlyBudget,
+        usedThisMonth: used,
+        remaining: Math.round((b.monthlyBudget - used) * 100) / 100,
+      }
+    }
+    return result
+  },
+
   getProjectHRCharges(projectId) {
-    // Recompute current share weights for all active projects
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const mine = budgets.find((b) => b.projectId === projectId)
-    if (!mine) return [] // project not active → no charges
+    if (!mine) return []
 
     const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
-    const mySharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
+    const liveSharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
 
-    return (readPool().hr_expenses || []).map((exp) => ({
-      ...exp,
-      myAmount: Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
-      mySharePct: Math.round(mySharePct * 100) / 100,
-      isFromThisProject: exp.entered_by_project_id === projectId,
-    }))
+    return (readPool().hr_expenses || []).map((exp) => {
+      // Check for a custom per-expense allocation for this project
+      const customAlloc = (exp.project_allocations || []).find(
+        (a) => a.projectId === projectId,
+      )
+
+      // Use custom allocation if stored, otherwise fall back to live share
+      const mySharePct = customAlloc
+        ? customAlloc.sharePct
+        : liveSharePct
+      const myAmount = customAlloc
+        ? customAlloc.amountCharged
+        : Math.round(parseFloat(exp.amount || 0) * (liveSharePct / 100) * 100) / 100
+
+      return {
+        ...exp,
+        myAmount,
+        mySharePct: Math.round(mySharePct * 100) / 100,
+        isFromThisProject: exp.entered_by_project_id === projectId,
+        hasCustomAllocation: !!customAlloc,
+      }
+    })
+  },
+
+  /**
+   * Returns the current HR Revenue balance available (sum of amount_received
+   * across Recruitment, Training, Internship, and Hall Rent in localRecruitments
+   * and localInternships, minus any amounts already drawn for HR expenses).
+   */
+  getHRRevenueBalance() {
+    return readPool().hr_revenue_balance ?? null
   },
 
   /**
