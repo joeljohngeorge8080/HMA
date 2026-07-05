@@ -188,14 +188,35 @@ export const localOrgPool = {
   getActiveProjectMonthlyBudgets(pool = 'hr') {
     const todayYM = new Date().toISOString().slice(0, 7) // YYYY-MM
 
-    const projects = readProjects().filter(
-      (p) =>
-        p.is_operations_active &&
-        (p.status === 'ongoing' || p.status === 'active' || p.status === 'approved'),
+    const statusOk = (p) =>
+      p.status === 'ongoing' || p.status === 'active' || p.status === 'approved'
+    const projects = readProjects().filter((p) =>
+      pool === 'admin' ? statusOk(p) : p.is_operations_active && statusOk(p),
     )
 
     const budgets = projects
       .map((p) => {
+        if (pool === 'admin') {
+          const pv = projectValue(p)
+          const tpm = totalProjectMonths(p)
+          const pct = p.admin_pct ?? 5
+          const monthlyBudget = pv > 0 ? Math.round(((pv * (pct / 100)) / tpm) * 100) / 100 : 0
+          const poolBudget = pv > 0 ? Math.round(pv * (pct / 100) * 100) / 100 : 0
+          return {
+            projectId: p.id,
+            projectName: p.title || p.name,
+            installmentId: null,
+            installmentLabel: null,
+            pct,
+            totalProjectMonths: tpm,
+            poolBudget,
+            monthlyBudget,
+            budgetNotForeseen: pv === 0,
+            sharePct: 0, // filled below
+            activationMonth: null,
+          }
+        }
+
         // HR/Core only apply from the month the project was activated
         const activationMonth = getActivationMonth(p)
         if (!activationMonth || activationMonth > todayYM) return null
