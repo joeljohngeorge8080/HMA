@@ -83,7 +83,7 @@ export const buildDepartments = () => {
  * Live attendance trend for the trailing 6 calendar months (ending this month).
  * A month with no imported attendance data shows 0%, not a fabricated value.
  */
-const buildAttendanceTrend = () => {
+export const buildAttendanceTrend = () => {
   const today = new Date()
   const months = []
   for (let i = 5; i >= 0; i--) {

@@ -17,6 +17,7 @@ import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
 import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
 import ExpenseManagementWidget from './widgets/ExpenseManagementWidget'
 import DepartmentHeadcountWidget from './widgets/DepartmentHeadcountWidget'
+import AttendanceTrendWidget from './widgets/AttendanceTrendWidget'
 
 const ALL_WIDGETS = [
   {
@@ -98,6 +99,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, sm: 6, xl: 3 },
     badge: { label: 'HR', color: 'primary' },
     component: DepartmentHeadcountWidget,
+  },
+  {
+    id: 'attendance_trend',
+    title: 'Attendance Trend',
+    description: '6-month trailing present/absent/leave rate chart',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'HR', color: 'primary' },
+    component: AttendanceTrendWidget,
   },
 ]
 
