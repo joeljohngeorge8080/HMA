@@ -18,6 +18,7 @@ import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
 import ExpenseManagementWidget from './widgets/ExpenseManagementWidget'
 import DepartmentHeadcountWidget from './widgets/DepartmentHeadcountWidget'
 import AttendanceTrendWidget from './widgets/AttendanceTrendWidget'
+import ProjectsOverviewWidget from './widgets/ProjectsOverviewWidget'
 
 const ALL_WIDGETS = [
   {
@@ -107,6 +108,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, lg: 6 },
     badge: { label: 'HR', color: 'primary' },
     component: AttendanceTrendWidget,
+  },
+  {
+    id: 'projects_overview',
+    title: 'Projects Overview',
+    description: 'Total projects, value, and beneficiaries (live data)',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Projects', color: 'warning' },
+    component: ProjectsOverviewWidget,
   },
 ]
 
