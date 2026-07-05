@@ -63,12 +63,6 @@ const emsNav = [
         ],
       },
       {
-        component: CNavItem,
-        name: 'HR & Core Pool',
-        to: '/ems/hr-pool/global',
-        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-      },
-      {
         component: CNavGroup,
         name: 'Activity',
         items: [
