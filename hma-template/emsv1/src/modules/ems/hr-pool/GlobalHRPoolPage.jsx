@@ -564,9 +564,9 @@ const GlobalHRPoolPage = () => {
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <h4 className="mb-1 fw-bold">Global HR Expense Pool</h4>
+          <h4 className="mb-1 fw-bold">Expense Pools</h4>
           <p className="text-body-secondary mb-0 small">
-            Organisation-wide HR expenses distributed across projects.
+            Organisation-wide HR, Admin, and Core expenses distributed across projects.
           </p>
         </div>
       </div>
