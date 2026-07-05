@@ -101,17 +101,17 @@ export const computeLsgbTotals = (rangeStart, rangeEnd) => {
 }
 ```
 
-The page's own `monthRows`/`totals`/`isProfit` computation (currently three separate `useMemo` blocks, lines ~140-216) is replaced with:
+The page's own `monthRows` useMemo (currently ~line 140) and `totals` useMemo (currently ~line 204) are replaced with one combined `useMemo` call. The page's **separate** `hrRevenue` useMemo (~line 178, returning `{ recruitment, training, internship, total }`, used at lines 342 and 462-464) is **not** touched — it stays exactly as-is:
 
 ```js
-const { monthRows, hrRevenueTotal, ...totals } = useMemo(
+const { monthRows, ...totals } = useMemo(
   () => computeLsgbTotals(rangeStart, rangeEnd),
   [rangeStart, rangeEnd],
 )
 const isProfit = totals.isProfit
 ```
 
-Every place the page currently reads `totals.operating`/`totals.project`/`totals.shares`/`totals.expenses`/`totals.ownRevenue`/`totals.lsgbNeed`/`totals.surplus`/`totals.lsgbSharePct` and `hrRevenue.total` keeps working unchanged — `totals.operating` etc. are the same destructured object minus `monthRows`/`hrRevenueTotal`, and `hrRevenue.total` becomes `hrRevenueTotal` (a rename from `hrRevenue.total` → `hrRevenueTotal`; the implementer must update the handful of `hrRevenue.total` reads elsewhere in the page's JSX to `hrRevenueTotal` — grep for `hrRevenue.total` in this file to find them all before removing the old `hrRevenue` useMemo).
+Every place the page currently reads `totals.operating`/`totals.project`/`totals.shares`/`totals.expenses`/`totals.ownRevenue`/`totals.lsgbNeed`/`totals.surplus`/`totals.lsgbSharePct` keeps working unchanged — `totals` is the same destructured object, just minus `monthRows` (pulled out separately above) and plus the extra `isProfit`/`hrRevenueTotal` fields `computeLsgbTotals` also returns (both unused by the page, harmless). The page's own `hrRevenue.recruitment`/`.training`/`.internship`/`.total` reads are completely unaffected since that useMemo isn't part of this change.
 
 ## Section 2 — The 7 new widget files
 
@@ -573,8 +573,11 @@ import ProfitLossWidget from './widgets/ProfitLossWidget'
 ```
 VisualModelPage.jsx: buildDepartments, buildAttendanceTrend — const → export const (no logic change)
 LsgbDependencyPage.jsx: new export computeLsgbTotals(rangeStart, rangeEnd); page's own
-  monthRows/totals/isProfit useMemo blocks replaced with a single call to it;
-  hrRevenue.total reads become hrRevenueTotal (grep the file for every occurrence)
+  monthRows/totals/isProfit useMemo blocks replaced with a single call to it.
+  The page's separate hrRevenue useMemo (recruitment/training/internship/total,
+  used at lines 342, 462-464) stays completely untouched — computeLsgbTotals
+  computes its own internal HR-revenue total independently for its totals math
+  (a small, harmless duplication of the same calculation, not a dependency).
 
 New files (all in src/modules/ems/dashboard/widgets/):
   ExpensePoolsWidget.jsx, GlobalCorePoolWidget.jsx, ExpenseManagementWidget.jsx,
