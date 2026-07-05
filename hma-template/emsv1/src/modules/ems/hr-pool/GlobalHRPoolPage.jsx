@@ -395,6 +395,121 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
   )
 }
 
+// ─── Org-Wide HR Budget Summary (All Projects) ────────────────────────────────
+
+const OrgWideHRBudgetCard = () => {
+  const [summary, setSummary] = useState(null)
+
+  useEffect(() => {
+    setSummary(localOrgPool.getMonthlyHRPoolBudgetSummary())
+  }, [])
+
+  if (!summary) return null
+
+  const { totalMonthlyBudget, usedThisMonth, remaining } = summary
+  const usedPct =
+    totalMonthlyBudget > 0 ? Math.min(100, Math.round((usedThisMonth / totalMonthlyBudget) * 100)) : 0
+  const isOver = remaining < 0
+
+  return (
+    <CCard
+      className="mb-4 shadow-sm border-0"
+      style={{
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+      }}
+    >
+      <CCardBody className="p-4">
+        <div className="mb-4">
+          <div className="text-white-50 small fw-semibold text-uppercase mb-1" style={{ letterSpacing: '0.08em' }}>
+            HR Pool Budget — Monthly View
+          </div>
+          <div className="text-white fw-bold fs-5">All Projects (Org-Wide)</div>
+        </div>
+
+        <CRow className="g-3 mb-4">
+          {[
+            {
+              label: 'Monthly HR Budget',
+              value: fmtL(totalMonthlyBudget),
+              sub: 'Across all active projects',
+              icon: cilDollar,
+              accent: '#4facfe',
+            },
+            {
+              label: 'Amount Used',
+              value: fmtL(usedThisMonth),
+              sub: 'This month, Project Pool-sourced',
+              icon: cilChartPie,
+              accent: isOver ? '#ff6b6b' : '#ffd166',
+            },
+            {
+              label: 'Remaining',
+              value: fmtL(Math.abs(remaining)),
+              sub: isOver ? 'Over budget!' : `${100 - usedPct}% remaining`,
+              icon: cilDollar,
+              accent: isOver ? '#ff6b6b' : '#06d6a0',
+              prefix: isOver ? '−' : '',
+            },
+          ].map((m) => (
+            <CCol key={m.label} xs={12} md={4}>
+              <div
+                className="rounded-3 p-3 h-100"
+                style={{
+                  background: 'rgba(255,255,255,0.07)',
+                  border: `1px solid rgba(255,255,255,0.1)`,
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <div className="d-flex align-items-center gap-2 mb-2" style={{ color: m.accent }}>
+                  <CIcon icon={m.icon} size="sm" />
+                  <span
+                    className="small fw-semibold text-uppercase"
+                    style={{ letterSpacing: '0.06em', fontSize: '0.7rem' }}
+                  >
+                    {m.label}
+                  </span>
+                </div>
+                <div className="fw-bold text-white" style={{ fontSize: '1.6rem', lineHeight: 1.1 }}>
+                  {m.prefix || ''}
+                  {m.value}
+                </div>
+                <div className="text-white-50" style={{ fontSize: '0.75rem', marginTop: 4 }}>
+                  {m.sub}
+                </div>
+              </div>
+            </CCol>
+          ))}
+        </CRow>
+
+        <div>
+          <div className="d-flex justify-content-between text-white-50 small mb-2">
+            <span>Budget utilization</span>
+            <span className={isOver ? 'text-danger fw-bold' : 'text-white fw-semibold'}>
+              {usedPct}% used {isOver && '(Over budget!)'}
+            </span>
+          </div>
+          <div className="rounded-pill overflow-hidden" style={{ height: 10, background: 'rgba(255,255,255,0.12)' }}>
+            <div
+              className="rounded-pill h-100"
+              style={{
+                width: `${Math.min(100, usedPct)}%`,
+                background: isOver
+                  ? '#ff6b6b'
+                  : usedPct > 85
+                    ? 'linear-gradient(90deg,#ffd166,#ff9f43)'
+                    : 'linear-gradient(90deg,#4facfe,#06d6a0)',
+                transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+              }}
+            />
+          </div>
+        </div>
+      </CCardBody>
+    </CCard>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const GlobalHRPoolPage = () => {
@@ -414,7 +529,8 @@ const GlobalHRPoolPage = () => {
   const [hrGeneralExpenses, setHrGeneralExpenses] = useState([])
   const [adminExpenseItems, setAdminExpenseItems] = useState([])
   const [activeProjects, setActiveProjects] = useState([])
-  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState('__all__')
+  const [showBudgetSection, setShowBudgetSection] = useState(false)
   const [budgetKey, setBudgetKey] = useState(0) // force budget card refresh
 
   const reload = () => {
@@ -427,7 +543,6 @@ const GlobalHRPoolPage = () => {
     setAdminExpenseItems(localAdminExpenses.list({ status: 'Active' }))
     const ap = localOrgPool.getActiveProjectMonthlyBudgets('hr')
     setActiveProjects(ap)
-    setSelectedProjectId((prev) => prev || (ap[0]?.projectId ?? ''))
   }
 
   useEffect(() => {
@@ -446,38 +561,53 @@ const GlobalHRPoolPage = () => {
         </div>
       </div>
 
-      {/* ── Project Selector + Budget Banner ─────────────────────────────────── */}
-      <CCard className="shadow-sm mb-3 border-0 bg-body-secondary">
-        <CCardBody className="py-3 px-4">
-          <div className="d-flex align-items-center gap-3 flex-wrap">
-            <CIcon icon={cilChartPie} className="text-primary" style={{ width: 20, height: 20, flexShrink: 0 }} />
-            <div className="fw-semibold text-nowrap">View Project HR Budget:</div>
-            <CFormSelect
-              size="sm"
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              style={{ maxWidth: 380, minWidth: 220 }}
-            >
-              <option value="">— Select a project —</option>
-              {activeProjects.map((p) => (
-                <option key={p.projectId} value={p.projectId}>
-                  {p.projectName}
-                </option>
-              ))}
-            </CFormSelect>
-            {activeProjects.length === 0 && (
-              <span className="text-body-secondary small">No active projects in the HR pool yet.</span>
-            )}
-          </div>
-        </CCardBody>
-      </CCard>
+      {/* ── Project Selector + Budget Banner (collapsed by default) ──────────── */}
+      <div className="mb-3">
+        <CButton size="sm" color="secondary" variant="outline" onClick={() => setShowBudgetSection((s) => !s)}>
+          <CIcon icon={cilChartPie} className="me-1" style={{ width: 14, height: 14 }} />
+          {showBudgetSection ? 'Hide Project HR Budget' : 'Show Project HR Budget'}
+        </CButton>
+      </div>
 
-      <ProjectHRBudgetCard
-        key={budgetKey}
-        projectId={selectedProjectId}
-        projects={activeProjects}
-        onAllocationEdited={() => setBudgetKey((k) => k + 1)}
-      />
+      {showBudgetSection && (
+        <>
+          <CCard className="shadow-sm mb-3 border-0 bg-body-secondary">
+            <CCardBody className="py-3 px-4">
+              <div className="d-flex align-items-center gap-3 flex-wrap">
+                <CIcon icon={cilChartPie} className="text-primary" style={{ width: 20, height: 20, flexShrink: 0 }} />
+                <div className="fw-semibold text-nowrap">View Project HR Budget:</div>
+                <CFormSelect
+                  size="sm"
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  style={{ maxWidth: 380, minWidth: 220 }}
+                >
+                  <option value="__all__">— All Projects —</option>
+                  {activeProjects.map((p) => (
+                    <option key={p.projectId} value={p.projectId}>
+                      {p.projectName}
+                    </option>
+                  ))}
+                </CFormSelect>
+                {activeProjects.length === 0 && (
+                  <span className="text-body-secondary small">No active projects in the HR pool yet.</span>
+                )}
+              </div>
+            </CCardBody>
+          </CCard>
+
+          {selectedProjectId === '__all__' ? (
+            <OrgWideHRBudgetCard key={budgetKey} />
+          ) : (
+            <ProjectHRBudgetCard
+              key={budgetKey}
+              projectId={selectedProjectId}
+              projects={activeProjects}
+              onAllocationEdited={() => setBudgetKey((k) => k + 1)}
+            />
+          )}
+        </>
+      )}
 
       {/* ── HR Expense Pool Card ─────────────────────────────────────────────── */}
       <ExpensePoolCard
