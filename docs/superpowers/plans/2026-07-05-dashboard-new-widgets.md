@@ -525,7 +525,7 @@ Create `hma-template/emsv1/src/modules/ems/dashboard/widgets/DepartmentHeadcount
 ```jsx
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CProgress } from '@coreui/react'
-import { buildDepartments } from '../../../reports-analysis/VisualModelPage'
+import { buildDepartments } from '../../reports-analysis/VisualModelPage'
 
 const DEPT_COLORS = ['#4361ee', '#06d6a0', '#f77f00', '#ef476f', '#2ec4b6', '#9b5de5']
 
@@ -730,7 +730,7 @@ Create `hma-template/emsv1/src/modules/ems/dashboard/widgets/AttendanceTrendWidg
 import React, { useEffect, useRef, useState } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
 import { Chart, registerables } from 'chart.js'
-import { buildAttendanceTrend } from '../../../reports-analysis/VisualModelPage'
+import { buildAttendanceTrend } from '../../reports-analysis/VisualModelPage'
 
 Chart.register(...registerables)
 
@@ -1264,7 +1264,7 @@ Create `hma-template/emsv1/src/modules/ems/dashboard/widgets/ProfitLossWidget.js
 ```jsx
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CBadge } from '@coreui/react'
-import { computeLsgbTotals } from '../../../reports-analysis/LsgbDependencyPage'
+import { computeLsgbTotals } from '../../reports-analysis/LsgbDependencyPage'
 
 const fmtCompact = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1 }).format(n || 0)
