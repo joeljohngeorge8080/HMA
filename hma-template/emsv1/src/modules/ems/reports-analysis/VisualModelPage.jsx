@@ -64,7 +64,7 @@ const STATUS_COLORS = { Ongoing: '#1e40af', Approved: '#7c3aed', Completed: '#05
  * Live department + gender breakdown from real employee records.
  * Groups Active employees by employment.department (blank → 'Unassigned').
  */
-const buildDepartments = () => {
+export const buildDepartments = () => {
   const employees = localEmployees
     .list({ pageSize: 1000 })
     .items.filter((e) => e.status === 'Active')

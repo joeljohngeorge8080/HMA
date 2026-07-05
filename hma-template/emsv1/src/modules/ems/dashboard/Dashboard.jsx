@@ -16,6 +16,7 @@ import AnnouncementsWidget from './widgets/AnnouncementsWidget'
 import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
 import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
 import ExpenseManagementWidget from './widgets/ExpenseManagementWidget'
+import DepartmentHeadcountWidget from './widgets/DepartmentHeadcountWidget'
 
 const ALL_WIDGETS = [
   {
@@ -89,6 +90,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, sm: 6, xl: 3 },
     badge: { label: 'Finance', color: 'success' },
     component: ExpenseManagementWidget,
+  },
+  {
+    id: 'department_headcount',
+    title: 'Department Headcount',
+    description: 'Active employees by department',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: DepartmentHeadcountWidget,
   },
 ]
 
