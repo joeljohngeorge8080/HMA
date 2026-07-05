@@ -18,6 +18,8 @@ import { localGeneralExpenses } from '../../../services/localGeneralExpenses'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import { localRecruitments } from '../../../services/localRecruitments'
 import { localInternships } from '../../../services/localInternships'
+import { localPayroll } from '../../../services/localPayroll'
+import { localLsgb } from '../../../services/localLsgb'
 import ExpensePoolCard from './ExpensePoolCard'
 
 // Outsourced Services — same category DivisionsSummary.jsx treats as the HR division.
@@ -528,6 +530,8 @@ const GlobalHRPoolPage = () => {
 
   const [hrGeneralExpenses, setHrGeneralExpenses] = useState([])
   const [adminExpenseItems, setAdminExpenseItems] = useState([])
+  const [overheadEmployees, setOverheadEmployees] = useState([])
+  const [lsgbSummary, setLsgbSummary] = useState(null)
   const [activeProjects, setActiveProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('__all__')
   const [showBudgetSection, setShowBudgetSection] = useState(false)
@@ -541,6 +545,12 @@ const GlobalHRPoolPage = () => {
       }).items,
     )
     setAdminExpenseItems(localAdminExpenses.list({ status: 'Active' }))
+    setOverheadEmployees(
+      localPayroll
+        .getAllEmployeesWithProjectInfo()
+        .filter((e) => e.isOverhead && e.status !== 'Deleted' && e.status !== 'Inactive'),
+    )
+    setLsgbSummary(localLsgb.getSummary())
     const ap = localOrgPool.getActiveProjectMonthlyBudgets('hr')
     setActiveProjects(ap)
   }
@@ -668,6 +678,50 @@ const GlobalHRPoolPage = () => {
         getActiveProjects={() => localOrgPool.getActiveProjectMonthlyBudgets('admin')}
         getPoolBudgetSummary={(month) => localOrgPool.getMonthlyAdminPoolBudgetSummary(month)}
         getProjectsMonthlyRemaining={(month) => localOrgPool.getProjectsMonthlyAdminRemaining(month)}
+      />
+
+      {/* ── LSGB Fund Balance (info line, unrelated to Core 5% pool math) ────── */}
+      {lsgbSummary && (
+        <div className="d-flex align-items-center gap-2 mb-2 small text-body-secondary">
+          <CIcon icon={cilDollar} style={{ width: 14, height: 14 }} />
+          LSGB Fund Balance: <strong className="text-body">{fmt(lsgbSummary.remaining)}</strong>
+          <span>
+            ({fmt(lsgbSummary.totalSanctioned)} sanctioned − {fmt(lsgbSummary.totalWithdrawn)} withdrawn)
+          </span>
+        </div>
+      )}
+
+      {/* ── Core Expense Pool Card ─────────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="core"
+        poolLabel="Core"
+        poolFundLabel="Core 5% Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        expenseDropdownItems={(() => {
+          const existingIds = new Set(localOrgPool.getCoreExpenses().map((exp) => exp.employee_id))
+          return overheadEmployees
+            .filter((e) => !existingIds.has(e.id))
+            .map((e) => ({ id: e.id, label: e.employee_name }))
+        })()}
+        onPickExpense={(id) => {
+          const picked = overheadEmployees.find((e) => e.id === id)
+          if (!picked) return null
+          const salary = parseFloat(picked.current_salary) || 0
+          return {
+            label: picked.employee_name,
+            amount: salary ? String(salary) : '',
+            yearly_price: salary ? String(Math.round(salary * 12 * 100) / 100) : '',
+            vendor: picked.employment?.department || undefined,
+            employee_id: picked.id,
+          }
+        }}
+        getExpenses={() => localOrgPool.getCoreExpenses()}
+        addExpense={(expense, enteredBy) => localOrgPool.addCoreExpense(expense, enteredBy)}
+        removeExpense={(id) => localOrgPool.removeCoreExpense(id)}
+        updateExpense={(id, patch) => localOrgPool.updateCoreExpense(id, patch)}
+        getActiveProjects={() => localOrgPool.getActiveProjectMonthlyBudgets('core')}
+        getPoolBudgetSummary={(month) => localOrgPool.getMonthlyCorePoolBudgetSummary(month)}
+        getProjectsMonthlyRemaining={(month) => localOrgPool.getProjectsMonthlyCoreRemaining(month)}
       />
     </>
   )
