@@ -13,6 +13,7 @@ import GeneralExpenseWidget from './widgets/GeneralExpenseWidget'
 import ExpenseByCategoryWidget from './widgets/ExpenseByCategoryWidget'
 import PayrollSummaryWidget from './widgets/PayrollSummaryWidget'
 import AnnouncementsWidget from './widgets/AnnouncementsWidget'
+import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
 
 const ALL_WIDGETS = [
   {
@@ -62,6 +63,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, lg: 6 },
     badge: { label: 'Comms', color: 'info' },
     component: AnnouncementsWidget,
+  },
+  {
+    id: 'expense_pools',
+    title: 'Expense Pools',
+    description: 'HR / Admin / Core monthly pool budget vs used',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpensePoolsWidget,
   },
 ]
 
