@@ -199,15 +199,25 @@ const FilterPanel = ({ title, items, selected, onToggle, onSelectAll }) => (
 // ─── CHART COMPONENTS ─────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Re-usable hook to destroy previous chart instance */
+/** Re-usable hook to destroy previous chart instance.
+ *  Uses requestAnimationFrame to defer canvas init until after layout —
+ *  this fixes Firefox rendering charts as black boxes (zero-size canvas). */
 const useChart = (ref, builder, deps) => {
   const instance = useRef(null)
   useEffect(() => {
     if (!ref.current) return
-    if (instance.current) instance.current.destroy()
-    instance.current = builder(ref.current)
-    return () => {
+    // Defer to next frame so Firefox resolves grid/flex container dimensions first
+    const rafId = requestAnimationFrame(() => {
+      if (!ref.current) return
       if (instance.current) instance.current.destroy()
+      instance.current = builder(ref.current)
+    })
+    return () => {
+      cancelAnimationFrame(rafId)
+      if (instance.current) {
+        instance.current.destroy()
+        instance.current = null
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
@@ -244,7 +254,7 @@ const StatusDonut = ({ data }) => {
       }),
     [JSON.stringify(data)],
   )
-  return <canvas ref={ref} height={160} />
+  return <canvas ref={ref} height={160} style={{ width: '100%' }} />
 }
 
 /** Horizontal bar – project value */
@@ -285,7 +295,7 @@ const ValueBar = ({ data }) => {
       }),
     [sorted.map((p) => p.id).join()],
   )
-  return <canvas ref={ref} />
+  return <canvas ref={ref} style={{ width: '100%' }} />
 }
 
 /** Vertical bar – funding agency */
@@ -337,7 +347,7 @@ const FundingBar = ({ data }) => {
       }),
     [JSON.stringify(data)],
   )
-  return <canvas ref={ref} height={180} />
+  return <canvas ref={ref} height={180} style={{ width: '100%' }} />
 }
 
 /** Real Leaflet map */
@@ -480,7 +490,7 @@ const DeptBar = ({ departments }) => {
       }),
     [departments.map((d) => d.name).join()],
   )
-  return <canvas ref={ref} height={200} />
+  return <canvas ref={ref} height={200} style={{ width: '100%' }} />
 }
 
 /** Stacked area line – attendance trend */
@@ -542,7 +552,7 @@ const AttendanceTrend = ({ months, present, absent, leave }) => {
       }),
     [months.join(), present.join(), absent.join(), leave.join()],
   )
-  return <canvas ref={ref} height={180} />
+  return <canvas ref={ref} height={180} style={{ width: '100%' }} />
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
