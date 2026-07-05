@@ -56,7 +56,10 @@ const ExpenseManagementPage = React.lazy(
 )
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
-const BeneficiaryPage = React.lazy(() => import('../modules/ems/beneficiary/BeneficiaryPage'))
+const VisualModelPage = React.lazy(() => import('../modules/ems/reports-analysis/VisualModelPage'))
+const LsgbDependencyPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/LsgbDependencyPage'),
+)
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -129,13 +132,6 @@ export const emsRoutes = [
     element: RecruitmentPage,
     module: MODULE.RECRUITMENT,
   },
-  {
-    path: '/ems/beneficiary',
-    name: 'Beneficiary Records',
-    element: BeneficiaryPage,
-    module: MODULE.BENEFICIARY,
-  },
-
   {
     path: '/ems/hr-pool/global',
     name: 'Global HR Pool',
@@ -242,9 +238,15 @@ export const emsRoutes = [
   },
 
   {
-    path: '/ems/reports-analysis',
-    name: 'Reports & Analysis',
-    element: placeholder('Reports & Analysis'),
+    path: '/ems/reports-analysis/visual-model',
+    name: 'Visual Model',
+    element: VisualModelPage,
+    module: MODULE.REPORTS,
+  },
+  {
+    path: '/ems/reports-analysis/lsgb-dependency',
+    name: 'Profit / Loss vs LSGB',
+    element: LsgbDependencyPage,
     module: MODULE.REPORTS,
   },
   {

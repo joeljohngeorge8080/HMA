@@ -79,13 +79,15 @@ const STATUS_COLORS = {
   Cancelled: 'secondary',
 }
 
-// Outsourced Services — HR division (HK, Security, City salaries)
-const HR_CATEGORY_IDS = new Set(['cat-00000000-0012'])
+// Outsourced Services (HK, Security, City salaries) + HR Operations
+// (vehicle, website, photocopier, desktop rental, internet) — HR division
+const HR_CATEGORY_IDS = new Set(['cat-00000000-0012', 'cat-00000000-0013'])
 
 const HR_DIVISION = {
   key: 'hr',
   label: 'HR Expenses',
-  description: 'Outsourced workforce costs (HK, Security, City staff)',
+  description:
+    'Outsourced workforce costs and HR-booked operations (HK, Security, City staff, vehicle, website, IT)',
   color: 'info',
   matchFn: (catId) => HR_CATEGORY_IDS.has(catId),
   filterCats: (cats) => cats.filter((c) => HR_CATEGORY_IDS.has(c.id)),

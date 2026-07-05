@@ -27,6 +27,10 @@ import { localRecruitments } from '../../../services/localRecruitments'
 
 const RECRUIT_STATUSES = ['Applied', 'Shortlisted', 'Selected', 'Rejected', 'Joined']
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'NA']
+const ACTIVITY_TYPES = [
+  { value: 'recruitment', label: 'Recruitment' },
+  { value: 'training', label: 'Training' },
+]
 
 const STATUS_COLORS = {
   Applied: 'secondary',
@@ -45,6 +49,7 @@ const currency = (n) =>
   }).format(n || 0)
 
 const EMPTY_FORM = {
+  activity_type: 'recruitment',
   candidate_name: '',
   position: '',
   department: '',
@@ -59,13 +64,16 @@ const EMPTY_FORM = {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const RecruitModal = ({ form, setForm, editTarget, onSave, onClose, saving, error }) => {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const isTraining = form.activity_type === 'training'
 
   return (
     <div className="modal show d-block" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="modal-dialog modal-lg">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">{editTarget ? 'Edit Candidate' : 'Add Candidate'}</h5>
+            <h5 className="modal-title">
+              {editTarget ? 'Edit Record' : isTraining ? 'Add Training' : 'Add Candidate'}
+            </h5>
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">
@@ -81,8 +89,22 @@ const RecruitModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             </p>
             <CRow className="g-3 mb-3">
               <CCol md={6}>
+                <CFormLabel className="fw-semibold">Type</CFormLabel>
+                <CFormSelect
+                  value={form.activity_type}
+                  onChange={(e) => set('activity_type', e.target.value)}
+                >
+                  {ACTIVITY_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+              <CCol md={6}>
                 <CFormLabel className="fw-semibold">
-                  Candidate Name <span className="text-danger">*</span>
+                  {isTraining ? 'Trainee Name' : 'Candidate Name'}{' '}
+                  <span className="text-danger">*</span>
                 </CFormLabel>
                 <CFormInput
                   value={form.candidate_name}
@@ -91,11 +113,13 @@ const RecruitModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
                 />
               </CCol>
               <CCol md={6}>
-                <CFormLabel className="fw-semibold">Position Applied</CFormLabel>
+                <CFormLabel className="fw-semibold">
+                  {isTraining ? 'Training Topic' : 'Position Applied'}
+                </CFormLabel>
                 <CFormInput
                   value={form.position}
                   onChange={(e) => set('position', e.target.value)}
-                  placeholder="e.g. Data Entry Operator"
+                  placeholder={isTraining ? 'e.g. Excel Fundamentals' : 'e.g. Data Entry Operator'}
                 />
               </CCol>
               <CCol md={4}>
@@ -182,7 +206,7 @@ const RecruitModal = ({ form, setForm, editTarget, onSave, onClose, saving, erro
             </CButton>
             <CButton color="primary" onClick={onSave} disabled={saving}>
               {saving && <CSpinner size="sm" className="me-1" />}
-              {editTarget ? 'Save Changes' : 'Add Candidate'}
+              {editTarget ? 'Save Changes' : isTraining ? 'Add Training' : 'Add Candidate'}
             </CButton>
           </div>
         </div>
@@ -197,7 +221,7 @@ const DeleteModal = ({ target, onConfirm, onClose }) => (
     <div className="modal-dialog">
       <div className="modal-content">
         <div className="modal-header">
-          <h5 className="modal-title">Delete Candidate</h5>
+          <h5 className="modal-title">Delete Record</h5>
         </div>
         <div className="modal-body">
           Delete <strong>{target.candidate_name}</strong>? This cannot be undone.
@@ -247,6 +271,7 @@ const RecruitmentPage = () => {
   const openEdit = (row) => {
     setEditTarget(row)
     setForm({
+      activity_type: row.activity_type || 'recruitment',
       candidate_name: row.candidate_name,
       position: row.position || '',
       department: row.department || '',
@@ -263,13 +288,18 @@ const RecruitmentPage = () => {
 
   const handleSave = () => {
     if (!form.candidate_name.trim()) {
-      setFormError('Candidate name is required')
+      setFormError(
+        form.activity_type === 'training'
+          ? 'Trainee name is required'
+          : 'Candidate name is required',
+      )
       return
     }
     setSaving(true)
     setFormError('')
     try {
       const payload = {
+        activity_type: form.activity_type,
         candidate_name: form.candidate_name.trim(),
         position: form.position.trim() || null,
         department: form.department.trim() || null,
@@ -303,22 +333,22 @@ const RecruitmentPage = () => {
   }
 
   const joinedCount = rows.filter((r) => r.status === 'Joined').length
-  const selectedCount = rows.filter((r) => r.status === 'Selected').length
   const activeCount = rows.filter((r) => !['Rejected'].includes(r.status)).length
+  const trainingCount = rows.filter((r) => r.activity_type === 'training').length
 
   return (
     <>
       {/* Header */}
       <div className="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <h4 className="mb-1">Recruitment</h4>
+          <h4 className="mb-1">Recruitment & Training</h4>
           <p className="text-body-secondary mb-0 small">
-            Track candidates, interview pipeline, and received amounts.
+            Track candidates, trainees, pipeline status, and received amounts.
           </p>
         </div>
         {canEdit && (
           <CButton color="primary" size="sm" onClick={openAdd}>
-            <CIcon icon={cilPlus} className="me-1" /> Add Candidate
+            <CIcon icon={cilPlus} className="me-1" /> Add Record
           </CButton>
         )}
       </div>
@@ -344,8 +374,8 @@ const RecruitmentPage = () => {
         <CCol xs={6} md={3}>
           <CCard className="border-top border-top-info border-3 text-center">
             <CCardBody className="py-3">
-              <div className="small text-body-secondary mb-1">Selected</div>
-              <div className="fw-bold fs-5 text-info">{selectedCount}</div>
+              <div className="small text-body-secondary mb-1">Training</div>
+              <div className="fw-bold fs-5 text-info">{trainingCount}</div>
             </CCardBody>
           </CCard>
         </CCol>
@@ -398,8 +428,9 @@ const RecruitmentPage = () => {
             <CTableHead color="light">
               <CTableRow>
                 <CTableHeaderCell style={{ width: 40 }}>#</CTableHeaderCell>
-                <CTableHeaderCell>Candidate Name</CTableHeaderCell>
-                <CTableHeaderCell>Position</CTableHeaderCell>
+                <CTableHeaderCell>Type</CTableHeaderCell>
+                <CTableHeaderCell>Candidate / Trainee Name</CTableHeaderCell>
+                <CTableHeaderCell>Position / Topic</CTableHeaderCell>
                 <CTableHeaderCell>Department</CTableHeaderCell>
                 <CTableHeaderCell>Date Applied</CTableHeaderCell>
                 <CTableHeaderCell>Interview Date</CTableHeaderCell>
@@ -413,17 +444,22 @@ const RecruitmentPage = () => {
               {rows.length === 0 && (
                 <CTableRow>
                   <CTableDataCell
-                    colSpan={canEdit ? 10 : 9}
+                    colSpan={canEdit ? 11 : 10}
                     className="text-center text-body-secondary py-5"
                   >
-                    No recruitment records found.
-                    {canEdit && ' Click "Add Candidate" to get started.'}
+                    No recruitment or training records found.
+                    {canEdit && ' Click "Add Record" to get started.'}
                   </CTableDataCell>
                 </CTableRow>
               )}
               {rows.map((row, idx) => (
                 <CTableRow key={row.id}>
                   <CTableDataCell className="text-body-secondary small">{idx + 1}</CTableDataCell>
+                  <CTableDataCell>
+                    <CBadge color={row.activity_type === 'training' ? 'info' : 'primary'}>
+                      {row.activity_type === 'training' ? 'Training' : 'Recruitment'}
+                    </CBadge>
+                  </CTableDataCell>
                   <CTableDataCell className="fw-semibold">{row.candidate_name}</CTableDataCell>
                   <CTableDataCell className="small">{row.position || '—'}</CTableDataCell>
                   <CTableDataCell className="small">{row.department || '—'}</CTableDataCell>

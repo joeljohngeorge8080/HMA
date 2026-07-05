@@ -16,7 +16,6 @@ import {
   cilBell,
   cilNotes,
   cilOptions,
-  cilGroup,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -74,19 +73,10 @@ const emsNav = [
         name: 'Activity',
         items: [
           { component: CNavItem, name: 'Internship', to: '/ems/internship' },
-          { component: CNavItem, name: 'Recruitment', to: '/ems/recruitment' },
+          { component: CNavItem, name: 'Recruitment & Training', to: '/ems/recruitment' },
         ],
       },
     ],
-  },
-
-  // ── Beneficiary Records ────────────────────────────────────────────
-  {
-    component: CNavItem,
-    name: 'Beneficiary Records',
-    to: '/ems/beneficiary',
-    icon: <CIcon icon={cilGroup} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
   },
 
   // ── Overheads & Pools ──────────────────────────────────────────────
@@ -154,11 +144,18 @@ const emsNav = [
     ],
   },
   {
-    component: CNavItem,
+    component: CNavGroup,
     name: 'Reports & Analysis',
-    to: '/ems/reports-analysis',
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
+    items: [
+      { component: CNavItem, name: 'Visual Model', to: '/ems/reports-analysis/visual-model' },
+      {
+        component: CNavItem,
+        name: 'Profit / Loss vs LSGB',
+        to: '/ems/reports-analysis/lsgb-dependency',
+      },
+    ],
   },
   {
     component: CNavItem,

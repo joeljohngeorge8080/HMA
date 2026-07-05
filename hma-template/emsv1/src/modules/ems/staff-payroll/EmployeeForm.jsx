@@ -385,7 +385,7 @@ const EmployeeForm = () => {
                 label="Employee ID"
                 required
                 error={errors.employee_id}
-                hint={isEdit ? 'Cannot be changed' : 'e.g. HMA001 — 4–20 uppercase letters/numbers'}
+                hint="e.g. HMA001 — 4–20 uppercase letters/numbers"
               >
                 <CFormInput
                   {...register('employee_id', {
@@ -395,7 +395,6 @@ const EmployeeForm = () => {
                       message: 'Must be 4–20 uppercase letters and numbers only',
                     },
                   })}
-                  disabled={isEdit}
                   placeholder="HMA001"
                   className={errors.employee_id ? 'is-invalid' : ''}
                 />

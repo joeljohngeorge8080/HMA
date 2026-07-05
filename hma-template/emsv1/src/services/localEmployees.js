@@ -61,6 +61,15 @@ export const localEmployees = {
     if (department) rows = rows.filter((e) => e.employment?.department === department)
     if (category) rows = rows.filter((e) => e.employee_category === category)
 
+    // Sort by the numeric part of employee_id (e.g., HMA002 -> 2)
+    rows.sort((a, b) => {
+      const numA = parseInt(a.employee_id?.replace(/\D/g, ''), 10) || 0
+      const numB = parseInt(b.employee_id?.replace(/\D/g, ''), 10) || 0
+      if (numA !== numB) return numA - numB
+      // fallback to string comparison
+      return (a.employee_id || '').localeCompare(b.employee_id || '')
+    })
+
     const total = rows.length
     const total_pages = Math.max(1, Math.ceil(total / pageSize))
     const start = (page - 1) * pageSize
@@ -202,6 +211,12 @@ export const localEmployees = {
     const rows = readAll()
     const idx = rows.findIndex((e) => e.id === id)
     if (idx === -1) throw new Error('Employee not found')
+
+    if (data.employee_id) {
+      if (rows.some((e) => e.employee_id === data.employee_id && e.id !== id)) {
+        throw new Error(`Employee ID "${data.employee_id}" already exists`)
+      }
+    }
 
     const old = rows[idx]
     const ts = now()

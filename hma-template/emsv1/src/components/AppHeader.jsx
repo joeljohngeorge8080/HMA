@@ -1,16 +1,3 @@
-/**
- * AppHeader Component
- *
- * Application header with sidebar toggle, theme switcher (light/dark/auto),
- * user dropdown, and breadcrumb row. Sticky with a scroll-shadow effect.
- *
- * @component
- * @example
- * return (
- *   <AppHeader />
- * )
- */
-
 import React, { useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -31,17 +18,12 @@ import { cilContrast, cilMenu, cilMoon, cilSun, cilBell } from '@coreui/icons'
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
+import HeaderSearch from './HeaderSearch'
 import useRole from '../hooks/useRole'
 import useUnreadAnnouncements from '../hooks/useUnreadAnnouncements'
 import { ROLE } from '../constants/roles'
 
-/**
- * AppHeader functional component
- *
- * @returns {React.ReactElement} Header with sidebar toggle, theme switcher,
- * user menu, and breadcrumb.
- */
-const AppHeader = () => {
+const AppHeader = ({ nav = [] }) => {
   const headerRef = useRef()
   const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
   const navigate = useNavigate()
@@ -151,8 +133,11 @@ const AppHeader = () => {
           <AppHeaderDropdown />
         </CHeaderNav>
       </CContainer>
-      <CContainer className="px-4" fluid>
+      <CContainer className="px-4 d-flex align-items-center" fluid>
         <AppBreadcrumb />
+        <div className="ms-auto">
+          <HeaderSearch nav={nav} />
+        </div>
       </CContainer>
     </CHeader>
   )

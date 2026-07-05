@@ -1,22 +1,23 @@
 /**
  * localOrgPool.js — Organisation-wide HR & Core pool for shared expense tracking.
  *
- * Budget Distribution (per installment received):
- *  ┌──────────────┬──────────┬─────────────────────────────────────────────────┐
- *  │ Pool         │ Fixed %  │ Basis                                           │
- *  ├──────────────┼──────────┼─────────────────────────────────────────────────┤
- *  │ Project      │  85%     │ 85% of installment amount; budget designed by   │
- *  │              │          │ Project Officer after receipt                   │
- *  │ HR           │   5%     │ (project_value × 5%) ÷ total project months     │
- *  │              │          │ → equal monthly contribution, independent of    │
- *  │              │          │   individual installment timing                 │
- *  │ Core         │   5%     │ Same as HR — from total project value           │
- *  │ Admin        │   5%     │ 5% of installment amount (unchanged)            │
- *  └──────────────┴──────────┴─────────────────────────────────────────────────┘
+ * Budget Rules (Revised):
  *
- *  Special case — Budget Not Foreseen (project_value = 0 or not set):
- *    HR & Core fall back to: (installment.amount × 5%) ÷ installment_months
- *    The `budgetNotForeseen` flag is set to true so the UI can show a warning.
+ *  ADMIN:
+ *    - Active from project creation, across ALL months of project duration
+ *    - Monthly = project_value × admin_pct% ÷ total_project_months
+ *
+ *  HR & CORE:
+ *    - FROZEN at ₹0 until "Activate Project" is clicked in PMS
+ *      (operations_activated_month is set at that point)
+ *    - Once activated, distributed from that month onwards
+ *    - Monthly = project_value × effective_pct% ÷ total_project_months
+ *    - effective_pct comes from pool_pct_adjustments for the month, or default
+ *    - % may be REDUCED from any month — frees budget for project direct work
+ *
+ *  DIRECT PROJECT:
+ *    - Per month = installment_amount × (100 - admin - hr - core)% ÷ installment_months
+ *    - Reducing HR/Core % increases the direct %
  */
 
 import { localNotifications } from './localNotifications'
@@ -66,6 +67,55 @@ const monthsBetween = (start, end) => {
  * Falls back to 1 if either date is missing.
  */
 const totalProjectMonths = (project) => monthsBetween(project.start_date, project.end_date)
+
+// ─── New: month-aware helpers ─────────────────────────────────────────────────────────
+
+/** Convert a date string (YYYY-MM-DD or YYYY-MM) to YYYY-MM. */
+const toYM = (dateStr) => (dateStr ? dateStr.slice(0, 7) : null)
+
+/**
+ * Derive the activation month. Prefers the explicit operations_activated_month
+ * field (set by the new activateProject()); falls back to the legacy
+ * operations_activated_at ISO timestamp for projects activated before this change.
+ */
+const getActivationMonth = (project) =>
+  project.operations_activated_month ||
+  (project.operations_activated_at ? project.operations_activated_at.slice(0, 7) : null)
+
+/**
+ * Get the effective HR and Core percentages for a specific month,
+ * honouring any pool_pct_adjustments on the project.
+ * Adjustments are sorted by from_month; the latest one ≤ month wins.
+ */
+const getEffectivePoolPcts = (project, month) => {
+  const adj = (project.pool_pct_adjustments || []).filter((a) => a.from_month <= month)
+  if (!adj.length) {
+    return { hr_pct: project.hr_pct ?? 5, core_pct: project.core_pct ?? 5, isAdjusted: false }
+  }
+  const latest = adj[adj.length - 1]
+  return {
+    hr_pct: latest.hr_pct,
+    core_pct: latest.core_pct,
+    isAdjusted: true,
+    adjustedFrom: latest.from_month,
+  }
+}
+
+/**
+ * Build an ordered month list (YYYY-MM strings) from startDate to endDate, inclusive.
+ */
+const buildMonthList = (startDate, endDate) => {
+  const months = []
+  if (!startDate || !endDate) return months
+  let [cy, cm] = startDate.split('-').map(Number)
+  const [ey, em] = endDate.split('-').map(Number)
+  while (cy < ey || (cy === ey && cm <= em)) {
+    months.push(`${cy}-${String(cm).padStart(2, '0')}`)
+    cm++
+    if (cm > 12) { cm = 1; cy++ }
+  }
+  return months
+}
 
 /**
  * Returns the installment covering today, or the last installment as a fallback.
@@ -130,16 +180,14 @@ const computeHRCoreMonthly = (project, inst, poolType = 'hr') => {
 export const localOrgPool = {
   /**
    * Returns all activated active projects with their monthly HR or Core budget
-   * and share percentage across the org pool.
+   * for the current month, using adjustment-aware effective percentages.
    *
-   * HR / Core monthly budget is now based on TOTAL PROJECT VALUE:
-   *   monthly = (project_value × 5%) ÷ total_project_months
-   *
-   * Falls back to installment-based calculation when project_value is 0/unset.
-   *
-   * @param {'hr'|'core'} pool
+   * HR/Core: only included after operations_activated_month.
+   * Pool budget: sum of per-month contributions from activation to project end.
    */
   getActiveProjectMonthlyBudgets(pool = 'hr') {
+    const todayYM = new Date().toISOString().slice(0, 7) // YYYY-MM
+
     const projects = readProjects().filter(
       (p) =>
         p.is_operations_active &&
@@ -148,19 +196,33 @@ export const localOrgPool = {
 
     const budgets = projects
       .map((p) => {
+        // HR/Core only apply from the month the project was activated
+        const activationMonth = getActivationMonth(p)
+        if (!activationMonth || activationMonth > todayYM) return null
+
         const inst = getCurrentInstallment(p)
         if (!inst) return null
 
+        const pv = projectValue(p)
+        const tpm = totalProjectMonths(p)
+        const pcts = getEffectivePoolPcts(p, todayYM)
+        const pct = pool === 'core' ? pcts.core_pct : pcts.hr_pct
+
+        // Monthly budget for this pool at today's effective %
+        const monthlyBudget =
+          pv > 0 ? Math.round((pv * (pct / 100) / tpm) * 100) / 100 : 0
+
+        // Total pool budget = sum across all active months (activation → project end)
+        const allMonths = buildMonthList(p.start_date, p.end_date)
+        const poolBudget = allMonths.reduce((sum, month) => {
+          if (month < activationMonth) return sum
+          const mPcts = getEffectivePoolPcts(p, month)
+          const mPct = pool === 'core' ? mPcts.core_pct : mPcts.hr_pct
+          return sum + (pv > 0 ? Math.round((pv * (mPct / 100) / tpm) * 100) / 100 : 0)
+        }, 0)
+
         const endField = inst.end_date || inst.target_date || ''
         const instMonths = monthsBetween(inst.start_date, endField)
-
-        const {
-          monthlyBudget,
-          totalPoolBudget,
-          totalProjectMonths: tpm,
-          budgetNotForeseen,
-          pct,
-        } = computeHRCoreMonthly(p, inst, pool)
 
         return {
           projectId: p.id,
@@ -173,10 +235,11 @@ export const localOrgPool = {
           pct,
           instMonths,
           totalProjectMonths: tpm,
-          poolBudget: totalPoolBudget,
+          poolBudget: Math.round(poolBudget * 100) / 100,
           monthlyBudget,
-          budgetNotForeseen,
-          sharePct: 0, // filled in below
+          budgetNotForeseen: pv === 0,
+          sharePct: 0, // filled below
+          activationMonth,
         }
       })
       .filter(Boolean)
@@ -328,7 +391,6 @@ export const localOrgPool = {
         // Flags
         budgetNotForeseen,
         budgetDesignedByOfficer: inst.budget_designed_by_officer || null,
-
         // Legacy compat fields used by old visualiser
         poolBudget: (pool === 'core' ? coreMonthlyBudget : hrMonthlyBudget) * instMonths,
         monthlyBudget: pool === 'core' ? coreMonthlyBudget : hrMonthlyBudget,
@@ -336,20 +398,117 @@ export const localOrgPool = {
     })
   },
 
+  /**
+   * Builds a complete month-by-month budget breakdown for ONE project.
+   *
+   * Rules implemented:
+   *  Admin  : project_value × admin_pct% ÷ total_months — every month from creation
+   *  HR     : ₹0 before operations_activated_month; after: project_value × effective_hr_pct% ÷ total_months
+   *  Core   : same freeze rule as HR
+   *  Direct : installment_amount × (100 - admin - hr - core)% ÷ installment_months
+   *           Reducing HR/Core raises Direct for those months.
+   *
+   * @param {object} project  full project record from localProjects
+   * @returns {Array<{
+   *   month, isActive,
+   *   adminBudget, hrBudget, coreBudget, directBudget,
+   *   admin_pct, hr_pct, core_pct, direct_pct,
+   *   isAdjusted, hasNewAdjustment,
+   *   installmentId, installmentLabel, phaseName
+   * }>}
+   */
+  buildProjectMonthlyBreakdown(project) {
+    const pv = project.project_value || project.project_valuation || project.amount_sanctioned || 0
+    const tpm = totalProjectMonths(project)
+    const adminPct = project.admin_pct ?? 5
+    const activationMonth = getActivationMonth(project)
+
+    // Admin: fixed per-month amount from project_value, spread across ALL months
+    const adminMonthly = pv > 0 ? Math.round((pv * (adminPct / 100) / tpm) * 100) / 100 : 0
+
+    // Full month list for this project
+    const months = buildMonthList(project.start_date, project.end_date)
+
+    return months.map((month) => {
+      const isActive = !!(activationMonth && month >= activationMonth)
+      const pcts = getEffectivePoolPcts(project, month)
+
+      // HR / Core: ₹0 before activation
+      const effectiveHrPct = isActive ? pcts.hr_pct : 0
+      const effectiveCorePct = isActive ? pcts.core_pct : 0
+      const hrBudget =
+        isActive && pv > 0
+          ? Math.round((pv * (pcts.hr_pct / 100) / tpm) * 100) / 100
+          : 0
+      const coreBudget =
+        isActive && pv > 0
+          ? Math.round((pv * (pcts.core_pct / 100) / tpm) * 100) / 100
+          : 0
+
+      // Find the installment this month belongs to
+      const installment = (project.installments || []).find((inst) => {
+        const instEnd = inst.end_date || inst.target_date || ''
+        return (
+          inst.start_date &&
+          instEnd &&
+          month >= toYM(inst.start_date) &&
+          month <= toYM(instEnd)
+        )
+      })
+
+      let directBudget = 0
+      let directPct = 0
+      if (installment) {
+        const instEnd = installment.end_date || installment.target_date || ''
+        const instMonths = monthsBetween(installment.start_date, instEnd)
+        directPct = Math.max(0, 100 - adminPct - effectiveHrPct - effectiveCorePct)
+        directBudget = Math.round(
+          (installment.amount * (directPct / 100) / instMonths) * 100,
+        ) / 100
+      }
+
+      return {
+        month,
+        isActive,
+        adminBudget: adminMonthly,
+        hrBudget,
+        coreBudget,
+        directBudget,
+        admin_pct: adminPct,
+        hr_pct: effectiveHrPct,
+        core_pct: effectiveCorePct,
+        direct_pct: directPct,
+        isAdjusted: isActive && pcts.isAdjusted,
+        hasNewAdjustment: (project.pool_pct_adjustments || []).some(
+          (a) => a.from_month === month,
+        ),
+        installmentId: installment?.id || null,
+        installmentLabel: installment?.label || null,
+        phaseName: installment?.phase_name || installment?.label || null,
+      }
+    })
+  },
 
   /**
    * Splits a given expense amount proportionally across all activated projects
    * by their monthly HR or Core contribution weight.
    */
-  computeAllocations(pool, amount) {
-    const budgets = this.getActiveProjectMonthlyBudgets(pool)
-    return budgets.map((b) => ({
-      projectId: b.projectId,
-      projectName: b.projectName,
-      installmentId: b.installmentId,
-      sharePct: b.sharePct,
-      amountCharged: Math.round(amount * (b.sharePct / 100) * 100) / 100,
-    }))
+  computeAllocations(pool, amount, allowedProjectIds) {
+    let budgets = this.getActiveProjectMonthlyBudgets(pool)
+    if (allowedProjectIds) {
+      budgets = budgets.filter((b) => allowedProjectIds.includes(b.projectId))
+    }
+    const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    return budgets.map((b) => {
+      const sharePct = total > 0 ? Math.round((b.monthlyBudget / total) * 10000) / 100 : 0
+      return {
+        projectId: b.projectId,
+        projectName: b.projectName,
+        installmentId: b.installmentId,
+        sharePct,
+        amountCharged: Math.round(amount * (sharePct / 100) * 100) / 100,
+      }
+    })
   },
 
   // ── HR Expense CRUD ────────────────────────────────────────────────────────
@@ -386,19 +545,75 @@ export const localOrgPool = {
     })
   },
 
+  /**
+   * Returns the total monthly HR project-pool budget across all active projects,
+   * and how much has already been used (charged to project_pool) this month.
+   *
+   * @returns {{ totalMonthlyBudget: number, usedThisMonth: number, remaining: number }}
+   */
+  getMonthlyHRPoolBudgetSummary(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
+
+    const expenses = this.getHRExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7) // YYYY-MM
+
+    const usedThisMonth = expenses
+      .filter((e) => {
+        const eMonth = e.date ? e.date.slice(0, 7) : targetMonth
+        return eMonth === targetMonth
+      })
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || ['project_pool']
+        if (!sources.includes('project_pool')) return sum
+        const poolPct = parseFloat(e.project_pool_pct) ?? 100
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
+      }, 0)
+
+    return {
+      totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
+      usedThisMonth: Math.round(usedThisMonth * 100) / 100,
+      remaining: Math.round((totalMonthlyBudget - usedThisMonth) * 100) / 100,
+    }
+  },
+
   addHRExpense(expense, enteredByProjectId) {
     const pool = readPool()
-    const allocations = this.computeAllocations('hr', parseFloat(expense.amount) || 0)
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    // Determine revenue sources
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+
+    // Use caller-provided allocations (user-edited) if present, else auto-compute
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('hr', projectPoolAmt)
+        : []
+    }
+
     const newExp = {
       id: uid(),
       label: expense.label || '',
       vendor: expense.vendor || '',
       frequency: expense.frequency || 'Monthly',
       yearly_price: parseFloat(expense.yearly_price) || 0,
-      amount: parseFloat(expense.amount) || 0,
+      amount: totalAmt,
       date: expense.date || '',
       notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
       entered_by_project_id: enteredByProjectId,
+      // Revenue source metadata
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      project_pool_pct: projectPoolPct,
+      // Project allocations — may be user-customised or auto-computed
       project_allocations: allocations,
       created_at: new Date().toISOString(),
     }
@@ -406,6 +621,58 @@ export const localOrgPool = {
     writePool(pool)
     setTimeout(() => this.checkHRBudgetThresholds(), 100)
     return newExp
+  },
+
+  /**
+   * Overrides the allocation share for one project on one expense.
+   * The target project gets newSharePct of the TOTAL expense amount.
+   * All other active projects split the remaining (100 - newSharePct)%
+   * proportionally by their original weights.
+   *
+   * @param {string} expenseId
+   * @param {string} projectId
+   * @param {number} newSharePct  — 0..100
+   */
+  updateExpenseProjectAllocation(expenseId, projectId, newSharePct) {
+    const pool = readPool()
+    pool.hr_expenses = (pool.hr_expenses || []).map((e) => {
+      if (e.id !== expenseId) return e
+
+      const totalAmt = parseFloat(e.amount) || 0
+      const clampedPct = Math.max(0, Math.min(100, newSharePct))
+
+      // Current allocations (use stored or compute fresh)
+      const existing = e.project_allocations?.length
+        ? e.project_allocations
+        : this.computeAllocations('hr', totalAmt)
+
+      // Remaining pct for everyone else
+      const remainingPct = 100 - clampedPct
+      const others = existing.filter((a) => a.projectId !== projectId)
+      const othersTotal = others.reduce((s, a) => s + a.sharePct, 0)
+
+      const newAllocations = existing.map((a) => {
+        if (a.projectId === projectId) {
+          return {
+            ...a,
+            sharePct: Math.round(clampedPct * 100) / 100,
+            amountCharged: Math.round(totalAmt * (clampedPct / 100) * 100) / 100,
+          }
+        }
+        // Redistribute remaining proportionally
+        const weight = othersTotal > 0 ? a.sharePct / othersTotal : 1 / others.length
+        const pct = Math.round(remainingPct * weight * 100) / 100
+        return {
+          ...a,
+          sharePct: pct,
+          amountCharged: Math.round(totalAmt * (pct / 100) * 100) / 100,
+        }
+      })
+
+      return { ...e, project_allocations: newAllocations }
+    })
+    writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
   },
 
   removeHRExpense(expenseId) {
@@ -429,26 +696,92 @@ export const localOrgPool = {
   },
 
   /**
-   * Returns all HR expense records allocated to this project,
-   * with myAmount recomputed dynamically from current active project weights.
-   * This ensures newly added HR expenses always reflect in PMS regardless of
-   * when the expense was created or what project_allocations was stored.
+   * Returns all HR expense records allocated to this project.
+   *
+   * Priority:
+   *  1. If the expense has a per-expense custom allocation for this project
+   *     (i.e. updateExpenseProjectAllocation was called), use that stored value.
+   *  2. Otherwise fall back to the live proportional share based on monthly budgets.
    */
+  getProjectsMonthlyHRRemaining(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('hr')
+    const expenses = this.getHRExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedMap = {}
+    for (const exp of expenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || ['project_pool']
+      if (!sources.includes('project_pool')) continue
+
+      const allocs = exp.project_allocations || []
+      if (allocs.length > 0) {
+        for (const a of allocs) {
+          usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
+        }
+      } else {
+        const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+        for (const b of budgets) {
+          const share = total > 0 ? b.monthlyBudget / total : 0
+          const poolPct = parseFloat(exp.project_pool_pct) ?? 100
+          const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
+          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+        }
+      }
+    }
+
+    const result = {}
+    for (const b of budgets) {
+      const used = Math.round((usedMap[b.projectId] || 0) * 100) / 100
+      result[b.projectId] = {
+        monthlyBudget: b.monthlyBudget,
+        usedThisMonth: used,
+        remaining: Math.round((b.monthlyBudget - used) * 100) / 100,
+      }
+    }
+    return result
+  },
+
   getProjectHRCharges(projectId) {
-    // Recompute current share weights for all active projects
     const budgets = this.getActiveProjectMonthlyBudgets('hr')
     const mine = budgets.find((b) => b.projectId === projectId)
-    if (!mine) return [] // project not active → no charges
+    if (!mine) return []
 
     const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
-    const mySharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
+    const liveSharePct = total > 0 ? (mine.monthlyBudget / total) * 100 : 0
 
-    return (readPool().hr_expenses || []).map((exp) => ({
-      ...exp,
-      myAmount: Math.round(parseFloat(exp.amount || 0) * (mySharePct / 100) * 100) / 100,
-      mySharePct: Math.round(mySharePct * 100) / 100,
-      isFromThisProject: exp.entered_by_project_id === projectId,
-    }))
+    return (readPool().hr_expenses || []).map((exp) => {
+      // Check for a custom per-expense allocation for this project
+      const customAlloc = (exp.project_allocations || []).find(
+        (a) => a.projectId === projectId,
+      )
+
+      // Use custom allocation if stored, otherwise fall back to live share
+      const mySharePct = customAlloc
+        ? customAlloc.sharePct
+        : liveSharePct
+      const myAmount = customAlloc
+        ? customAlloc.amountCharged
+        : Math.round(parseFloat(exp.amount || 0) * (liveSharePct / 100) * 100) / 100
+
+      return {
+        ...exp,
+        myAmount,
+        mySharePct: Math.round(mySharePct * 100) / 100,
+        isFromThisProject: exp.entered_by_project_id === projectId,
+        hasCustomAllocation: !!customAlloc,
+      }
+    })
+  },
+
+  /**
+   * Returns the current HR Revenue balance available (sum of amount_received
+   * across Recruitment, Training, Internship, and Hall Rent in localRecruitments
+   * and localInternships, minus any amounts already drawn for HR expenses).
+   */
+  getHRRevenueBalance() {
+    return readPool().hr_revenue_balance ?? null
   },
 
   /**
@@ -648,5 +981,26 @@ export const localOrgPool = {
   /** Returns all Core expenses in the org pool. */
   getAllCoreExpenses() {
     return readPool().core_expenses || []
+  },
+
+  /** 5% (admin_pct) of total project value — credited once, as a lump sum. */
+  computeAdminPoolAmount(project) {
+    const pv = projectValue(project)
+    const pct = project.admin_pct ?? 5
+    return Math.round(pv * (pct / 100) * 100) / 100
+  },
+
+  /** Appends a lump-sum admin credit record (org-wide ledger, mirrors hr/core expense arrays). */
+  recordAdminCredit(projectId, amount) {
+    const pool = readPool()
+    const record = { id: uid(), projectId, amount, createdAt: new Date().toISOString() }
+    pool.admin_pool_credits = [...(pool.admin_pool_credits || []), record]
+    writePool(pool)
+    return record
+  },
+
+  /** Returns all admin pool lump-sum credit records. */
+  getAdminPoolCredits() {
+    return readPool().admin_pool_credits || []
   },
 }

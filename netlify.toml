@@ -1,7 +1,8 @@
 [build]
   base    = "hma-template/emsv1"
-  command = ""
+  command = "npm run build"
   publish = "build"
+
 
 [[redirects]]
   from   = "/*"

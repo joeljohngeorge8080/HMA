@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 
 import {
@@ -18,18 +18,8 @@ import useRole from '../hooks/useRole'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
 const SidebarClock = () => {
@@ -44,7 +34,6 @@ const SidebarClock = () => {
   const date = now.getDate()
   const month = MONTHS[now.getMonth()]
   const year = now.getFullYear()
-
   const hours = now.getHours()
   const minutes = String(now.getMinutes()).padStart(2, '0')
   const seconds = String(now.getSeconds()).padStart(2, '0')
@@ -58,9 +47,7 @@ const SidebarClock = () => {
         <span className="sidebar-clock__ampm">{ampm}</span>
       </div>
       <div>{day}</div>
-      <div>
-        {date} {month} {year}
-      </div>
+      <div>{date} {month} {year}</div>
     </div>
   )
 }
@@ -89,7 +76,7 @@ const AppSidebar = ({ nav = [] }) => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to={dashboardPath}>
+        <CSidebarBrand as={Link} to={dashboardPath}>
           <img
             src={hmaLogo}
             alt="HMA"
@@ -111,6 +98,7 @@ const AppSidebar = ({ nav = [] }) => {
           onClick={() => dispatch({ type: 'set', sidebarShow: false })}
         />
       </CSidebarHeader>
+
       <AppSidebarNav items={visibleNavigation} />
       <CSidebarFooter className="border-top d-none d-lg-flex flex-column p-0">
         {!unfoldable && <SidebarClock />}

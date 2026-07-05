@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: ./hma-template/emsv1
+      args:
+        VITE_DEV_LOGIN: "true"
+    ports:
+      - "80:80"
+    restart: unless-stopped

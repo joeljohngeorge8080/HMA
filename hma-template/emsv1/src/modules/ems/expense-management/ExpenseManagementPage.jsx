@@ -2,12 +2,14 @@
  * ExpenseManagementPage.jsx
  * EMS › Expense Management
  *
- * Two tabs:
- *  1. Admin Expenses — existing per-org expense register
- *  2. Consolidated Sheet — cross-project summary (HR %, Admin, Core charges per project)
- *     with a monthly drill-down per project
+ * Five tabs:
+ *  1. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
+ *  2. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
+ *  3. Forecast Expense — HR & Admin actual + forecast
+ *  4. Project Expenses — HR logs actual admin-pool spend per sent pool+month
+ *  5. Revenue — HR revenue (recruitment/training/internship) + project pool shares
  */
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   CNav,
   CNavItem,
@@ -17,17 +19,16 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
-  CRow,
-  CCol,
   CBadge,
-  CTable,
-  CTableHead,
-  CTableBody,
-  CTableRow,
-  CTableHeaderCell,
-  CTableDataCell,
   CButton,
   CSpinner,
+  CModal,
+  CModalHeader,
+  CModalBody,
+  CModalFooter,
+  CModalTitle,
+  CFormInput,
+  CFormLabel,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -35,19 +36,16 @@ import {
   cilChartPie,
   cilArrowLeft,
   cilNotes,
-  cilList,
+  cilPencil,
+  cilX,
+  cilCash,
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
+import { computeEffectivePoolMonthly } from '../../../services/monthlyApportionment'
 
-// ─── Shared Formatters ────────────────────────────────────────────────────────
-
-const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(n || 0)
+// ── Shared Formatters ─────────────────────────────────────────────────────────
 
 const fmtL = (n) => {
   if (!n && n !== 0) return '—'
@@ -62,9 +60,8 @@ const monthLabel = (ym) => {
   return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
-// ─── Monthly Drill-down for a project ────────────────────────────────────────
+// ── Helper ────────────────────────────────────────────────────────────────────
 
-// ─── Helper: find the installment active today ───────────────────────────────
 const getCurrentInstallment = (installments = []) => {
   const today = new Date().toISOString().split('T')[0]
   return (
@@ -76,23 +73,21 @@ const getCurrentInstallment = (installments = []) => {
   )
 }
 
+// ── Monthly HR Drill-down ─────────────────────────────────────────────────────
+
 const MonthlyDrillDown = ({ project, onBack }) => {
   const installments = useMemo(
     () => localOrgPool.getProjectInstallmentBudgets(project.projectId, 'hr'),
     [project.projectId],
   )
-
   const hrCharges = useMemo(
     () => localOrgPool.getProjectHRCharges(project.projectId),
     [project.projectId],
   )
-
   const summary = useMemo(
     () => localOrgPool.getProjectHRBudgetSummary(project.projectId),
     [project.projectId],
   )
-
-  // Full PMS project record — for status, phase, current installment UC status
   const pmsProject = useMemo(
     () => localProjects.getById(project.projectId),
     [project.projectId],
@@ -103,7 +98,6 @@ const MonthlyDrillDown = ({ project, onBack }) => {
   )
   const phaseConfig = PHASE_CONFIG[pmsProject?.phase] || PHASE_CONFIG.pipeline
 
-  // Build month → charges lookup
   const chargeByMonth = useMemo(() => {
     const map = {}
     hrCharges.forEach((c) => {
@@ -123,7 +117,6 @@ const MonthlyDrillDown = ({ project, onBack }) => {
 
   return (
     <>
-      {/* Back + Header */}
       <div className="d-flex align-items-center gap-3 mb-4">
         <CButton color="secondary" variant="ghost" size="sm" onClick={onBack}>
           <CIcon icon={cilArrowLeft} className="me-1" />
@@ -135,7 +128,6 @@ const MonthlyDrillDown = ({ project, onBack }) => {
         </div>
       </div>
 
-      {/* Summary header card */}
       <CCard
         className="mb-4 border-0 shadow-sm"
         style={{
@@ -144,283 +136,107 @@ const MonthlyDrillDown = ({ project, onBack }) => {
         }}
       >
         <CCardBody className="p-4">
-
-          {/* ── Top row: project info ──────────────────────────────────── */}
           <div className="mb-4 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <div
-              className="text-white-50 small fw-semibold text-uppercase mb-2"
-              style={{ letterSpacing: '0.08em', fontSize: '0.68rem' }}
-            >
+            <div className="text-white-50 small fw-semibold text-uppercase mb-2" style={{ letterSpacing: '0.08em', fontSize: '0.68rem' }}>
               Project Details
             </div>
-            <div className="text-white fw-bold mb-2" style={{ fontSize: '1.1rem' }}>
-              {project.projectName}
-            </div>
-
-            {/* Status / Phase / UC badges */}
+            <div className="text-white fw-bold mb-2" style={{ fontSize: '1.1rem' }}>{project.projectName}</div>
             <div className="d-flex flex-wrap gap-2 mb-2">
               {pmsProject?.status && (
                 <CBadge
-                  color={
-                    pmsProject.status === 'ongoing'
-                      ? 'success'
-                      : pmsProject.status === 'approved'
-                      ? 'info'
-                      : pmsProject.status === 'completed'
-                      ? 'secondary'
-                      : 'warning'
-                  }
-                  shape="rounded-pill"
-                  style={{ fontSize: '0.7rem', textTransform: 'capitalize' }}
-                >
-                  {pmsProject.status}
-                </CBadge>
+                  color={pmsProject.status === 'ongoing' ? 'success' : pmsProject.status === 'approved' ? 'info' : pmsProject.status === 'completed' ? 'secondary' : 'warning'}
+                  shape="rounded-pill" style={{ fontSize: '0.7rem', textTransform: 'capitalize' }}
+                >{pmsProject.status}</CBadge>
               )}
               {pmsProject?.phase && (
-                <CBadge
-                  color={phaseConfig.color}
-                  shape="rounded-pill"
-                  style={{ fontSize: '0.7rem' }}
-                >
-                  {phaseConfig.label}
-                </CBadge>
+                <CBadge color={phaseConfig.color} shape="rounded-pill" style={{ fontSize: '0.7rem' }}>{phaseConfig.label}</CBadge>
               )}
               {currentInst && (
-                <CBadge
-                  color={
-                    currentInst.uc_status === 'Approved'
-                      ? 'success'
-                      : currentInst.uc_status === 'Submitted'
-                      ? 'primary'
-                      : 'warning'
-                  }
-                  shape="rounded-pill"
-                  style={{ fontSize: '0.7rem' }}
-                >
+                <CBadge color={currentInst.uc_status === 'Approved' ? 'success' : currentInst.uc_status === 'Submitted' ? 'primary' : 'warning'} shape="rounded-pill" style={{ fontSize: '0.7rem' }}>
                   UC: {currentInst.uc_status || 'Pending'}
                 </CBadge>
               )}
             </div>
-
-            <div className="d-flex flex-wrap gap-4" style={{ fontSize: '0.78rem' }}>
-              <div className="text-white-50">
-                Current installment:{' '}
-                <span className="text-white fw-medium">
-                  {currentInst ? currentInst.label : 'None'}
-                </span>
-                {currentInst?.start_date && (
-                  <span className="ms-1 text-white-50">
-                    ({currentInst.start_date} → {currentInst.end_date || currentInst.target_date || '…'})
-                  </span>
-                )}
-              </div>
-              <div className="text-white-50">
-                HR pool share:{' '}
-                <span className="text-white fw-semibold">{summary.sharePct?.toFixed(1) || 0}%</span>
-                {' '}of org pool
-              </div>
-            </div>
           </div>
 
-          {/* ── Metric tiles: side by side ─────────────────────────────── */}
-          <CRow className="g-3 mb-4">
+          <div className="d-flex flex-wrap gap-4">
             {[
-              {
-                label: 'Pool Budget',
-                sub: 'Total HR allocation',
-                val: fmtL(summary.poolBudget),
-                accent: '#4facfe',
-                icon: '💰',
-              },
-              {
-                label: 'Amount Used',
-                sub: `${hrCharges.length} charge record${hrCharges.length !== 1 ? 's' : ''}`,
-                val: fmtL(summary.totalCharged),
-                accent: isOver ? '#ff6b6b' : '#ffd166',
-                icon: '📤',
-              },
-              {
-                label: 'Remaining',
-                sub: isOver ? 'Over budget!' : `${100 - usedPct}% left`,
-                val: `${isOver ? '−' : ''}${fmtL(Math.abs(summary.remaining))}`,
-                accent: isOver ? '#ff6b6b' : '#06d6a0',
-                icon: '✅',
-              },
-            ].map((m) => (
-              <CCol key={m.label} xs={12} md={4}>
-                <div
-                  className="rounded-3 p-3 h-100"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: `1px solid rgba(255,255,255,0.12)`,
-                  }}
-                >
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <span style={{ fontSize: '1rem' }}>{m.icon}</span>
-                    <div
-                      className="text-uppercase fw-semibold"
-                      style={{ fontSize: '0.67rem', letterSpacing: '0.07em', color: m.accent }}
-                    >
-                      {m.label}
-                    </div>
-                  </div>
-                  <div
-                    className="fw-bold"
-                    style={{ fontSize: '1.6rem', color: m.accent, lineHeight: 1.1, marginBottom: 4 }}
-                  >
-                    {m.val}
-                  </div>
-                  <div className="text-white-50" style={{ fontSize: '0.72rem' }}>
-                    {m.sub}
-                  </div>
+              { label: 'Pool Budget', value: fmtL(summary.poolBudget), color: '#4cc9f0' },
+              { label: 'Utilized', value: fmtL(summary.totalCharged), color: isOver ? '#ff6b6b' : '#ffd166' },
+              { label: 'Remaining', value: fmtL(Math.abs(summary.remaining)), color: isOver ? '#ff6b6b' : '#06d6a0', prefix: isOver ? '−' : '' },
+            ].map((item) => (
+              <div key={item.label}>
+                <div className="text-white-50 small mb-1" style={{ fontSize: '0.7rem' }}>{item.label}</div>
+                <div className="fw-bold" style={{ fontSize: '1.1rem', color: item.color }}>
+                  {item.prefix || ''}{item.value}
                 </div>
-              </CCol>
+              </div>
             ))}
-          </CRow>
-
-          {/* ── Progress bar ───────────────────────────────────────────── */}
-          <div>
-            <div className="d-flex justify-content-between text-white-50 small mb-2">
-              <span>Budget utilization</span>
-              <span className={isOver ? 'text-danger fw-bold' : 'text-white fw-semibold'}>
-                {usedPct}%{isOver && ' — OVER BUDGET'}
-              </span>
-            </div>
-            <div
-              className="rounded-pill overflow-hidden"
-              style={{ height: 8, background: 'rgba(255,255,255,0.12)' }}
-            >
-
-              <div
-                className="rounded-pill h-100"
-                style={{
-                  width: `${Math.min(100, usedPct)}%`,
-                  background: isOver
-                    ? '#ff6b6b'
-                    : usedPct > 85
-                    ? 'linear-gradient(90deg,#ffd166,#ff9f43)'
-                    : 'linear-gradient(90deg,#4facfe,#06d6a0)',
-                  transition: 'width 0.5s ease',
-                }}
-              />
+            <div>
+              <div className="text-white-50 small mb-1" style={{ fontSize: '0.7rem' }}>Utilization</div>
+              <div className="fw-bold" style={{ fontSize: '1.1rem', color: isOver ? '#ff6b6b' : '#06d6a0' }}>{usedPct}%</div>
             </div>
           </div>
         </CCardBody>
       </CCard>
 
-      {/* Installment blocks with month cards */}
-      {installments.length === 0 ? (
-        <div className="text-center text-body-secondary py-5 small">
-          No installments found for this project.
-        </div>
-      ) : (
-        installments.map((inst) => {
-          const instUsed = inst.monthList.reduce(
-            (s, ym) => s + (chargeByMonth[ym] || 0),
-            0,
-          )
+      <div className="d-flex flex-column gap-3">
+        {installments.map((inst) => {
+          const used = inst.monthList.reduce((s, ym) => s + (chargeByMonth[ym] || 0), 0)
+          const remaining = inst.poolBudget - used
+          const pct = inst.poolBudget > 0 ? Math.min(100, Math.round((used / inst.poolBudget) * 100)) : 0
+          const over = remaining < 0
           return (
-            <CCard key={inst.installmentId} className="shadow-sm mb-4">
-              <CCardHeader className="bg-transparent pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                  <span className="fw-semibold">{inst.installmentLabel}</span>
-                  <span className="text-body-secondary small ms-2">
-                    {monthLabel(inst.installmentStart)} – {monthLabel(inst.installmentEnd)}
-                  </span>
-                </div>
-                <div className="d-flex gap-2 align-items-center">
-                  <CBadge
-                    color={
-                      inst.ucStatus === 'Approved'
-                        ? 'success'
-                        : inst.ucStatus === 'Submitted'
-                        ? 'primary'
-                        : 'warning'
-                    }
-                    shape="rounded-pill"
-                  >
-                    UC: {inst.ucStatus || 'Pending'}
-                  </CBadge>
-                  <span className="small text-body-secondary">
-                    HR {inst.pct}% ÷ {inst.totalMonths} months ={' '}
-                    <strong className="text-primary">{fmtL(inst.monthlyBudget)}</strong>/mo
-                    {' · '}this installment ({inst.months} mo):{' '}
-                    <strong className="text-success">{fmtL(inst.poolBudget)}</strong>
-                  </span>
+            <CCard key={inst.installmentId} className="border-0 shadow-sm">
+              <CCardHeader className="py-3">
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <div>
+                    <div className="fw-semibold">{inst.installmentLabel}</div>
+                    <div className="text-body-secondary small">
+                      {inst.installmentStart} → {inst.installmentEnd} · {inst.instMonths} months
+                    </div>
+                  </div>
+                  <div className="d-flex gap-2 align-items-center">
+                    <CBadge color={inst.ucStatus === 'Approved' ? 'success' : inst.ucStatus === 'Submitted' ? 'primary' : 'warning'} shape="rounded-pill">
+                      UC: {inst.ucStatus || 'Pending'}
+                    </CBadge>
+                    <span className="small text-body-secondary">
+                      HR {inst.pct}% ÷ {inst.totalMonths} months = <strong className="text-primary">{fmtL(inst.monthlyBudget)}</strong>/mo
+                      {' · '}this installment ({inst.months} mo): <strong className="text-success">{fmtL(inst.poolBudget)}</strong>
+                    </span>
+                  </div>
                 </div>
               </CCardHeader>
               <CCardBody>
                 {inst.monthList.length === 0 ? (
                   <div className="text-body-secondary small">No months in this installment.</div>
                 ) : (
-                  <div
-                    className="d-flex gap-3 flex-wrap"
-                    style={{ overflowX: 'auto', paddingBottom: 4 }}
-                  >
+                  <div className="d-flex gap-3 flex-wrap" style={{ overflowX: 'auto', paddingBottom: 4 }}>
                     {inst.monthList.map((ym) => {
-                      const used = chargeByMonth[ym] || 0
-                      const remaining = inst.monthlyBudget - used
-                      const pct =
-                        inst.monthlyBudget > 0
-                          ? Math.min(100, Math.round((used / inst.monthlyBudget) * 100))
-                          : 0
-                      const over = remaining < 0
+                      const mUsed = chargeByMonth[ym] || 0
+                      const mRemaining = inst.monthlyBudget - mUsed
+                      const mPct = inst.monthlyBudget > 0 ? Math.min(100, Math.round((mUsed / inst.monthlyBudget) * 100)) : 0
+                      const mOver = mRemaining < 0
                       return (
-                        <div
-                          key={ym}
-                          className="rounded-3 border shadow-sm"
-                          style={{
-                            minWidth: 160,
-                            maxWidth: 190,
-                            flex: '0 0 auto',
-                            padding: '14px 16px',
-                          }}
-                        >
-                          <div
-                            className="fw-semibold mb-2 text-body"
-                            style={{ fontSize: '0.85rem' }}
-                          >
-                            {monthLabel(ym)}
+                        <div key={ym} className="rounded-3 border shadow-sm" style={{ minWidth: 160, maxWidth: 190, flex: '0 0 auto', padding: '14px 16px' }}>
+                          <div className="fw-semibold mb-2 text-body" style={{ fontSize: '0.85rem' }}>{monthLabel(ym)}</div>
+                          <div className="rounded-pill overflow-hidden mb-3" style={{ height: 5, background: 'var(--cui-border-color)' }}>
+                            <div className="h-100 rounded-pill" style={{ width: `${mPct}%`, background: mOver ? '#ff6b6b' : mPct > 85 ? '#ffd166' : '#06d6a0', transition: 'width 0.4s ease' }} />
                           </div>
-
-                          {/* mini bar */}
-                          <div
-                            className="rounded-pill overflow-hidden mb-3"
-                            style={{ height: 5, background: 'var(--cui-border-color)' }}
-                          >
-                            <div
-                              className="h-100 rounded-pill"
-                              style={{
-                                width: `${pct}%`,
-                                background: over
-                                  ? '#ff6b6b'
-                                  : pct > 85
-                                  ? '#ffd166'
-                                  : '#06d6a0',
-                                transition: 'width 0.4s ease',
-                              }}
-                            />
-                          </div>
-
                           <div className="d-flex justify-content-between small mb-1">
                             <span className="text-body-secondary">Budget</span>
                             <span className="fw-medium">{fmtL(inst.monthlyBudget)}</span>
                           </div>
                           <div className="d-flex justify-content-between small mb-1">
                             <span className="text-body-secondary">Utilized</span>
-                            <span
-                              className={`fw-semibold ${used > 0 ? (over ? 'text-danger' : 'text-warning') : 'text-body-secondary'}`}
-                            >
-                              {fmtL(used)}
+                            <span className={`fw-semibold ${mUsed > 0 ? (mOver ? 'text-danger' : 'text-warning') : 'text-body-secondary'}`}>
+                              {fmtL(mUsed)}
                             </span>
                           </div>
                           <div className="d-flex justify-content-between small">
                             <span className="text-body-secondary">Remaining</span>
-                            <span
-                              className={`fw-semibold ${over ? 'text-danger' : 'text-success'}`}
-                            >
-                              {over ? '−' : ''}
-                              {fmtL(Math.abs(remaining))}
+                            <span className={`fw-semibold ${mOver ? 'text-danger' : 'text-success'}`}>
+                              {mOver ? '−' : ''}{fmtL(Math.abs(mRemaining))}
                             </span>
                           </div>
                         </div>
@@ -431,92 +247,131 @@ const MonthlyDrillDown = ({ project, onBack }) => {
               </CCardBody>
             </CCard>
           )
-        })
-      )}
+        })}
+      </div>
     </>
   )
 }
 
-// ─── Consolidated Cross-Project Sheet ────────────────────────────────────────
+// ── Consolidated Cross-Project Sheet ──────────────────────────────────────────
+//
+// Budget logic:
+//   Admin  → project_value × 5% ÷ total_months, every month from creation
+//   HR     → 0 until activation, then project_value × hr_pct% ÷ total_months
+//   Core   → 0 until activation, then project_value × core_pct% ÷ total_months
+//   Direct → installment_amount × (100-admin-hr-core)% ÷ inst_months
 
-const EXPENSE_ROWS = [
-  {
-    key: 'hr',
-    label: 'HR Expenses',
-    pctKey: 'hr_pct',
-    color: 'primary',
-    getValue: (proj, budgets) => {
-      const b = budgets.hr.find((b) => b.projectId === proj.projectId)
-      return b?.poolBudget ?? 0
-    },
-    getUsed: (proj, summaries) => summaries[proj.projectId]?.hr?.totalCharged ?? 0,
-  },
-  {
-    key: 'core',
-    label: 'Core Expenses',
-    pctKey: 'core_pct',
-    color: 'info',
-    getValue: (proj, budgets) => {
-      const b = budgets.core.find((b) => b.projectId === proj.projectId)
-      return b?.poolBudget ?? 0
-    },
-    getUsed: () => 0, // core charges not tracked yet
-  },
-]
+const currentMonth = () => new Date().toISOString().slice(0, 7)
+
+/** Resolves a project's Admin/HR/Core/Project figures for the current
+ * month from its monthly_plan, if one exists. Returns null for projects
+ * still on the old (pre-monthly-plan) model. */
+const currentMonthSplitFor = (project) => {
+  if (!project?.monthly_plan?.length) return null
+  const month = currentMonth()
+  const entry = project.monthly_plan.find((m) => m.month === month)
+  if (!entry) return null
+  return {
+    projectAmount: entry.total,
+    hrAmount: computeEffectivePoolMonthly(project, 'hr', month),
+    coreAmount: computeEffectivePoolMonthly(project, 'core', month),
+    adminAmount: computeEffectivePoolMonthly(project, 'admin', month),
+    monthTotal: entry.total,
+  }
+}
 
 const ConsolidatedSheet = ({ onDrillDown }) => {
-  const [projects, setProjects] = useState([])
-  const [budgets, setBudgets] = useState({ hr: [], core: [] })
-  const [summaries, setSummaries] = useState({})
+  const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const hrBudgets = localOrgPool.getActiveProjectMonthlyBudgets('hr')
-    const coreBudgets = localOrgPool.getActiveProjectMonthlyBudgets('core')
+    // Same source as PMS › All Projects (localProjects.list with no filters) —
+    // every project entered there shows up here, not just activated ones.
+    const allProjects = localProjects.list({ pageSize: 1000 }).items || []
 
-    // Merge unique projects from both pools
-    const projMap = {}
-    ;[...hrBudgets, ...coreBudgets].forEach((b) => {
-      if (!projMap[b.projectId]) projMap[b.projectId] = b
+    const built = allProjects
+      .map((p) => {
+        const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
+        const totalAdmin  = bd.reduce((s, m) => s + m.adminBudget,  0)
+        const totalHr     = bd.reduce((s, m) => s + m.hrBudget,     0)
+        const totalCore   = bd.reduce((s, m) => s + m.coreBudget,   0)
+        const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
+        const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
+        const hrSummary   = localOrgPool.getProjectHRBudgetSummary(p.id)
+        const coreSummary = localOrgPool.getProjectCoreBudgetSummary(p.id)
+        const adminUsed = localProjectExpenses
+          .list({ projectId: p.id, pool: 'admin' })
+          .reduce((s, e) => s + e.amount, 0)
+        const activationMonth = p.operations_activated_month ||
+          (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
+        return {
+          projectId: p.id,
+          projectName: p.title || p.name,
+          projectType: p.project_type,
+          projectValue: pv,
+          activationMonth,
+          totalAdmin, totalHr, totalCore, totalDirect,
+          adminUsed,
+          hrUsed: hrSummary.totalCharged || 0,
+          coreUsed: coreSummary.totalCharged || 0,
+        }
+      })
+
+    // Attach this month's monthly-plan-derived split (Project/HR/Core/Admin),
+    // where available, alongside the localOrgPool-derived totals above.
+    const enriched = built.map((r) => {
+      const fullProject = localProjects.getById(r.projectId)
+      const newSplit = currentMonthSplitFor(fullProject)
+      return newSplit ? { ...r, newMonthSplit: newSplit } : r
     })
-    const projs = Object.values(projMap)
 
-    // Build per-project summaries
-    const sums = {}
-    projs.forEach((p) => {
-      sums[p.projectId] = {
-        hr: localOrgPool.getProjectHRBudgetSummary(p.projectId),
-      }
-    })
-
-    setProjects(projs)
-    setBudgets({ hr: hrBudgets, core: coreBudgets })
-    setSummaries(sums)
+    setRows(enriched)
     setLoading(false)
   }, [])
 
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <CSpinner color="primary" />
-      </div>
-    )
-  }
-
-  if (projects.length === 0) {
+  if (loading) return <div className="text-center py-5"><CSpinner color="primary" /></div>
+  if (rows.length === 0) {
     return (
       <div className="text-center text-body-secondary py-5 small">
-        No active projects in the pool. Activate projects in PMS to see them here.
+        No projects found. Add a project in PMS › All Projects to see it here.
       </div>
     )
   }
 
-  // Totals per row
-  const totals = EXPENSE_ROWS.map((row) => ({
-    key: row.key,
-    budget: projects.reduce((s, p) => s + row.getValue(p, budgets), 0),
-    used: projects.reduce((s, p) => s + row.getUsed(p, summaries), 0),
-  }))
+  const sumAdmin  = rows.reduce((s, r) => s + r.totalAdmin,  0)
+  const sumHr     = rows.reduce((s, r) => s + r.totalHr,     0)
+  const sumCore   = rows.reduce((s, r) => s + r.totalCore,   0)
+  const sumDirect = rows.reduce((s, r) => s + r.totalDirect, 0)
+  const sumAdminUsed = rows.reduce((s, r) => s + r.adminUsed, 0)
+  const sumHrUsed = rows.reduce((s, r) => s + r.hrUsed,      0)
+  const sumCoreUsed = rows.reduce((s, r) => s + r.coreUsed, 0)
+
+  const SHEET_ROWS = [
+    {
+      key: 'admin',
+      label: 'HMA Admin Expenses',
+      color: 'warning',
+      badge: '5%',
+      getBudget: (r) => r.totalAdmin,
+      getUsed: (r) => r.adminUsed,
+      totalBudget: sumAdmin,
+      totalUsed: sumAdminUsed,
+      note: 'Always active',
+    },
+    { key: 'hr',     label: 'HR Expenses',             color: 'primary', badge: '5%',  getBudget: (r) => r.totalHr,     getUsed: (r) => r.hrUsed,   totalBudget: sumHr,     totalUsed: sumHrUsed, note: 'Post-activation' },
+    {
+      key: 'core',
+      label: 'Core Team Salary',
+      color: 'info',
+      badge: '5%',
+      getBudget: (r) => r.totalCore,
+      getUsed: (r) => r.coreUsed,
+      totalBudget: sumCore,
+      totalUsed: sumCoreUsed,
+      note: 'Post-activation',
+    },
+    { key: 'direct', label: 'Project Direct Expenses', color: 'success', badge: '85%+',getBudget: (r) => r.totalDirect, getUsed: () => 0,       totalBudget: sumDirect, totalUsed: 0,       note: 'From installment' },
+  ]
 
   return (
     <>
@@ -524,228 +379,123 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         <div>
           <h6 className="fw-bold mb-0">Cross-Project Expense Consolidated Sheet</h6>
           <div className="text-body-secondary small">
-            Budget allocation and utilization across {projects.length} active project
-            {projects.length !== 1 ? 's' : ''} · Click a project column to view monthly breakdown
+            Budget across {rows.length} project{rows.length !== 1 ? 's' : ''} from PMS › All Projects
+            {' · '}Admin always active · HR/Core from activation · Click project to drill down
           </div>
         </div>
         <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
-          {projects.length} Active Projects
+          {rows.length} Project{rows.length !== 1 ? 's' : ''}
         </CBadge>
       </div>
 
-      {/* Scrollable table */}
       <div style={{ overflowX: 'auto' }}>
-        <table
-          className="table table-bordered table-hover align-middle mb-0"
-          style={{ minWidth: 900, fontSize: '0.84rem', borderCollapse: 'separate', borderSpacing: 0 }}
-        >
+        <table className="table table-bordered table-hover align-middle mb-0" style={{ minWidth: 900, fontSize: '0.84rem' }}>
           <thead>
             <tr>
-              {/* Sticky left cells */}
-              <th
-                rowSpan={2}
-                className="align-middle text-center bg-body-secondary fw-semibold"
-                style={{ minWidth: 50, position: 'sticky', left: 0, zIndex: 2, borderRight: '2px solid var(--cui-border-color)' }}
-              >
-                SI No
-              </th>
-              <th
-                rowSpan={2}
-                className="align-middle bg-body-secondary fw-semibold"
-                style={{ minWidth: 160, position: 'sticky', left: 50, zIndex: 2, borderRight: '2px solid var(--cui-border-color)' }}
-              >
-                Particulars
-              </th>
-              {/* Project columns header */}
-              <th
-                colSpan={projects.length}
-                className="text-center bg-primary bg-opacity-10 text-primary fw-semibold"
-                style={{ letterSpacing: '0.05em' }}
-              >
-                Projects
-              </th>
-              {/* Total column */}
-              <th
-                rowSpan={2}
-                className="text-center align-middle bg-body-secondary fw-semibold"
-                style={{ minWidth: 120, borderLeft: '2px solid var(--cui-border-color)' }}
-              >
-                Total
-              </th>
+              <th rowSpan={2} className="align-middle text-center bg-body-secondary fw-semibold"
+                style={{ minWidth: 50, position: 'sticky', left: 0, zIndex: 2, borderRight: '2px solid var(--cui-border-color)' }}>#</th>
+              <th rowSpan={2} className="align-middle bg-body-secondary fw-semibold"
+                style={{ minWidth: 200, position: 'sticky', left: 50, zIndex: 2, borderRight: '2px solid var(--cui-border-color)' }}>Particulars</th>
+              <th colSpan={rows.length} className="text-center bg-primary bg-opacity-10 text-primary fw-semibold"
+                style={{ letterSpacing: '0.05em' }}>Projects</th>
+              <th rowSpan={2} className="text-center align-middle bg-body-secondary fw-semibold"
+                style={{ minWidth: 120, borderLeft: '2px solid var(--cui-border-color)' }}>Total</th>
             </tr>
             <tr>
-              {projects.map((p) => (
-                <th
-                  key={p.projectId}
-                  className="text-center"
-                  style={{ minWidth: 130, maxWidth: 160, verticalAlign: 'top', cursor: 'pointer' }}
-                  onClick={() => onDrillDown(p)}
-                  title={`Click to view monthly breakdown for ${p.projectName}`}
-                >
-                  <div
-                    className="text-primary text-decoration-underline"
-                    style={{ fontSize: '0.78rem', fontWeight: 600, lineHeight: 1.3 }}
-                  >
-                    {p.projectName}
+              {rows.map((r) => (
+                <th key={r.projectId} className="text-center"
+                  style={{ minWidth: 130, verticalAlign: 'top', cursor: 'pointer' }}
+                  onClick={() => onDrillDown({ projectId: r.projectId, projectName: r.projectName })}
+                  title="Click to view monthly HR breakdown">
+                  <div className="text-primary text-decoration-underline" style={{ fontSize: '0.78rem', fontWeight: 600, lineHeight: 1.3 }}>
+                    {r.projectName}
                   </div>
-                  <div className="text-body-secondary" style={{ fontSize: '0.68rem', marginTop: 2 }}>
-                    {p.sharePct?.toFixed(1)}% share
-                  </div>
+                  <CBadge color="secondary" shape="rounded-pill" className="mt-1" style={{ fontSize: '0.62rem' }}>
+                    {r.projectType || 'Project'}
+                  </CBadge>
+                  {r.activationMonth && (
+                    <div className="text-success" style={{ fontSize: '0.63rem', marginTop: 2 }}>
+                      Active from {r.activationMonth}
+                    </div>
+                  )}
+                  {r.newMonthSplit && (
+                    <div
+                      className="text-body-secondary"
+                      style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
+                    >
+                      This month: Project {fmtL(r.newMonthSplit.projectAmount)} · HR{' '}
+                      {fmtL(r.newMonthSplit.hrAmount)} · Core {fmtL(r.newMonthSplit.coreAmount)} ·{' '}
+                      Admin {fmtL(r.newMonthSplit.adminAmount)}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
-
           <tbody>
-            {EXPENSE_ROWS.map((row, ri) => {
-              const total = totals.find((t) => t.key === row.key)
-              return (
-                <React.Fragment key={row.key}>
-                  {/* Budget row */}
-                  <tr>
-                    <td
-                      className="text-center fw-medium bg-body-tertiary"
-                      style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}
-                    >
-                      {ri + 1}
-                    </td>
-                    <td
-                      style={{ position: 'sticky', left: 50, zIndex: 1, borderRight: '2px solid var(--cui-border-color)', background: 'var(--cui-body-bg)' }}
-                    >
-                      <div className="fw-semibold">{row.label}</div>
-                      <CBadge color={row.color} shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
-                        @{row.pctKey.replace('_pct', '').toUpperCase()} %
-                      </CBadge>
-                      <div className="text-body-secondary" style={{ fontSize: '0.68rem', marginTop: 2 }}>
-                        Installment Budget
-                      </div>
-                    </td>
-                    {projects.map((p) => {
-                      const val = row.getValue(p, budgets)
-                      return (
-                        <td
-                          key={p.projectId}
-                          className="text-end"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => onDrillDown(p)}
-                        >
-                          <span className="fw-medium">{val > 0 ? fmtL(val) : '—'}</span>
-                        </td>
-                      )
-                    })}
-                    <td
-                      className="text-end fw-bold text-primary"
-                      style={{ borderLeft: '2px solid var(--cui-border-color)' }}
-                    >
-                      {fmtL(total?.budget)}
-                    </td>
-                  </tr>
-
-                  {/* Used row */}
+            {SHEET_ROWS.map((row, ri) => (
+              <React.Fragment key={row.key}>
+                <tr>
+                  <td className="text-center fw-medium bg-body-tertiary"
+                    style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}>{ri + 1}</td>
+                  <td style={{ position: 'sticky', left: 50, zIndex: 1, borderRight: '2px solid var(--cui-border-color)', background: 'var(--cui-body-bg)' }}>
+                    <div className="fw-semibold">{row.label}</div>
+                    <CBadge color={row.color} shape="rounded-pill" style={{ fontSize: '0.62rem' }}>{row.badge}</CBadge>
+                    <div className={`text-${row.color}`} style={{ fontSize: '0.65rem' }}>{row.note}</div>
+                  </td>
+                  {rows.map((r) => {
+                    const val = row.getBudget(r)
+                    return (
+                      <td key={r.projectId} className="text-end" style={{ cursor: 'pointer' }}
+                        onClick={() => onDrillDown({ projectId: r.projectId, projectName: r.projectName })}>
+                        <span className="fw-medium">{val > 0 ? fmtL(val) : '—'}</span>
+                      </td>
+                    )
+                  })}
+                  <td className="text-end fw-bold text-primary" style={{ borderLeft: '2px solid var(--cui-border-color)' }}>
+                    {fmtL(row.totalBudget)}
+                  </td>
+                </tr>
+                {(row.key === 'hr' || row.key === 'core') && (
                   <tr className="table-light">
-                    <td
-                      style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}
-                    />
-                    <td
-                      style={{ position: 'sticky', left: 50, zIndex: 1, borderRight: '2px solid var(--cui-border-color)', background: 'var(--cui-tertiary-bg)' }}
-                    >
-                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
-                        ↳ Used
-                      </div>
+                    <td style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }} />
+                    <td style={{ position: 'sticky', left: 50, zIndex: 1, borderRight: '2px solid var(--cui-border-color)', background: 'var(--cui-tertiary-bg)' }}>
+                      <div className="text-body-secondary" style={{ fontSize: '0.73rem' }}>&#8627; Used</div>
                     </td>
-                    {projects.map((p) => {
-                      const used = row.getUsed(p, summaries)
-                      const budget = row.getValue(p, budgets)
+                    {rows.map((r) => {
+                      const used = row.getUsed(r)
+                      const budget = row.getBudget(r)
                       const over = used > budget && budget > 0
                       return (
-                        <td key={p.projectId} className="text-end" style={{ fontSize: '0.78rem' }}>
+                        <td key={r.projectId} className="text-end" style={{ fontSize: '0.78rem' }}>
                           <span className={over ? 'text-danger fw-semibold' : used > 0 ? 'text-warning fw-medium' : 'text-body-tertiary'}>
                             {used > 0 ? fmtL(used) : '—'}
                           </span>
                         </td>
                       )
                     })}
-                    <td
-                      className="text-end fw-semibold text-warning"
-                      style={{ fontSize: '0.78rem', borderLeft: '2px solid var(--cui-border-color)' }}
-                    >
-                      {total?.used > 0 ? fmtL(total.used) : '—'}
+                    <td className="text-end fw-semibold text-warning" style={{ fontSize: '0.78rem', borderLeft: '2px solid var(--cui-border-color)' }}>
+                      {row.totalUsed > 0 ? fmtL(row.totalUsed) : '—'}
                     </td>
                   </tr>
-
-                  {/* Remaining row */}
-                  <tr>
-                    <td
-                      style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}
-                    />
-                    <td
-                      style={{ position: 'sticky', left: 50, zIndex: 1, borderRight: '2px solid var(--cui-border-color)', background: 'var(--cui-body-bg)' }}
-                    >
-                      <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
-                        ↳ Remaining
-                      </div>
-                    </td>
-                    {projects.map((p) => {
-                      const used = row.getUsed(p, summaries)
-                      const budget = row.getValue(p, budgets)
-                      const remaining = budget - used
-                      const over = remaining < 0
-                      return (
-                        <td key={p.projectId} className="text-end" style={{ fontSize: '0.78rem' }}>
-                          {budget > 0 ? (
-                            <span className={over ? 'text-danger fw-semibold' : 'text-success fw-medium'}>
-                              {over ? '−' : ''}
-                              {fmtL(Math.abs(remaining))}
-                            </span>
-                          ) : (
-                            <span className="text-body-tertiary">—</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td
-                      className="text-end fw-semibold text-success"
-                      style={{ fontSize: '0.78rem', borderLeft: '2px solid var(--cui-border-color)' }}
-                    >
-                      {total?.budget > 0 ? fmtL(total.budget - total.used) : '—'}
-                    </td>
+                )}
+                {ri < SHEET_ROWS.length - 1 && (
+                  <tr style={{ height: 6 }}>
+                    <td colSpan={rows.length + 3} style={{ background: 'var(--cui-tertiary-bg)', padding: 0 }} />
                   </tr>
-
-                  {/* Spacer row between expense types */}
-                  {ri < EXPENSE_ROWS.length - 1 && (
-                    <tr style={{ height: 8 }}>
-                      <td
-                        colSpan={projects.length + 3}
-                        style={{ background: 'var(--cui-tertiary-bg)', padding: 0 }}
-                      />
-                    </tr>
-                  )}
-                </React.Fragment>
-              )
-            })}
-
-            {/* Grand total row */}
+                )}
+              </React.Fragment>
+            ))}
             <tr style={{ borderTop: '3px solid var(--cui-border-color)' }}>
-              <td
-                colSpan={2}
-                className="fw-bold text-center bg-body-secondary"
-                style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}
-              >
-                Grand Total Budget
+              <td colSpan={2} className="fw-bold text-center bg-body-secondary"
+                style={{ position: 'sticky', left: 0, zIndex: 1, borderRight: '2px solid var(--cui-border-color)' }}>
+                Project Value
               </td>
-              {projects.map((p) => {
-                const total = EXPENSE_ROWS.reduce((s, row) => s + row.getValue(p, budgets), 0)
-                return (
-                  <td key={p.projectId} className="text-end fw-bold text-primary">
-                    {fmtL(total)}
-                  </td>
-                )
-              })}
-              <td
-                className="text-end fw-bold text-primary"
-                style={{ borderLeft: '2px solid var(--cui-border-color)' }}
-              >
-                {fmtL(totals.reduce((s, t) => s + t.budget, 0))}
+              {rows.map((r) => (
+                <td key={r.projectId} className="text-end fw-bold text-primary">{fmtL(r.projectValue)}</td>
+              ))}
+              <td className="text-end fw-bold text-primary" style={{ borderLeft: '2px solid var(--cui-border-color)' }}>
+                {fmtL(rows.reduce((s, r) => s + r.projectValue, 0))}
               </td>
             </tr>
           </tbody>
@@ -754,29 +504,383 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
 
       <div className="text-body-secondary small mt-3">
         <CIcon icon={cilChartPie} className="me-1" />
-        Click any project name or cell to view the monthly budget breakdown for that project.
+        Click any project name or cell to view the monthly HR budget breakdown.
       </div>
     </>
   )
 }
 
-// ─── Lazy-loaded Admin Expense content ───────────────────────────────────────
+// ── Apportionment Sheet ───────────────────────────────────────────────────────
+//
+// Per-project card with month columns. Reflects:
+//   - Admin: shown for every month (always active)
+//   - HR/Core: shows '—' before activation, actual value after
+//   - Adjusted months shown in orange
+//   - Per-column pencil button to add % adjustment from that month onwards
 
-const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
+const ApportionmentSheet = () => {
+  const [projects, setProjects] = useState([])
+  const [breakdowns, setBreakdowns] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [adjustModal, setAdjustModal] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+  const loadData = useCallback(() => {
+    const allProjects = localProjects.list({ pageSize: 1000 }).items || []
+    const bds = {}
+    allProjects.forEach((p) => {
+      bds[p.id] = localOrgPool.buildProjectMonthlyBreakdown(p)
+    })
+    setBreakdowns(bds)
+    setProjects(allProjects)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const handleSaveAdjust = () => {
+    if (!adjustModal) return
+    setSaving(true)
+    try {
+      localProjects.addPoolPctAdjustment(adjustModal.project.id, {
+        from_month: adjustModal.month,
+        hr_pct: parseFloat(adjustModal.hr_pct) || 0,
+        core_pct: parseFloat(adjustModal.core_pct) || 0,
+      })
+      setAdjustModal(null)
+      loadData()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemoveAdjust = (projectId, from_month) => {
+    localProjects.removePoolPctAdjustment(projectId, from_month)
+    loadData()
+  }
+
+  if (loading) return <div className="text-center py-5"><CSpinner color="primary" /></div>
+  if (projects.length === 0) {
+    return <div className="text-center text-body-secondary py-5 small">No projects found.</div>
+  }
+
+  return (
+    <>
+      <div className="mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+          <h6 className="fw-bold mb-0">Project Apportionment Sheet</h6>
+          <div className="text-body-secondary small">
+            Monthly budget per project. Admin active from creation. HR/Core frozen until PMS activation — adjustable from any month.
+          </div>
+        </div>
+        <CBadge color="primary" shape="rounded-pill" className="px-3 py-2">{projects.length} Projects</CBadge>
+      </div>
+
+      <div className="d-flex flex-column gap-4">
+        {projects.map((p, idx) => {
+          const bd = breakdowns[p.id] || []
+          const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
+          const activationMonth = p.operations_activated_month ||
+            (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
+          const adjustments = p.pool_pct_adjustments || []
+          const totalAdmin  = bd.reduce((s, m) => s + m.adminBudget,  0)
+          const totalHr     = bd.reduce((s, m) => s + m.hrBudget,     0)
+          const totalCore   = bd.reduce((s, m) => s + m.coreBudget,   0)
+          const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
+          const actualAdmin = localProjectExpenses
+            .list({ projectId: p.id, pool: 'admin' })
+            .reduce((s, e) => s + e.amount, 0)
+
+          return (
+            <CCard key={p.id} className="shadow-sm border-0">
+              <CCardHeader className="py-3">
+                <div className="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                  <div>
+                    <h6 className="mb-1 fw-bold">{idx + 1}. {p.name || p.title}</h6>
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                      <span className="text-body-secondary small">Type: <strong>{p.project_type || '—'}</strong></span>
+                      <span className="text-body-secondary small">Value: <strong className="text-primary">{fmtL(pv)}</strong></span>
+                      {activationMonth ? (
+                        <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.68rem' }}>
+                          HR/Core active from {activationMonth}
+                        </CBadge>
+                      ) : (
+                        <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: '0.68rem' }}>
+                          HR/Core frozen — not yet activated in PMS
+                        </CBadge>
+                      )}
+                      {adjustments.length > 0 && (
+                        <CBadge color="warning" shape="rounded-pill" style={{ fontSize: '0.68rem' }}>
+                          {adjustments.length} % adjustment{adjustments.length > 1 ? 's' : ''}
+                        </CBadge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {[
+                      { l: 'Admin',  v: totalAdmin,  c: 'warning' },
+                      { l: 'HR',     v: totalHr,     c: 'primary' },
+                      { l: 'Core',   v: totalCore,   c: 'info'    },
+                      { l: 'Direct', v: totalDirect, c: 'success' },
+                      { l: 'Actual (Admin)', v: actualAdmin, c: 'danger' },
+                    ].map((s) => (
+                      <div key={s.l} className="text-center px-3 py-1 rounded-3 border" style={{ fontSize: '0.72rem', minWidth: 72 }}>
+                        <div className={`fw-bold text-${s.c}`}>{fmtL(s.v)}</div>
+                        <div className="text-body-secondary">{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CCardHeader>
+
+              <CCardBody className="p-0">
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table table-bordered align-middle mb-0"
+                    style={{ minWidth: 420 + bd.length * 95, fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr className="bg-body-tertiary">
+                        <th className="fw-semibold"
+                          style={{ minWidth: 290, position: 'sticky', left: 0, zIndex: 2, background: 'var(--cui-tertiary-bg)' }}>
+                          Project Split Up
+                        </th>
+                        <th className="text-end fw-semibold" style={{ minWidth: 120 }}>Total</th>
+                        {bd.map((m) => {
+                          const [y, mo] = m.month.split('-')
+                          const adj = adjustments.find((a) => a.from_month === m.month)
+                          return (
+                            <th key={m.month} className="text-center fw-semibold p-0"
+                              style={{ minWidth: 90, verticalAlign: 'bottom' }}>
+                              <div className="px-2 pt-2 pb-1">
+                                <div style={{ fontSize: '0.75rem' }}>{mo}/{y.slice(-2)}</div>
+                                {!m.isActive && activationMonth && (
+                                  <div style={{ fontSize: '0.6rem', color: '#aaa' }}>frozen</div>
+                                )}
+                                {adj && (
+                                  <div className="text-warning fw-semibold" style={{ fontSize: '0.6rem' }}>
+                                    HR{adj.hr_pct}%/C{adj.core_pct}%
+                                  </div>
+                                )}
+                                {m.isActive && (
+                                  <CButton size="sm" color="ghost" className="p-0 mt-1"
+                                    style={{ fontSize: '0.62rem', lineHeight: 1 }}
+                                    title={`Adjust % from ${m.month} onwards`}
+                                    onClick={() => setAdjustModal({
+                                      project: p, month: m.month,
+                                      hr_pct: m.hr_pct || (p.hr_pct ?? 5),
+                                      core_pct: m.core_pct || (p.core_pct ?? 5),
+                                    })}>
+                                    <CIcon icon={cilPencil} style={{ width: 10, height: 10 }} />
+                                  </CButton>
+                                )}
+                              </div>
+                            </th>
+                          )
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Admin — always shown */}
+                      <tr>
+                        <td className="fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-body-bg)' }}>
+                          HMA Admin Expenses @{p.admin_pct ?? 5}%
+                          <CBadge color="warning" shape="rounded-pill" className="ms-2" style={{ fontSize: '0.6rem' }}>Always active</CBadge>
+                        </td>
+                        <td className="text-end fw-semibold text-warning">{fmtL(totalAdmin)}</td>
+                        {bd.map((m) => (
+                          <td key={m.month} className="text-end text-body-secondary">{fmtL(m.adminBudget)}</td>
+                        ))}
+                      </tr>
+
+                      {/* HR — frozen until activation */}
+                      <tr>
+                        <td className="fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-body-bg)' }}>
+                          HR Expenses @{p.hr_pct ?? 5}%
+                          <CBadge color="primary" shape="rounded-pill" className="ms-2" style={{ fontSize: '0.6rem' }}>Post-activation</CBadge>
+                        </td>
+                        <td className="text-end fw-semibold text-primary">{fmtL(totalHr)}</td>
+                        {bd.map((m) => (
+                          <td key={m.month} className={`text-end ${
+                            !m.isActive ? 'text-body-tertiary' : m.isAdjusted ? 'text-warning fw-medium' : 'text-primary'
+                          }`}>{m.isActive ? fmtL(m.hrBudget) : '—'}</td>
+                        ))}
+                      </tr>
+
+                      {/* Core — frozen until activation */}
+                      <tr>
+                        <td className="fw-medium" style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-body-bg)' }}>
+                          HMA Core Team Salary @{p.core_pct ?? 5}%
+                          <CBadge color="info" shape="rounded-pill" className="ms-2" style={{ fontSize: '0.6rem' }}>Post-activation</CBadge>
+                        </td>
+                        <td className="text-end fw-semibold text-info">{fmtL(totalCore)}</td>
+                        {bd.map((m) => (
+                          <td key={m.month} className={`text-end ${
+                            !m.isActive ? 'text-body-tertiary' : m.isAdjusted ? 'text-warning fw-medium' : 'text-info'
+                          }`}>{m.isActive ? fmtL(m.coreBudget) : '—'}</td>
+                        ))}
+                      </tr>
+
+                      {/* Pool subtotal */}
+                      <tr className="table-light">
+                        <td className="fw-bold" style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-tertiary-bg)' }}>
+                          {(p.admin_pct ?? 5) + (p.hr_pct ?? 5) + (p.core_pct ?? 5)}% total of Project Value
+                        </td>
+                        <td className="text-end fw-bold">{fmtL(totalAdmin + totalHr + totalCore)}</td>
+                        {bd.map((m) => (
+                          <td key={m.month} className="text-end fw-medium">
+                            {fmtL(m.adminBudget + m.hrBudget + m.coreBudget)}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Direct expenses */}
+                      <tr className="table-light">
+                        <td className="fw-bold" style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-tertiary-bg)' }}>
+                          Project Direct Expenses
+                          <div className="text-body-secondary fw-normal" style={{ fontSize: '0.7rem' }}>
+                            Increases when HR/Core % is reduced
+                          </div>
+                        </td>
+                        <td className="text-end fw-bold text-success">{fmtL(totalDirect)}</td>
+                        {bd.map((m) => (
+                          <td key={m.month} className="text-end fw-medium text-success">
+                            {m.directBudget > 0 ? fmtL(m.directBudget) : '—'}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Phase sub-rows */}
+                      {(() => {
+                        const phases = []
+                        const seen = new Set()
+                        bd.forEach((m) => {
+                          if (m.installmentId && !seen.has(m.installmentId)) {
+                            seen.add(m.installmentId)
+                            phases.push({ id: m.installmentId, label: m.phaseName || m.installmentLabel })
+                          }
+                        })
+                        return phases.map((ph) => {
+                          const phTotal = bd.filter((m) => m.installmentId === ph.id)
+                            .reduce((s, m) => s + m.directBudget, 0)
+                          return (
+                            <tr key={ph.id}>
+                              <td className="ps-4 text-body-secondary fw-medium"
+                                style={{ position: 'sticky', left: 0, zIndex: 1, background: 'var(--cui-body-bg)' }}>
+                                &#8627; {ph.label}
+                              </td>
+                              <td className="text-end text-success fw-medium">{fmtL(phTotal)}</td>
+                              {bd.map((m) => (
+                                <td key={m.month} className="text-end text-body-tertiary" style={{ fontSize: '0.78rem' }}>
+                                  {m.installmentId === ph.id && m.directBudget > 0 ? fmtL(m.directBudget) : '—'}
+                                </td>
+                              ))}
+                            </tr>
+                          )
+                        })
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </CCardBody>
+
+              {/* Adjustment list footer */}
+              {adjustments.length > 0 && (
+                <div className="px-3 py-2 border-top" style={{ fontSize: '0.73rem' }}>
+                  <strong className="text-warning">% Adjustments in effect:</strong>
+                  {adjustments.map((a) => (
+                    <span key={a.from_month} className="ms-3 text-body-secondary">
+                      From <strong>{a.from_month}</strong>: HR {a.hr_pct}% / Core {a.core_pct}%
+                      <CButton size="sm" color="ghost" className="p-0 ms-1" style={{ fontSize: '0.6rem' }}
+                        onClick={() => handleRemoveAdjust(p.id, a.from_month)}>
+                        <CIcon icon={cilX} style={{ width: 9, height: 9 }} />
+                      </CButton>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </CCard>
+          )
+        })}
+      </div>
+
+      {/* Adjustment modal */}
+      <CModal visible={!!adjustModal} onClose={() => setAdjustModal(null)} size="sm">
+        <CModalHeader>
+          <CModalTitle style={{ fontSize: '0.95rem' }}>
+            Adjust Pool % from {adjustModal?.month}
+          </CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          {adjustModal && (
+            <>
+              <div className="text-body-secondary small mb-3">
+                <strong>{adjustModal.project.name || adjustModal.project.title}</strong><br />
+                Changes apply from <strong>{adjustModal.month}</strong> onwards.
+                Reducing HR/Core % increases project direct budget from that month.
+              </div>
+              <div className="mb-3">
+                <CFormLabel className="fw-semibold small mb-1">
+                  HR % (default: {adjustModal.project.hr_pct ?? 5}%)
+                </CFormLabel>
+                <CFormInput type="number" min={0} max={15} step={0.5}
+                  value={adjustModal.hr_pct}
+                  onChange={(e) => setAdjustModal((s) => ({ ...s, hr_pct: e.target.value }))} />
+              </div>
+              <div className="mb-3">
+                <CFormLabel className="fw-semibold small mb-1">
+                  Core % (default: {adjustModal.project.core_pct ?? 5}%)
+                </CFormLabel>
+                <CFormInput type="number" min={0} max={15} step={0.5}
+                  value={adjustModal.core_pct}
+                  onChange={(e) => setAdjustModal((s) => ({ ...s, core_pct: e.target.value }))} />
+              </div>
+              {(() => {
+                const adminP = adjustModal.project.admin_pct ?? 5
+                const hrP   = parseFloat(adjustModal.hr_pct) || 0
+                const coreP = parseFloat(adjustModal.core_pct) || 0
+                const dirP  = Math.max(0, 100 - adminP - hrP - coreP)
+                return (
+                  <div className="rounded-3 p-2" style={{ background: 'var(--cui-tertiary-bg)', fontSize: '0.78rem' }}>
+                    {[['Admin', adminP, ''], ['HR', hrP, 'text-primary'], ['Core', coreP, 'text-info']].map(([l, v, c]) => (
+                      <div key={l} className="d-flex justify-content-between">
+                        <span className="text-body-secondary">{l}</span>
+                        <strong className={c}>{v}%</strong>
+                      </div>
+                    ))}
+                    <div className="d-flex justify-content-between border-top mt-1 pt-1">
+                      <span className="text-body-secondary">Project Direct</span>
+                      <strong className="text-success">{dirP.toFixed(1)}%</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" variant="ghost" size="sm" onClick={() => setAdjustModal(null)}>Cancel</CButton>
+          <CButton color="primary" size="sm" onClick={handleSaveAdjust} disabled={saving}>
+            {saving ? <CSpinner size="sm" /> : 'Save Adjustment'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+    </>
+  )
+}
+
+// ── Lazy-loaded tab content ──────────────────────────────────────────────────
+
+const ProjectExpensesPage = React.lazy(() => import('./ProjectExpensesPage'))
+const GeneralExpensesTab = React.lazy(() => import('./GeneralExpensesTab'))
+const RevenuePage = React.lazy(() => import('./RevenuePage'))
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 const ExpenseManagementPage = () => {
   const [activeTab, setActiveTab] = useState(0)
   const [drillProject, setDrillProject] = useState(null)
 
-  const handleDrillDown = (project) => {
-    setDrillProject(project)
-  }
-
-  const handleBack = () => {
-    setDrillProject(null)
-  }
+  const handleDrillDown = (project) => { setDrillProject(project) }
+  const handleBack = () => { setDrillProject(null) }
 
   return (
     <>
@@ -790,39 +894,75 @@ const ExpenseManagementPage = () => {
         </div>
       </div>
 
-      {/* Tabs — only show when not in drill-down mode */}
+      {/* Tabs */}
       {!drillProject && (
         <CNav variant="underline" className="mb-4">
           <CNavItem>
-            <CNavLink
-              active={activeTab === 0}
-              onClick={() => setActiveTab(0)}
-              role="button"
-              className="fw-medium"
-              id="tab-admin-expenses"
-            >
-              <CIcon icon={cilList} className="me-1" />
-              Admin Expenses
+            <CNavLink active={activeTab === 0} onClick={() => setActiveTab(0)} role="button" className="fw-medium" id="tab-consolidated-sheet">
+              <CIcon icon={cilNotes} className="me-1" />Consolidated Sheet
+            </CNavLink>
+          </CNavItem>
+          <CNavItem>
+            <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)} role="button" className="fw-medium" id="tab-apportionment-sheet">
+              <CIcon icon={cilChartPie} className="me-1" />Apportionment Sheet
+            </CNavLink>
+          </CNavItem>
+          <CNavItem>
+            <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)} role="button" className="fw-medium" id="tab-general-expenses">
+              <CIcon icon={cilCash} className="me-1" />Forecast Expense
             </CNavLink>
           </CNavItem>
           <CNavItem>
             <CNavLink
-              active={activeTab === 1}
-              onClick={() => setActiveTab(1)}
+              active={activeTab === 3}
+              onClick={() => setActiveTab(3)}
               role="button"
               className="fw-medium"
-              id="tab-consolidated-sheet"
+              id="tab-project-expenses"
             >
-              <CIcon icon={cilNotes} className="me-1" />
-              Consolidated Sheet
+              <CIcon icon={cilDollar} className="me-1" />
+              Project Expenses
+            </CNavLink>
+          </CNavItem>
+          <CNavItem>
+            <CNavLink
+              active={activeTab === 4}
+              onClick={() => setActiveTab(4)}
+              role="button"
+              className="fw-medium"
+              id="tab-revenue"
+            >
+              <CIcon icon={cilCash} className="me-1" />
+              Revenue
             </CNavLink>
           </CNavItem>
         </CNav>
       )}
 
       <CTabContent>
-        {/* ── Tab 0: Admin Expenses ──────────────────────────────────────── */}
-        <CTabPane visible={activeTab === 0 && !drillProject}>
+        {/* Tab 0: Consolidated Sheet or drill-down */}
+        <CTabPane visible={activeTab === 0 || !!drillProject}>
+          {drillProject ? (
+            <MonthlyDrillDown project={drillProject} onBack={handleBack} />
+          ) : (
+            <ConsolidatedSheet onDrillDown={handleDrillDown} />
+          )}
+        </CTabPane>
+
+        {/* Tab 1: Apportionment Sheet */}
+        <CTabPane visible={activeTab === 1 && !drillProject}>
+          <ApportionmentSheet />
+        </CTabPane>
+
+        {/* Tab 2: General Expenses (HR & Admin actual + forecast) */}
+        <CTabPane visible={activeTab === 2 && !drillProject}>
+          <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
+            <GeneralExpensesTab />
+          </React.Suspense>
+        </CTabPane>
+
+        {/* ── Tab 3: Project Expenses ───────────────────────────────────── */}
+        <CTabPane visible={activeTab === 3 && !drillProject}>
           <React.Suspense
             fallback={
               <div className="text-center py-5">
@@ -830,17 +970,21 @@ const ExpenseManagementPage = () => {
               </div>
             }
           >
-            <AdminExpensePage />
+            <ProjectExpensesPage />
           </React.Suspense>
         </CTabPane>
 
-        {/* ── Tab 1: Consolidated Sheet or drill-down ───────────────────── */}
-        <CTabPane visible={activeTab === 1 || !!drillProject}>
-          {drillProject ? (
-            <MonthlyDrillDown project={drillProject} onBack={handleBack} />
-          ) : (
-            <ConsolidatedSheet onDrillDown={handleDrillDown} />
-          )}
+        {/* ── Tab 4: Revenue ─────────────────────────────────────────────── */}
+        <CTabPane visible={activeTab === 4 && !drillProject}>
+          <React.Suspense
+            fallback={
+              <div className="text-center py-5">
+                <CSpinner color="primary" />
+              </div>
+            }
+          >
+            <RevenuePage />
+          </React.Suspense>
         </CTabPane>
       </CTabContent>
     </>

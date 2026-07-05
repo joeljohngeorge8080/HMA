@@ -30,7 +30,7 @@ const EmsLayout = () => {
         <AppSidebar nav={emsNav} />
         <div className="wrapper d-flex flex-column min-vh-100">
           <MaintenanceBanner />
-          <AppHeader />
+          <AppHeader nav={emsNav} />
           <div className="body flex-grow-1">
             <AppContent />
           </div>

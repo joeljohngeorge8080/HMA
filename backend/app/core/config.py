@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = 'HS256'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
+    GOOGLE_CLIENT_ID: str = ''
+    ALLOWED_ORIGINS: str = 'http://localhost:3000,http://localhost:5173'
+
     AWS_ACCESS_KEY_ID: str = ''
     AWS_SECRET_ACCESS_KEY: str = ''
     AWS_REGION: str = 'ap-south-1'

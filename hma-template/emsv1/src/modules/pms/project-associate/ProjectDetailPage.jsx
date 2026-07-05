@@ -64,15 +64,17 @@ import {
   cilWallet,
   cilChevronBottom,
   cilChevronTop,
+  cilCloudUpload,
 } from '@coreui/icons'
 import { CChartDoughnut } from '@coreui/react-chartjs'
 import { localProjects } from '../../../services/localProjects'
 import { localTasks } from '../../../services/localTasks'
 import { localPayroll } from '../../../services/localPayroll'
-import { localOrgPool } from '../../../services/localOrgPool'
-import { localAdminExpenses } from '../../../services/localAdminExpenses'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
+import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
+import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -171,9 +173,13 @@ const ExpenseCard = ({
       ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
       : ''
 
-  // Separate org-level (EMS synced) from project-specific expenses
+  // Separate org-level (EMS vendor ledger), project-actual (EMS Project
+  // Expenses tab), and project-specific (added directly in this card) expenses
   const orgExpenses = expenses.filter((e) => e.source === 'hr_admin')
-  const projExpenses = expenses.filter((e) => e.source !== 'hr_admin')
+  const actualExpenses = expenses.filter((e) => e.source === 'project_actual')
+  const projExpenses = expenses.filter(
+    (e) => e.source !== 'hr_admin' && e.source !== 'project_actual',
+  )
 
   return (
     <CCard className="shadow-sm h-100">
@@ -239,6 +245,44 @@ const ExpenseCard = ({
                     </div>
                   </div>
                   <span className="fw-bold small ms-2 text-nowrap">{fmtShort(exp.amount)}/mo</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Project-actual expenses (logged via EMS Project Expenses tab) ── */}
+        {actualExpenses.length > 0 && (
+          <div className="mb-3">
+            <div className="d-flex align-items-center gap-2 mb-2">
+              <span
+                className="small fw-semibold text-body-secondary text-uppercase"
+                style={{ fontSize: '0.68rem', letterSpacing: '0.04em' }}
+              >
+                Project Actual
+              </span>
+              <CBadge color="info" style={{ fontSize: '0.6rem' }}>
+                Logged via EMS
+              </CBadge>
+            </div>
+            <div className="d-flex flex-column gap-2">
+              {actualExpenses.map((exp) => (
+                <div
+                  key={exp.id}
+                  className="d-flex align-items-start justify-content-between border rounded px-3 py-2"
+                  style={{
+                    background: 'rgba(13,110,253,0.06)',
+                    borderColor: 'rgba(13,110,253,0.3) !important',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="fw-semibold small">{exp.label}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      {fmtDate(exp.date)}
+                      {exp.notes && ` · ${exp.notes}`}
+                    </div>
+                  </div>
+                  <span className="fw-bold small ms-2 text-nowrap">{fmtShort(exp.amount)}</span>
                 </div>
               ))}
             </div>
@@ -639,11 +683,24 @@ const ProjectDetailPage = () => {
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
 
   const role = useRole()
+  const { user } = useAuth()
+  const projectTaskCount = useMemo(
+    () => (project ? localTasks.getByProject(project.id).length : 0),
+    [project],
+  )
+  // Activation requires both a task assigned AND a completed monthly plan —
+  // the Project Officer must plan the budget before it can go live.
+  const hasMonthlyPlan = Boolean(project?.monthly_plan?.length)
   const isBudgetAdmin =
     role === ROLE.CEO ||
     role === ROLE.FINANCE ||
     role === ROLE.HR ||
     role === ROLE.PROJECT_COORDINATOR
+  // Monthly budget planning is specifically the Project Officer's/Project
+  // Associate's job (spec) — they need Monthly Plan tab edit access too,
+  // in addition to (not instead of) everything isBudgetAdmin already covers.
+  const canEditMonthlyPlan =
+    isBudgetAdmin || role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
 
   useEffect(() => {
     localProjects.seedDemoData()
@@ -679,6 +736,27 @@ const ProjectDetailPage = () => {
       ? Math.round((project.amount_received / project.project_value) * 100)
       : 0
   const sm = STATUS_META[project.status] || { label: project.status, color: 'secondary' }
+
+  let ucAlert = null
+  const pendingUcs = project.installments?.filter(i => i.uc_status !== 'Approved' && i.uc_status !== 'Submitted') || []
+  if (pendingUcs.length > 0) {
+    let overdue = 0
+    let dueSoon = 0
+    pendingUcs.forEach(inst => {
+      const tStr = inst.end_date || inst.target_date
+      if (!tStr) return
+      const [ty, tm, td] = tStr.split('-').map(Number)
+      const target = new Date(ty, tm - 1, td)
+      const now = new Date()
+      target.setHours(0,0,0,0)
+      now.setHours(0,0,0,0)
+      const diff = Math.ceil((now.getTime() - target.getTime()) / (1000 * 60 * 60 * 24))
+      if (diff > 0) overdue++
+      else if (diff >= -7) dueSoon++
+    })
+    if (overdue > 0) ucAlert = { color: 'danger', text: `⚠️ ${overdue} UC(s) Overdue` }
+    else if (dueSoon > 0) ucAlert = { color: 'warning', text: `⏳ ${dueSoon} UC(s) Due Soon` }
+  }
 
   const handleApprove = (item) => {
     setApprovals((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'approved' } : a)))
@@ -778,7 +856,25 @@ const ProjectDetailPage = () => {
             <CIcon icon={cilPen} className="me-1" />
             Edit Project
           </CButton>
-          {!project.is_operations_active && (
+          {!project.is_operations_active && projectTaskCount === 0 && (
+            <CBadge
+              color="secondary"
+              className="px-3 py-2 d-flex align-items-center"
+              style={{ fontSize: '0.8rem' }}
+            >
+              ⏸ Not Activated — assign a task first
+            </CBadge>
+          )}
+          {!project.is_operations_active && projectTaskCount > 0 && !hasMonthlyPlan && (
+            <CBadge
+              color="secondary"
+              className="px-3 py-2 d-flex align-items-center"
+              style={{ fontSize: '0.8rem' }}
+            >
+              ⏸ Not Activated — plan the monthly budget first
+            </CBadge>
+          )}
+          {!project.is_operations_active && projectTaskCount > 0 && hasMonthlyPlan && (
             <CButton
               color="success"
               className="fw-semibold flex-shrink-0"
@@ -794,6 +890,15 @@ const ProjectDetailPage = () => {
               style={{ fontSize: '0.8rem' }}
             >
               Operations Active
+            </CBadge>
+          )}
+          {ucAlert && (
+            <CBadge
+              color={ucAlert.color}
+              className={`px-3 py-2 d-flex align-items-center ${ucAlert.color === 'warning' ? 'text-dark' : 'text-white'}`}
+              style={{ fontSize: '0.8rem' }}
+            >
+              {ucAlert.text}
             </CBadge>
           )}
         </div>
@@ -927,6 +1032,8 @@ const ProjectDetailPage = () => {
               'Project Financials',
               'Project Milestones',
               'Budget & Payroll',
+              'Monthly Plan',
+              'Expense',
             ].map((tab, i) => (
               <CNavItem key={i}>
                 <CNavLink
@@ -1423,7 +1530,7 @@ const ProjectDetailPage = () => {
               <div
                 className="d-none d-md-grid mb-3 px-1"
                 style={{
-                  gridTemplateColumns: '2fr 2fr 1fr 1fr 80px',
+                  gridTemplateColumns: '2fr 2fr 1fr 1fr 120px',
                   gap: '0 1rem',
                   fontSize: '0.72rem',
                   fontWeight: 600,
@@ -1553,9 +1660,34 @@ const ProjectDetailPage = () => {
                           {/* Actions */}
                           <div
                             className="d-flex align-items-center gap-1 flex-shrink-0"
-                            style={{ width: 80, justifyContent: 'flex-end' }}
+                            style={{ width: 120, justifyContent: 'flex-end' }}
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <div className="position-relative" title="Upload UC">
+                              <CButton
+                                color="secondary"
+                                variant="ghost"
+                                size="sm"
+                                style={{ padding: '4px 8px' }}
+                                onClick={(e) => {
+                                  const fileInput = e.currentTarget.nextElementSibling
+                                  if (fileInput) fileInput.click()
+                                }}
+                              >
+                                <CIcon icon={cilCloudUpload} size="sm" />
+                              </CButton>
+                              <input 
+                                type="file" 
+                                hidden 
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    console.log('UC Uploaded:', e.target.files[0])
+                                    // Add handle upload functionality here
+                                  }
+                                }} 
+                              />
+                            </div>
                             <CButton
                               color="secondary"
                               variant="ghost"
@@ -1897,14 +2029,15 @@ const ProjectDetailPage = () => {
               {(() => {
                 const installments = project.installments || []
 
-                const hrSummary = localOrgPool.getProjectHRBudgetSummary(project.id)
-                const coreSummary = localOrgPool.getProjectCoreBudgetSummary(project.id)
-                const hrCharges = localOrgPool
-                  .getProjectHRCharges(project.id)
-                  .map((c) => ({ ...c, amount: c.myAmount }))
-                const coreCharges = localOrgPool
-                  .getProjectCoreCharges(project.id)
-                  .map((c) => ({ ...c, amount: c.myAmount }))
+                const poolExpensesFor = (pool) =>
+                  localProjectExpenses.list({ projectId: project.id, pool }).map((e) => ({
+                    id: e.id,
+                    label: e.label,
+                    amount: e.amount,
+                    date: e.createdAt,
+                    notes: `Logged by ${e.createdBy}`,
+                    source: 'project_actual',
+                  }))
 
                 const saveActualDate = (instId) => {
                   const updated = localProjects.updateInstallment(project.id, instId, {
@@ -1919,22 +2052,6 @@ const ProjectDetailPage = () => {
                   const updated = localProjects.update(project.id, {
                     [field]: parseFloat(val) || 0,
                   })
-                  setProject(updated)
-                }
-
-                const handleAddExpense = (pool, expense) => {
-                  const updated = localProjects.addExpense(project.id, pool, expense)
-                  setProject(updated)
-                  setToast({ color: 'success', message: `${pool.toUpperCase()} expense added.` })
-                }
-
-                const handleRemoveExpense = (pool, expId) => {
-                  const updated = localProjects.removeExpense(project.id, pool, expId)
-                  setProject(updated)
-                }
-
-                const handleEditExpense = (pool, expId, data) => {
-                  const updated = localProjects.updateExpense(project.id, pool, expId, data)
                   setProject(updated)
                 }
 
@@ -2017,37 +2134,28 @@ const ProjectDetailPage = () => {
                       <CCardBody>
                         <CRow className="g-3">
                           <CCol xs={12} md={4}>
-                            {(() => {
-                              // Merge org-level EMS expenses (read-only) with project-specific admin expenses
-                              const orgAdminExpenses = localAdminExpenses.asProjectExpenses()
-                              const mergedAdminExpenses = [
-                                ...orgAdminExpenses,
-                                ...(project.admin_expenses || []),
-                              ]
-                              return (
-                                <ExpenseCard
-                                  title="🏛 Admin Expenses"
-                                  color="warning"
-                                  budget={
-                                    (project.project_valuation || project.project_value || 0) *
-                                    ((project.admin_pct ?? 5) / 100)
-                                  }
-                                  expenses={mergedAdminExpenses}
-                                  isAdmin={true}
-                                  projectId={project.id}
-                                  onAdd={(exp) => handleAddExpense('admin', exp)}
-                                  onRemove={(expId) => handleRemoveExpense('admin', expId)}
-                                  onEdit={(expId, data) => handleEditExpense('admin', expId, data)}
-                                />
-                              )
-                            })()}
+                            <ExpenseCard
+                              title="🏛 Admin Expenses"
+                              color="warning"
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.admin_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('admin')}
+                              isAdmin={true}
+                              projectId={project.id}
+                              isReadOnly={true}
+                            />
                           </CCol>
                           <CCol xs={12} md={4}>
                             <ExpenseCard
                               title="👥 HR Pool Charges"
                               color="primary"
-                              budget={hrSummary.poolBudget}
-                              expenses={hrCharges}
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.hr_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('hr')}
                               isAdmin={false}
                               projectId={project.id}
                               isReadOnly={true}
@@ -2057,8 +2165,11 @@ const ProjectDetailPage = () => {
                             <ExpenseCard
                               title="⚡ Core Pool Charges"
                               color="danger"
-                              budget={coreSummary.poolBudget}
-                              expenses={coreCharges}
+                              budget={
+                                (project.project_valuation || project.project_value || 0) *
+                                ((project.core_pct ?? 5) / 100)
+                              }
+                              expenses={poolExpensesFor('core')}
                               isAdmin={false}
                               projectId={project.id}
                               isReadOnly={true}
@@ -2193,6 +2304,26 @@ const ProjectDetailPage = () => {
                   </div>
                 )
               })()}
+            </CTabPane>
+
+            {/* Monthly Plan Tab */}
+            <CTabPane visible={activeTab === 6}>
+              <MonthlyPlanPanel
+                project={project}
+                onProjectChange={setProject}
+                canEdit={canEditMonthlyPlan}
+                currentUser={user?.full_name || user?.employee_id || 'Unknown'}
+              />
+            </CTabPane>
+
+            {/* Expense Tab */}
+            <CTabPane visible={activeTab === 7}>
+              <ExpensePanel
+                project={project}
+                onProjectChange={setProject}
+                canEdit={canEditMonthlyPlan}
+                currentUser={user?.full_name || user?.employee_id || 'Unknown'}
+              />
             </CTabPane>
           </CTabContent>
         </CCardBody>
