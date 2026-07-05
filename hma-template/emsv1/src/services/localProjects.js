@@ -5,8 +5,17 @@
  * Seed data sourced from: /docs/Projects sdp .csv
  */
 import { SDP_PROJECTS } from './sdpProjectsData'
+import {
+  computeWorkingPool,
+  monthsInRange,
+  sumPlanTotal,
+  validatePlanTotal,
+  computeFlatMonthlyRate,
+  computeCascadeAdjustments,
+  validatePlanTotalWithCascade,
+} from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed with CSV data
+const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -319,7 +328,9 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
-    projects[idx] = { ...projects[idx], ...data, updated_at: now() }
+    const updated = { ...projects[idx], ...data, updated_at: now() }
+
+    projects[idx] = updated
     write(PROJECTS_KEY, projects)
     notify()
     return projects[idx]
@@ -342,6 +353,347 @@ export const localProjects = {
     write(PROJECTS_KEY, projects)
     notify()
     return projects[idx]
+  },
+
+  // ── Monthly Planning ────────────────────────────────────────────────────────
+
+  /**
+   * Builds project.monthly_plan from one or more independently-planned
+   * "blocks" — each a contiguous month range with its own Design/
+   * Implementation/Monitoring phase breakdown, replicated identically
+   * across every month in that block's range. Months not covered by any
+   * block are filled with an even split of whatever's left of the
+   * project's own baseline (computeWorkingPool) as a single generic
+   * "Planned budget" line item per month.
+   *
+   * - If blocks cover every month, the blocked total must equal the
+   *   working pool exactly (no remainder exists to spread either way) or
+   *   this throws.
+   * - Throws if a block falls outside the project's duration, if two
+   *   blocks claim the same month, if the blocked total alone already
+   *   exceeds the working pool, or if the final plan still fails to
+   *   balance after rounding-drift reconciliation (a real algorithm bug,
+   *   not normal user error).
+   * - Persists both `monthly_plan` (the derived per-month array consumed
+   *   by the rest of the app) and `plan_blocks` (the raw block
+   *   definitions, so the editor can reload and revise them later).
+   */
+  generateMonthlyPlan(projectId, blocks) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+
+    const months = monthsInRange(project.start_date, project.end_date)
+    if (months.length === 0) {
+      throw new Error('Project must have a start_date and end_date before generating a plan')
+    }
+    const monthSet = new Set(months)
+
+    const stampedBlocks = blocks.map((b) => ({
+      id: b.id || `blk_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      startMonth: b.startMonth,
+      endMonth: b.endMonth,
+      phases: b.phases.map((ph) => ({ ...ph, amount: parseFloat(ph.amount) || 0 })),
+    }))
+
+    const blockedMonthEntries = []
+    const claimedBy = {}
+
+    for (const block of stampedBlocks) {
+      const blockMonths = monthsInRange(block.startMonth, block.endMonth)
+      if (blockMonths.length === 0) {
+        throw new Error(`Block has an invalid month range (${block.startMonth}–${block.endMonth}).`)
+      }
+      for (const m of blockMonths) {
+        if (!monthSet.has(m)) {
+          throw new Error(
+            `Block ${block.startMonth}–${block.endMonth} falls outside the project's duration ` +
+              `(${months[0]}–${months[months.length - 1]}).`,
+          )
+        }
+        if (claimedBy[m]) {
+          throw new Error(
+            `Month ${m} is covered by more than one block ` +
+              `(${claimedBy[m]} and ${block.startMonth}–${block.endMonth}).`,
+          )
+        }
+        claimedBy[m] = `${block.startMonth}–${block.endMonth}`
+      }
+      const total = Math.round(block.phases.reduce((s, ph) => s + ph.amount, 0) * 100) / 100
+      for (const m of blockMonths) {
+        blockedMonthEntries.push({ month: m, phases: block.phases.map((ph) => ({ ...ph })), total })
+      }
+    }
+
+    const workingPool = computeWorkingPool(project)
+    const blockedTotal = sumPlanTotal(blockedMonthEntries)
+    const remainingMonths = months.filter((m) => !claimedBy[m])
+
+    let monthlyPlan
+
+    if (remainingMonths.length === 0) {
+      monthlyPlan = months.map((m) => blockedMonthEntries.find((e) => e.month === m))
+      const { valid, planTotal, diff } = validatePlanTotal(monthlyPlan, workingPool)
+      if (!valid) {
+        throw new Error(
+          `Plan total (${planTotal}) does not match the project baseline (${workingPool}) — ` +
+            `difference of ${diff}. Adjust the block amounts and try again.`,
+        )
+      }
+      projects[idx] = {
+        ...project,
+        monthly_plan: monthlyPlan,
+        plan_blocks: stampedBlocks,
+        updated_at: now(),
+      }
+      write(PROJECTS_KEY, projects)
+      return projects[idx]
+    }
+
+    const remainingPool = Math.round((workingPool - blockedTotal) * 100) / 100
+    if (remainingPool < 0) {
+      throw new Error(
+        `Blocked months' total (₹${blockedTotal}) already exceeds the project baseline ` +
+          `(₹${workingPool}) — reduce block amounts.`,
+      )
+    }
+
+    const remainingPerMonth = Math.round((remainingPool / remainingMonths.length) * 100) / 100
+    const remainingEntries = remainingMonths.map((month) => ({
+      month,
+      phases: [{ phase: 'design', label: 'Planned budget', amount: remainingPerMonth }],
+      total: remainingPerMonth,
+    }))
+
+    monthlyPlan = months.map(
+      (m) =>
+        blockedMonthEntries.find((e) => e.month === m) ||
+        remainingEntries.find((e) => e.month === m),
+    )
+
+    const drift = validatePlanTotal(monthlyPlan, workingPool)
+    if (!drift.valid) {
+      if (Math.abs(drift.diff) >= 1) {
+        throw new Error(
+          `Plan total (${drift.planTotal}) does not match the project baseline (${workingPool}) — ` +
+            `difference of ${drift.diff}. This is larger than normal rounding drift and indicates ` +
+            `a bug in the plan-generation algorithm.`,
+        )
+      }
+      const lastRemainingMonth = remainingMonths[remainingMonths.length - 1]
+      const lastIdx = monthlyPlan.findIndex((e) => e.month === lastRemainingMonth)
+      const lastEntry = monthlyPlan[lastIdx]
+      const patchedAmount = Math.round((lastEntry.phases[0].amount - drift.diff) * 100) / 100
+      if (patchedAmount < 0) {
+        throw new Error(
+          'Rounding reconciliation produced a negative amount — this indicates a bug in the ' +
+            'plan-generation algorithm.',
+        )
+      }
+      monthlyPlan = [
+        ...monthlyPlan.slice(0, lastIdx),
+        {
+          ...lastEntry,
+          phases: [{ ...lastEntry.phases[0], amount: patchedAmount }],
+          total: patchedAmount,
+        },
+        ...monthlyPlan.slice(lastIdx + 1),
+      ]
+    }
+
+    const final = validatePlanTotal(monthlyPlan, workingPool)
+    if (!final.valid) {
+      throw new Error(
+        `Plan total (${final.planTotal}) does not match the project baseline (${workingPool}) — ` +
+          `difference of ${final.diff}. Adjust the block amounts and try again.`,
+      )
+    }
+
+    projects[idx] = {
+      ...project,
+      monthly_plan: monthlyPlan,
+      plan_blocks: stampedBlocks,
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+    return projects[idx]
+  },
+
+  /**
+   * Replaces one month's phase line items. Does not block on an unbalanced
+   * total (single-month edits routinely go out of balance mid-edit) — the
+   * returned `validation` field tells the caller whether the *overall* plan
+   * still balances, so the UI can flag it live.
+   */
+  /**
+   * Replaces one month's phase line items, then recomputes the whole
+   * project's auto_cascade pool_adjustments from scratch against the
+   * updated plan (any month's Project total exceeding its baseline share
+   * automatically pulls from HR/Core — see computeCascadeAdjustments).
+   * Manual adjustments (and any legacy adjustment without an auto_cascade
+   * source tag) are preserved untouched. Does not block on an unbalanced
+   * total (single-month edits routinely go out of balance mid-edit) — the
+   * returned `validation` field (cascade-aware) tells the caller whether
+   * the *overall* plan still balances, so the UI can flag it live.
+   */
+  updateMonthPlan(projectId, month, phases) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) throw new Error('Project not found')
+    const project = projects[idx]
+    const plan = project.monthly_plan || []
+    const mIdx = plan.findIndex((m) => m.month === month)
+    if (mIdx === -1) throw new Error(`Month ${month} not found in plan`)
+
+    const total =
+      Math.round(phases.reduce((s, ph) => s + (parseFloat(ph.amount) || 0), 0) * 100) / 100
+    const updatedPlan = [...plan]
+    updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
+
+    const preservedAdjustments = (project.pool_adjustments || []).filter(
+      (a) => a.source !== 'auto_cascade',
+    )
+    const cascadeAdjustments = computeCascadeAdjustments({
+      ...project,
+      monthly_plan: updatedPlan,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      reason: 'Auto-funded from Project overage',
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [...preservedAdjustments, ...cascadeAdjustments]
+
+    projects[idx] = {
+      ...project,
+      monthly_plan: updatedPlan,
+      pool_adjustments: poolAdjustments,
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+
+    const validation = validatePlanTotalWithCascade(
+      updatedPlan,
+      computeWorkingPool(projects[idx]),
+      poolAdjustments,
+    )
+    return { project: projects[idx], validation }
+  },
+
+  /**
+   * Directly sets a pool's effective figure for one month by upserting a
+   * single manual pool_adjustment — replacing any prior manual adjustment
+   * for that exact pool+month (not stacking). `newAmount` is the desired
+   * effective value; the stored adjustment amount is however much that
+   * differs from the flat rate (delta = flat − newAmount). Delta can be
+   * negative (a manual top-up above the flat rate) — not clamped,
+   * consistent with this codebase's existing pool-adjustment behavior. If
+   * the delta rounds to within half a paisa of zero, any existing manual
+   * adjustment for that pool+month is removed instead of storing a no-op
+   * record (back to the flat rate).
+   */
+  setManualPoolAdjustment(projectId, { pool, month, newAmount, createdBy }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+
+    const validPools = ['admin', 'hr', 'core']
+    if (!validPools.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
+    if (!month) throw new Error('A month is required.')
+
+    const months = monthsInRange(projects[pIdx].start_date, projects[pIdx].end_date)
+    if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
+
+    const flat = computeFlatMonthlyRate(projects[pIdx], pool)
+    const delta = Math.round((flat - (parseFloat(newAmount) || 0)) * 100) / 100
+
+    const withoutExistingManual = (projects[pIdx].pool_adjustments || []).filter(
+      (a) => !(a.source === 'manual' && a.pool === pool && a.month === month),
+    )
+
+    const nextAdjustments =
+      Math.abs(delta) < 0.01
+        ? withoutExistingManual
+        : [
+            ...withoutExistingManual,
+            {
+              id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+              pool,
+              month,
+              amount: delta,
+              source: 'manual',
+              reason: 'Direct edit',
+              createdBy: createdBy || 'Unknown',
+              createdAt: now(),
+            },
+          ]
+
+    projects[pIdx].pool_adjustments = nextAdjustments
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  // ── Send-to-EMS Allocations ──────────────────────────────────────────────────
+
+  /**
+   * PO confirms sending one month's pool amount to EMS — this is what
+   * unlocks HR to log actual expenses against that exact project+pool+
+   * month in EMS → Project Expenses (capped at this amount there). Upserts
+   * (replaces any prior sent record for the same pool+month, not stacking).
+   * A month/pool that's never sent stays at 0 in EMS — that's the PO's
+   * restriction; there's no separate "restrict" action beyond simply not
+   * sending.
+   */
+  sendPoolAllocation(projectId, { pool, month, amount, sentBy }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+
+    const validPools = ['admin', 'hr', 'core']
+    if (!validPools.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
+    if (!month) throw new Error('A month is required.')
+
+    const months = monthsInRange(projects[pIdx].start_date, projects[pIdx].end_date)
+    if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
+
+    const amt = parseFloat(amount) || 0
+    if (amt <= 0) throw new Error('Sent amount must be greater than zero.')
+
+    const withoutExisting = (projects[pIdx].sent_allocations || []).filter(
+      (a) => !(a.pool === pool && a.month === month),
+    )
+    const record = {
+      id: `sent_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      pool,
+      month,
+      amount: amt,
+      sentBy: sentBy || 'Unknown',
+      sentAt: now(),
+    }
+
+    projects[pIdx].sent_allocations = [...withoutExisting, record]
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  /** Reverses a send — the pool+month goes back to unavailable in EMS. */
+  revokePoolAllocation(projectId, { pool, month }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    projects[pIdx].sent_allocations = (projects[pIdx].sent_allocations || []).filter(
+      (a) => !(a.pool === pool && a.month === month),
+    )
+    projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
   },
 
   // ── Pool % Adjustment API ──────────────────────────────────────────────────────

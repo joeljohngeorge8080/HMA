@@ -2,10 +2,12 @@
  * ExpenseManagementPage.jsx
  * EMS › Expense Management
  *
- * Three tabs:
- *  1. Admin Expenses — per-org expense register
- *  2. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
- *  3. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
+ * Five tabs:
+ *  1. Consolidated Sheet — cross-project summary table (Admin/HR/Core/Direct)
+ *  2. Apportionment Sheet — per-project monthly breakdown with freeze/adjustment logic
+ *  3. Forecast Expense — HR & Admin actual + forecast
+ *  4. Project Expenses — HR logs actual admin-pool spend per sent pool+month
+ *  5. Revenue — HR revenue (recruitment/training/internship) + project pool shares
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
@@ -30,16 +32,18 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
+  cilDollar,
   cilChartPie,
   cilArrowLeft,
   cilNotes,
-  cilList,
   cilPencil,
   cilX,
   cilCash,
 } from '@coreui/icons'
 import { localOrgPool } from '../../../services/localOrgPool'
 import { localProjects, PHASE_CONFIG } from '../../../services/localProjects'
+import { localProjectExpenses } from '../../../services/localProjectExpenses'
+import { computeEffectivePoolMonthly } from '../../../services/monthlyApportionment'
 
 // ── Shared Formatters ─────────────────────────────────────────────────────────
 
@@ -257,16 +261,35 @@ const MonthlyDrillDown = ({ project, onBack }) => {
 //   Core   → 0 until activation, then project_value × core_pct% ÷ total_months
 //   Direct → installment_amount × (100-admin-hr-core)% ÷ inst_months
 
+const currentMonth = () => new Date().toISOString().slice(0, 7)
+
+/** Resolves a project's Admin/HR/Core/Project figures for the current
+ * month from its monthly_plan, if one exists. Returns null for projects
+ * still on the old (pre-monthly-plan) model. */
+const currentMonthSplitFor = (project) => {
+  if (!project?.monthly_plan?.length) return null
+  const month = currentMonth()
+  const entry = project.monthly_plan.find((m) => m.month === month)
+  if (!entry) return null
+  return {
+    projectAmount: entry.total,
+    hrAmount: computeEffectivePoolMonthly(project, 'hr', month),
+    coreAmount: computeEffectivePoolMonthly(project, 'core', month),
+    adminAmount: computeEffectivePoolMonthly(project, 'admin', month),
+    monthTotal: entry.total,
+  }
+}
+
 const ConsolidatedSheet = ({ onDrillDown }) => {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Same source as PMS › All Projects (localProjects.list with no filters) —
+    // every project entered there shows up here, not just activated ones.
     const allProjects = localProjects.list({ pageSize: 1000 }).items || []
 
     const built = allProjects
-      .filter((p) => p.is_operations_active &&
-        (p.status === 'ongoing' || p.status === 'active' || p.status === 'approved'))
       .map((p) => {
         const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
         const totalAdmin  = bd.reduce((s, m) => s + m.adminBudget,  0)
@@ -276,6 +299,9 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
         const hrSummary   = localOrgPool.getProjectHRBudgetSummary(p.id)
         const coreSummary = localOrgPool.getProjectCoreBudgetSummary(p.id)
+        const adminUsed = localProjectExpenses
+          .list({ projectId: p.id, pool: 'admin' })
+          .reduce((s, e) => s + e.amount, 0)
         const activationMonth = p.operations_activated_month ||
           (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
         return {
@@ -285,12 +311,21 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
           projectValue: pv,
           activationMonth,
           totalAdmin, totalHr, totalCore, totalDirect,
+          adminUsed,
           hrUsed: hrSummary.totalCharged || 0,
           coreUsed: coreSummary.totalCharged || 0,
         }
       })
 
-    setRows(built)
+    // Attach this month's monthly-plan-derived split (Project/HR/Core/Admin),
+    // where available, alongside the localOrgPool-derived totals above.
+    const enriched = built.map((r) => {
+      const fullProject = localProjects.getById(r.projectId)
+      const newSplit = currentMonthSplitFor(fullProject)
+      return newSplit ? { ...r, newMonthSplit: newSplit } : r
+    })
+
+    setRows(enriched)
     setLoading(false)
   }, [])
 
@@ -298,7 +333,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   if (rows.length === 0) {
     return (
       <div className="text-center text-body-secondary py-5 small">
-        No active projects in the pool. Activate projects in PMS to see them here.
+        No projects found. Add a project in PMS › All Projects to see it here.
       </div>
     )
   }
@@ -307,12 +342,34 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   const sumHr     = rows.reduce((s, r) => s + r.totalHr,     0)
   const sumCore   = rows.reduce((s, r) => s + r.totalCore,   0)
   const sumDirect = rows.reduce((s, r) => s + r.totalDirect, 0)
+  const sumAdminUsed = rows.reduce((s, r) => s + r.adminUsed, 0)
   const sumHrUsed = rows.reduce((s, r) => s + r.hrUsed,      0)
+  const sumCoreUsed = rows.reduce((s, r) => s + r.coreUsed, 0)
 
   const SHEET_ROWS = [
-    { key: 'admin',  label: 'HMA Admin Expenses',      color: 'warning', badge: '5%',  getBudget: (r) => r.totalAdmin,  getUsed: () => 0,       totalBudget: sumAdmin,  totalUsed: 0,       note: 'Always active'   },
+    {
+      key: 'admin',
+      label: 'HMA Admin Expenses',
+      color: 'warning',
+      badge: '5%',
+      getBudget: (r) => r.totalAdmin,
+      getUsed: (r) => r.adminUsed,
+      totalBudget: sumAdmin,
+      totalUsed: sumAdminUsed,
+      note: 'Always active',
+    },
     { key: 'hr',     label: 'HR Expenses',             color: 'primary', badge: '5%',  getBudget: (r) => r.totalHr,     getUsed: (r) => r.hrUsed,   totalBudget: sumHr,     totalUsed: sumHrUsed, note: 'Post-activation' },
-    { key: 'core',   label: 'Core Team Salary',        color: 'info',    badge: '5%',  getBudget: (r) => r.totalCore,   getUsed: () => 0,       totalBudget: sumCore,   totalUsed: 0,       note: 'Post-activation' },
+    {
+      key: 'core',
+      label: 'Core Team Salary',
+      color: 'info',
+      badge: '5%',
+      getBudget: (r) => r.totalCore,
+      getUsed: (r) => r.coreUsed,
+      totalBudget: sumCore,
+      totalUsed: sumCoreUsed,
+      note: 'Post-activation',
+    },
     { key: 'direct', label: 'Project Direct Expenses', color: 'success', badge: '85%+',getBudget: (r) => r.totalDirect, getUsed: () => 0,       totalBudget: sumDirect, totalUsed: 0,       note: 'From installment' },
   ]
 
@@ -322,12 +379,12 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         <div>
           <h6 className="fw-bold mb-0">Cross-Project Expense Consolidated Sheet</h6>
           <div className="text-body-secondary small">
-            Budget across {rows.length} active project{rows.length !== 1 ? 's' : ''}
+            Budget across {rows.length} project{rows.length !== 1 ? 's' : ''} from PMS › All Projects
             {' · '}Admin always active · HR/Core from activation · Click project to drill down
           </div>
         </div>
         <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
-          {rows.length} Active Projects
+          {rows.length} Project{rows.length !== 1 ? 's' : ''}
         </CBadge>
       </div>
 
@@ -359,6 +416,16 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                   {r.activationMonth && (
                     <div className="text-success" style={{ fontSize: '0.63rem', marginTop: 2 }}>
                       Active from {r.activationMonth}
+                    </div>
+                  )}
+                  {r.newMonthSplit && (
+                    <div
+                      className="text-body-secondary"
+                      style={{ fontSize: '0.62rem', marginTop: 2, lineHeight: 1.3 }}
+                    >
+                      This month: Project {fmtL(r.newMonthSplit.projectAmount)} · HR{' '}
+                      {fmtL(r.newMonthSplit.hrAmount)} · Core {fmtL(r.newMonthSplit.coreAmount)} ·{' '}
+                      Admin {fmtL(r.newMonthSplit.adminAmount)}
                     </div>
                   )}
                 </th>
@@ -520,6 +587,9 @@ const ApportionmentSheet = () => {
           const totalHr     = bd.reduce((s, m) => s + m.hrBudget,     0)
           const totalCore   = bd.reduce((s, m) => s + m.coreBudget,   0)
           const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
+          const actualAdmin = localProjectExpenses
+            .list({ projectId: p.id, pool: 'admin' })
+            .reduce((s, e) => s + e.amount, 0)
 
           return (
             <CCard key={p.id} className="shadow-sm border-0">
@@ -552,6 +622,7 @@ const ApportionmentSheet = () => {
                       { l: 'HR',     v: totalHr,     c: 'primary' },
                       { l: 'Core',   v: totalCore,   c: 'info'    },
                       { l: 'Direct', v: totalDirect, c: 'success' },
+                      { l: 'Actual (Admin)', v: actualAdmin, c: 'danger' },
                     ].map((s) => (
                       <div key={s.l} className="text-center px-3 py-1 rounded-3 border" style={{ fontSize: '0.72rem', minWidth: 72 }}>
                         <div className={`fw-bold text-${s.c}`}>{fmtL(s.v)}</div>
@@ -796,10 +867,11 @@ const ApportionmentSheet = () => {
   )
 }
 
-// ── Lazy-loaded Admin Expense content ────────────────────────────────────────
+// ── Lazy-loaded tab content ──────────────────────────────────────────────────
 
-const AdminExpensePage = React.lazy(() => import('./AdminExpensePage'))
+const ProjectExpensesPage = React.lazy(() => import('./ProjectExpensesPage'))
 const GeneralExpensesTab = React.lazy(() => import('./GeneralExpensesTab'))
+const RevenuePage = React.lazy(() => import('./RevenuePage'))
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -826,38 +898,50 @@ const ExpenseManagementPage = () => {
       {!drillProject && (
         <CNav variant="underline" className="mb-4">
           <CNavItem>
-            <CNavLink active={activeTab === 0} onClick={() => setActiveTab(0)} role="button" className="fw-medium" id="tab-admin-expenses">
-              <CIcon icon={cilList} className="me-1" />Admin Expenses
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)} role="button" className="fw-medium" id="tab-consolidated-sheet">
+            <CNavLink active={activeTab === 0} onClick={() => setActiveTab(0)} role="button" className="fw-medium" id="tab-consolidated-sheet">
               <CIcon icon={cilNotes} className="me-1" />Consolidated Sheet
             </CNavLink>
           </CNavItem>
           <CNavItem>
-            <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)} role="button" className="fw-medium" id="tab-apportionment-sheet">
+            <CNavLink active={activeTab === 1} onClick={() => setActiveTab(1)} role="button" className="fw-medium" id="tab-apportionment-sheet">
               <CIcon icon={cilChartPie} className="me-1" />Apportionment Sheet
             </CNavLink>
           </CNavItem>
           <CNavItem>
-            <CNavLink active={activeTab === 3} onClick={() => setActiveTab(3)} role="button" className="fw-medium" id="tab-general-expenses">
-              <CIcon icon={cilCash} className="me-1" />General Expenses
+            <CNavLink active={activeTab === 2} onClick={() => setActiveTab(2)} role="button" className="fw-medium" id="tab-general-expenses">
+              <CIcon icon={cilCash} className="me-1" />Forecast Expense
+            </CNavLink>
+          </CNavItem>
+          <CNavItem>
+            <CNavLink
+              active={activeTab === 3}
+              onClick={() => setActiveTab(3)}
+              role="button"
+              className="fw-medium"
+              id="tab-project-expenses"
+            >
+              <CIcon icon={cilDollar} className="me-1" />
+              Project Expenses
+            </CNavLink>
+          </CNavItem>
+          <CNavItem>
+            <CNavLink
+              active={activeTab === 4}
+              onClick={() => setActiveTab(4)}
+              role="button"
+              className="fw-medium"
+              id="tab-revenue"
+            >
+              <CIcon icon={cilCash} className="me-1" />
+              Revenue
             </CNavLink>
           </CNavItem>
         </CNav>
       )}
 
       <CTabContent>
-        {/* Tab 0: Admin Expenses */}
-        <CTabPane visible={activeTab === 0 && !drillProject}>
-          <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
-            <AdminExpensePage />
-          </React.Suspense>
-        </CTabPane>
-
-        {/* Tab 1: Consolidated Sheet or drill-down */}
-        <CTabPane visible={activeTab === 1 || !!drillProject}>
+        {/* Tab 0: Consolidated Sheet or drill-down */}
+        <CTabPane visible={activeTab === 0 || !!drillProject}>
           {drillProject ? (
             <MonthlyDrillDown project={drillProject} onBack={handleBack} />
           ) : (
@@ -865,15 +949,41 @@ const ExpenseManagementPage = () => {
           )}
         </CTabPane>
 
-        {/* Tab 2: Apportionment Sheet */}
-        <CTabPane visible={activeTab === 2 && !drillProject}>
+        {/* Tab 1: Apportionment Sheet */}
+        <CTabPane visible={activeTab === 1 && !drillProject}>
           <ApportionmentSheet />
         </CTabPane>
 
-        {/* Tab 3: General Expenses (HR & Admin actual + forecast) */}
-        <CTabPane visible={activeTab === 3 && !drillProject}>
+        {/* Tab 2: General Expenses (HR & Admin actual + forecast) */}
+        <CTabPane visible={activeTab === 2 && !drillProject}>
           <React.Suspense fallback={<div className="text-center py-5"><CSpinner color="primary" /></div>}>
             <GeneralExpensesTab />
+          </React.Suspense>
+        </CTabPane>
+
+        {/* ── Tab 3: Project Expenses ───────────────────────────────────── */}
+        <CTabPane visible={activeTab === 3 && !drillProject}>
+          <React.Suspense
+            fallback={
+              <div className="text-center py-5">
+                <CSpinner color="primary" />
+              </div>
+            }
+          >
+            <ProjectExpensesPage />
+          </React.Suspense>
+        </CTabPane>
+
+        {/* ── Tab 4: Revenue ─────────────────────────────────────────────── */}
+        <CTabPane visible={activeTab === 4 && !drillProject}>
+          <React.Suspense
+            fallback={
+              <div className="text-center py-5">
+                <CSpinner color="primary" />
+              </div>
+            }
+          >
+            <RevenuePage />
           </React.Suspense>
         </CTabPane>
       </CTabContent>
