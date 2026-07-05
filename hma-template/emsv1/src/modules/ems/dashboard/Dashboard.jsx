@@ -14,6 +14,7 @@ import ExpenseByCategoryWidget from './widgets/ExpenseByCategoryWidget'
 import PayrollSummaryWidget from './widgets/PayrollSummaryWidget'
 import AnnouncementsWidget from './widgets/AnnouncementsWidget'
 import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
+import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
 
 const ALL_WIDGETS = [
   {
@@ -71,6 +72,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, sm: 6, xl: 3 },
     badge: { label: 'Finance', color: 'success' },
     component: ExpensePoolsWidget,
+  },
+  {
+    id: 'global_core_pool',
+    title: 'Global Core Pool',
+    description: 'Unassigned vs assigned employee salary totals',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: GlobalCorePoolWidget,
   },
 ]
 
