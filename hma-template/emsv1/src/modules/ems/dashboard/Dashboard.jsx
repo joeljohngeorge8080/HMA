@@ -15,6 +15,7 @@ import PayrollSummaryWidget from './widgets/PayrollSummaryWidget'
 import AnnouncementsWidget from './widgets/AnnouncementsWidget'
 import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
 import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
+import ExpenseManagementWidget from './widgets/ExpenseManagementWidget'
 
 const ALL_WIDGETS = [
   {
@@ -80,6 +81,14 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, sm: 6, xl: 3 },
     badge: { label: 'Finance', color: 'success' },
     component: GlobalCorePoolWidget,
+  },
+  {
+    id: 'expense_management',
+    title: 'Expense Management',
+    description: 'Admin/HR/Core/Direct budget vs used, across all projects',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpenseManagementWidget,
   },
 ]
 
