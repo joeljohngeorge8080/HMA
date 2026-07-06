@@ -20,7 +20,12 @@ const DailyReportsSummaryWidget = () => {
   if (!counts) return null
 
   const rows = [
-    { label: 'Pending Review', value: counts.pending, color: '#f0ad4e', bg: 'rgba(240,173,78,0.10)' },
+    {
+      label: 'Pending Review',
+      value: counts.pending,
+      color: '#f0ad4e',
+      bg: 'rgba(240,173,78,0.10)',
+    },
     { label: 'Approved', value: counts.approved, color: '#06d6a0', bg: 'rgba(6,214,160,0.10)' },
     { label: 'Declined', value: counts.declined, color: '#ef476f', bg: 'rgba(239,71,111,0.10)' },
     { label: 'Settled', value: counts.settled, color: '#4361ee', bg: 'rgba(67,97,238,0.10)' },
@@ -29,16 +34,11 @@ const DailyReportsSummaryWidget = () => {
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
       <CCardBody className="pt-4">
-        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
-          Daily Reports
-        </h6>
+        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Daily Reports</h6>
         <CRow className="g-2">
           {rows.map((item) => (
             <CCol xs={6} key={item.label}>
-              <div
-                className="rounded-3 text-center py-2 px-1"
-                style={{ background: item.bg }}
-              >
+              <div className="rounded-3 text-center py-2 px-1" style={{ background: item.bg }}>
                 <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: item.color }}>
                   {item.value}
                 </div>
