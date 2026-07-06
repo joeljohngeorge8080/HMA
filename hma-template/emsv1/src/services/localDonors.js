@@ -1,7 +1,11 @@
 const KEY = 'hma_donor_records'
 
 const read = () => {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || '[]')
+  } catch {
+    return []
+  }
 }
 const write = (data) => localStorage.setItem(KEY, JSON.stringify(data))
 const uid = () => `donor_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
@@ -29,7 +33,9 @@ export const localDonors = {
       )
     }
     // Sort: by year desc, then agency name
-    return items.sort((a, b) => b.year - a.year || a.funding_agency?.localeCompare(b.funding_agency))
+    return items.sort(
+      (a, b) => b.year - a.year || a.funding_agency?.localeCompare(b.funding_agency),
+    )
   },
 
   get(id) {
@@ -94,7 +100,8 @@ export const localDonors = {
     const groups = {}
     read().forEach((d) => {
       const key = d.funding_agency || 'Unknown'
-      if (!groups[key]) groups[key] = { name: key, records: [], totalValue: 0, totalBeneficiaries: 0 }
+      if (!groups[key])
+        groups[key] = { name: key, records: [], totalValue: 0, totalBeneficiaries: 0 }
       groups[key].records.push(d)
       groups[key].totalValue += parseFloat(d.project_value) || 0
       groups[key].totalBeneficiaries += parseInt(d.num_beneficiaries) || 0
