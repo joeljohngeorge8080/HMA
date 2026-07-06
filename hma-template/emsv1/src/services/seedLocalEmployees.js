@@ -183,6 +183,31 @@ export function syncCoreSalaryExpenses() {
   }
 }
 
+const DESIGNATION_MIGRATION_FLAG = 'hma_employees_designation_po_v1';
+
+export function applyProjectOfficerMigration() {
+  if (localStorage.getItem(DESIGNATION_MIGRATION_FLAG)) return;
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]');
+    let changed = false;
+    const updated = employees.map(e => {
+      if (e.employee_name !== 'Jithin Dominic' && e.employee_name !== 'Arjuna V Nath') {
+        if (e.employment && e.employment.designation && e.employment.designation.includes('Project Associate')) {
+          e.employment.designation = e.employment.designation.replace('Project Associate', 'Project Officer');
+          changed = true;
+        }
+      }
+      return e;
+    });
+    if (changed) {
+      localStorage.setItem(KEY, JSON.stringify(updated));
+    }
+    localStorage.setItem(DESIGNATION_MIGRATION_FLAG, '1');
+  } catch (err) {
+    console.warn('[applyProjectOfficerMigration] Failed:', err);
+  }
+}
+
 export function seedLocalEmployees() {
   if (localStorage.getItem(SEED_FLAG)) return // already on v2
 
