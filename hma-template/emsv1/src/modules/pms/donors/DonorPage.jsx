@@ -46,7 +46,11 @@ import { localDonors } from '../../../services/localDonors'
 import { localProjects } from '../../../services/localProjects'
 
 const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n || 0)
 
 const fmtNum = (n) => new Intl.NumberFormat('en-IN').format(n || 0)
 
@@ -75,7 +79,11 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
   useEffect(() => {
     setForm(
       initial
-        ? { ...initial, project_value: String(initial.project_value || ''), num_beneficiaries: String(initial.num_beneficiaries || '') }
+        ? {
+            ...initial,
+            project_value: String(initial.project_value || ''),
+            num_beneficiaries: String(initial.num_beneficiaries || ''),
+          }
         : EMPTY,
     )
     setErrors({})
@@ -133,7 +141,9 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
               onChange={(e) => set('funding_agency', e.target.value)}
               invalid={!!errors.funding_agency}
             />
-            {errors.funding_agency && <div className="text-danger small mt-1">{errors.funding_agency}</div>}
+            {errors.funding_agency && (
+              <div className="text-danger small mt-1">{errors.funding_agency}</div>
+            )}
           </CCol>
 
           {/* Year */}
@@ -141,7 +151,11 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
             <CFormLabel className="small fw-semibold">Year</CFormLabel>
             <CFormSelect value={form.year || ''} onChange={(e) => set('year', e.target.value)}>
               <option value="">— Select year —</option>
-              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              {YEARS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
             </CFormSelect>
           </CCol>
 
@@ -158,22 +172,35 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
           {/* Start date */}
           <CCol xs={12} md={6}>
             <CFormLabel className="small fw-semibold">Start Date</CFormLabel>
-            <CFormInput type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} />
+            <CFormInput
+              type="date"
+              value={form.start_date}
+              onChange={(e) => set('start_date', e.target.value)}
+            />
           </CCol>
 
           {/* End date */}
           <CCol xs={12} md={6}>
             <CFormLabel className="small fw-semibold">End Date</CFormLabel>
-            <CFormInput type="date" value={form.end_date} onChange={(e) => set('end_date', e.target.value)} />
+            <CFormInput
+              type="date"
+              value={form.end_date}
+              onChange={(e) => set('end_date', e.target.value)}
+            />
           </CCol>
 
           {/* Project */}
           <CCol xs={12} md={6}>
             <CFormLabel className="small fw-semibold">Project Contributed To</CFormLabel>
-            <CFormSelect value={form.project_id} onChange={(e) => set('project_id', e.target.value)}>
+            <CFormSelect
+              value={form.project_id}
+              onChange={(e) => set('project_id', e.target.value)}
+            >
               <option value="">— Select project (optional) —</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </CFormSelect>
             {!form.project_id && (
@@ -226,7 +253,9 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
         </CRow>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" variant="ghost" onClick={onClose}>Cancel</CButton>
+        <CButton color="secondary" variant="ghost" onClick={onClose}>
+          Cancel
+        </CButton>
         <CButton color="primary" onClick={handleSave}>
           <CIcon icon={initial?.id ? cilPencil : cilPlus} className="me-1" />
           {initial?.id ? 'Save Changes' : 'Add Donor Record'}
@@ -239,22 +268,36 @@ const DonorModal = ({ visible, onClose, onSave, initial, projects }) => {
 // ── All Records flat table ────────────────────────────────────────────────────
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null
+  d
+    ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null
 
 const DateRange = ({ start, end }) => {
   if (!start && !end) return <span className="text-body-secondary">—</span>
-  if (start && end) return <span>{fmtDate(start)} – {fmtDate(end)}</span>
+  if (start && end)
+    return (
+      <span>
+        {fmtDate(start)} – {fmtDate(end)}
+      </span>
+    )
   if (start) return <span>{fmtDate(start)} onwards</span>
   return <span>Until {fmtDate(end)}</span>
 }
 
 const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = false }) => (
   <div className="table-responsive">
-    <CTable hover align="middle" className="mb-0" style={{ fontSize: compact ? '0.8rem' : '0.875rem' }}>
+    <CTable
+      hover
+      align="middle"
+      className="mb-0"
+      style={{ fontSize: compact ? '0.8rem' : '0.875rem' }}
+    >
       <CTableHead className="bg-body-tertiary">
         <CTableRow>
           <CTableHeaderCell className="border-0 py-2 ps-3">SL</CTableHeaderCell>
-          {!compact && <CTableHeaderCell className="border-0 py-2">Funding Agency</CTableHeaderCell>}
+          {!compact && (
+            <CTableHeaderCell className="border-0 py-2">Funding Agency</CTableHeaderCell>
+          )}
           <CTableHeaderCell className="border-0 py-2">Year</CTableHeaderCell>
           <CTableHeaderCell className="border-0 py-2">Period</CTableHeaderCell>
           <CTableHeaderCell className="border-0 py-2">Location</CTableHeaderCell>
@@ -268,16 +311,22 @@ const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = fals
       <CTableBody>
         {records.map((r, i) => (
           <CTableRow key={r.id}>
-            <CTableDataCell className="ps-3 text-body-secondary small fw-semibold">{sl_offset + i + 1}</CTableDataCell>
+            <CTableDataCell className="ps-3 text-body-secondary small fw-semibold">
+              {sl_offset + i + 1}
+            </CTableDataCell>
             {!compact && (
               <CTableDataCell>
                 <div className="fw-semibold">{r.funding_agency}</div>
               </CTableDataCell>
             )}
             <CTableDataCell>
-              {r.year
-                ? <CBadge color="secondary" shape="rounded-pill">{r.year}</CBadge>
-                : <span className="text-body-secondary small">—</span>}
+              {r.year ? (
+                <CBadge color="secondary" shape="rounded-pill">
+                  {r.year}
+                </CBadge>
+              ) : (
+                <span className="text-body-secondary small">—</span>
+              )}
             </CTableDataCell>
             <CTableDataCell className="small text-body-secondary text-nowrap">
               <DateRange start={r.start_date} end={r.end_date} />
@@ -287,20 +336,35 @@ const RecordsTable = ({ records, sl_offset = 0, onEdit, onRemove, compact = fals
               {r.project_name || <span className="text-body-secondary">—</span>}
             </CTableDataCell>
             <CTableDataCell className="fw-bold" style={{ color: '#4361ee' }}>
-              {r.project_value ? fmt(r.project_value) : <span className="text-body-secondary small">—</span>}
+              {r.project_value ? (
+                fmt(r.project_value)
+              ) : (
+                <span className="text-body-secondary small">—</span>
+              )}
             </CTableDataCell>
             <CTableDataCell>
-              {r.num_beneficiaries > 0
-                ? <span className="fw-semibold">{fmtNum(r.num_beneficiaries)}</span>
-                : <span className="text-body-secondary small">—</span>}
+              {r.num_beneficiaries > 0 ? (
+                <span className="fw-semibold">{fmtNum(r.num_beneficiaries)}</span>
+              ) : (
+                <span className="text-body-secondary small">—</span>
+              )}
             </CTableDataCell>
             {!compact && (
-              <CTableDataCell className="small text-body-secondary text-truncate" style={{ maxWidth: 140 }}>
+              <CTableDataCell
+                className="small text-body-secondary text-truncate"
+                style={{ maxWidth: 140 }}
+              >
                 {r.notes || '—'}
               </CTableDataCell>
             )}
             <CTableDataCell className="text-end pe-3">
-              <CButton color="secondary" variant="ghost" size="sm" className="me-1" onClick={() => onEdit(r)}>
+              <CButton
+                color="secondary"
+                variant="ghost"
+                size="sm"
+                className="me-1"
+                onClick={() => onEdit(r)}
+              >
                 <CIcon icon={cilPencil} />
               </CButton>
               <CButton color="danger" variant="ghost" size="sm" onClick={() => onRemove(r.id)}>
@@ -325,7 +389,11 @@ const AgencyGroupView = ({ groups, onEdit, onRemove }) => {
   if (groups.length === 0) {
     return (
       <div className="text-center text-body-secondary py-5">
-        <CIcon icon={cilBuilding} style={{ width: 48, height: 48, opacity: 0.3 }} className="d-block mx-auto mb-2" />
+        <CIcon
+          icon={cilBuilding}
+          style={{ width: 48, height: 48, opacity: 0.3 }}
+          className="d-block mx-auto mb-2"
+        />
         <div className="small">No donor records yet. Click "Add Donor Record" to get started.</div>
       </div>
     )
@@ -341,7 +409,10 @@ const AgencyGroupView = ({ groups, onEdit, onRemove }) => {
             {/* Agency header — clickable */}
             <div
               className="d-flex align-items-center justify-content-between px-4 py-3 rounded-top"
-              style={{ cursor: 'pointer', background: openGroups[group.name] ? 'rgba(67,97,238,0.06)' : undefined }}
+              style={{
+                cursor: 'pointer',
+                background: openGroups[group.name] ? 'rgba(67,97,238,0.06)' : undefined,
+              }}
               onClick={() => toggle(group.name)}
             >
               <div className="d-flex align-items-center gap-3">
@@ -356,14 +427,19 @@ const AgencyGroupView = ({ groups, onEdit, onRemove }) => {
                   <div className="text-body-secondary small">
                     {group.records.length} contribution{group.records.length !== 1 ? 's' : ''}
                     {' · '}
-                    {group.records.map((r) => r.year).sort().join(', ')}
+                    {group.records
+                      .map((r) => r.year)
+                      .sort()
+                      .join(', ')}
                   </div>
                 </div>
               </div>
 
               <div className="d-flex align-items-center gap-3">
                 <div className="text-end d-none d-md-block">
-                  <div className="fw-bold" style={{ color: '#4361ee' }}>{fmt(group.totalValue)}</div>
+                  <div className="fw-bold" style={{ color: '#4361ee' }}>
+                    {fmt(group.totalValue)}
+                  </div>
                   <div className="text-body-secondary small">total contributed</div>
                 </div>
                 {group.totalBeneficiaries > 0 && (
@@ -405,7 +481,12 @@ const DonorPage = () => {
   const [records, setRecords] = useState([])
   const [groups, setGroups] = useState([])
   const [projects, setProjects] = useState([])
-  const [summary, setSummary] = useState({ total: 0, uniqueAgencies: 0, totalFunds: 0, totalBeneficiaries: 0 })
+  const [summary, setSummary] = useState({
+    total: 0,
+    uniqueAgencies: 0,
+    totalFunds: 0,
+    totalBeneficiaries: 0,
+  })
 
   const [search, setSearch] = useState('')
   const [filterYear, setFilterYear] = useState('')
@@ -424,7 +505,9 @@ const DonorPage = () => {
     setProjects(localProjects.list({ pageSize: 999 }).items)
   }, [search, filterYear])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    reload()
+  }, [reload])
 
   const handleSave = (data) => {
     if (editTarget?.id) localDonors.update(editTarget.id, data)
@@ -432,23 +515,39 @@ const DonorPage = () => {
     reload()
   }
 
-  const handleRemove = (id) => { localDonors.remove(id); reload() }
+  const handleRemove = (id) => {
+    localDonors.remove(id)
+    reload()
+  }
 
-  const openAdd = () => { setEditTarget(null); setModalOpen(true) }
-  const openEdit = (r) => { setEditTarget(r); setModalOpen(true) }
+  const openAdd = () => {
+    setEditTarget(null)
+    setModalOpen(true)
+  }
+  const openEdit = (r) => {
+    setEditTarget(r)
+    setModalOpen(true)
+  }
 
   // For grouped view, filter groups by search/year
-  const filteredGroups = (search || filterYear)
-    ? groups.map((g) => ({
-        ...g,
-        records: g.records.filter((r) => {
-          const q = search.toLowerCase()
-          const matchSearch = !search || r.funding_agency?.toLowerCase().includes(q) || r.project_name?.toLowerCase().includes(q) || r.location?.toLowerCase().includes(q)
-          const matchYear = !filterYear || String(r.year) === String(filterYear)
-          return matchSearch && matchYear
-        }),
-      })).filter((g) => g.records.length > 0)
-    : groups
+  const filteredGroups =
+    search || filterYear
+      ? groups
+          .map((g) => ({
+            ...g,
+            records: g.records.filter((r) => {
+              const q = search.toLowerCase()
+              const matchSearch =
+                !search ||
+                r.funding_agency?.toLowerCase().includes(q) ||
+                r.project_name?.toLowerCase().includes(q) ||
+                r.location?.toLowerCase().includes(q)
+              const matchYear = !filterYear || String(r.year) === String(filterYear)
+              return matchSearch && matchYear
+            }),
+          }))
+          .filter((g) => g.records.length > 0)
+      : groups
 
   return (
     <>
@@ -457,7 +556,8 @@ const DonorPage = () => {
         <div>
           <h4 className="fw-bold mb-1">Donor / Funding Agency Records</h4>
           <p className="text-body-secondary small mb-0">
-            Track all funding contributions — agencies may contribute multiple times across different years.
+            Track all funding contributions — agencies may contribute multiple times across
+            different years.
           </p>
         </div>
         <CButton color="primary" onClick={openAdd}>
@@ -471,13 +571,23 @@ const DonorPage = () => {
         {[
           { label: 'Total Records', value: summary.total, color: '#4361ee' },
           { label: 'Unique Agencies', value: summary.uniqueAgencies, color: '#06d6a0' },
-          { label: 'Total Funds Received', value: summary.totalFunds ? fmt(summary.totalFunds) : '—', color: '#9b5de5' },
-          { label: 'Total Beneficiaries', value: summary.totalBeneficiaries ? fmtNum(summary.totalBeneficiaries) : '—', color: '#f0ad4e' },
+          {
+            label: 'Total Funds Received',
+            value: summary.totalFunds ? fmt(summary.totalFunds) : '—',
+            color: '#9b5de5',
+          },
+          {
+            label: 'Total Beneficiaries',
+            value: summary.totalBeneficiaries ? fmtNum(summary.totalBeneficiaries) : '—',
+            color: '#f0ad4e',
+          },
         ].map((s) => (
           <CCol key={s.label} xs={6} md={3}>
             <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
               <CCardBody className="py-3 px-3">
-                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: s.color }}>{s.value}</div>
+                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: s.color }}>
+                  {s.value}
+                </div>
                 <div className="small text-body-secondary">{s.label}</div>
               </CCardBody>
             </CCard>
@@ -489,7 +599,9 @@ const DonorPage = () => {
       <CRow className="g-2 mb-3">
         <CCol xs={12} md={6}>
           <CInputGroup size="sm">
-            <CInputGroupText><CIcon icon={cilSearch} size="sm" /></CInputGroupText>
+            <CInputGroupText>
+              <CIcon icon={cilSearch} size="sm" />
+            </CInputGroupText>
             <CFormInput
               placeholder="Search by agency, project, or location…"
               value={search}
@@ -505,12 +617,24 @@ const DonorPage = () => {
         <CCol xs={12} md={3}>
           <CFormSelect size="sm" value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
             <option value="">All Years</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
           </CFormSelect>
         </CCol>
         {(search || filterYear) && (
           <CCol xs="auto">
-            <CButton size="sm" color="secondary" variant="ghost" onClick={() => { setSearch(''); setFilterYear('') }}>
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="ghost"
+              onClick={() => {
+                setSearch('')
+                setFilterYear('')
+              }}
+            >
               Clear
             </CButton>
           </CCol>
@@ -520,16 +644,28 @@ const DonorPage = () => {
       {/* Tabs */}
       <CNav variant="tabs" className="mb-0">
         <CNavItem>
-          <CNavLink active={activeTab === 'by-agency'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('by-agency')}>
+          <CNavLink
+            active={activeTab === 'by-agency'}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setActiveTab('by-agency')}
+          >
             <CIcon icon={cilBuilding} className="me-1" size="sm" />
             By Agency
-            <CBadge color="primary" shape="rounded-pill" className="ms-2">{filteredGroups.length}</CBadge>
+            <CBadge color="primary" shape="rounded-pill" className="ms-2">
+              {filteredGroups.length}
+            </CBadge>
           </CNavLink>
         </CNavItem>
         <CNavItem>
-          <CNavLink active={activeTab === 'all'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('all')}>
+          <CNavLink
+            active={activeTab === 'all'}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setActiveTab('all')}
+          >
             All Records
-            <CBadge color="secondary" shape="rounded-pill" className="ms-2">{records.length}</CBadge>
+            <CBadge color="secondary" shape="rounded-pill" className="ms-2">
+              {records.length}
+            </CBadge>
           </CNavLink>
         </CNavItem>
       </CNav>
@@ -544,8 +680,14 @@ const DonorPage = () => {
         <CTabPane visible={activeTab === 'all'} className="p-0">
           {records.length === 0 ? (
             <div className="text-center text-body-secondary py-5">
-              <CIcon icon={cilMoney} style={{ width: 48, height: 48, opacity: 0.3 }} className="d-block mx-auto mb-2" />
-              <div className="small">{search || filterYear ? 'No records match your filters.' : 'No donor records yet.'}</div>
+              <CIcon
+                icon={cilMoney}
+                style={{ width: 48, height: 48, opacity: 0.3 }}
+                className="d-block mx-auto mb-2"
+              />
+              <div className="small">
+                {search || filterYear ? 'No records match your filters.' : 'No donor records yet.'}
+              </div>
             </div>
           ) : (
             <RecordsTable records={records} onEdit={openEdit} onRemove={handleRemove} />
