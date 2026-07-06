@@ -16,6 +16,13 @@
 
 import seedData from './seedEmployees.json'
 
+const uid = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const now = () => new Date().toISOString()
+
 const KEY = 'hma_employees'
 const SEED_FLAG = 'hma_employees_seeded_v2'
 const OLD_FLAG = 'hma_employees_seeded_v1'
@@ -91,6 +98,113 @@ function migrateAttendanceIds() {
     if (changed) localStorage.setItem('hma_attendance', JSON.stringify(updated))
   } catch {
     // silent — attendance migration is best-effort
+  }
+}
+
+const SALARY_20000_FLAG = 'hma_employees_salary_20000_v1'
+
+/**
+ * One-time migration: sets every employee's current_salary to ₹20,000,
+ * recording the change in each employee's salary_history (same record
+ * shape as localEmployees.updateSalaryDirect) rather than silently
+ * overwriting current_salary, per the payroll immutability rule.
+ * Runs once per browser (guarded by SALARY_20000_FLAG); call after seedLocalEmployees().
+ */
+export function applySalary20000Migration() {
+  if (localStorage.getItem(SALARY_20000_FLAG)) return // already applied
+
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]')
+    const ts = now()
+    const today = ts.slice(0, 10)
+
+    const updated = employees.map((e) => {
+      const previous = parseFloat(e.current_salary || 0)
+      const newSalary = 20000
+      if (previous === newSalary) return e
+      return {
+        ...e,
+        current_salary: newSalary,
+        salary_history: [
+          ...(e.salary_history || []),
+          {
+            id: uid(),
+            previous_salary: previous,
+            increment_percentage: 0,
+            increment_amount: newSalary - previous,
+            new_salary: newSalary,
+            effective_date: today,
+            remarks: 'Bulk salary set to ₹20,000',
+            created_at: ts,
+          },
+        ],
+        updated_at: ts,
+      }
+    })
+
+    localStorage.setItem(KEY, JSON.stringify(updated))
+    localStorage.setItem(SALARY_20000_FLAG, '1')
+  } catch (err) {
+    console.warn('[applySalary20000Migration] Failed to set employee salaries:', err)
+  }
+}
+
+const CORE_SALARY_SYNC_FLAG = 'hma_core_salary_expenses_synced_20000_v1'
+const CORE_SAL_KEY = 'hma_core_salary_expenses'
+
+/**
+ * One-time migration: Core Pool "Core Expenses" (modules/ems/core-pool/CorePoolPage.jsx)
+ * snapshots an employee's salary into a separate persisted record when they're added
+ * as a core overhead expense — it does not read current_salary live afterward. Any
+ * entry added before applySalary20000Migration() ran is now stale. This brings existing
+ * entries in line with the new ₹20,000 baseline; entries added from now on already
+ * snapshot the live (updated) current_salary at add-time, so only pre-existing entries
+ * need this one-time correction.
+ * Runs once per browser (guarded by CORE_SALARY_SYNC_FLAG); call after applySalary20000Migration().
+ */
+export function syncCoreSalaryExpenses() {
+  if (localStorage.getItem(CORE_SALARY_SYNC_FLAG)) return // already synced
+
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]')
+    const employeeById = new Map(employees.map((e) => [e.id, e]))
+
+    const entries = JSON.parse(localStorage.getItem(CORE_SAL_KEY) || '[]')
+    const updated = entries.map((entry) => {
+      const emp = employeeById.get(entry.employee_id)
+      if (!emp) return entry
+      return { ...entry, salary: parseFloat(emp.current_salary) || 0 }
+    })
+
+    localStorage.setItem(CORE_SAL_KEY, JSON.stringify(updated))
+    localStorage.setItem(CORE_SALARY_SYNC_FLAG, '1')
+  } catch (err) {
+    console.warn('[syncCoreSalaryExpenses] Failed to sync core salary expenses:', err)
+  }
+}
+
+const DESIGNATION_MIGRATION_FLAG = 'hma_employees_designation_po_v1';
+
+export function applyProjectOfficerMigration() {
+  if (localStorage.getItem(DESIGNATION_MIGRATION_FLAG)) return;
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]');
+    let changed = false;
+    const updated = employees.map(e => {
+      if (e.employee_name !== 'Jithin Dominic' && e.employee_name !== 'Arjuna V Nath') {
+        if (e.employment && e.employment.designation && e.employment.designation.includes('Project Associate')) {
+          e.employment.designation = e.employment.designation.replace('Project Associate', 'Project Officer');
+          changed = true;
+        }
+      }
+      return e;
+    });
+    if (changed) {
+      localStorage.setItem(KEY, JSON.stringify(updated));
+    }
+    localStorage.setItem(DESIGNATION_MIGRATION_FLAG, '1');
+  } catch (err) {
+    console.warn('[applyProjectOfficerMigration] Failed:', err);
   }
 }
 

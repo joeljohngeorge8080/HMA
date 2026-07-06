@@ -13,6 +13,13 @@ import GeneralExpenseWidget from './widgets/GeneralExpenseWidget'
 import ExpenseByCategoryWidget from './widgets/ExpenseByCategoryWidget'
 import PayrollSummaryWidget from './widgets/PayrollSummaryWidget'
 import AnnouncementsWidget from './widgets/AnnouncementsWidget'
+import ExpensePoolsWidget from './widgets/ExpensePoolsWidget'
+import GlobalCorePoolWidget from './widgets/GlobalCorePoolWidget'
+import ExpenseManagementWidget from './widgets/ExpenseManagementWidget'
+import DepartmentHeadcountWidget from './widgets/DepartmentHeadcountWidget'
+import AttendanceTrendWidget from './widgets/AttendanceTrendWidget'
+import ProjectsOverviewWidget from './widgets/ProjectsOverviewWidget'
+import ProfitLossWidget from './widgets/ProfitLossWidget'
 
 const ALL_WIDGETS = [
   {
@@ -62,6 +69,62 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, lg: 6 },
     badge: { label: 'Comms', color: 'info' },
     component: AnnouncementsWidget,
+  },
+  {
+    id: 'expense_pools',
+    title: 'Expense Pools',
+    description: 'HR / Admin / Core monthly pool budget vs used',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpensePoolsWidget,
+  },
+  {
+    id: 'global_core_pool',
+    title: 'Global Core Pool',
+    description: 'Unassigned vs assigned employee salary totals',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: GlobalCorePoolWidget,
+  },
+  {
+    id: 'expense_management',
+    title: 'Expense Management',
+    description: 'Admin/HR/Core/Direct budget vs used, across all projects',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpenseManagementWidget,
+  },
+  {
+    id: 'department_headcount',
+    title: 'Department Headcount',
+    description: 'Active employees by department',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: DepartmentHeadcountWidget,
+  },
+  {
+    id: 'attendance_trend',
+    title: 'Attendance Trend',
+    description: '6-month trailing present/absent/leave rate chart',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'HR', color: 'primary' },
+    component: AttendanceTrendWidget,
+  },
+  {
+    id: 'projects_overview',
+    title: 'Projects Overview',
+    description: 'Total projects, value, and beneficiaries (live data)',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Projects', color: 'warning' },
+    component: ProjectsOverviewWidget,
+  },
+  {
+    id: 'profit_loss',
+    title: 'Profit / Loss',
+    description: 'Current-year expenses vs own revenue, LSGB dependency verdict',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ProfitLossWidget,
   },
 ]
 

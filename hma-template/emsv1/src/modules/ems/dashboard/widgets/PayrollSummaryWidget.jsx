@@ -23,14 +23,11 @@ const PayrollSummaryWidget = () => {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    const employees = localEmployees.list({ pageSize: 9999 }).items.filter(
-      (e) => e.status === 'Active',
-    )
+    const employees = localEmployees
+      .list({ pageSize: 9999 })
+      .items.filter((e) => e.status === 'Active')
 
-    const totalGross = employees.reduce(
-      (s, e) => s + parseFloat(e.salary?.gross_salary || e.salary?.ctc || 0),
-      0,
-    )
+    const totalGross = employees.reduce((s, e) => s + parseFloat(e.current_salary || 0), 0)
     const avgGross = employees.length > 0 ? totalGross / employees.length : 0
 
     const deptMap = {}
@@ -38,7 +35,7 @@ const PayrollSummaryWidget = () => {
       const dept = emp.employment?.department || 'Unknown'
       if (!deptMap[dept]) deptMap[dept] = { count: 0, total: 0 }
       deptMap[dept].count += 1
-      deptMap[dept].total += parseFloat(emp.salary?.gross_salary || emp.salary?.ctc || 0)
+      deptMap[dept].total += parseFloat(emp.current_salary || 0)
     }
 
     const departments = Object.entries(deptMap)
@@ -82,7 +79,10 @@ const PayrollSummaryWidget = () => {
 
         {data.departments.length > 0 && (
           <>
-            <div className="text-body-secondary mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div
+              className="text-body-secondary mb-2"
+              style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+            >
               By Department
             </div>
             <div className="d-flex flex-column gap-2">

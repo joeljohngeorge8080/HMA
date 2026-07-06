@@ -120,58 +120,83 @@ const forecastFrom = (knownTotals) => {
   return Math.round(knownTotals.reduce((acc, v, i) => acc + v * (i + 1), 0) / weightSum)
 }
 
+/**
+ * Computes the full Profit/Loss picture for a date range: per-month expense
+ * rows (with forecast fallback for months without actuals) plus period totals
+ * and the profit/loss verdict. Pulled out of the page component so both the
+ * page and the dashboard's Profit/Loss widget can call the exact same logic.
+ */
+export const computeLsgbTotals = (rangeStart, rangeEnd) => {
+  const months = monthsBetween(rangeStart, rangeEnd)
+  const operatingActuals = buildOperatingActuals()
+  const projects = localProjects.list({ pageSize: 1000 }).items.filter((p) => p.monthly_plan?.length > 0)
+
+  const knownMonths = Object.keys(operatingActuals).sort()
+  const knownTotals = knownMonths.map((m) => operatingActuals[m])
+  const operatingForecast = forecastFrom(knownTotals)
+  const lastKnown = knownMonths[knownMonths.length - 1] || ''
+
+  const monthRows = months.map((m) => {
+    const hasActual = operatingActuals[m] !== undefined && m <= lastKnown
+    const operatingExpense = hasActual ? operatingActuals[m] : operatingForecast
+
+    let projectExpense = 0
+    let shareRevenue = 0
+    projects.forEach((p) => {
+      const entry = p.monthly_plan.find((e) => e.month === m)
+      if (!entry) return
+      projectExpense += entry.total || 0
+      shareRevenue +=
+        computeEffectivePoolMonthly(p, 'admin', m) +
+        computeEffectivePoolMonthly(p, 'hr', m) +
+        computeEffectivePoolMonthly(p, 'core', m)
+    })
+
+    const totalExpense = operatingExpense + projectExpense
+    const lsgbNeed = Math.max(0, totalExpense - shareRevenue)
+    return { month: m, operatingExpense, isForecast: !hasActual, projectExpense, shareRevenue, totalExpense, lsgbNeed }
+  })
+
+  const rec = localRecruitments.list()
+  const recruitment = rec
+    .filter((r) => (r.activity_type || 'recruitment') === 'recruitment')
+    .reduce((s, r) => s + (r.amount_received || 0), 0)
+  const training = rec
+    .filter((r) => r.activity_type === 'training')
+    .reduce((s, r) => s + (r.amount_received || 0), 0)
+  const internship = localInternships.list().reduce((s, r) => s + (r.amount_received || 0), 0)
+  const hrRevenueTotal = recruitment + training + internship
+
+  const operating = monthRows.reduce((s, r) => s + r.operatingExpense, 0)
+  const project = monthRows.reduce((s, r) => s + r.projectExpense, 0)
+  const shares = monthRows.reduce((s, r) => s + r.shareRevenue, 0)
+  const expenses = operating + project
+  const ownRevenue = shares + hrRevenueTotal
+  const lsgbNeed = Math.max(0, expenses - ownRevenue)
+  const surplus = Math.max(0, ownRevenue - expenses)
+  const lsgbSharePct = expenses > 0 ? (lsgbNeed / expenses) * 100 : 0
+
+  return {
+    monthRows,
+    hrRevenueTotal,
+    operating,
+    project,
+    shares,
+    expenses,
+    ownRevenue,
+    lsgbNeed,
+    surplus,
+    lsgbSharePct,
+    isProfit: lsgbNeed === 0,
+  }
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const LsgbDependencyPage = () => {
   // Default period ≈ 1 year: Jan → Dec of the current year (diagram: "maybe 1 year").
   const [rangeStart, setRangeStart] = useState(`${new Date().getFullYear()}-01`)
   const [rangeEnd, setRangeEnd] = useState(`${new Date().getFullYear()}-12`)
-
-  const months = useMemo(() => monthsBetween(rangeStart, rangeEnd), [rangeStart, rangeEnd])
-
-  const operatingActuals = useMemo(() => buildOperatingActuals(), [])
-
-  const projects = useMemo(
-    () => localProjects.list({ pageSize: 1000 }).items.filter((p) => p.monthly_plan?.length > 0),
-    [],
-  )
-
-  // Rows: one per month in the selected range.
-  const monthRows = useMemo(() => {
-    const knownMonths = Object.keys(operatingActuals).sort()
-    const knownTotals = knownMonths.map((m) => operatingActuals[m])
-    const operatingForecast = forecastFrom(knownTotals)
-    const lastKnown = knownMonths[knownMonths.length - 1] || ''
-
-    return months.map((m) => {
-      const hasActual = operatingActuals[m] !== undefined && m <= lastKnown
-      const operatingExpense = hasActual ? operatingActuals[m] : operatingForecast
-
-      let projectExpense = 0
-      let shareRevenue = 0
-      projects.forEach((p) => {
-        const entry = p.monthly_plan.find((e) => e.month === m)
-        if (!entry) return
-        projectExpense += entry.total || 0
-        shareRevenue +=
-          computeEffectivePoolMonthly(p, 'admin', m) +
-          computeEffectivePoolMonthly(p, 'hr', m) +
-          computeEffectivePoolMonthly(p, 'core', m)
-      })
-
-      const totalExpense = operatingExpense + projectExpense
-      const lsgbNeed = Math.max(0, totalExpense - shareRevenue)
-      return {
-        month: m,
-        operatingExpense,
-        isForecast: !hasActual,
-        projectExpense,
-        shareRevenue,
-        totalExpense,
-        lsgbNeed,
-      }
-    })
-  }, [months, operatingActuals, projects])
 
   // HR revenue has no per-month received date in its records, so — like the
   // Revenue tab — it counts once as a period-level total.
@@ -201,19 +226,11 @@ const LsgbDependencyPage = () => {
   }, [rangeStart, rangeEnd])
 
   // ── Period totals & verdict ─────────────────────────────────────────────────
-  const totals = useMemo(() => {
-    const operating = monthRows.reduce((s, r) => s + r.operatingExpense, 0)
-    const project = monthRows.reduce((s, r) => s + r.projectExpense, 0)
-    const shares = monthRows.reduce((s, r) => s + r.shareRevenue, 0)
-    const expenses = operating + project
-    const ownRevenue = shares + hrRevenue.total
-    const lsgbNeed = Math.max(0, expenses - ownRevenue)
-    const surplus = Math.max(0, ownRevenue - expenses)
-    const lsgbSharePct = expenses > 0 ? (lsgbNeed / expenses) * 100 : 0
-    return { operating, project, shares, expenses, ownRevenue, lsgbNeed, surplus, lsgbSharePct }
-  }, [monthRows, hrRevenue.total])
-
-  const isProfit = totals.lsgbNeed === 0
+  const { monthRows, ...totals } = useMemo(
+    () => computeLsgbTotals(rangeStart, rangeEnd),
+    [rangeStart, rangeEnd],
+  )
+  const isProfit = totals.isProfit
   // Dependency grade for the "less is good / more is bad" scale.
   const grade =
     totals.lsgbSharePct === 0

@@ -134,7 +134,7 @@ export const emsRoutes = [
   },
   {
     path: '/ems/hr-pool/global',
-    name: 'Global HR Pool',
+    name: 'Expense Pools',
     element: GlobalHRPoolPage,
     module: MODULE.HR_POOL,
   },

@@ -91,6 +91,38 @@ export const computeEffectivePoolMonthly = (project, pool, month) => {
 }
 
 /**
+ * Sum of every manual pool_adjustment delta (admin+hr+core) recorded
+ * against one exact month, regardless of which pool. Excludes
+ * auto_cascade adjustments — those already fund an overage the month's
+ * raw phase total already includes, so folding them in here would
+ * double-count the same rupees.
+ */
+export const sumManualPoolAdjustments = (adjustments, month) =>
+  Math.round(
+    (adjustments || [])
+      .filter((a) => a.source === 'manual' && a.month === month)
+      .reduce((s, a) => s + (a.amount || 0), 0) * 100,
+  ) / 100
+
+/**
+ * A month's Project Total after folding in manual pool reallocation: a
+ * pool reduction (positive delta) adds to Project; a manual top-up above
+ * the flat rate (negative delta) subtracts from it. Symmetric by
+ * construction — the same delta is subtracted from the pool's own
+ * effective figure (computeEffectivePoolMonthly) and added here, so the
+ * two changes cancel and a month's grand total (Project + Admin + HR +
+ * Core) is unaffected by any manual reallocation. Not clamped at 0 for
+ * the same reason computeEffectivePoolMonthly isn't — a large enough
+ * cross-pool top-up can legitimately push this negative.
+ */
+export const computeEffectiveProjectMonthly = (project, month) => {
+  const monthEntry = (project.monthly_plan || []).find((m) => m.month === month)
+  const rawTotal = monthEntry?.total || 0
+  const manualDelta = sumManualPoolAdjustments(project.pool_adjustments, month)
+  return Math.round((rawTotal + manualDelta) * 100) / 100
+}
+
+/**
  * A pool's effective monthly figure re-expressed as a % of that month's
  * slice of total project value (project_value ÷ duration). Purely a
  * derived display/edit convenience — there is no separate stored

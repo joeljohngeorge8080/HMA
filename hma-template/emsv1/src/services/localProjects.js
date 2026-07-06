@@ -797,22 +797,11 @@ export const localProjects = {
 
   assignOfficer(projectId, officerId) {
     const projects = read(PROJECTS_KEY)
-    const officers = read(OFFICERS_KEY)
     const pIdx = projects.findIndex((p) => p.id === projectId)
     if (pIdx === -1) throw new Error('Project not found')
-    const officer = officers.find((o) => o.id === officerId)
+    
+    const officer = localOfficers.getById(officerId)
     if (!officer) throw new Error('Officer not found')
-
-    // Remove project from previous officer
-    const prevOfficerId = projects[pIdx].officer_id
-    if (prevOfficerId && prevOfficerId !== officerId) {
-      const prevOIdx = officers.findIndex((o) => o.id === prevOfficerId)
-      if (prevOIdx !== -1) {
-        officers[prevOIdx].projects_assigned = officers[prevOIdx].projects_assigned.filter(
-          (pid) => pid !== projectId,
-        )
-      }
-    }
 
     // Assign to new officer
     projects[pIdx].officer_id = officerId
@@ -822,13 +811,7 @@ export const localProjects = {
     projects[pIdx].email_sent = true // simulate SES
     projects[pIdx].updated_at = now()
 
-    // Add project to officer's list
-    if (!officers.find((o) => o.id === officerId).projects_assigned.includes(projectId)) {
-      officers.find((o) => o.id === officerId).projects_assigned.push(projectId)
-    }
-
     write(PROJECTS_KEY, projects)
-    write(OFFICERS_KEY, officers)
     notify()
     return projects[pIdx]
   },
@@ -901,8 +884,24 @@ export const localProjects = {
 // ─── Project Officers API ──────────────────────────────────────────────────────
 
 export const localOfficers = {
+  _getOfficersFromStaff() {
+    const employees = read('hma_employees') || []
+    return employees
+      .filter((e) => (e.employment?.designation || '').toLowerCase().includes('project officer'))
+      .map((e) => ({
+        id: e.id,
+        name: e.employee_name,
+        email: e.contact?.working_email || e.contact?.personal_email || '',
+        phone: e.contact?.mobile || '',
+        designation: e.employment?.designation || 'Project Officer',
+        status: (e.status || 'active').toLowerCase(),
+        projects_assigned: read(PROJECTS_KEY).filter(p => p.officer_id === e.id).map(p => p.id),
+        created_at: e.created_at || now()
+      }))
+  },
+
   list({ search = '', status = '' } = {}) {
-    let items = read(OFFICERS_KEY)
+    let items = this._getOfficersFromStaff()
     if (search) {
       const q = search.toLowerCase()
       items = items.filter(
@@ -917,39 +916,22 @@ export const localOfficers = {
   },
 
   getById(id) {
-    return read(OFFICERS_KEY).find((o) => o.id === id) || null
+    return this._getOfficersFromStaff().find((o) => o.id === id) || null
   },
 
   create(data) {
-    const officers = read(OFFICERS_KEY)
-    const newOfficer = {
-      id: offUid(),
-      ...data,
-      status: 'active',
-      projects_assigned: [],
-      created_at: now(),
-    }
-    officers.push(newOfficer)
-    write(OFFICERS_KEY, officers)
-    return newOfficer
+    throw new Error('Project Officers must be created via Staff & Payroll')
   },
 
   update(id, data) {
-    const officers = read(OFFICERS_KEY)
-    const idx = officers.findIndex((o) => o.id === id)
-    if (idx === -1) throw new Error('Officer not found')
-    officers[idx] = { ...officers[idx], ...data }
-    write(OFFICERS_KEY, officers)
-    return officers[idx]
+    throw new Error('Update Project Officers via Staff & Payroll')
   },
 
   getAvailable() {
-    return read(OFFICERS_KEY).filter((o) => o.status === 'active')
+    return this._getOfficersFromStaff().filter((o) => o.status === 'active')
   },
 
   getProjectsForOfficer(officerId) {
-    const officer = read(OFFICERS_KEY).find((o) => o.id === officerId)
-    if (!officer) return []
-    return read(PROJECTS_KEY).filter((p) => officer.projects_assigned.includes(p.id))
+    return read(PROJECTS_KEY).filter((p) => p.officer_id === officerId || p.assigned_officer_id === officerId)
   },
 }

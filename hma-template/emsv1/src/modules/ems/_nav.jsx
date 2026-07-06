@@ -63,12 +63,6 @@ const emsNav = [
         ],
       },
       {
-        component: CNavItem,
-        name: 'HR & Core Pool',
-        to: '/ems/hr-pool/global',
-        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-      },
-      {
         component: CNavGroup,
         name: 'Activity',
         items: [
@@ -82,7 +76,7 @@ const emsNav = [
   // ── Overheads & Pools ──────────────────────────────────────────────
   {
     component: CNavItem,
-    name: 'Global HR Pool',
+    name: 'Expense Pools',
     to: '/ems/hr-pool/global',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
