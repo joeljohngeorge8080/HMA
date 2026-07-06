@@ -140,9 +140,7 @@ export const localTasks = {
   // ── getByInstallment ─────────────────────────────────────────────────────────
   // Returns all tasks for a specific installment of a project
   getByInstallment(projectId, installmentId) {
-    return readAll().filter(
-      (t) => t.project_id === projectId && t.installment_id === installmentId,
-    )
+    return readAll().filter((t) => t.project_id === projectId && t.installment_id === installmentId)
   },
 
   // ── getByProjectGrouped ──────────────────────────────────────────────────────
