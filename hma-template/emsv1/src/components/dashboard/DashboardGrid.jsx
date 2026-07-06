@@ -17,7 +17,9 @@ const DashboardGrid = ({ activeWidgets }) => {
     return (
       <div className="text-center py-5 text-body-secondary">
         <div className="fs-1 mb-2">📊</div>
-        <p className="mb-0">No widgets selected. Click <strong>Customize</strong> to add some.</p>
+        <p className="mb-0">
+          No widgets selected. Click <strong>Customize</strong> to add some.
+        </p>
       </div>
     )
   }
