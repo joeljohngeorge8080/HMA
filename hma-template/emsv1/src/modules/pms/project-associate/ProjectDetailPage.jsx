@@ -658,7 +658,6 @@ const DEMO_TASKS = [
   },
 ]
 
-
 const ProjectDetailPage = () => {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -738,18 +737,21 @@ const ProjectDetailPage = () => {
   const sm = STATUS_META[project.status] || { label: project.status, color: 'secondary' }
 
   let ucAlert = null
-  const pendingUcs = project.installments?.filter(i => i.uc_status !== 'Approved' && i.uc_status !== 'Submitted') || []
+  const pendingUcs =
+    project.installments?.filter(
+      (i) => i.uc_status !== 'Approved' && i.uc_status !== 'Submitted',
+    ) || []
   if (pendingUcs.length > 0) {
     let overdue = 0
     let dueSoon = 0
-    pendingUcs.forEach(inst => {
+    pendingUcs.forEach((inst) => {
       const tStr = inst.end_date || inst.target_date
       if (!tStr) return
       const [ty, tm, td] = tStr.split('-').map(Number)
       const target = new Date(ty, tm - 1, td)
       const now = new Date()
-      target.setHours(0,0,0,0)
-      now.setHours(0,0,0,0)
+      target.setHours(0, 0, 0, 0)
+      now.setHours(0, 0, 0, 0)
       const diff = Math.ceil((now.getTime() - target.getTime()) / (1000 * 60 * 60 * 24))
       if (diff > 0) overdue++
       else if (diff >= -7) dueSoon++
@@ -1228,8 +1230,6 @@ const ProjectDetailPage = () => {
               )}
             </CTabPane>
 
-
-
             {/* Approvals Tab */}
             <CTabPane visible={activeTab === 2}>
               {approvals.length === 0 ? (
@@ -1552,18 +1552,24 @@ const ProjectDetailPage = () => {
                     const milestoneTasks = milestoneTasksGrouped[inst.id] || []
                     const isExpanded = expandedMilestone === inst.id
                     const isEditing = editMilestone === inst.id
-                    const completedCount = milestoneTasks.filter((t) => t.status === 'completed').length
+                    const completedCount = milestoneTasks.filter(
+                      (t) => t.status === 'completed',
+                    ).length
                     const today = new Date().toISOString().split('T')[0]
                     const delay = getDelayDays(inst.end_date || inst.target_date, inst.actual_date)
 
                     const ucColor =
-                      inst.uc_status === 'Approved' ? '#06d6a0'
-                      : inst.uc_status === 'Submitted' ? '#4361ee'
-                      : '#f77f00'
+                      inst.uc_status === 'Approved'
+                        ? '#06d6a0'
+                        : inst.uc_status === 'Submitted'
+                          ? '#4361ee'
+                          : '#f77f00'
                     const ucBadgeColor =
-                      inst.uc_status === 'Approved' ? 'success'
-                      : inst.uc_status === 'Submitted' ? 'primary'
-                      : 'warning'
+                      inst.uc_status === 'Approved'
+                        ? 'success'
+                        : inst.uc_status === 'Submitted'
+                          ? 'primary'
+                          : 'warning'
 
                     return (
                       <div
@@ -1586,7 +1592,8 @@ const ProjectDetailPage = () => {
                           <div
                             className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
                             style={{
-                              width: 36, height: 36,
+                              width: 36,
+                              height: 36,
                               background: ucColor + '22',
                               border: `2px solid ${ucColor}`,
                               color: ucColor,
@@ -1600,12 +1607,16 @@ const ProjectDetailPage = () => {
                           <div style={{ flex: '2', minWidth: 0 }}>
                             <div className="fw-bold" style={{ fontSize: '0.9rem' }}>
                               {inst.label}
-                              <span className="text-body-secondary fw-normal ms-1" style={{ fontSize: '0.78rem' }}>
+                              <span
+                                className="text-body-secondary fw-normal ms-1"
+                                style={{ fontSize: '0.78rem' }}
+                              >
                                 ({inst.percentage}%) · {fmt(inst.amount)}
                               </span>
                             </div>
                             <div className="text-body-secondary" style={{ fontSize: '0.73rem' }}>
-                              {fmtDate(inst.start_date)} → {fmtDate(inst.end_date || inst.target_date)}
+                              {fmtDate(inst.start_date)} →{' '}
+                              {fmtDate(inst.end_date || inst.target_date)}
                               {inst.actual_date && (
                                 <span className="ms-2 text-success fw-medium">
                                   ✓ Received {fmtDate(inst.actual_date)}
@@ -1634,24 +1645,44 @@ const ProjectDetailPage = () => {
                           {/* Tasks count */}
                           <div style={{ flex: '1', textAlign: 'center' }}>
                             {milestoneTasks.length === 0 ? (
-                              <span className="text-body-secondary" style={{ fontSize: '0.78rem' }}>—</span>
+                              <span className="text-body-secondary" style={{ fontSize: '0.78rem' }}>
+                                —
+                              </span>
                             ) : (
                               <>
-                                <div className="fw-bold" style={{ fontSize: '0.88rem', color: completedCount === milestoneTasks.length ? '#06d6a0' : '#f0ad4e' }}>
+                                <div
+                                  className="fw-bold"
+                                  style={{
+                                    fontSize: '0.88rem',
+                                    color:
+                                      completedCount === milestoneTasks.length
+                                        ? '#06d6a0'
+                                        : '#f0ad4e',
+                                  }}
+                                >
                                   {completedCount}/{milestoneTasks.length}
                                 </div>
-                                <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>tasks done</div>
+                                <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                                  tasks done
+                                </div>
                               </>
                             )}
                           </div>
 
                           {/* UC Status */}
                           <div style={{ flex: '1', textAlign: 'center' }}>
-                            <CBadge color={ucBadgeColor} shape="rounded-pill" style={{ fontSize: '0.7rem' }}>
+                            <CBadge
+                              color={ucBadgeColor}
+                              shape="rounded-pill"
+                              style={{ fontSize: '0.7rem' }}
+                            >
                               {inst.uc_status || 'Pending'}
                             </CBadge>
                             {delay > 0 && (
-                              <div className="text-danger" style={{ fontSize: '0.68rem', marginTop: 2 }}>
+                              <div
+                                className="text-danger"
+                                style={{ fontSize: '0.68rem', marginTop: 2 }}
+                              >
                                 {delay}d delay
                               </div>
                             )}
@@ -1676,10 +1707,10 @@ const ProjectDetailPage = () => {
                               >
                                 <CIcon icon={cilCloudUpload} size="sm" />
                               </CButton>
-                              <input 
-                                type="file" 
-                                hidden 
-                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                              <input
+                                type="file"
+                                hidden
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                                 onChange={(e) => {
                                   if (e.target.files && e.target.files.length > 0) {
                                     // Add handle upload functionality here
@@ -1721,7 +1752,10 @@ const ProjectDetailPage = () => {
                               }}
                               style={{ padding: '4px 8px' }}
                             >
-                              <CIcon icon={isExpanded ? cilChevronTop : cilChevronBottom} size="sm" />
+                              <CIcon
+                                icon={isExpanded ? cilChevronTop : cilChevronBottom}
+                                size="sm"
+                              />
                             </CButton>
                           </div>
                         </div>
@@ -1733,7 +1767,10 @@ const ProjectDetailPage = () => {
                             style={{ background: 'rgba(67,97,238,0.03)' }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="fw-semibold small text-uppercase text-body-secondary mb-3" style={{ letterSpacing: '0.06em' }}>
+                            <div
+                              className="fw-semibold small text-uppercase text-body-secondary mb-3"
+                              style={{ letterSpacing: '0.06em' }}
+                            >
                               ✏️ Edit Milestone
                             </div>
                             <CRow className="g-3">
@@ -1742,7 +1779,12 @@ const ProjectDetailPage = () => {
                                 <CFormInput
                                   size="sm"
                                   value={editMilestoneForm.phase_name || ''}
-                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, phase_name: e.target.value }))}
+                                  onChange={(e) =>
+                                    setEditMilestoneForm((f) => ({
+                                      ...f,
+                                      phase_name: e.target.value,
+                                    }))
+                                  }
                                   placeholder="e.g. Phase 1 — Planning & Survey"
                                 />
                               </CCol>
@@ -1751,7 +1793,12 @@ const ProjectDetailPage = () => {
                                 <CFormSelect
                                   size="sm"
                                   value={editMilestoneForm.uc_status || 'Pending'}
-                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, uc_status: e.target.value }))}
+                                  onChange={(e) =>
+                                    setEditMilestoneForm((f) => ({
+                                      ...f,
+                                      uc_status: e.target.value,
+                                    }))
+                                  }
                                 >
                                   <option value="Pending">Pending</option>
                                   <option value="Submitted">Submitted</option>
@@ -1764,25 +1811,44 @@ const ProjectDetailPage = () => {
                                   size="sm"
                                   type="date"
                                   value={editMilestoneForm.start_date || ''}
-                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, start_date: e.target.value }))}
+                                  onChange={(e) =>
+                                    setEditMilestoneForm((f) => ({
+                                      ...f,
+                                      start_date: e.target.value,
+                                    }))
+                                  }
                                 />
                               </CCol>
                               <CCol xs={12} md={4}>
-                                <CFormLabel className="small fw-medium mb-1">Target End Date</CFormLabel>
+                                <CFormLabel className="small fw-medium mb-1">
+                                  Target End Date
+                                </CFormLabel>
                                 <CFormInput
                                   size="sm"
                                   type="date"
                                   value={editMilestoneForm.end_date || ''}
-                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, end_date: e.target.value }))}
+                                  onChange={(e) =>
+                                    setEditMilestoneForm((f) => ({
+                                      ...f,
+                                      end_date: e.target.value,
+                                    }))
+                                  }
                                 />
                               </CCol>
                               <CCol xs={12} md={4}>
-                                <CFormLabel className="small fw-medium mb-1">Actual Receipt Date</CFormLabel>
+                                <CFormLabel className="small fw-medium mb-1">
+                                  Actual Receipt Date
+                                </CFormLabel>
                                 <CFormInput
                                   size="sm"
                                   type="date"
                                   value={editMilestoneForm.actual_date || ''}
-                                  onChange={(e) => setEditMilestoneForm((f) => ({ ...f, actual_date: e.target.value }))}
+                                  onChange={(e) =>
+                                    setEditMilestoneForm((f) => ({
+                                      ...f,
+                                      actual_date: e.target.value,
+                                    }))
+                                  }
                                 />
                               </CCol>
                             </CRow>
@@ -1794,17 +1860,24 @@ const ProjectDetailPage = () => {
                                 onClick={() => {
                                   setEditMilestoneSaving(true)
                                   try {
-                                    const updated = localProjects.updateInstallment(project.id, inst.id, {
-                                      phase_name: editMilestoneForm.phase_name,
-                                      start_date: editMilestoneForm.start_date,
-                                      end_date: editMilestoneForm.end_date,
-                                      target_date: editMilestoneForm.end_date,
-                                      actual_date: editMilestoneForm.actual_date || null,
-                                      uc_status: editMilestoneForm.uc_status,
-                                    })
+                                    const updated = localProjects.updateInstallment(
+                                      project.id,
+                                      inst.id,
+                                      {
+                                        phase_name: editMilestoneForm.phase_name,
+                                        start_date: editMilestoneForm.start_date,
+                                        end_date: editMilestoneForm.end_date,
+                                        target_date: editMilestoneForm.end_date,
+                                        actual_date: editMilestoneForm.actual_date || null,
+                                        uc_status: editMilestoneForm.uc_status,
+                                      },
+                                    )
                                     setProject(updated)
                                     setEditMilestone(null)
-                                    setToast({ color: 'success', message: 'Milestone updated successfully' })
+                                    setToast({
+                                      color: 'success',
+                                      message: 'Milestone updated successfully',
+                                    })
                                   } catch (err) {
                                     setToast({ color: 'danger', message: err.message })
                                   }
@@ -1842,10 +1915,7 @@ const ProjectDetailPage = () => {
 
                         {/* ── Expanded Tasks & Procurement ── */}
                         {isExpanded && !isEditing && (
-                          <div
-                            className="border-top"
-                            style={{ background: 'var(--cui-body-bg)' }}
-                          >
+                          <div className="border-top" style={{ background: 'var(--cui-body-bg)' }}>
                             {/* Tasks table header */}
                             <div
                               className="d-none d-sm-grid px-3 pt-3 pb-1"
@@ -1871,7 +1941,10 @@ const ProjectDetailPage = () => {
                               <div className="px-4 py-4 text-center small text-body-secondary">
                                 No tasks assigned to this milestone yet.
                                 <br />
-                                <span className="text-body-tertiary" style={{ fontSize: '0.75rem' }}>
+                                <span
+                                  className="text-body-tertiary"
+                                  style={{ fontSize: '0.75rem' }}
+                                >
                                   Project Officer can assign tasks from the Tasks tab.
                                 </span>
                               </div>
@@ -1884,9 +1957,11 @@ const ProjectDetailPage = () => {
                                       : today > (task.target_date || task.due_date)
                                   const isProcurement = task.task_type === 'procurement'
                                   const taskStatusColor =
-                                    task.status === 'completed' ? '#06d6a0'
-                                    : task.status === 'active' ? '#f0ad4e'
-                                    : '#adb5bd'
+                                    task.status === 'completed'
+                                      ? '#06d6a0'
+                                      : task.status === 'active'
+                                        ? '#f0ad4e'
+                                        : '#adb5bd'
 
                                   return (
                                     <div
@@ -1894,17 +1969,29 @@ const ProjectDetailPage = () => {
                                       className="d-flex align-items-center gap-3 p-2 rounded-3"
                                       style={{
                                         fontSize: '0.835rem',
-                                        background: isProcurement ? 'rgba(67,97,238,0.04)' : 'rgba(6,214,160,0.04)',
+                                        background: isProcurement
+                                          ? 'rgba(67,97,238,0.04)'
+                                          : 'rgba(6,214,160,0.04)',
                                         border: `1px solid ${isProcurement ? 'rgba(67,97,238,0.12)' : 'rgba(6,214,160,0.12)'}`,
                                       }}
                                     >
                                       {/* Icon */}
                                       <div
                                         className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                        style={{ width: 28, height: 28, background: taskStatusColor + '22' }}
+                                        style={{
+                                          width: 28,
+                                          height: 28,
+                                          background: taskStatusColor + '22',
+                                        }}
                                       >
                                         <CIcon
-                                          icon={task.status === 'completed' ? cilCheckCircle : isProcurement ? cilFolder : cilTask}
+                                          icon={
+                                            task.status === 'completed'
+                                              ? cilCheckCircle
+                                              : isProcurement
+                                                ? cilFolder
+                                                : cilTask
+                                          }
                                           style={{ color: taskStatusColor, width: 14, height: 14 }}
                                         />
                                       </div>
@@ -1912,7 +1999,9 @@ const ProjectDetailPage = () => {
                                       {/* Title + badges */}
                                       <div className="flex-grow-1" style={{ minWidth: 0 }}>
                                         <div className="d-flex align-items-center gap-2 flex-wrap">
-                                          <span className="fw-semibold text-truncate">{task.title}</span>
+                                          <span className="fw-semibold text-truncate">
+                                            {task.title}
+                                          </span>
                                           <CBadge
                                             color={isProcurement ? 'info' : 'secondary'}
                                             shape="rounded-pill"
@@ -1921,38 +2010,70 @@ const ProjectDetailPage = () => {
                                             {isProcurement ? 'Procurement' : 'Task'}
                                           </CBadge>
                                           {isDelayed && (
-                                            <CBadge color="danger" shape="rounded-pill" style={{ fontSize: '0.6rem', flexShrink: 0 }}>
+                                            <CBadge
+                                              color="danger"
+                                              shape="rounded-pill"
+                                              style={{ fontSize: '0.6rem', flexShrink: 0 }}
+                                            >
                                               Delayed
                                             </CBadge>
                                           )}
                                         </div>
                                         {/* Mobile-only metadata */}
-                                        <div className="d-sm-none text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
-                                          <CIcon icon={cilPeople} className="me-1 opacity-75" />{task.assignee || '—'}
-                                          {' · '}Target: {fmtDate(task.target_date || task.due_date)}
+                                        <div
+                                          className="d-sm-none text-body-secondary mt-1"
+                                          style={{ fontSize: '0.72rem' }}
+                                        >
+                                          <CIcon icon={cilPeople} className="me-1 opacity-75" />
+                                          {task.assignee || '—'}
+                                          {' · '}Target:{' '}
+                                          {fmtDate(task.target_date || task.due_date)}
                                         </div>
                                       </div>
 
                                       {/* Assignee (desktop) */}
-                                      <div className="d-none d-sm-block text-body-secondary text-truncate" style={{ width: 80, fontSize: '0.75rem', flexShrink: 0 }}>
-                                        <CIcon icon={cilPeople} className="me-1 opacity-75" size="sm" />
+                                      <div
+                                        className="d-none d-sm-block text-body-secondary text-truncate"
+                                        style={{ width: 80, fontSize: '0.75rem', flexShrink: 0 }}
+                                      >
+                                        <CIcon
+                                          icon={cilPeople}
+                                          className="me-1 opacity-75"
+                                          size="sm"
+                                        />
                                         {task.assignee || '—'}
                                       </div>
 
                                       {/* Target date */}
-                                      <div className="d-none d-sm-block" style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}>
+                                      <div
+                                        className="d-none d-sm-block"
+                                        style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}
+                                      >
                                         {fmtDate(task.target_date || task.due_date)}
                                       </div>
 
                                       {/* Actual date */}
-                                      <div className="d-none d-sm-block" style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}>
-                                        {task.actual_date ? fmtDate(task.actual_date) : <span className="text-body-tertiary">—</span>}
+                                      <div
+                                        className="d-none d-sm-block"
+                                        style={{ width: 100, fontSize: '0.75rem', flexShrink: 0 }}
+                                      >
+                                        {task.actual_date ? (
+                                          fmtDate(task.actual_date)
+                                        ) : (
+                                          <span className="text-body-tertiary">—</span>
+                                        )}
                                       </div>
 
                                       {/* Status badge */}
                                       <div style={{ flexShrink: 0 }}>
                                         <CBadge
-                                          color={task.status === 'completed' ? 'success' : task.status === 'active' ? 'warning' : 'secondary'}
+                                          color={
+                                            task.status === 'completed'
+                                              ? 'success'
+                                              : task.status === 'active'
+                                                ? 'warning'
+                                                : 'secondary'
+                                          }
                                           shape="rounded-pill"
                                           className="text-capitalize"
                                           style={{ fontSize: '0.68rem' }}
@@ -2000,7 +2121,13 @@ const ProjectDetailPage = () => {
                             <div className="p-3 rounded-3 border bg-body-tertiary h-100">
                               <div className="d-flex justify-content-between mb-2">
                                 <CBadge
-                                  color={risk.severity === 'High' ? 'danger' : risk.severity === 'Medium' ? 'warning' : 'info'}
+                                  color={
+                                    risk.severity === 'High'
+                                      ? 'danger'
+                                      : risk.severity === 'Medium'
+                                        ? 'warning'
+                                        : 'info'
+                                  }
                                   shape="rounded-pill"
                                 >
                                   {risk.severity} Risk
