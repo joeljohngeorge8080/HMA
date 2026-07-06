@@ -40,7 +40,10 @@ const ProjectsByPhaseWidget = () => {
         </h6>
 
         <div className="mb-3">
-          <div className="text-body-secondary mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div
+            className="text-body-secondary mb-2"
+            style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+          >
             Lifecycle Phase
           </div>
           {PHASES.map((phase) => {
@@ -63,7 +66,10 @@ const ProjectsByPhaseWidget = () => {
         </div>
 
         <div>
-          <div className="text-body-secondary mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div
+            className="text-body-secondary mb-2"
+            style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+          >
             Project Status
           </div>
           <div className="d-flex flex-wrap gap-2">
@@ -73,7 +79,9 @@ const ProjectsByPhaseWidget = () => {
                 className="rounded-pill px-2 py-1 d-flex align-items-center gap-1"
                 style={{ background: `${s.color}15` }}
               >
-                <span className="fw-bold small" style={{ color: s.color }}>{s.count}</span>
+                <span className="fw-bold small" style={{ color: s.color }}>
+                  {s.count}
+                </span>
                 <span className="small text-body-secondary">{s.label}</span>
               </div>
             ))}
