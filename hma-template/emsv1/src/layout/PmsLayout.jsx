@@ -37,9 +37,7 @@ const ROLE_NAV_MAP = {
   [ROLE.BACKEND_TEAM]: (nav) =>
     nav.filter(
       (item) =>
-        item.name === 'Dashboard' ||
-        item.name === 'Settlements' ||
-        item.name === 'Switch to EMS',
+        item.name === 'Dashboard' || item.name === 'Settlements' || item.name === 'Switch to EMS',
     ),
 }
 
