@@ -129,7 +129,9 @@ const forecastFrom = (knownTotals) => {
 export const computeLsgbTotals = (rangeStart, rangeEnd) => {
   const months = monthsBetween(rangeStart, rangeEnd)
   const operatingActuals = buildOperatingActuals()
-  const projects = localProjects.list({ pageSize: 1000 }).items.filter((p) => p.monthly_plan?.length > 0)
+  const projects = localProjects
+    .list({ pageSize: 1000 })
+    .items.filter((p) => p.monthly_plan?.length > 0)
 
   const knownMonths = Object.keys(operatingActuals).sort()
   const knownTotals = knownMonths.map((m) => operatingActuals[m])
@@ -154,7 +156,15 @@ export const computeLsgbTotals = (rangeStart, rangeEnd) => {
 
     const totalExpense = operatingExpense + projectExpense
     const lsgbNeed = Math.max(0, totalExpense - shareRevenue)
-    return { month: m, operatingExpense, isForecast: !hasActual, projectExpense, shareRevenue, totalExpense, lsgbNeed }
+    return {
+      month: m,
+      operatingExpense,
+      isForecast: !hasActual,
+      projectExpense,
+      shareRevenue,
+      totalExpense,
+      lsgbNeed,
+    }
   })
 
   const rec = localRecruitments.list()
