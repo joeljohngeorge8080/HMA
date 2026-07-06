@@ -36,7 +36,11 @@ const AnnouncementsWidget = () => {
         </h6>
         {items.length === 0 ? (
           <div className="text-center text-body-secondary py-3">
-            <CIcon icon={cilBell} style={{ width: 32, height: 32, opacity: 0.4 }} className="mb-2 d-block mx-auto" />
+            <CIcon
+              icon={cilBell}
+              style={{ width: 32, height: 32, opacity: 0.4 }}
+              className="mb-2 d-block mx-auto"
+            />
             <div className="small">No announcements</div>
           </div>
         ) : (
@@ -47,7 +51,10 @@ const AnnouncementsWidget = () => {
                 <div
                   key={item.id}
                   className="rounded-3 px-3 py-2"
-                  style={{ background: 'var(--cui-body-bg)', border: '1px solid var(--cui-border-color)' }}
+                  style={{
+                    background: 'var(--cui-body-bg)',
+                    border: '1px solid var(--cui-border-color)',
+                  }}
                 >
                   <div className="d-flex align-items-center justify-content-between mb-1">
                     <CBadge color={meta.color} shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
