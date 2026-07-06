@@ -145,12 +145,7 @@ const Dashboard = () => {
             {activeWidgets.length} of {ALL_WIDGETS.length} widgets active
           </p>
         </div>
-        <CButton
-          color="secondary"
-          variant="outline"
-          size="sm"
-          onClick={() => setCatalogOpen(true)}
-        >
+        <CButton color="secondary" variant="outline" size="sm" onClick={() => setCatalogOpen(true)}>
           <CIcon icon={cilSettings} className="me-1" size="sm" />
           Customize
         </CButton>
