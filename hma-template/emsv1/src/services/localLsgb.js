@@ -2,7 +2,11 @@ const BODIES_KEY = 'hma_lsgb_bodies'
 const FUNDS_KEY = 'hma_lsgb_fund_withdrawals'
 
 const read = (key) => {
-  try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]')
+  } catch {
+    return []
+  }
 }
 const write = (key, data) => localStorage.setItem(key, JSON.stringify(data))
 const uid = (p) => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
@@ -37,8 +41,7 @@ export const localLsgb = {
     if (filters.search) {
       const q = filters.search.toLowerCase()
       items = items.filter(
-        (b) =>
-          b.body_name?.toLowerCase().includes(q) || b.body_type?.toLowerCase().includes(q),
+        (b) => b.body_name?.toLowerCase().includes(q) || b.body_type?.toLowerCase().includes(q),
       )
     }
     return items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -85,8 +88,14 @@ export const localLsgb = {
   },
 
   removeBody(id) {
-    write(BODIES_KEY, read(BODIES_KEY).filter((b) => b.id !== id))
-    write(FUNDS_KEY, read(FUNDS_KEY).filter((f) => f.lsgb_body_id !== id))
+    write(
+      BODIES_KEY,
+      read(BODIES_KEY).filter((b) => b.id !== id),
+    )
+    write(
+      FUNDS_KEY,
+      read(FUNDS_KEY).filter((f) => f.lsgb_body_id !== id),
+    )
   },
 
   // ── Fund Withdrawals ──────────────────────────────────────────────────────────
@@ -129,7 +138,10 @@ export const localLsgb = {
   },
 
   removeWithdrawal(id) {
-    write(FUNDS_KEY, read(FUNDS_KEY).filter((f) => f.id !== id))
+    write(
+      FUNDS_KEY,
+      read(FUNDS_KEY).filter((f) => f.id !== id),
+    )
   },
 
   // ── Summary ───────────────────────────────────────────────────────────────────
