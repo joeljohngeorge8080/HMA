@@ -634,7 +634,10 @@ const PlanningSummary = ({ project }) => {
     project.pool_adjustments,
   )
 
-  const projectTotal = project.monthly_plan.reduce((s, m) => s + (m.total || 0), 0)
+  const projectTotal = project.monthly_plan.reduce(
+    (s, m) => s + computeEffectiveProjectMonthly(project, m.month),
+    0,
+  )
   const poolTotal = (pool) =>
     project.monthly_plan.reduce(
       (s, m) => s + computeEffectivePoolMonthly(project, pool, m.month),
@@ -700,7 +703,9 @@ const PlanningSummary = ({ project }) => {
               {project.monthly_plan.map((m) => (
                 <CTableRow key={m.month}>
                   <CTableDataCell>{monthLabel(m.month)}</CTableDataCell>
-                  <CTableDataCell className="text-end">{fmt(m.total)}</CTableDataCell>
+                  <CTableDataCell className="text-end">
+                    {fmt(computeEffectiveProjectMonthly(project, m.month))}
+                  </CTableDataCell>
                   <CTableDataCell className="text-end">
                     {fmt(computeEffectivePoolMonthly(project, 'admin', m.month))}
                   </CTableDataCell>
