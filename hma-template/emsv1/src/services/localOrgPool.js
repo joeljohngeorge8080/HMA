@@ -112,7 +112,10 @@ const buildMonthList = (startDate, endDate) => {
   while (cy < ey || (cy === ey && cm <= em)) {
     months.push(`${cy}-${String(cm).padStart(2, '0')}`)
     cm++
-    if (cm > 12) { cm = 1; cy++ }
+    if (cm > 12) {
+      cm = 1
+      cy++
+    }
   }
   return months
 }
@@ -230,8 +233,7 @@ export const localOrgPool = {
         const pct = pool === 'core' ? pcts.core_pct : pcts.hr_pct
 
         // Monthly budget for this pool at today's effective %
-        const monthlyBudget =
-          pv > 0 ? Math.round((pv * (pct / 100) / tpm) * 100) / 100 : 0
+        const monthlyBudget = pv > 0 ? Math.round(((pv * (pct / 100)) / tpm) * 100) / 100 : 0
 
         // Total pool budget = sum across all active months (activation → project end)
         const allMonths = buildMonthList(p.start_date, p.end_date)
@@ -239,7 +241,7 @@ export const localOrgPool = {
           if (month < activationMonth) return sum
           const mPcts = getEffectivePoolPcts(p, month)
           const mPct = pool === 'core' ? mPcts.core_pct : mPcts.hr_pct
-          return sum + (pv > 0 ? Math.round((pv * (mPct / 100) / tpm) * 100) / 100 : 0)
+          return sum + (pv > 0 ? Math.round(((pv * (mPct / 100)) / tpm) * 100) / 100 : 0)
         }, 0)
 
         const endField = inst.end_date || inst.target_date || ''
@@ -317,8 +319,7 @@ export const localOrgPool = {
     const installments = p.installments || []
 
     // Total project value for pool budget (use best available field)
-    const totalProjectValue =
-      p.project_value || p.project_valuation || p.amount_sanctioned || 0
+    const totalProjectValue = p.project_value || p.project_valuation || p.amount_sanctioned || 0
     const totalHRBudget = totalProjectValue * (pct / 100)
 
     // Count total months across ALL installments combined
@@ -445,7 +446,7 @@ export const localOrgPool = {
     const activationMonth = getActivationMonth(project)
 
     // Admin: fixed per-month amount from project_value, spread across ALL months
-    const adminMonthly = pv > 0 ? Math.round((pv * (adminPct / 100) / tpm) * 100) / 100 : 0
+    const adminMonthly = pv > 0 ? Math.round(((pv * (adminPct / 100)) / tpm) * 100) / 100 : 0
 
     // Full month list for this project
     const months = buildMonthList(project.start_date, project.end_date)
@@ -458,22 +459,15 @@ export const localOrgPool = {
       const effectiveHrPct = isActive ? pcts.hr_pct : 0
       const effectiveCorePct = isActive ? pcts.core_pct : 0
       const hrBudget =
-        isActive && pv > 0
-          ? Math.round((pv * (pcts.hr_pct / 100) / tpm) * 100) / 100
-          : 0
+        isActive && pv > 0 ? Math.round(((pv * (pcts.hr_pct / 100)) / tpm) * 100) / 100 : 0
       const coreBudget =
-        isActive && pv > 0
-          ? Math.round((pv * (pcts.core_pct / 100) / tpm) * 100) / 100
-          : 0
+        isActive && pv > 0 ? Math.round(((pv * (pcts.core_pct / 100)) / tpm) * 100) / 100 : 0
 
       // Find the installment this month belongs to
       const installment = (project.installments || []).find((inst) => {
         const instEnd = inst.end_date || inst.target_date || ''
         return (
-          inst.start_date &&
-          instEnd &&
-          month >= toYM(inst.start_date) &&
-          month <= toYM(instEnd)
+          inst.start_date && instEnd && month >= toYM(inst.start_date) && month <= toYM(instEnd)
         )
       })
 
@@ -483,9 +477,8 @@ export const localOrgPool = {
         const instEnd = installment.end_date || installment.target_date || ''
         const instMonths = monthsBetween(installment.start_date, instEnd)
         directPct = Math.max(0, 100 - adminPct - effectiveHrPct - effectiveCorePct)
-        directBudget = Math.round(
-          (installment.amount * (directPct / 100) / instMonths) * 100,
-        ) / 100
+        directBudget =
+          Math.round(((installment.amount * (directPct / 100)) / instMonths) * 100) / 100
       }
 
       return {
@@ -500,9 +493,7 @@ export const localOrgPool = {
         core_pct: effectiveCorePct,
         direct_pct: directPct,
         isAdjusted: isActive && pcts.isAdjusted,
-        hasNewAdjustment: (project.pool_pct_adjustments || []).some(
-          (a) => a.from_month === month,
-        ),
+        hasNewAdjustment: (project.pool_pct_adjustments || []).some((a) => a.from_month === month),
         installmentId: installment?.id || null,
         installmentLabel: installment?.label || null,
         phaseName: installment?.phase_name || installment?.label || null,
@@ -747,7 +738,8 @@ export const localOrgPool = {
           const share = total > 0 ? b.monthlyBudget / total : 0
           const poolPct = parseFloat(exp.project_pool_pct) ?? 100
           const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
-          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+          usedMap[b.projectId] =
+            (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
         }
       }
     }
@@ -774,14 +766,10 @@ export const localOrgPool = {
 
     return (readPool().hr_expenses || []).map((exp) => {
       // Check for a custom per-expense allocation for this project
-      const customAlloc = (exp.project_allocations || []).find(
-        (a) => a.projectId === projectId,
-      )
+      const customAlloc = (exp.project_allocations || []).find((a) => a.projectId === projectId)
 
       // Use custom allocation if stored, otherwise fall back to live share
-      const mySharePct = customAlloc
-        ? customAlloc.sharePct
-        : liveSharePct
+      const mySharePct = customAlloc ? customAlloc.sharePct : liveSharePct
       const myAmount = customAlloc
         ? customAlloc.amountCharged
         : Math.round(parseFloat(exp.amount || 0) * (liveSharePct / 100) * 100) / 100
@@ -1078,7 +1066,8 @@ export const localOrgPool = {
           const share = total > 0 ? b.monthlyBudget / total : 0
           const poolPct = parseFloat(exp.project_pool_pct) ?? 100
           const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
-          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+          usedMap[b.projectId] =
+            (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
         }
       }
     }
@@ -1216,7 +1205,8 @@ export const localOrgPool = {
           const share = total > 0 ? b.monthlyBudget / total : 0
           const poolPct = parseFloat(exp.project_pool_pct) ?? 100
           const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
-          usedMap[b.projectId] = (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+          usedMap[b.projectId] =
+            (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
         }
       }
     }
