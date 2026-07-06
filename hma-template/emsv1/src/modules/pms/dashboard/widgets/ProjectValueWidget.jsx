@@ -20,12 +20,14 @@ const ProjectValueWidget = () => {
 
   if (!stats) return null
 
-  const receivedPct = stats.totalValue > 0
-    ? Math.min(100, Math.round((stats.totalReceived / stats.totalValue) * 100))
-    : 0
-  const spentPct = stats.totalValue > 0
-    ? Math.min(100, Math.round((stats.totalSpent / stats.totalValue) * 100))
-    : 0
+  const receivedPct =
+    stats.totalValue > 0
+      ? Math.min(100, Math.round((stats.totalReceived / stats.totalValue) * 100))
+      : 0
+  const spentPct =
+    stats.totalValue > 0
+      ? Math.min(100, Math.round((stats.totalSpent / stats.totalValue) * 100))
+      : 0
 
   const typeData = [
     { label: 'Consultancy', count: stats.types.consultancy, color: '#4361ee' },
@@ -42,15 +44,21 @@ const ProjectValueWidget = () => {
         <CRow className="g-2 mb-3">
           <CCol xs={4} className="text-center">
             <div className="small text-body-secondary mb-1">Total Value</div>
-            <div className="fw-bold" style={{ color: '#4361ee' }}>{fmt(stats.totalValue)}</div>
+            <div className="fw-bold" style={{ color: '#4361ee' }}>
+              {fmt(stats.totalValue)}
+            </div>
           </CCol>
           <CCol xs={4} className="text-center">
             <div className="small text-body-secondary mb-1">Received</div>
-            <div className="fw-bold" style={{ color: '#06d6a0' }}>{fmt(stats.totalReceived)}</div>
+            <div className="fw-bold" style={{ color: '#06d6a0' }}>
+              {fmt(stats.totalReceived)}
+            </div>
           </CCol>
           <CCol xs={4} className="text-center">
             <div className="small text-body-secondary mb-1">Utilised</div>
-            <div className="fw-bold" style={{ color: '#f77f00' }}>{fmt(stats.totalSpent)}</div>
+            <div className="fw-bold" style={{ color: '#f77f00' }}>
+              {fmt(stats.totalSpent)}
+            </div>
           </CCol>
         </CRow>
         <div className="mb-1">
@@ -65,7 +73,10 @@ const ProjectValueWidget = () => {
           </div>
           <CProgress value={spentPct} height={5} color="warning" className="rounded-pill mb-3" />
         </div>
-        <div className="text-body-secondary mb-1" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div
+          className="text-body-secondary mb-1"
+          style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+        >
           By Type
         </div>
         <div className="d-flex gap-2 flex-wrap">
@@ -75,8 +86,12 @@ const ProjectValueWidget = () => {
               className="rounded-pill px-2 py-1 small d-flex align-items-center gap-1"
               style={{ background: `${t.color}15` }}
             >
-              <span className="fw-bold" style={{ color: t.color }}>{t.count}</span>
-              <span className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{t.label}</span>
+              <span className="fw-bold" style={{ color: t.color }}>
+                {t.count}
+              </span>
+              <span className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                {t.label}
+              </span>
             </div>
           ))}
         </div>
