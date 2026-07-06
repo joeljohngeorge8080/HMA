@@ -15,7 +15,7 @@ import {
   validatePlanTotalWithCascade,
 } from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
+const PROJECTS_KEY = 'hma_projects_v11' // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -60,33 +60,114 @@ export const PHASE_CONFIG = {
 // ─── Seed Officers — derived from real project officer names in the CSV ────────
 
 const DEMO_OFFICERS = [
-  { id: 'po_csv_01', name: 'Dr. Arjuna V Nath',  email: 'arjuna.nath@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_01'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_02', name: 'Syamili.M',           email: 'syamili.m@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_02','sdp_05','sdp_16','sdp_17'], created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_03', name: 'Shone Kiran K.S.',    email: 'shone.kiran@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_03'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_04', name: 'Anjali A.S.',          email: 'anjali.as@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_04','sdp_14'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_05', name: 'K Anakha Soman',       email: 'anakha.soman@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_06'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_06', name: 'Dr. Bhavya RJ',        email: 'bhavya.rj@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_07'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_07', name: 'Rejitha Ravi',          email: 'rejitha.ravi@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_08','sdp_09'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_08', name: 'Rakhi Mohan',           email: 'rakhi.mohan@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_10','sdp_11'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_09', name: 'Swathy Krishna',        email: 'swathy.krishna@hma.org',  phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_12','sdp_13'],   created_at: '2026-01-01T00:00:00Z' },
+  {
+    id: 'po_csv_01',
+    name: 'Dr. Arjuna V Nath',
+    email: 'arjuna.nath@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_01'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_02',
+    name: 'Syamili.M',
+    email: 'syamili.m@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_02', 'sdp_05', 'sdp_16', 'sdp_17'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_03',
+    name: 'Shone Kiran K.S.',
+    email: 'shone.kiran@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_03'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_04',
+    name: 'Anjali A.S.',
+    email: 'anjali.as@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_04', 'sdp_14'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_05',
+    name: 'K Anakha Soman',
+    email: 'anakha.soman@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_06'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_06',
+    name: 'Dr. Bhavya RJ',
+    email: 'bhavya.rj@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_07'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_07',
+    name: 'Rejitha Ravi',
+    email: 'rejitha.ravi@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_08', 'sdp_09'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_08',
+    name: 'Rakhi Mohan',
+    email: 'rakhi.mohan@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_10', 'sdp_11'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_09',
+    name: 'Swathy Krishna',
+    email: 'swathy.krishna@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_12', 'sdp_13'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
 ]
 
 /** Map officer name → officer id for quick lookup */
 const OFFICER_BY_NAME = Object.fromEntries(
-  DEMO_OFFICERS.map(o => [o.name.trim().toLowerCase(), o])
+  DEMO_OFFICERS.map((o) => [o.name.trim().toLowerCase(), o]),
 )
 
 /** Resolve the phase string from CSV phases array */
 const resolvePhase = (phases = [], csvStatus) => {
   const lower = (csvStatus || '').toLowerCase()
   if (lower === 'completed') return 'completed'
-  if (lower === 'approved')  return 'approved'
+  if (lower === 'approved') return 'approved'
   // find the active phase
-  const activePhase = phases.find(ph => (ph.status || '').toLowerCase() === 'ongoing')
+  const activePhase = phases.find((ph) => (ph.status || '').toLowerCase() === 'ongoing')
   if (activePhase) {
     const phLower = (activePhase.phase || '').toLowerCase()
     if (phLower.includes('design') || phLower.includes('initiation')) return 'design_and_initiation'
-    if (phLower.includes('implement'))  return 'implementation'
+    if (phLower.includes('implement')) return 'implementation'
     if (phLower.includes('monitoring')) return 'monitoring_and_evaluation'
   }
   return 'implementation'
@@ -134,14 +215,19 @@ const mapSdpToLocal = (p) => {
     title: ph.phase || `Phase ${idx + 1}`,
     amount: 0,
     target_date: parseSdpDate(ph.pending_date),
-    actual_date: (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
-    uc_status: (ph.status || '').toLowerCase() === 'completed' ? 'Approved'
-               : (ph.status || '').toLowerCase() === 'ongoing'  ? 'Submitted' : 'Pending',
+    actual_date:
+      (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
+    uc_status:
+      (ph.status || '').toLowerCase() === 'completed'
+        ? 'Approved'
+        : (ph.status || '').toLowerCase() === 'ongoing'
+          ? 'Submitted'
+          : 'Pending',
   }))
 
   // Build risks from phase risk fields
   const risks = (p.phases || [])
-    .filter(ph => ph.risk)
+    .filter((ph) => ph.risk)
     .map((ph, idx) => ({
       id: `r_${p.id}_${idx + 1}`,
       title: ph.risk,
@@ -151,7 +237,7 @@ const mapSdpToLocal = (p) => {
 
   // Amount received = sum of received installments
   const amountReceived = (p.installments || [])
-    .filter(i => i.status === 'Received')
+    .filter((i) => i.status === 'Received')
     .reduce((s, i) => s + (i.amount || 0), 0)
 
   return {
@@ -165,7 +251,14 @@ const mapSdpToLocal = (p) => {
     implementing_partner: p.implementing_partner,
     location: p.location,
     district: (p.location || '').split(',')[0].trim(),
-    status: statusLower === 'ongoing' ? 'ongoing' : statusLower === 'approved' ? 'approved' : statusLower === 'completed' ? 'completed' : 'pipeline',
+    status:
+      statusLower === 'ongoing'
+        ? 'ongoing'
+        : statusLower === 'approved'
+          ? 'approved'
+          : statusLower === 'completed'
+            ? 'completed'
+            : 'pipeline',
     phase: resolvePhase(p.phases, p.status),
     project_value: p.value,
     project_valuation: p.value,
@@ -187,14 +280,19 @@ const mapSdpToLocal = (p) => {
     officer_email: officer ? officer.email : null,
     email_sent: !!p.project_officer,
     field_personnel: p.field_team
-      ? p.field_team.split(',').map(name => ({ name: name.trim(), email: '', status: 'active', invited_at: now() })).filter(fp => fp.name)
+      ? p.field_team
+          .split(',')
+          .map((name) => ({ name: name.trim(), email: '', status: 'active', invited_at: now() }))
+          .filter((fp) => fp.name)
       : [],
     created_at: '2026-01-01T00:00:00Z',
     updated_at: now(),
     is_operations_active: statusLower === 'ongoing' || statusLower === 'completed',
     operations_activated_at: statusLower === 'ongoing' ? p.start_date || now() : null,
     tasks_count: (p.phases || []).length,
-    tasks_completed: (p.phases || []).filter(ph => (ph.status || '').toLowerCase() === 'completed').length,
+    tasks_completed: (p.phases || []).filter(
+      (ph) => (ph.status || '').toLowerCase() === 'completed',
+    ).length,
     pending_approvals: statusLower === 'approved' ? 1 : 0,
     milestones,
     installments,
@@ -212,7 +310,6 @@ const mapSdpToLocal = (p) => {
 /** All 17 CSV projects mapped to the localProjects schema */
 const DEMO_PROJECTS = SDP_PROJECTS.map(mapSdpToLocal)
 
-
 export const localProjects = {
   seedDemoData() {
     // Always seed projects from CSV data (key v10 forces fresh reseed on upgrade)
@@ -223,7 +320,6 @@ export const localProjects = {
       write(OFFICERS_KEY, DEMO_OFFICERS)
     }
   },
-
 
   list({ search = '', status = '', phase = '', officerId = '', page = 1, pageSize = 50 } = {}) {
     let items = read(PROJECTS_KEY)
@@ -294,8 +390,8 @@ export const localProjects = {
       email_sent: false,
       is_operations_active: false,
       operations_activated_at: null,
-      operations_activated_month: null,   // YYYY-MM — set when activated
-      pool_pct_adjustments: [],           // [{ from_month, hr_pct, core_pct }]
+      operations_activated_month: null, // YYYY-MM — set when activated
+      pool_pct_adjustments: [], // [{ from_month, hr_pct, core_pct }]
       core_pct: 5,
       hr_pct: 5,
       admin_pct: 5,
@@ -799,7 +895,7 @@ export const localProjects = {
     const projects = read(PROJECTS_KEY)
     const pIdx = projects.findIndex((p) => p.id === projectId)
     if (pIdx === -1) throw new Error('Project not found')
-    
+
     const officer = localOfficers.getById(officerId)
     if (!officer) throw new Error('Officer not found')
 
@@ -895,8 +991,10 @@ export const localOfficers = {
         phone: e.contact?.mobile || '',
         designation: e.employment?.designation || 'Project Officer',
         status: (e.status || 'active').toLowerCase(),
-        projects_assigned: read(PROJECTS_KEY).filter(p => p.officer_id === e.id).map(p => p.id),
-        created_at: e.created_at || now()
+        projects_assigned: read(PROJECTS_KEY)
+          .filter((p) => p.officer_id === e.id)
+          .map((p) => p.id),
+        created_at: e.created_at || now(),
       }))
   },
 
@@ -932,6 +1030,8 @@ export const localOfficers = {
   },
 
   getProjectsForOfficer(officerId) {
-    return read(PROJECTS_KEY).filter((p) => p.officer_id === officerId || p.assigned_officer_id === officerId)
+    return read(PROJECTS_KEY).filter(
+      (p) => p.officer_id === officerId || p.assigned_officer_id === officerId,
+    )
   },
 }
