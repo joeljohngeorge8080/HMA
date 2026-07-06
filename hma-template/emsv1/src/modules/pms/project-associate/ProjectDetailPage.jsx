@@ -1682,10 +1682,9 @@ const ProjectDetailPage = () => {
                                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
                                 onChange={(e) => {
                                   if (e.target.files && e.target.files.length > 0) {
-                                    console.log('UC Uploaded:', e.target.files[0])
                                     // Add handle upload functionality here
                                   }
-                                }} 
+                                }}
                               />
                             </div>
                             <CButton
