@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **HMA IEMS** (HMA Internal Enterprise Management System) is a role-based web application that replaces fragmented Excel workflows with a centralized platform for managing projects, employees, attendance, payroll, expenses, finance, and reporting.
 
-The full specification lives in the numbered markdown files at the root (`01_Project_Overview.md` through `12_Excel_Import_Specifications.md`). Always read the relevant spec file before implementing a module.
+The full specification lives in the numbered markdown files at the root (`01_Project_Overview.md` through `12_Excel_Import_Specifications.md`). Always read the relevant spec file before implementing a module. Also consult `DECISIONS.md` (ADRs) — it records overrides to these specs, most recently ADR-036 (Projects scope narrowed to expense oversight).
 
 The `git-coreui/` directory contains the CoreUI free React admin template that serves as the frontend base.
+
+**Module architecture (`src/modules/`):** the frontend code is split into `ems/` (HR/finance/ops side — attendance, staff-payroll, expense-management, finance, recruitment, etc.) and `pms/` (project side — `project-associate`, `projects`, `lsgb`, `donors`, `audit-logs`). Per ADR-036, `pms/daily-reports` (task tracking) and the PMS dashboard's KPI/phase widgets are **out of scope** — the CEO wants project-expense oversight, not project-management tooling. Do not build against those.
 
 ---
 
@@ -90,7 +92,7 @@ Every record must have `created_at` / `updated_at` timestamps. Use soft deletes 
 
 ## Authentication & RBAC
 
-Five roles: **CEO**, **Heads**, **HR**, **Finance**, **Project Officer**
+Originally documented as five roles: **CEO**, **Heads**, **HR**, **Finance**, **Project Officer**. The table below is the documented baseline matrix; `src/constants/roles.js` is the current source of truth and now defines 11 roles (adds **Admin**, **Project Associate**, Field Personnel, Backend Team, Project Coordinator, Employee — see ADR-036/ADR-004). Project Associate assigns incoming projects to a Project Officer; the Project Officer then plans/allocates the budget and owns expenses.
 
 | Module              | CEO | Heads | HR | Finance | Project Officer |
 |---------------------|-----|-------|----|---------|-----------------|
@@ -126,6 +128,7 @@ Only HR can reset passwords. Users are created manually by system administrators
 - Categories: CSR, LSGB, Other (Other requires a custom name field).
 - Statuses: Draft → Active → Completed / Archived / Cancelled.
 - Project value is immutable after creation. Project Officer can be reassigned (log to `project_officer_history`).
+- **Scope (ADR-036):** Project Associate assigns the Project Officer on intake. The PO then plans and allocates the budget and owns expenses. **5% of project value routes to EMS (HR)** — already implemented as the HR/Core monthly-budget split in `src/services/localOrgPool.js` (`getActiveProjectMonthlyBudgets`), conceptually described in `project_budget_drd.md`'s `admin_overhead` formula. Daily task-tracking is explicitly out of scope.
 
 **Audit Logs:**
 Every create, update, delete, correction, login, and override must write to `audit_logs` with: `user_id`, `role`, `module_name`, `action_type`, `record_id`, `old_value`, `new_value`, `remarks`, `ip_address`, `created_at`.
