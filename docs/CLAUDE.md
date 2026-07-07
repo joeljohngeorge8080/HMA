@@ -4,6 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## ⚠️ Read first — the two things that trip everyone up
+
+1. **The frontend has no database. All app data lives in browser localStorage**
+   via `src/services/local*.js`. The FastAPI `backend/` exists but the
+   frontend uses it only as a fallback — in practice the browser profile *is*
+   the database. Data is per-device, non-durable, single-user, and not
+   server-enforced. Never assume two users share state or that a written
+   value survives a browser clear.
+2. **The numbered specs `01`–`12` are historical and wrong in the ways that
+   matter** (they describe a 5-role, backend-driven, single-Projects-module
+   system). For an accurate mental model read **`docs/PROJECT_OVERVIEW.md`**
+   (how it really works) and **`docs/GAPS.md`** (every known weakness) before
+   the numbered specs. `DECISIONS.md` (ADRs) records where reality overruled
+   the specs; ADR-036 is the latest.
+
+The frontend lives in **`hma-template/emsv1/`** (not repo root). All paths
+below are relative to it unless noted.
+
+---
+
 ## Project Overview
 
 **HMA IEMS** (HMA Internal Enterprise Management System) is a role-based web application that replaces fragmented Excel workflows with a centralized platform for managing projects, employees, attendance, payroll, expenses, finance, and reporting.
@@ -161,3 +181,67 @@ refactor: Code restructure without behavior change
 test:     Tests
 chore:    Maintenance
 ```
+
+No AI attribution / co-author lines in commit messages (team preference).
+
+---
+
+## How this codebase actually works (learned notes)
+
+### The data layer (`src/services/`)
+- ~25 `local*.js` files, each a localStorage-backed "table" with a
+  backend-shaped API: `list({ page, pageSize })`, `get(id)`, `create`,
+  `update`. Seed data is merged on load so records survive a storage clear
+  *for seeds only* — user-created data does not.
+- **The money engine is `localOrgPool.js`** (pool/installment/monthly budget
+  math, 1,246 lines) and **`monthlyApportionment.js`** (pure, I/O-free plan
+  math — the clean version, with a spec in `docs/superpowers/specs/`). Prefer
+  extending the pure module and keep it testable.
+- Percent split of project value: `ADMIN_PCT` (5) + `hr_pct` (5) + `core_pct`
+  (5) + project spend (~85), each configurable per project. The HR/core
+  shares are the "5% to EMS" the CEO cares about (ADR-036).
+- A monthly plan is valid only when Σ(month totals) == working pool within
+  0.01 (`validatePlanTotal`). Money is float rupees rounded to paise — see
+  GAPS G4; don't add new float-accumulation paths.
+
+### Auth (`src/services/auth.js`, `localUsers.js`)
+Three login paths, checked in order: (1) dev bypass `dev-bypass-<role>` when
+`VITE_DEV_LOGIN==='true'` or Vite DEV; (2) local whitelist — Google email or
+seeded Employee-ID+password matched against localStorage users; (3) backend
+fallback (`/auth/*`). The Google JWT is **decoded, not verified**, on the
+client (GAPS G8). Seeded admin passwords are plaintext in source (GAPS G7).
+Treat all frontend auth as UX, not security.
+
+### RBAC
+- Roles: `src/constants/roles.js` (**11 roles**, source of truth). Matrix:
+  `src/constants/permissions.js` keyed `module → role → V|E|none`. Gate with
+  `usePermission(module, action)` and `<ProtectedRoute module= action=>`.
+- Admin short-circuits to full access. Add access by editing the matrix — no
+  ad-hoc role checks. When adding a role, update roles.js **and** every
+  PERMISSIONS module (nothing enforces they agree — GAPS G21).
+
+### Frontend structure
+- Dual module trees: `src/modules/ems/` and `src/modules/pms/`, each with its
+  own `_nav.jsx` and a routes file in `src/routes/` (`ems.routes.js`,
+  `pms.routes.js`). Routes are `React.lazy`-loaded.
+- Redux (`store.js`) is legacy `createStore` with a single `'set'` action
+  holding only `user`, `token`, sidebar/theme. **No business data in Redux.**
+- HashRouter — routes are `#/path`. Navigation outside components uses
+  `window.location.hash` (see `api.js` 401 handler).
+
+### Deploy
+- Frontend → Netlify (`netlify.toml` at repo root, base `hma-template/emsv1`,
+  SPA redirect). Backend → Render via GH Action on push to **`master`**
+  touching `backend/**`. Active dev branch is `master2`, so backend does not
+  auto-deploy from it. **No frontend CI** — lint/build are manual (GAPS G12).
+
+### When working here
+- **Add tests when you touch money math** — Vitest is the natural fit; there
+  are currently zero tests (GAPS G11). The pure functions in
+  `monthlyApportionment.js` are the easiest, highest-value place to start.
+- New entity IDs: prefer `crypto.randomUUID()` over the existing
+  `Date.now()+short-random` pattern (collision risk, GAPS G5).
+- Guard every localStorage write against `QuotaExceededError` and validate
+  parsed shape, not just parse success (GAPS G1, G17).
+- Before claiming any module is "done," remember the audit log is a mock and
+  immutability is unenforced — don't represent either as real (GAPS G2, G3).
