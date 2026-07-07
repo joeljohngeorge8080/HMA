@@ -9,7 +9,7 @@
 > Status values: **Accepted** · **Deferred** (decided to postpone) ·
 > **Removed** (explicitly out of scope) · **Superseded**.
 >
-> Last updated: 2026-06-17
+> Last updated: 2026-07-07
 
 ---
 
@@ -52,6 +52,7 @@
 | 033 | Standard timestamps on every record | Accepted |
 | 034 | Inventory is net-new and pending scope | Deferred |
 | 035 | Temporary mock user during Phase 0 | Accepted (temporary) |
+| 036 | Project scope narrowed to expense oversight (PA→PO flow, 5% EMS share) | Accepted — partially supersedes ADR-004 |
 
 ---
 
@@ -74,10 +75,10 @@
 **Consequences:** All credentials managed in-system; HR resets passwords (see ADR-032).
 
 ## ADR-004 — Five-role RBAC with a single-source permission matrix
-**Status:** Accepted
+**Status:** Accepted — role count superseded in practice, see ADR-036
 **Context:** Roles CEO, Heads, HR, Finance, Project Officer with differentiated access (`02_Roles_and_Permissions.md`).
 **Decision:** One canonical matrix (`constants/permissions.js` on the frontend, mirrored in the service layer) keyed `module → role → V|E|null`. Consumed via `usePermission` and `ProtectedRoute`.
-**Consequences:** No ad-hoc role checks scattered in code; changing access is a single-file edit.
+**Consequences:** No ad-hoc role checks scattered in code; changing access is a single-file edit. **Drift note (2026-07-07):** `src/constants/roles.js` now defines 11 roles (adds Admin, Project Associate, Field Personnel, Backend Team, Project Coordinator, Employee). The single-source-matrix *pattern* still holds — `constants/permissions.js` is still the one file to edit — but this doc's role list is stale. Treat the code as authoritative for the current role set; a full matrix reconciliation across `02_Roles_and_Permissions.md` is out of scope for ADR-036 and remains future work.
 
 ## ADR-005 — Business locks are separate from RBAC
 **Status:** Accepted
@@ -250,3 +251,12 @@
 **Context:** Phase 0 has no login yet, but the shell must render and sidebar role-filtering must be testable.
 **Decision:** Seed a mock CEO user in the Redux store, clearly commented as temporary.
 **Consequences:** **Must be removed in Phase 1** when real JWT login lands (see PROJECT_TODO P1.2.3).
+
+## ADR-036 — Project scope narrowed to expense oversight (PA→PO flow, 5% EMS share)
+**Status:** Accepted
+**Context:** CEO directive relayed 2026-07-07 (`newplan.txt`): the CEO does not need a full project-management system. What he needs is visibility into whether project expenses are being handled and planned correctly. The real process: **2 Project Associates (PA)** and **multiple Project Officers (PO)**. When a project arrives, a PA assigns it to a PO. The PO then owns everything from there — adds project detail, plans the budget, and allocates it. After planning, the PO routes a **5% share of the project's money to EMS (HR)**; the rest is the PO's own project-side spend.
+**Decision:**
+- **PMS scope trimmed, not removed.** `src/modules/pms/project-associate`, `pms/projects`, `pms/lsgb`, `pms/donors`, and `pms/audit-logs` stay in scope — they implement the PA→PO assignment and PO budget/expense flow. **Daily task-tracking is out of scope**: `pms/daily-reports` (`TaskManagementPage`, `MyTasksPage`, `TaskAssignModal`, `TaskCard`, `TaskReportSubmitPage`, `TaskReportEditPage`) and the PMS dashboard's project-KPI/phase widgets (`ProjectKPIsWidget`, `ProjectsByPhaseWidget`, `ProjectValueWidget`, `RecentProjectsWidget`) are not part of the CEO's ask and should not be prioritized.
+- **The 5% EMS share is already implemented**, not a new build. `src/services/localOrgPool.js` (`getActiveProjectMonthlyBudgets`) splits each project's value into an **HR-pool** monthly budget (→ EMS) and a **Core-pool** monthly budget (→ project's own spend), via configurable `hrPct`/`corePct` (default 5% / 95% of the relevant installment). This is the concrete instance of the `admin_overhead` concept sketched abstractly in `project_budget_drd.md` (§2.3: `admin_overhead = project_subtotal × admin_rate%`).
+- **Role reality check:** the PA/PO split already exists as formal RBAC roles (`ROLE.PROJECT_ASSOCIATE`, `ROLE.PROJECT_OFFICER` in `src/constants/roles.js`), wired into `constants/permissions.js`. No new role work is needed for this directive.
+**Consequences:** Roadmap/TODO/MVP docs should stop tracking PMS task-tracking work as in-scope. Reporting for the CEO should center on expense-planning-vs-actual visibility (ties to `project_budget_drd.md`'s variance model, §4), not project-management features. Does not retroactively re-baseline all already-built EMS/PMS submodules against the docs — that audit is separate, future work.
