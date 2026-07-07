@@ -5,7 +5,13 @@
 > scope (24 entities, RBAC matrix, immutability rules). Companion execution
 > tracker: **PROJECT_TODO.md**.
 >
-> Last updated: 2026-06-17 · Foundation (Phase 0) complete.
+> Last updated: 2026-07-07 · Foundation (Phase 0) complete.
+>
+> **2026-07-07 note:** Real implementation has grown into a dual `src/modules/ems/` +
+> `src/modules/pms/` structure with far more submodules than this roadmap's original
+> single-"Projects"-module plan describes. This update layers in the CEO-directed scope
+> change from `newplan.txt` (see ADR-036) — it does **not** re-baseline this roadmap
+> against the full current codebase; that audit is separate future work.
 
 ---
 
@@ -18,7 +24,7 @@
 | RBAC + Audit logging | ✅ | ⬜ Matrix exists; enforcement pending |
 | Dashboard | ✅ | 🔄 Placeholder only (widgets deferred) |
 | Employee Management | ✅ (Staff side) | ⬜ Not started |
-| Projects (+ Expenses, Documents, Assignments) | ✅ | ⬜ Not started |
+| Projects (+ Expenses, Documents, Assignments) | ✅ — scope narrowed, see ADR-036 | 🔄 In progress (PA→PO assignment, budget planning, expenses); daily task-tracking out of scope |
 | Attendance | ✅ | ⬜ Not started |
 | Payroll | ✅ (Payroll side) | ⏸ Blocked — deduction formula pending HR |
 | Expense Management (company ops) | ✅ | ⬜ Not started |
@@ -32,6 +38,7 @@
 1. **Inventory** has no entities/fields/rules in v2.0 — it needs a scoping pass before it can be planned in detail. Modelled below as an optional, parallel track.
 2. **Forecasting** stays a placeholder until the ML team finalizes inputs/outputs (no `forecasts` schema yet).
 3. **Payroll deduction formula** deferred until HR confirms; build the generation skeleton with the formula pluggable, reading config from `attendance_policy`.
+4. **Projects scope is narrowed** (ADR-036, 2026-07-07): the CEO wants expense oversight, not a full PMS. In-scope: Project Associate assigns Project Officer; PO plans/allocates budget and manages expenses; 5% of project value routes to EMS (already implemented via `localOrgPool`'s HR/Core pool split). Out of scope: daily task-tracking/reporting (`pms/daily-reports`) and PMS dashboard KPI/phase widgets.
 
 ---
 
@@ -44,7 +51,7 @@
 | RBAC + Audit | Enforce permission matrix; immutable audit trail on every write | `audit_logs` |
 | Dashboard | Org overview (layout TBD after stakeholder validation) | — |
 | Employee Management | Employee master + history + documents + assignments | `employees`, `employee_types`, `employee_salary_history`, `employee_department_history`, `employee_documents`, `employee_project_assignments` |
-| Projects | CSR/LSGB/Other lifecycle, expenses, documents, team | `projects`, `project_officer_history`, `project_documents`, `project_expenses`, `project_expense_history` |
+| Projects | CSR/LSGB/Other lifecycle scoped to expense oversight: PA assigns PO, PO plans/allocates budget (incl. 5% EMS share) and manages expenses/documents/team. Daily task-tracking is out of scope (ADR-036). | `projects`, `project_officer_history`, `project_documents`, `project_expenses`, `project_expense_history` |
 | Attendance | Pace `.xlsx` import, corrections, summaries | `attendance`, `attendance_corrections`, `attendance_summary`, `attendance_policy`, `leave_balances` |
 | Payroll | Monthly generation, lock, override history, payslips | `payroll`, `payroll_history` |
 | Expense Management | Company operational expenses (manual + Excel) | `expenses` |
@@ -165,3 +172,5 @@ Off critical path (parallel): Projects, Expense Mgmt, Finance, Inventory, Notifi
 ## 7. Reconciliation Note
 
 The originally requested module list (Foundation, Authentication, RBAC, Employee Management, Attendance, Payroll, Inventory, Reporting, Notifications) is fully covered, **plus** the v2.0 spec modules that were missing from it: **Projects (+ Project Expenses, Project Documents), Expense Management, Finance, and Audit Logs**. **Inventory** is retained as a flagged, net-new, parallel track pending a scoping decision.
+
+**2026-07-07 addendum (ADR-036):** the CEO narrowed Projects scope to expense oversight only — no full PMS. See §1 Open Decisions and the Module Catalog entry above.
