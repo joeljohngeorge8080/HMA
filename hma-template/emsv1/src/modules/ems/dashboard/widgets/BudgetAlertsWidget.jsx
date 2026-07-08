@@ -9,6 +9,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilBellExclamation, cilCheckCircle } from '@coreui/icons'
 import { localProjects } from '../../../../services/localProjects'
 import { localOrgPool } from '../../../../services/localOrgPool'
 import { localGeneralExpenses } from '../../../../services/localGeneralExpenses'
@@ -21,15 +23,33 @@ const fmtL = (n) => {
 }
 
 const THRESHOLDS = [
-  { pct: 100, emoji: '🚨', color: '#DC2626', label: 'OVER BUDGET', bg: 'rgba(220, 38, 38, 0.08)', border: 'rgba(220, 38, 38, 0.25)' },
-  { pct: 90,  emoji: '⛔', color: '#DC2626', label: 'Critical (90%+)',  bg: 'rgba(220, 38, 38, 0.05)', border: 'rgba(220, 38, 38, 0.15)' },
-  { pct: 85,  emoji: '⚠️', color: '#F59E0B', label: 'Warning (85%+)',   bg: 'rgba(245, 158, 11, 0.05)',  border: 'rgba(245, 158, 11, 0.15)' },
+  {
+    pct: 100,
+    color: '#DC2626',
+    label: 'OVER BUDGET',
+    bg: 'rgba(220, 38, 38, 0.08)',
+    border: 'rgba(220, 38, 38, 0.25)',
+  },
+  {
+    pct: 90,
+    color: '#DC2626',
+    label: 'Critical (90%+)',
+    bg: 'rgba(220, 38, 38, 0.05)',
+    border: 'rgba(220, 38, 38, 0.15)',
+  },
+  {
+    pct: 85,
+    color: '#F59E0B',
+    label: 'Warning (85%+)',
+    bg: 'rgba(245, 158, 11, 0.05)',
+    border: 'rgba(245, 158, 11, 0.15)',
+  },
 ]
 
 const getThreshold = (pct) => {
   if (pct >= 100) return THRESHOLDS[0]
-  if (pct >= 90)  return THRESHOLDS[1]
-  if (pct >= 85)  return THRESHOLDS[2]
+  if (pct >= 90) return THRESHOLDS[1]
+  if (pct >= 85) return THRESHOLDS[2]
   return null
 }
 
@@ -99,33 +119,45 @@ const BudgetAlertsWidget = () => {
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 16, overflow: 'hidden' }}>
       <CCardBody className="p-0">
         {/* Header */}
-        <div style={{
-          background: alerts.length > 0 ? '#7F1D1D' : '#064E3B',
-          padding: '14px 20px 12px',
-        }}>
+        <div
+          style={{
+            background: alerts.length > 0 ? '#7F1D1D' : '#064E3B',
+            padding: '14px 20px 12px',
+          }}
+        >
           <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: '1.4rem' }}>{alerts.length > 0 ? '🚨' : '✅'}</span>
+            <CIcon
+              icon={alerts.length > 0 ? cilBellExclamation : cilCheckCircle}
+              style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.85)' }}
+            />
             <div>
-              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>Budget Alerts</div>
+              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>
+                Budget Alerts
+              </div>
               <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.75)' }}>
                 {alerts.length > 0
                   ? `${alerts.length} item${alerts.length > 1 ? 's' : ''} need${alerts.length === 1 ? 's' : ''} attention`
-                  : 'All budgets are healthy — nothing to worry about!'}
+                  : 'All budgets are within limits'}
               </div>
             </div>
             {alerts.length > 0 && (
-              <div style={{
-                marginLeft: 'auto',
-                background: '#DC2626',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '1rem',
-                fontFamily: "'Fira Code', monospace",
-                width: 32, height: 32,
-                borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)'
-              }}>
+              <div
+                style={{
+                  marginLeft: 'auto',
+                  background: '#DC2626',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  fontFamily: "'Fira Code', monospace",
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+                }}
+              >
                 {alerts.length}
               </div>
             )}
@@ -136,8 +168,13 @@ const BudgetAlertsWidget = () => {
         <div className="p-3">
           {alerts.length === 0 ? (
             <div className="text-center py-4">
-              <div style={{ fontSize: '3rem', marginBottom: 8 }}>🎉</div>
-              <div className="fw-bold" style={{ color: '#059669', fontSize: '1rem' }}>All Clear!</div>
+              <CIcon
+                icon={cilCheckCircle}
+                style={{ width: 44, height: 44, color: '#059669', marginBottom: 10 }}
+              />
+              <div className="fw-bold" style={{ color: '#059669', fontSize: '1rem' }}>
+                All Clear
+              </div>
               <div className="text-body-secondary small">Every budget is within safe limits.</div>
             </div>
           ) : (
@@ -163,10 +200,21 @@ const BudgetAlertsWidget = () => {
                 >
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="fw-bold text-truncate" style={{ fontSize: '0.8rem', color: alert.thresh.color }}>
-                        {alert.thresh.emoji} {alert.name}
+                      <div
+                        className="fw-bold text-truncate"
+                        style={{ fontSize: '0.8rem', color: alert.thresh.color }}
+                      >
+                        {alert.name}
                       </div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', marginTop: 2 }}>{alert.category}</div>
+                      <div
+                        style={{
+                          fontSize: '0.65rem',
+                          color: 'var(--cui-secondary-color)',
+                          marginTop: 2,
+                        }}
+                      >
+                        {alert.thresh.label} · {alert.category}
+                      </div>
                     </div>
                     <div
                       className="fw-bold ms-2 d-flex align-items-center justify-content-center"
@@ -177,7 +225,7 @@ const BudgetAlertsWidget = () => {
                         borderRadius: 8,
                         padding: '4px 10px',
                         flexShrink: 0,
-                        fontFamily: "'Fira Code', monospace"
+                        fontFamily: "'Fira Code', monospace",
                       }}
                     >
                       {alert.pct}%
@@ -185,22 +233,34 @@ const BudgetAlertsWidget = () => {
                   </div>
                   {/* Mini progress bar */}
                   <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 4 }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${Math.min(100, alert.pct)}%`,
-                      background: alert.thresh.color,
-                      borderRadius: 4,
-                      transition: 'width 0.5s ease',
-                    }} />
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.min(100, alert.pct)}%`,
+                        background: alert.thresh.color,
+                        borderRadius: 4,
+                        transition: 'width 0.5s ease',
+                      }}
+                    />
                   </div>
-                  <div className="d-flex justify-content-between mt-2" style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', fontFamily: "'Fira Code', monospace" }}>
+                  <div
+                    className="d-flex justify-content-between mt-2"
+                    style={{
+                      fontSize: '0.65rem',
+                      color: 'var(--cui-secondary-color)',
+                      fontFamily: "'Fira Code', monospace",
+                    }}
+                  >
                     <span>Used: {fmtL(alert.used)}</span>
                     <span>Budget: {fmtL(alert.budget)}</span>
                   </div>
                 </div>
               ))}
               {alerts.length > 8 && (
-                <div className="text-center text-body-secondary mt-2" style={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                <div
+                  className="text-center text-body-secondary mt-2"
+                  style={{ fontSize: '0.75rem', fontWeight: 500 }}
+                >
                   +{alerts.length - 8} more alerts
                 </div>
               )}

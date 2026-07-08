@@ -11,6 +11,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CProgress } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilWallet, cilBank, cilCheckAlt, cilClock } from '@coreui/icons'
 import { localProjects } from '../../../../services/localProjects'
 
 const fmtL = (n) => {
@@ -52,9 +54,8 @@ const InstallmentStatusWidget = () => {
     })
 
     const totalPending = Math.max(0, totalSanctioned - totalReceived)
-    const receivedPct = totalSanctioned > 0
-      ? Math.round((totalReceived / totalSanctioned) * 100)
-      : 0
+    const receivedPct =
+      totalSanctioned > 0 ? Math.round((totalReceived / totalSanctioned) * 100) : 0
 
     // Sort: most pending first (most money still owed)
     projectSummaries.sort((a, b) => b.pending - a.pending)
@@ -75,15 +76,29 @@ const InstallmentStatusWidget = () => {
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 16, overflow: 'hidden' }}>
       <CCardBody className="p-0">
         {/* Header */}
-        <div style={{
-          background: '#0F172A',
-          padding: '16px 20px 14px',
-        }}>
+        <div
+          style={{
+            background: '#0F172A',
+            padding: '16px 20px 14px',
+          }}
+        >
           <div className="d-flex align-items-center gap-2 mb-4">
-            <span style={{ fontSize: '1.4rem' }}>💳</span>
+            <CIcon
+              icon={cilWallet}
+              style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.85)' }}
+            />
             <div>
-              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>Money Received vs Pending</div>
-              <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>
+                Money Received vs Pending
+              </div>
+              <div
+                style={{
+                  fontSize: '0.65rem',
+                  color: 'rgba(255,255,255,0.7)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Across {data.projectCount} projects — how much has been paid to HMA
               </div>
             </div>
@@ -92,14 +107,43 @@ const InstallmentStatusWidget = () => {
           {/* Big 3 numbers */}
           <div className="d-flex gap-3">
             {[
-              { emoji: '🏦', label: 'Total Sanctioned', value: fmtL(data.totalSanctioned), color: '#93C5FD' },
-              { emoji: '✅', label: 'Received', value: fmtL(data.totalReceived), color: '#34D399' },
-              { emoji: '⏳', label: 'Still Pending', value: fmtL(data.totalPending), color: '#FBBF24' },
+              {
+                icon: cilBank,
+                label: 'Total Sanctioned',
+                value: fmtL(data.totalSanctioned),
+                color: '#93C5FD',
+              },
+              {
+                icon: cilCheckAlt,
+                label: 'Received',
+                value: fmtL(data.totalReceived),
+                color: '#34D399',
+              },
+              {
+                icon: cilClock,
+                label: 'Still Pending',
+                value: fmtL(data.totalPending),
+                color: '#FBBF24',
+              },
             ].map((stat) => (
               <div key={stat.label} style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: '1rem', marginBottom: 4 }}>{stat.emoji}</div>
-                <div className="fw-bold" style={{ color: stat.color, fontSize: '1rem', lineHeight: 1, fontFamily: "'Fira Code', monospace" }}>{stat.value}</div>
-                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>{stat.label}</div>
+                <div style={{ marginBottom: 6 }}>
+                  <CIcon icon={stat.icon} style={{ width: 16, height: 16, color: stat.color }} />
+                </div>
+                <div
+                  className="fw-bold"
+                  style={{
+                    color: stat.color,
+                    fontSize: '1rem',
+                    lineHeight: 1,
+                    fontFamily: "'Fira Code', monospace",
+                  }}
+                >
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                  {stat.label}
+                </div>
               </div>
             ))}
           </div>
@@ -107,8 +151,24 @@ const InstallmentStatusWidget = () => {
           {/* Overall progress */}
           <div className="mt-4">
             <div className="d-flex justify-content-between mb-2">
-              <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overall funds received</span>
-              <span className="fw-bold" style={{ fontSize: '0.75rem', color: data.receivedPct > 70 ? '#34D399' : '#FBBF24', fontFamily: "'Fira Code', monospace" }}>
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  color: 'rgba(255,255,255,0.6)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                Overall funds received
+              </span>
+              <span
+                className="fw-bold"
+                style={{
+                  fontSize: '0.75rem',
+                  color: data.receivedPct > 70 ? '#34D399' : '#FBBF24',
+                  fontFamily: "'Fira Code', monospace",
+                }}
+              >
                 {data.receivedPct}%
               </span>
             </div>
@@ -126,17 +186,54 @@ const InstallmentStatusWidget = () => {
 
         {/* Per-project mini list */}
         <div className="p-4">
-          <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+          <div
+            style={{
+              fontSize: '0.65rem',
+              color: 'var(--cui-secondary-color)',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              fontWeight: 600,
+            }}
+          >
             Top pending payments (most money still to receive)
           </div>
           <div className="d-flex flex-column gap-3">
             {data.projects.map((p, i) => (
               <div key={i}>
                 <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="text-truncate fw-medium" style={{ fontSize: '0.75rem', maxWidth: '55%', color: 'var(--cui-body-color)' }}>{p.name}</span>
-                  <div className="d-flex gap-2 align-items-center" style={{ fontFamily: "'Fira Code', monospace" }}>
-                    <span style={{ fontSize: '0.65rem', color: '#059669', background: 'rgba(5, 150, 105, 0.1)', padding: '2px 6px', borderRadius: 4 }}>✅ {fmtL(p.received)}</span>
-                    <span style={{ fontSize: '0.65rem', color: '#DC2626', background: 'rgba(220, 38, 38, 0.1)', padding: '2px 6px', borderRadius: 4 }}>⏳ {fmtL(p.pending)}</span>
+                  <span
+                    className="text-truncate fw-medium"
+                    style={{ fontSize: '0.75rem', maxWidth: '55%', color: 'var(--cui-body-color)' }}
+                  >
+                    {p.name}
+                  </span>
+                  <div
+                    className="d-flex gap-2 align-items-center"
+                    style={{ fontFamily: "'Fira Code', monospace" }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        color: '#059669',
+                        background: 'rgba(5, 150, 105, 0.1)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      Recd {fmtL(p.received)}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        color: '#DC2626',
+                        background: 'rgba(220, 38, 38, 0.1)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      Due {fmtL(p.pending)}
+                    </span>
                   </div>
                 </div>
                 <CProgress
@@ -144,8 +241,9 @@ const InstallmentStatusWidget = () => {
                   height={4}
                   className="rounded-pill"
                   style={{
-                    '--cui-progress-bar-bg': p.pct > 80 ? '#10B981' : p.pct > 50 ? '#2563EB' : '#F59E0B',
-                    background: 'var(--cui-border-color)'
+                    '--cui-progress-bar-bg':
+                      p.pct > 80 ? '#10B981' : p.pct > 50 ? '#2563EB' : '#F59E0B',
+                    background: 'var(--cui-border-color)',
                   }}
                 />
               </div>

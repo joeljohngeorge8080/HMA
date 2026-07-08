@@ -12,6 +12,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilChartPie } from '@coreui/icons'
 import { localEmployees } from '../../../../services/localEmployees'
 import { localProjects } from '../../../../services/localProjects'
 import { localOrgPool } from '../../../../services/localOrgPool'
@@ -42,12 +44,29 @@ const DonutChart = ({ segments, size = 140 }) => {
   const R = size / 2 - 12
   const INNER = R * 0.55
   const total = segments.reduce((s, seg) => s + seg.value, 0)
-  if (total === 0) return (
-    <svg width={size} height={size}>
-      <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--cui-border-color,#dee2e6)" strokeWidth={R - INNER} />
-      <text x={cx} y={cy} textAnchor="middle" dy="0.35em" fontSize="10" fill="var(--cui-body-color,#333)">No data</text>
-    </svg>
-  )
+  if (total === 0)
+    return (
+      <svg width={size} height={size}>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={R}
+          fill="none"
+          stroke="var(--cui-border-color,#dee2e6)"
+          strokeWidth={R - INNER}
+        />
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dy="0.35em"
+          fontSize="10"
+          fill="var(--cui-body-color,#333)"
+        >
+          No data
+        </text>
+      </svg>
+    )
 
   let angle = 0
   return (
@@ -68,13 +87,32 @@ const DonutChart = ({ segments, size = 140 }) => {
             strokeLinecap="round"
             style={{ transition: 'stroke-dasharray 0.6s ease' }}
           >
-            <title>{seg.label}: {fmtL(seg.value)} ({Math.round((seg.value / total) * 100)}%)</title>
+            <title>
+              {seg.label}: {fmtL(seg.value)} ({Math.round((seg.value / total) * 100)}%)
+            </title>
           </path>
         )
       })}
       {/* Centre label */}
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="9" fill="var(--cui-body-secondary-color,#888)">TOTAL</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fontWeight="700" fontSize="11" fill="var(--cui-body-color,#333)">{fmtL(total)}</text>
+      <text
+        x={cx}
+        y={cy - 6}
+        textAnchor="middle"
+        fontSize="9"
+        fill="var(--cui-body-secondary-color,#888)"
+      >
+        TOTAL
+      </text>
+      <text
+        x={cx}
+        y={cy + 8}
+        textAnchor="middle"
+        fontWeight="700"
+        fontSize="11"
+        fill="var(--cui-body-color,#333)"
+      >
+        {fmtL(total)}
+      </text>
     </svg>
   )
 }
@@ -84,12 +122,17 @@ const MoneyFlowWidget = () => {
 
   useEffect(() => {
     // Payroll (salaries)
-    const employees = localEmployees.list({ pageSize: 9999 }).items.filter((e) => e.status === 'Active')
+    const employees = localEmployees
+      .list({ pageSize: 9999 })
+      .items.filter((e) => e.status === 'Active')
     const salaries = employees.reduce((s, e) => s + parseFloat(e.current_salary || 0), 0)
 
     // Project budget totals from consolidated sheet
     const allProjects = localProjects.list({ pageSize: 1000 }).items || []
-    let directBudget = 0, adminBudget = 0, hrBudget = 0, coreBudget = 0
+    let directBudget = 0,
+      adminBudget = 0,
+      hrBudget = 0,
+      coreBudget = 0
     allProjects.forEach((p) => {
       const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
       directBudget += bd.reduce((s, m) => s + m.directBudget, 0)
@@ -104,10 +147,25 @@ const MoneyFlowWidget = () => {
     const generalActual = ge.ytd_actual || 0
 
     const segments = [
-      { label: '🎯 Project Field Work', color: '#2563EB', value: directBudget, sublabel: 'Direct to the field' },
-      { label: '👥 Staff Salaries', color: '#059669', value: salaries, sublabel: 'Monthly payroll' },
-      { label: '🏢 Admin & Office', color: '#475569', value: adminBudget + generalActual, sublabel: 'Office running costs' },
-      { label: '🤝 HR & Core', color: '#F59E0B', value: hrBudget + coreBudget, sublabel: 'HR & core team costs' },
+      {
+        label: 'Project Field Work',
+        color: '#2563EB',
+        value: directBudget,
+        sublabel: 'Direct to the field',
+      },
+      { label: 'Staff Salaries', color: '#059669', value: salaries, sublabel: 'Monthly payroll' },
+      {
+        label: 'Admin & Office',
+        color: '#475569',
+        value: adminBudget + generalActual,
+        sublabel: 'Office running costs',
+      },
+      {
+        label: 'HR & Core',
+        color: '#F59E0B',
+        value: hrBudget + coreBudget,
+        sublabel: 'HR & core team costs',
+      },
     ].filter((s) => s.value > 0)
 
     const total = segments.reduce((s, seg) => s + seg.value, 0)
@@ -122,18 +180,39 @@ const MoneyFlowWidget = () => {
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 16, overflow: 'hidden' }}>
       <CCardBody className="p-0">
         {/* Header */}
-        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid var(--cui-border-color,#dee2e6)' }}>
+        <div
+          style={{
+            padding: '14px 20px 10px',
+            borderBottom: '1px solid var(--cui-border-color,#dee2e6)',
+          }}
+        >
           <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: '1.2rem' }}>🍩</span>
+            <CIcon
+              icon={cilChartPie}
+              style={{ width: 18, height: 18, color: 'var(--cui-primary)' }}
+            />
             <div>
-              <div className="fw-bold" style={{ fontSize: '0.85rem', color: 'var(--cui-body-color)' }}>Where Does Every Rupee Go?</div>
-              <div className="text-body-secondary" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total spend breakdown — {fmtL(total)}</div>
+              <div
+                className="fw-bold"
+                style={{ fontSize: '0.85rem', color: 'var(--cui-body-color)' }}
+              >
+                Spending Breakdown
+              </div>
+              <div
+                className="text-body-secondary"
+                style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+              >
+                Where every rupee goes — {fmtL(total)}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Chart + legend */}
-        <div className="d-flex align-items-center gap-3 px-4 pt-4 pb-3" style={{ flexWrap: 'wrap' }}>
+        <div
+          className="d-flex align-items-center gap-3 px-4 pt-4 pb-3"
+          style={{ flexWrap: 'wrap' }}
+        >
           <div style={{ flexShrink: 0 }}>
             <DonutChart segments={data.segments} size={150} />
           </div>
@@ -144,14 +223,53 @@ const MoneyFlowWidget = () => {
               const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0
               return (
                 <div key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: seg.color, flexShrink: 0, boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)' }} />
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      background: seg.color,
+                      flexShrink: 0,
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
+                    }}
+                  />
                   <div style={{ flex: 1 }}>
-                    <div className="fw-bold" style={{ fontSize: '0.75rem', lineHeight: 1.2, color: 'var(--cui-body-color)' }}>{seg.label}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', marginTop: 2 }}>{seg.sublabel}</div>
+                    <div
+                      className="fw-bold"
+                      style={{
+                        fontSize: '0.75rem',
+                        lineHeight: 1.2,
+                        color: 'var(--cui-body-color)',
+                      }}
+                    >
+                      {seg.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--cui-secondary-color)',
+                        marginTop: 2,
+                      }}
+                    >
+                      {seg.sublabel}
+                    </div>
                   </div>
-                  <div className="text-end" style={{ flexShrink: 0, fontFamily: "'Fira Code', monospace" }}>
-                    <div className="fw-bold" style={{ fontSize: '0.85rem', color: seg.color }}>{pct}%</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', marginTop: 2 }}>{fmtL(seg.value)}</div>
+                  <div
+                    className="text-end"
+                    style={{ flexShrink: 0, fontFamily: "'Fira Code', monospace" }}
+                  >
+                    <div className="fw-bold" style={{ fontSize: '0.85rem', color: seg.color }}>
+                      {pct}%
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--cui-secondary-color)',
+                        marginTop: 2,
+                      }}
+                    >
+                      {fmtL(seg.value)}
+                    </div>
                   </div>
                 </div>
               )

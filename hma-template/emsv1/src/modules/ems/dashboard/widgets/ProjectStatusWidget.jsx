@@ -8,6 +8,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CProgress } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilTask, cilMediaPlay, cilCheckAlt, cilCheckCircle, cilSearch } from '@coreui/icons'
 import { localProjects } from '../../../../services/localProjects'
 import { localOrgPool } from '../../../../services/localOrgPool'
 
@@ -20,37 +22,37 @@ const fmtL = (n) => {
   return `₹${Math.round(n)}`
 }
 
-// Status buckets — professional labels, emojis, colours
+// Status buckets — professional labels, icons, colours
 const STATUS_DEFS = [
   {
     key: 'ongoing',
-    emoji: '🚀',
-    label: 'Running Now',
-    sublabel: 'These projects are active!',
+    icon: cilMediaPlay,
+    label: 'Running',
+    sublabel: 'Active on the ground',
     bg: '#2563EB',
     shadow: 'rgba(37,99,235,0.3)',
   },
   {
     key: 'approved',
-    emoji: '✅',
+    icon: cilCheckAlt,
     label: 'Ready to Start',
-    sublabel: 'Approved — just about to begin',
+    sublabel: 'Approved, starting soon',
     bg: '#059669',
     shadow: 'rgba(5,150,105,0.3)',
   },
   {
     key: 'completed',
-    emoji: '🏆',
-    label: 'All Done!',
-    sublabel: 'Successfully finished',
+    icon: cilCheckCircle,
+    label: 'Completed',
+    sublabel: 'Successfully delivered',
     bg: '#475569',
     shadow: 'rgba(71,85,105,0.3)',
   },
   {
     key: 'pipeline',
-    emoji: '🔍',
-    label: 'Being Planned',
-    sublabel: 'Still in the pipeline',
+    icon: cilSearch,
+    label: 'In Pipeline',
+    sublabel: 'Being planned',
     bg: '#F59E0B',
     shadow: 'rgba(245,158,11,0.25)',
   },
@@ -84,7 +86,8 @@ const ProjectStatusWidget = () => {
       totalUsed += hrUsed + coreUsed
     })
 
-    const budgetPct = totalBudget > 0 ? Math.min(100, Math.round((totalUsed / totalBudget) * 100)) : 0
+    const budgetPct =
+      totalBudget > 0 ? Math.min(100, Math.round((totalUsed / totalBudget) * 100)) : 0
 
     setData({
       counts,
@@ -97,10 +100,8 @@ const ProjectStatusWidget = () => {
 
   if (!data) return null
 
-  const budgetColor =
-    data.budgetPct > 90 ? '#DC2626' : data.budgetPct > 70 ? '#F59E0B' : '#059669'
-  const budgetLabel =
-    data.budgetPct > 90 ? '🔴 Almost used up!' : data.budgetPct > 70 ? '🟡 Getting full' : '🟢 Plenty left'
+  const budgetColor = data.budgetPct > 90 ? '#DC2626' : data.budgetPct > 70 ? '#F59E0B' : '#059669'
+  const budgetLabel = data.budgetPct > 90 ? 'Critical' : data.budgetPct > 70 ? 'Watch' : 'Healthy'
 
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 16, overflow: 'hidden' }}>
@@ -113,12 +114,21 @@ const ProjectStatusWidget = () => {
           }}
         >
           <div className="d-flex align-items-center gap-2 mb-1">
-            <span style={{ fontSize: '1.4rem' }}>📋</span>
+            <CIcon
+              icon={cilTask}
+              style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.85)' }}
+            />
             <div>
-              <div className="text-white fw-bold" style={{ fontSize: '0.88rem', letterSpacing: '0.05em' }}>
+              <div
+                className="text-white fw-bold"
+                style={{ fontSize: '0.88rem', letterSpacing: '0.05em' }}
+              >
                 PROJECT STATUS
               </div>
-              <div className="text-white-50" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div
+                className="text-white-50"
+                style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+              >
                 from Consolidated Sheet · {data.total} total projects
               </div>
             </div>
@@ -153,18 +163,30 @@ const ProjectStatusWidget = () => {
                   }}
                 >
                   <div className="d-flex justify-content-between align-items-start">
-                    <div style={{ fontSize: '1.6rem', lineHeight: 1 }}>{def.emoji}</div>
+                    <CIcon
+                      icon={def.icon}
+                      style={{ width: 22, height: 22, color: 'rgba(255,255,255,0.85)' }}
+                    />
                     <div
                       className="text-white fw-bold"
-                      style={{ fontSize: '1.8rem', lineHeight: 1, fontFamily: "'Fira Code', monospace" }}
+                      style={{
+                        fontSize: '1.8rem',
+                        lineHeight: 1,
+                        fontFamily: "'Fira Code', monospace",
+                      }}
                     >
                       {count}
                     </div>
                   </div>
-                  <div className="text-white fw-semibold mt-2" style={{ fontSize: '0.8rem', opacity: 0.95 }}>
+                  <div
+                    className="text-white fw-semibold mt-2"
+                    style={{ fontSize: '0.8rem', opacity: 0.95 }}
+                  >
                     {def.label}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                  <div
+                    style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}
+                  >
                     {def.sublabel}
                   </div>
                 </div>
@@ -178,12 +200,15 @@ const ProjectStatusWidget = () => {
               background: 'var(--cui-tertiary-bg, #f8f9fa)',
               borderRadius: 12,
               padding: '12px 16px',
-              border: '1px solid var(--cui-border-color)'
+              border: '1px solid var(--cui-border-color)',
             }}
           >
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span className="fw-bold" style={{ fontSize: '0.75rem', color: 'var(--cui-body-color)' }}>
-                💰 Money Used So Far
+              <span
+                className="fw-bold"
+                style={{ fontSize: '0.75rem', color: 'var(--cui-body-color)' }}
+              >
+                Budget Used So Far
               </span>
               <span style={{ fontSize: '0.75rem', color: budgetColor, fontWeight: 700 }}>
                 {budgetLabel}
@@ -195,7 +220,14 @@ const ProjectStatusWidget = () => {
               className="rounded-pill mb-2"
               style={{ '--cui-progress-bar-bg': budgetColor }}
             />
-            <div className="d-flex justify-content-between" style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', fontFamily: "'Fira Code', monospace" }}>
+            <div
+              className="d-flex justify-content-between"
+              style={{
+                fontSize: '0.65rem',
+                color: 'var(--cui-secondary-color)',
+                fontFamily: "'Fira Code', monospace",
+              }}
+            >
               <span>Used: {fmtL(data.totalUsed)}</span>
               <span>{data.budgetPct}% of total budget</span>
               <span>Total: {fmtL(data.totalBudget)}</span>

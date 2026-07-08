@@ -8,6 +8,8 @@
  */
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilAlarm, cilCheckCircle } from '@coreui/icons'
 import { localProjects } from '../../../../services/localProjects'
 
 const fmtL = (n) => {
@@ -26,11 +28,13 @@ const diffDays = (dateStr) => {
 }
 
 const urgencyStyle = (days) => {
-  if (days < 0)   return { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)',  emoji: '🔴', label: 'Overdue!' }
-  if (days <= 7)  return { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.05)', emoji: '🚨', label: `${days}d left` }
-  if (days <= 14) return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.05)',  emoji: '⚠️', label: `${days}d left` }
-  if (days <= 30) return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.03)',  emoji: '📅', label: `${days}d left` }
-  return { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.04)', emoji: '📌', label: `${days}d left` }
+  if (days < 0) return { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.08)', label: 'Overdue' }
+  if (days <= 7) return { color: '#DC2626', bg: 'rgba(220, 38, 38, 0.05)', label: `${days}d left` }
+  if (days <= 14)
+    return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.05)', label: `${days}d left` }
+  if (days <= 30)
+    return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.03)', label: `${days}d left` }
+  return { color: '#2563EB', bg: 'rgba(37, 99, 235, 0.04)', label: `${days}d left` }
 }
 
 const UpcomingDeadlinesWidget = () => {
@@ -88,18 +92,25 @@ const UpcomingDeadlinesWidget = () => {
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 16, overflow: 'hidden' }}>
       <CCardBody className="p-0">
         {/* Header */}
-        <div style={{
-          background: deadlines.some((d) => d.days <= 7)
-            ? '#7F1D1D'
-            : deadlines.some((d) => d.days <= 14)
-              ? '#78350F'
-              : '#1E3A8A',
-          padding: '14px 20px 12px',
-        }}>
+        <div
+          style={{
+            background: deadlines.some((d) => d.days <= 7)
+              ? '#7F1D1D'
+              : deadlines.some((d) => d.days <= 14)
+                ? '#78350F'
+                : '#1E3A8A',
+            padding: '14px 20px 12px',
+          }}
+        >
           <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: '1.4rem' }}>⏰</span>
+            <CIcon
+              icon={cilAlarm}
+              style={{ width: 20, height: 20, color: 'rgba(255,255,255,0.85)' }}
+            />
             <div>
-              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>Upcoming Deadlines</div>
+              <div className="text-white fw-bold" style={{ fontSize: '0.88rem' }}>
+                Upcoming Deadlines
+              </div>
               <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)' }}>
                 {deadlines.length > 0
                   ? `${deadlines.length} deadline${deadlines.length > 1 ? 's' : ''} in the next 60 days`
@@ -107,13 +118,18 @@ const UpcomingDeadlinesWidget = () => {
               </div>
             </div>
             {deadlines.filter((d) => d.days <= 7).length > 0 && (
-              <div style={{
-                marginLeft: 'auto',
-                background: '#DC2626', color: 'white',
-                fontWeight: 700, fontSize: '0.75rem',
-                borderRadius: 20, padding: '4px 10px',
-                boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)'
-              }}>
+              <div
+                style={{
+                  marginLeft: 'auto',
+                  background: '#DC2626',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  borderRadius: 20,
+                  padding: '4px 10px',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+                }}
+              >
                 {deadlines.filter((d) => d.days <= 7).length} urgent
               </div>
             )}
@@ -123,8 +139,13 @@ const UpcomingDeadlinesWidget = () => {
         <div className="p-3">
           {deadlines.length === 0 ? (
             <div className="text-center py-4">
-              <div style={{ fontSize: '3rem', marginBottom: 6 }}>🎉</div>
-              <div className="fw-bold" style={{ color: '#059669', fontSize: '1rem' }}>All clear!</div>
+              <CIcon
+                icon={cilCheckCircle}
+                style={{ width: 44, height: 44, color: '#059669', marginBottom: 10 }}
+              />
+              <div className="fw-bold" style={{ color: '#059669', fontSize: '1rem' }}>
+                All Clear
+              </div>
               <div className="text-body-secondary small">No deadlines in the next 60 days.</div>
             </div>
           ) : (
@@ -153,33 +174,56 @@ const UpcomingDeadlinesWidget = () => {
                   >
                     <div className="d-flex align-items-start justify-content-between gap-2">
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="fw-semibold text-truncate" style={{ fontSize: '0.75rem', color: 'var(--cui-body-color)' }}>{d.name}</div>
+                        <div
+                          className="fw-semibold text-truncate"
+                          style={{ fontSize: '0.75rem', color: 'var(--cui-body-color)' }}
+                        >
+                          {d.name}
+                        </div>
                         <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)' }}>
-                          {d.type} · {new Date(d.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {d.type} ·{' '}
+                          {new Date(d.date).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
                         </div>
                         {d.amount && (
-                          <div style={{ fontSize: '0.7rem', color: '#2563EB', fontWeight: 600, marginTop: 4, fontFamily: "'Fira Code', monospace" }}>
-                            💰 {fmtL(d.amount)}
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#2563EB',
+                              fontWeight: 600,
+                              marginTop: 4,
+                              fontFamily: "'Fira Code', monospace",
+                            }}
+                          >
+                            {fmtL(d.amount)}
                           </div>
                         )}
                       </div>
-                      <div style={{
-                        background: urg.color,
-                        color: 'white',
-                        borderRadius: 20,
-                        padding: '2px 8px',
-                        fontSize: '0.65rem',
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}>
-                        {urg.emoji} {urg.label}
+                      <div
+                        style={{
+                          background: urg.color,
+                          color: 'white',
+                          borderRadius: 20,
+                          padding: '2px 8px',
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {urg.label}
                       </div>
                     </div>
                   </div>
                 )
               })}
               {deadlines.length > 8 && (
-                <div className="text-center text-body-secondary mt-2" style={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                <div
+                  className="text-center text-body-secondary mt-2"
+                  style={{ fontSize: '0.75rem', fontWeight: 500 }}
+                >
                   +{deadlines.length - 8} more deadlines
                 </div>
               )}

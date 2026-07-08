@@ -66,7 +66,7 @@ const ALL_WIDGETS = [
   // ── ROW 1: Hero ──────────────────────────────────────────────────────────────
   {
     id: 'org_health',
-    title: '🟢 Organisation Health',
+    title: 'Organisation Health',
     description: 'Overall health score — green/yellow/red verdict + quick stats at a glance',
     colProps: { xs: 12 },
     badge: { label: 'CEO', color: 'danger' },
@@ -76,7 +76,7 @@ const ALL_WIDGETS = [
   // ── ROW 2: Month + Project Status + Budget Alerts ─────────────────────────────
   {
     id: 'month_at_glance',
-    title: '📅 This Month at a Glance',
+    title: 'This Month at a Glance',
     description: '3 giant numbers: total spend, payroll, and active projects this month',
     colProps: { xs: 12, sm: 6, xl: 3 },
     badge: { label: 'CEO', color: 'danger' },
@@ -84,15 +84,15 @@ const ALL_WIDGETS = [
   },
   {
     id: 'project_status',
-    title: '📋 Project Status',
-    description: 'Emoji status cards: Running / Approved / Done / Planned — from Consolidated Sheet',
+    title: 'Project Status',
+    description: 'Status cards: Running / Approved / Done / Planned — from Consolidated Sheet',
     colProps: { xs: 12, sm: 6, xl: 5 },
     badge: { label: 'Projects', color: 'warning' },
     component: ProjectStatusWidget,
   },
   {
     id: 'budget_alerts',
-    title: '🚨 Budget Alerts',
+    title: 'Budget Alerts',
     description: 'Auto-flags any project or category over 85% of budget — or shows green All Clear',
     colProps: { xs: 12, sm: 6, xl: 4 },
     badge: { label: 'Finance', color: 'success' },
@@ -102,15 +102,15 @@ const ALL_WIDGETS = [
   // ── ROW 3: Money flow + Consolidated Budget ────────────────────────────────────
   {
     id: 'money_flow',
-    title: '🍩 Where Does Every Rupee Go?',
-    description: 'Donut chart: Projects vs Salaries vs Admin vs HR as % of total spend',
+    title: 'Spending Breakdown',
+    description: 'Donut chart — where every rupee goes: Projects vs Salaries vs Admin vs HR',
     colProps: { xs: 12, sm: 6, xl: 4 },
     badge: { label: 'Finance', color: 'success' },
     component: MoneyFlowWidget,
   },
   {
     id: 'consolidated_budget',
-    title: '💼 Budget Tracker',
+    title: 'Budget Tracker',
     description: 'Consolidated Sheet budget vs used per expense type (Admin/HR/Core/Direct)',
     colProps: { xs: 12, sm: 6, xl: 4 },
     badge: { label: 'Finance', color: 'success' },
@@ -118,7 +118,7 @@ const ALL_WIDGETS = [
   },
   {
     id: 'revenue_vs_spend',
-    title: '📊 Revenue vs Spend',
+    title: 'Revenue vs Spend',
     description: 'Monthly side-by-side bar chart: how much HMA earns vs spends each month',
     colProps: { xs: 12, sm: 6, xl: 4 },
     badge: { label: 'Finance', color: 'success' },
@@ -128,7 +128,7 @@ const ALL_WIDGETS = [
   // ── ROW 4: Projects ───────────────────────────────────────────────────────────
   {
     id: 'top_projects',
-    title: '🏆 Top Projects by Value',
+    title: 'Top Projects by Value',
     description: 'Ranked list of biggest projects by ₹ value with location and status',
     colProps: { xs: 12, lg: 6 },
     badge: { label: 'Projects', color: 'warning' },
@@ -136,7 +136,7 @@ const ALL_WIDGETS = [
   },
   {
     id: 'upcoming_deadlines',
-    title: '⏰ Upcoming Deadlines',
+    title: 'Upcoming Deadlines',
     description: 'Project end dates and installment due dates in the next 60 days',
     colProps: { xs: 12, sm: 6, lg: 3 },
     badge: { label: 'Projects', color: 'warning' },
@@ -144,7 +144,7 @@ const ALL_WIDGETS = [
   },
   {
     id: 'installment_status',
-    title: '💳 Money Received vs Pending',
+    title: 'Money Received vs Pending',
     description: 'Total sanctioned vs received vs still pending across all projects',
     colProps: { xs: 12, sm: 6, lg: 3 },
     badge: { label: 'Finance', color: 'success' },
@@ -285,7 +285,7 @@ const CEO_DEFAULT_IDS = [
 const Dashboard = () => {
   const [catalogOpen, setCatalogOpen] = useState(false)
   const { activeIds, activeWidgets, toggleWidget, resetWidgets } = useDashboardWidgets(
-    'ems_ceo_v2',   // new key → forces fresh defaults with CEO layout
+    'ems_ceo_v2', // new key → forces fresh defaults with CEO layout
     ALL_WIDGETS,
     CEO_DEFAULT_IDS,
   )
