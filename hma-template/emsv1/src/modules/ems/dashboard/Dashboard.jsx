@@ -7,6 +7,7 @@ import useDashboardWidgets from '../../../components/dashboard/useDashboardWidge
 import DashboardGrid from '../../../components/dashboard/DashboardGrid'
 import WidgetCatalog from '../../../components/dashboard/WidgetCatalog'
 
+// ── Existing widgets ───────────────────────────────────────────────────────────
 import EmployeeStatsWidget from './widgets/EmployeeStatsWidget'
 import AttendanceSummaryWidget from './widgets/AttendanceSummaryWidget'
 import GeneralExpenseWidget from './widgets/GeneralExpenseWidget'
@@ -20,24 +21,137 @@ import DepartmentHeadcountWidget from './widgets/DepartmentHeadcountWidget'
 import AttendanceTrendWidget from './widgets/AttendanceTrendWidget'
 import ProjectsOverviewWidget from './widgets/ProjectsOverviewWidget'
 import ProfitLossWidget from './widgets/ProfitLossWidget'
+import ProjectStatusWidget from './widgets/ProjectStatusWidget'
+import ConsolidatedBudgetWidget from './widgets/ConsolidatedBudgetWidget'
 
+// ── New CEO-facing widgets ─────────────────────────────────────────────────────
+import OrgHealthWidget from './widgets/OrgHealthWidget'
+import MonthAtGlanceWidget from './widgets/MonthAtGlanceWidget'
+import MoneyFlowWidget from './widgets/MoneyFlowWidget'
+import BudgetAlertsWidget from './widgets/BudgetAlertsWidget'
+import RevenueVsSpendWidget from './widgets/RevenueVsSpendWidget'
+import TopProjectsWidget from './widgets/TopProjectsWidget'
+import UpcomingDeadlinesWidget from './widgets/UpcomingDeadlinesWidget'
+import InstallmentStatusWidget from './widgets/InstallmentStatusWidget'
+
+/**
+ * Widget registry — ordered in CEO-friendly top-to-bottom flow:
+ *
+ * 1. Organisation Health (hero banner — full width)
+ * 2. This Month at a Glance
+ * 3. Project Status (emoji cards)
+ * 4. Budget Alerts
+ * 5. Where Does Every Rupee Go? (donut)
+ * 6. Budget Tracker (consolidated sheet)
+ * 7. Revenue vs Spend (bar chart)
+ * 8. Top Projects by Value
+ * 9. Upcoming Deadlines
+ * 10. Installment Money Tracker
+ * 11. Payroll Summary
+ * 12. Employee Overview
+ * 13. Department Headcount
+ * 14. Profit / Loss (detailed)
+ * 15. Announcements
+ * ── Advanced / technical (hidden from CEO view by default, available via Customize) ──
+ * 16. Expense Pools
+ * 17. Global Core Pool
+ * 18. Expense Management
+ * 19. Expenses by Category
+ * 20. General Expenses
+ * 21. Projects Overview
+ * 22. Attendance Summary
+ * 23. Attendance Trend
+ */
 const ALL_WIDGETS = [
+  // ── ROW 1: Hero ──────────────────────────────────────────────────────────────
   {
-    id: 'employee_stats',
-    title: 'Employee Overview',
-    description: 'Total, active, inactive, and on-project employee counts',
+    id: 'org_health',
+    title: '🟢 Organisation Health',
+    description: 'Overall health score — green/yellow/red verdict + quick stats at a glance',
+    colProps: { xs: 12 },
+    badge: { label: 'CEO', color: 'danger' },
+    component: OrgHealthWidget,
+  },
+
+  // ── ROW 2: Month + Project Status + Budget Alerts ─────────────────────────────
+  {
+    id: 'month_at_glance',
+    title: '📅 This Month at a Glance',
+    description: '3 giant numbers: total spend, payroll, and active projects this month',
     colProps: { xs: 12, sm: 6, xl: 3 },
-    badge: { label: 'HR', color: 'primary' },
-    component: EmployeeStatsWidget,
+    badge: { label: 'CEO', color: 'danger' },
+    component: MonthAtGlanceWidget,
   },
   {
-    id: 'attendance_summary',
-    title: 'Attendance Summary',
-    description: 'Present / absent / late / leave counts for this month',
-    colProps: { xs: 12, sm: 6, xl: 3 },
-    badge: { label: 'HR', color: 'primary' },
-    component: AttendanceSummaryWidget,
+    id: 'project_status',
+    title: '📋 Project Status',
+    description: 'Emoji status cards: Running / Approved / Done / Planned — from Consolidated Sheet',
+    colProps: { xs: 12, sm: 6, xl: 5 },
+    badge: { label: 'Projects', color: 'warning' },
+    component: ProjectStatusWidget,
   },
+  {
+    id: 'budget_alerts',
+    title: '🚨 Budget Alerts',
+    description: 'Auto-flags any project or category over 85% of budget — or shows green All Clear',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'Finance', color: 'success' },
+    component: BudgetAlertsWidget,
+  },
+
+  // ── ROW 3: Money flow + Consolidated Budget ────────────────────────────────────
+  {
+    id: 'money_flow',
+    title: '🍩 Where Does Every Rupee Go?',
+    description: 'Donut chart: Projects vs Salaries vs Admin vs HR as % of total spend',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'Finance', color: 'success' },
+    component: MoneyFlowWidget,
+  },
+  {
+    id: 'consolidated_budget',
+    title: '💼 Budget Tracker',
+    description: 'Consolidated Sheet budget vs used per expense type (Admin/HR/Core/Direct)',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ConsolidatedBudgetWidget,
+  },
+  {
+    id: 'revenue_vs_spend',
+    title: '📊 Revenue vs Spend',
+    description: 'Monthly side-by-side bar chart: how much HMA earns vs spends each month',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'Finance', color: 'success' },
+    component: RevenueVsSpendWidget,
+  },
+
+  // ── ROW 4: Projects ───────────────────────────────────────────────────────────
+  {
+    id: 'top_projects',
+    title: '🏆 Top Projects by Value',
+    description: 'Ranked list of biggest projects by ₹ value with location and status',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'Projects', color: 'warning' },
+    component: TopProjectsWidget,
+  },
+  {
+    id: 'upcoming_deadlines',
+    title: '⏰ Upcoming Deadlines',
+    description: 'Project end dates and installment due dates in the next 60 days',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Projects', color: 'warning' },
+    component: UpcomingDeadlinesWidget,
+  },
+  {
+    id: 'installment_status',
+    title: '💳 Money Received vs Pending',
+    description: 'Total sanctioned vs received vs still pending across all projects',
+    colProps: { xs: 12, sm: 6, lg: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: InstallmentStatusWidget,
+  },
+
+  // ── ROW 5: People & Finance ───────────────────────────────────────────────────
   {
     id: 'payroll_summary',
     title: 'Payroll Summary',
@@ -47,21 +161,31 @@ const ALL_WIDGETS = [
     component: PayrollSummaryWidget,
   },
   {
-    id: 'general_expense',
-    title: 'General Expenses',
-    description: 'YTD planned vs actual spend, this month total, budget utilisation',
+    id: 'employee_stats',
+    title: 'Employee Overview',
+    description: 'Total, active, inactive, and on-project employee counts',
     colProps: { xs: 12, sm: 6, xl: 3 },
-    badge: { label: 'Finance', color: 'success' },
-    component: GeneralExpenseWidget,
+    badge: { label: 'HR', color: 'primary' },
+    component: EmployeeStatsWidget,
   },
   {
-    id: 'expense_by_category',
-    title: 'Expenses by Category',
-    description: 'Top expense categories with relative spend comparison',
-    colProps: { xs: 12, lg: 6 },
-    badge: { label: 'Finance', color: 'success' },
-    component: ExpenseByCategoryWidget,
+    id: 'department_headcount',
+    title: 'Department Headcount',
+    description: 'Active employees by department',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: DepartmentHeadcountWidget,
   },
+  {
+    id: 'profit_loss',
+    title: 'Profit / Loss',
+    description: 'Expenses vs own revenue — how much must come from Govt Grants',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ProfitLossWidget,
+  },
+
+  // ── ROW 6: Communications ─────────────────────────────────────────────────────
   {
     id: 'announcements',
     title: 'Recent Announcements',
@@ -70,6 +194,8 @@ const ALL_WIDGETS = [
     badge: { label: 'Comms', color: 'info' },
     component: AnnouncementsWidget,
   },
+
+  // ── Advanced / technical ──────────────────────────────────────────────────────
   {
     id: 'expense_pools',
     title: 'Expense Pools',
@@ -95,20 +221,20 @@ const ALL_WIDGETS = [
     component: ExpenseManagementWidget,
   },
   {
-    id: 'department_headcount',
-    title: 'Department Headcount',
-    description: 'Active employees by department',
-    colProps: { xs: 12, sm: 6, xl: 3 },
-    badge: { label: 'HR', color: 'primary' },
-    component: DepartmentHeadcountWidget,
+    id: 'expense_by_category',
+    title: 'Expenses by Category',
+    description: 'Top expense categories with relative spend comparison',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpenseByCategoryWidget,
   },
   {
-    id: 'attendance_trend',
-    title: 'Attendance Trend',
-    description: '6-month trailing present/absent/leave rate chart',
-    colProps: { xs: 12, lg: 6 },
-    badge: { label: 'HR', color: 'primary' },
-    component: AttendanceTrendWidget,
+    id: 'general_expense',
+    title: 'General Expenses',
+    description: 'YTD planned vs actual spend, this month total, budget utilisation',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'Finance', color: 'success' },
+    component: GeneralExpenseWidget,
   },
   {
     id: 'projects_overview',
@@ -119,20 +245,49 @@ const ALL_WIDGETS = [
     component: ProjectsOverviewWidget,
   },
   {
-    id: 'profit_loss',
-    title: 'Profit / Loss',
-    description: 'Current-year expenses vs own revenue, LSGB dependency verdict',
-    colProps: { xs: 12, lg: 6 },
-    badge: { label: 'Finance', color: 'success' },
-    component: ProfitLossWidget,
+    id: 'attendance_summary',
+    title: 'Attendance Summary',
+    description: 'Present / absent / late / leave counts for this month',
+    colProps: { xs: 12, sm: 6, xl: 3 },
+    badge: { label: 'HR', color: 'primary' },
+    component: AttendanceSummaryWidget,
   },
+  {
+    id: 'attendance_trend',
+    title: 'Attendance Trend',
+    description: '6-month trailing present/absent/leave rate chart',
+    colProps: { xs: 12, lg: 6 },
+    badge: { label: 'HR', color: 'primary' },
+    component: AttendanceTrendWidget,
+  },
+]
+
+// ── CEO default set: only the most important widgets active by default ──────────
+// Technical/ops widgets are in the catalog but off by default.
+const CEO_DEFAULT_IDS = [
+  'org_health',
+  'month_at_glance',
+  'project_status',
+  'budget_alerts',
+  'money_flow',
+  'consolidated_budget',
+  'revenue_vs_spend',
+  'top_projects',
+  'upcoming_deadlines',
+  'installment_status',
+  'payroll_summary',
+  'employee_stats',
+  'department_headcount',
+  'profit_loss',
+  'announcements',
 ]
 
 const Dashboard = () => {
   const [catalogOpen, setCatalogOpen] = useState(false)
   const { activeIds, activeWidgets, toggleWidget, resetWidgets } = useDashboardWidgets(
-    'ems',
+    'ems_ceo_v2',   // new key → forces fresh defaults with CEO layout
     ALL_WIDGETS,
+    CEO_DEFAULT_IDS,
   )
 
   return (
