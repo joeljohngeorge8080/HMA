@@ -19,11 +19,33 @@ const write = (key, value) => {
   }
 }
 
-const useDashboardWidgets = (dashboardId, allWidgets) => {
+/**
+ * @param {string}   dashboardId  Unique key for this dashboard's localStorage slot.
+ * @param {object[]} allWidgets   All widget definitions.
+ * @param {string[]} [defaultIds] IDs to activate by default (all widgets if omitted).
+ */
+const useDashboardWidgets = (dashboardId, allWidgets, defaultIds) => {
   const key = storageKey(dashboardId)
-  const defaultIds = allWidgets.map((w) => w.id)
+  const allIds = allWidgets.map((w) => w.id)
+  const fallbackIds = defaultIds ?? allIds
 
-  const [activeIds, setActiveIds] = useState(() => read(key, defaultIds))
+  const [activeIds, setActiveIds] = useState(() => {
+    const saved = read(key, null)
+    if (saved) {
+      // Auto-add any brand-new widget IDs that aren't in the saved list yet
+      const newIds = allIds.filter((id) => !saved.includes(id))
+      // Only auto-add new IDs that are also in the CEO default set
+      const newCeoIds = newIds.filter((id) => fallbackIds.includes(id))
+      if (newCeoIds.length > 0) {
+        const merged = [...saved, ...newCeoIds]
+        write(key, merged)
+        return merged
+      }
+      return saved
+    }
+    write(key, fallbackIds)
+    return fallbackIds
+  })
 
   const toggleWidget = useCallback(
     (widgetId) => {
@@ -39,9 +61,9 @@ const useDashboardWidgets = (dashboardId, allWidgets) => {
   )
 
   const resetWidgets = useCallback(() => {
-    write(key, defaultIds)
-    setActiveIds(defaultIds)
-  }, [key, defaultIds])
+    write(key, fallbackIds)
+    setActiveIds(fallbackIds)
+  }, [key, fallbackIds])
 
   const activeWidgets = allWidgets.filter((w) => activeIds.includes(w.id))
 
@@ -49,3 +71,4 @@ const useDashboardWidgets = (dashboardId, allWidgets) => {
 }
 
 export default useDashboardWidgets
+
