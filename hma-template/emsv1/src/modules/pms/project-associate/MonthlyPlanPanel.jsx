@@ -734,14 +734,19 @@ const ActualSpendPanel = ({ project }) => {
   const actualForMonth = (month) =>
     entries.filter((e) => e.month === month).reduce((s, e) => s + e.amount, 0)
 
+  const projectEntries = localProjectExpenses.list({ projectId: project.id, pool: 'project' })
+  const actualProjectForMonth = (month) =>
+    projectEntries.filter((e) => e.month === month).reduce((s, e) => s + e.amount, 0)
+
   return (
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3">💸 Actual Spend</CCardHeader>
       <CCardBody>
         <div className="small text-body-secondary mb-3">
           Real money spent against this project, month by month, compared to the planned pool rates.
-          Admin actuals are logged by HR in EMS → Expense Management → Project Expenses.
-          Project/HR/Core actual tracking is not yet wired up.
+          Admin actuals are logged by HR in EMS → Expense Management → Project Expenses. Project
+          actuals are logged by the PO directly in the Expense tab. HR/Core actual tracking is not
+          yet wired up.
         </div>
         <div style={{ overflowX: 'auto' }}>
           <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
@@ -771,8 +776,10 @@ const ActualSpendPanel = ({ project }) => {
                     <CTableDataCell className="text-end">
                       <CBadge color={variance >= 0 ? 'success' : 'danger'}>{fmt(variance)}</CBadge>
                     </CTableDataCell>
-                    <CTableDataCell className="text-end text-body-tertiary">
-                      — not yet tracked
+                    <CTableDataCell className="text-end">
+                      {actualProjectForMonth(m.month) === 0
+                        ? 'None'
+                        : fmt(actualProjectForMonth(m.month))}
                     </CTableDataCell>
                     <CTableDataCell className="text-end text-body-tertiary">
                       — not yet tracked
@@ -803,7 +810,132 @@ const monthBounds = (month) => {
   return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` }
 }
 
-const TASK_STATUS_COLORS = { active: 'primary', completed: 'success', cancelled: 'secondary' }
+const ActualExpenseCard = ({ projectId, month, plannedAmount, canEdit, currentUser }) => {
+  // No local `entries` state — read straight from the store on every render
+  // (same convention as ActualSpendPanel below). `refresh` only exists to
+  // force a re-render after a mutation; its value is never read.
+  const [, setRefresh] = useState(0)
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [desc, setDesc] = useState('')
+  const [amount, setAmount] = useState('')
+
+  const entries = localProjectExpenses.list({ projectId, pool: 'project', month })
+  const logged = entries.reduce((s, e) => s + (e.amount || 0), 0)
+  const remaining = plannedAmount - logged
+  const canAdd = desc.trim() && parseFloat(amount) > 0
+
+  const handleAdd = () => {
+    if (!canAdd) return
+    localProjectExpenses.create({
+      project_id: projectId,
+      pool: 'project',
+      month,
+      amount: parseFloat(amount),
+      label: desc.trim(),
+      date,
+      createdBy: currentUser,
+    })
+    setRefresh((r) => r + 1)
+    setDesc('')
+    setAmount('')
+  }
+
+  const handleDelete = (id) => {
+    localProjectExpenses.remove(id)
+    setRefresh((r) => r + 1)
+  }
+
+  const fmtEntryDate = (d) =>
+    d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''
+
+  return (
+    <CCard className="h-100">
+      <CCardHeader className="bg-transparent fw-semibold py-2">Actual Expense</CCardHeader>
+      <CCardBody className="p-2">
+        <div className="small text-body-secondary mb-2">
+          Planned {fmt(plannedAmount)} · Logged {fmt(logged)} · Remaining {fmt(remaining)}
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="text-center text-body-tertiary small py-2">
+            No expenses logged this month.
+          </div>
+        ) : (
+          entries.map((e) => (
+            <div
+              key={e.id}
+              className="d-flex justify-content-between align-items-center border-bottom py-1 small"
+            >
+              <span>
+                {fmtEntryDate(e.date)} — {e.label}
+              </span>
+              <span className="d-flex align-items-center gap-2">
+                {fmt(e.amount)}
+                {canEdit && (
+                  <CButton
+                    size="sm"
+                    color="secondary"
+                    variant="ghost"
+                    style={{ padding: '0 4px' }}
+                    onClick={() => handleDelete(e.id)}
+                  >
+                    ✕
+                  </CButton>
+                )}
+              </span>
+            </div>
+          ))
+        )}
+
+        {canEdit && (
+          <CRow className="g-1 mt-2 align-items-center">
+            <CCol xs={4} md={3}>
+              <CFormInput
+                type="date"
+                size="sm"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </CCol>
+            <CCol xs={8} md={5}>
+              <CFormInput
+                size="sm"
+                placeholder="Description"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+              />
+            </CCol>
+            <CCol xs={8} md={3}>
+              <CInputGroup size="sm">
+                <CInputGroupText>₹</CInputGroupText>
+                <CFormInput
+                  type="number"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                />
+              </CInputGroup>
+            </CCol>
+            <CCol xs={4} md={1}>
+              <CButton size="sm" color="primary" disabled={!canAdd} onClick={handleAdd}>
+                Add
+              </CButton>
+            </CCol>
+          </CRow>
+        )}
+      </CCardBody>
+    </CCard>
+  )
+}
+
+ActualExpenseCard.propTypes = {
+  projectId: PropTypes.string.isRequired,
+  month: PropTypes.string.isRequired,
+  plannedAmount: PropTypes.number.isRequired,
+  canEdit: PropTypes.bool,
+  currentUser: PropTypes.string,
+}
 
 /**
  * The PO's month-by-month execution surface: pick a month from the
@@ -908,36 +1040,13 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
 
         <CRow className="g-3">
           <CCol xs={12} md={6}>
-            <CCard className="h-100">
-              <CCardHeader className="bg-transparent fw-semibold py-2">
-                ✅ Tasks <CBadge color="secondary">{monthTasks.length}</CBadge>
-              </CCardHeader>
-              <CCardBody className="p-2">
-                {monthTasks.length === 0 ? (
-                  <div className="text-center text-body-tertiary small py-2">
-                    No tasks due this month.
-                  </div>
-                ) : (
-                  monthTasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className="d-flex justify-content-between align-items-start border-bottom py-1 small"
-                    >
-                      <div>
-                        <div className="fw-medium">{t.title}</div>
-                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                          {t.assignee || 'Unassigned'} · Due{' '}
-                          {monthLabel((t.due_date || t.target_date || '').slice(0, 7))}
-                        </div>
-                      </div>
-                      <CBadge color={TASK_STATUS_COLORS[t.status] || 'secondary'}>
-                        {t.status}
-                      </CBadge>
-                    </div>
-                  ))
-                )}
-              </CCardBody>
-            </CCard>
+            <ActualExpenseCard
+              projectId={project.id}
+              month={month}
+              plannedAmount={computeEffectiveProjectMonthly(project, month)}
+              canEdit={canEdit}
+              currentUser={currentUser}
+            />
           </CCol>
 
           <CCol xs={12} md={6}>
