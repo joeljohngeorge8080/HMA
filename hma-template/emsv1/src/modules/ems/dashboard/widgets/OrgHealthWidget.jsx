@@ -16,7 +16,7 @@ import { CCard, CCardBody } from '@coreui/react'
 import { localProjects } from '../../../../services/localProjects'
 import { localEmployees } from '../../../../services/localEmployees'
 import { localOrgPool } from '../../../../services/localOrgPool'
-import { computeLsgbTotals } from '../../reports-analysis/LsgbDependencyPage'
+import { computeLsgbTotals } from '../../reports-analysis/SuperForecastingPage'
 
 const fmtL = (n) => {
   if (!n && n !== 0) return '₹0'

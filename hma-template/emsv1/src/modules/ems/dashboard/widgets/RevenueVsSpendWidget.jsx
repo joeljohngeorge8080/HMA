@@ -11,7 +11,7 @@
  */
 import React, { useEffect, useState, useMemo } from 'react'
 import { CCard, CCardBody } from '@coreui/react'
-import { computeLsgbTotals } from '../../reports-analysis/LsgbDependencyPage'
+import { computeLsgbTotals } from '../../reports-analysis/SuperForecastingPage'
 
 const fmtL = (n) => {
   if (!n && n !== 0) return '₹0'
