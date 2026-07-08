@@ -598,6 +598,7 @@ export const localOrgPool = {
     const revenueSources = expense.revenue_sources || ['project_pool']
     const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
     const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
 
     // Use caller-provided allocations (user-edited) if present, else auto-compute
     let allocations
@@ -624,6 +625,7 @@ export const localOrgPool = {
       // Revenue source metadata
       revenue_sources: revenueSources,
       hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
       project_pool_pct: projectPoolPct,
       // Project allocations — may be user-customised or auto-computed
       project_allocations: allocations,
@@ -899,6 +901,11 @@ export const localOrgPool = {
     const revenueSources = expense.revenue_sources || ['project_pool']
     const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
     const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
+    // Admin 5% Share — Core-only source, a real draw against Admin's own
+    // monthly budget (see getMonthlyAdminPoolBudgetSummary below), not just
+    // an attribution tag like HR/LSGB Revenue.
+    const adminSharePct = parseFloat(expense.admin_share_pct) || 0
 
     let allocations
     if (expense.project_allocations && expense.project_allocations.length > 0) {
@@ -924,6 +931,8 @@ export const localOrgPool = {
       entered_by_project_id: enteredByProjectId,
       revenue_sources: revenueSources,
       hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
+      admin_share_pct: adminSharePct,
       project_pool_pct: projectPoolPct,
       project_allocations: allocations,
       created_at: new Date().toISOString(),
@@ -1097,6 +1106,7 @@ export const localOrgPool = {
     const revenueSources = expense.revenue_sources || ['project_pool']
     const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
     const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
 
     let allocations
     if (expense.project_allocations && expense.project_allocations.length > 0) {
@@ -1121,6 +1131,7 @@ export const localOrgPool = {
       entered_by_project_id: enteredByProjectId,
       revenue_sources: revenueSources,
       hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
       project_pool_pct: projectPoolPct,
       project_allocations: allocations,
       created_at: new Date().toISOString(),
@@ -1165,7 +1176,7 @@ export const localOrgPool = {
     const expenses = this.getAdminExpenses()
     const targetMonth = month || new Date().toISOString().slice(0, 7)
 
-    const usedThisMonth = expenses
+    const usedFromAdminExpenses = expenses
       .filter((e) => (e.date ? e.date.slice(0, 7) : targetMonth) === targetMonth)
       .reduce((sum, e) => {
         const sources = e.revenue_sources || ['project_pool']
@@ -1174,6 +1185,21 @@ export const localOrgPool = {
         const totalAmt = parseFloat(e.amount) || 0
         return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
       }, 0)
+
+    // Core expenses can draw on the Admin pool too ("Admin 5% Share") — a
+    // real cross-pool deduction, so it counts against Admin's own budget
+    // the same as Admin's own project_pool spend does.
+    const usedFromCoreExpenses = this.getCoreExpenses()
+      .filter((e) => (e.date ? e.date.slice(0, 7) : targetMonth) === targetMonth)
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || []
+        if (!sources.includes('admin_pool')) return sum
+        const sharePct = parseFloat(e.admin_share_pct) || 0
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (sharePct / 100) * 100) / 100
+      }, 0)
+
+    const usedThisMonth = usedFromAdminExpenses + usedFromCoreExpenses
 
     return {
       totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
@@ -1208,6 +1234,28 @@ export const localOrgPool = {
           usedMap[b.projectId] =
             (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
         }
+      }
+    }
+
+    // Core expenses tagged "Admin 5% Share" draw on this same budget. There's
+    // no per-project allocation stored for this source (flat aggregate draw
+    // only — see design spec), so distribute proportionally across Admin's
+    // active projects by their monthly-budget share, same fallback used above
+    // for a plain Admin expense with no project_allocations of its own.
+    const coreExpenses = this.getCoreExpenses()
+    const totalBudget = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    for (const exp of coreExpenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || []
+      if (!sources.includes('admin_pool')) continue
+
+      const sharePct = parseFloat(exp.admin_share_pct) || 0
+      const shareAmt = (parseFloat(exp.amount) || 0) * (sharePct / 100)
+      for (const b of budgets) {
+        const share = totalBudget > 0 ? b.monthlyBudget / totalBudget : 0
+        usedMap[b.projectId] =
+          (usedMap[b.projectId] || 0) + Math.round(shareAmt * share * 100) / 100
       }
     }
 
