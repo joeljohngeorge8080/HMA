@@ -42,12 +42,8 @@ const ROLE_COLORS = {
   [ROLE.CEO]: 'dark',
   [ROLE.HEADS]: 'primary',
   [ROLE.HR]: 'info',
-  [ROLE.FINANCE]: 'success',
-  [ROLE.PROJECT_COORDINATOR]: 'warning',
   [ROLE.PROJECT_ASSOCIATE]: 'secondary',
   [ROLE.PROJECT_OFFICER]: 'secondary',
-  [ROLE.FIELD_PERSONNEL]: 'secondary',
-  [ROLE.BACKEND_TEAM]: 'secondary',
   [ROLE.EMPLOYEE]: 'light',
 }
 

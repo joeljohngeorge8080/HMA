@@ -16,12 +16,6 @@ const DEV_USERS = {
     google_email: 'head@hma.dev',
   },
   DEV003: { employee_id: 'DEV003', full_name: 'Dev HR', role: 'HR', google_email: 'hr@hma.dev' },
-  DEV004: {
-    employee_id: 'DEV004',
-    full_name: 'Dev Finance',
-    role: 'Finance',
-    google_email: 'finance@hma.dev',
-  },
   DEV005: {
     employee_id: 'DEV005',
     full_name: 'Dev Project Officer',

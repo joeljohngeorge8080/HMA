@@ -213,16 +213,6 @@ const ProjectListPage = () => {
                     <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
                       {p.location} · {p.funding_agency}
                     </div>
-                    {p.pending_approvals > 0 && (
-                      <CBadge
-                        color="warning"
-                        shape="rounded-pill"
-                        className="mt-1"
-                        style={{ fontSize: '0.65rem' }}
-                      >
-                        {p.pending_approvals} pending approval
-                      </CBadge>
-                    )}
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
                     <span

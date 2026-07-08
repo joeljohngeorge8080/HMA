@@ -22,7 +22,7 @@ import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilPeople } from '@coreui/icons'
 import api from '../../../../services/api'
 
-const USER_ROLES = ['CEO', 'Heads', 'HR', 'Finance', 'Project Officer']
+const USER_ROLES = ['CEO', 'Heads', 'HR', 'Project Officer']
 
 const ManageAccessModal = ({ visible, onClose, employeeId, employeeName, currentAccount }) => {
   const [googleEmail, setGoogleEmail] = useState('')

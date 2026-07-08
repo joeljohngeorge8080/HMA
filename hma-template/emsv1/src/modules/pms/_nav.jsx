@@ -13,7 +13,6 @@ import {
   cilBuilding,
   cilListRich,
   cilTransfer,
-  cilUser,
   cilBriefcase,
   cilMoney,
   cilTask,
@@ -157,29 +156,6 @@ const pmsNav = [
     to: '/pms/beneficiary',
     icon: <CIcon icon={cilGroup} customClassName="nav-icon" />,
   },
-  {
-    component: CNavGroup,
-    name: 'Field Personnel',
-    icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
-    items: [
-      { component: CNavItem, name: 'My Dashboard', to: '/pms/daily-reports/personnel-log' },
-      { component: CNavItem, name: 'My Tasks', to: '/pms/daily-reports/my-tasks' },
-      { component: CNavItem, name: 'Submit Report', to: '/pms/daily-reports/new' },
-      { component: CNavItem, name: 'My Reports', to: '/pms/daily-reports/history' },
-      { component: CNavItem, name: 'Upload Bills', to: '/pms/field-personnel/bills' },
-    ],
-  },
-  {
-    component: CNavGroup,
-    name: 'Daily Reports (Admin)',
-    icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
-    items: [
-      { component: CNavItem, name: 'My Team', to: '/pms/daily-reports/team' },
-      { component: CNavItem, name: 'Assign Tasks', to: '/pms/daily-reports/tasks' },
-      { component: CNavItem, name: 'Review Reports', to: '/pms/daily-reports/review' },
-      { component: CNavItem, name: 'Approved Reports', to: '/pms/daily-reports/approved' },
-    ],
-  },
   // ── LSGB Projects ──
   {
     component: CNavGroup,
@@ -213,17 +189,6 @@ const pmsNav = [
     name: 'Audit Logs',
     to: '/pms/audit-logs',
     icon: <CIcon icon={cilListRich} customClassName="nav-icon" />,
-  },
-  // ── Backend Team section ──
-  {
-    component: CNavGroup,
-    name: 'Settlements',
-    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
-    badge: { color: 'primary', text: 'BT' },
-    items: [
-      { component: CNavItem, name: 'Process Settlements', to: '/pms/settlements' },
-      { component: CNavItem, name: 'Approved Bills', to: '/pms/daily-reports/approved' },
-    ],
   },
 
   {

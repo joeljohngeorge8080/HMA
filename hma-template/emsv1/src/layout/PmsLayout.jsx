@@ -18,27 +18,7 @@ const ROLE_NAV_MAP = {
         item.name === 'Switch to EMS' ||
         item.name === 'Dashboard',
     ),
-  [ROLE.PROJECT_OFFICER]: (nav) =>
-    nav.filter(
-      (item) =>
-        item.name !== 'Field Personnel' &&
-        item.name !== 'Project Associate' &&
-        item.name !== 'Settlements',
-    ),
-  [ROLE.PROJECT_COORDINATOR]: (nav) =>
-    nav.filter(
-      (item) =>
-        item.name !== 'Field Personnel' &&
-        item.name !== 'Project Associate' &&
-        item.name !== 'Settlements',
-    ),
-  [ROLE.FIELD_PERSONNEL]: (nav) =>
-    nav.filter((item) => item.name === 'Field Personnel' || item.name === 'Switch to EMS'),
-  [ROLE.BACKEND_TEAM]: (nav) =>
-    nav.filter(
-      (item) =>
-        item.name === 'Dashboard' || item.name === 'Settlements' || item.name === 'Switch to EMS',
-    ),
+  [ROLE.PROJECT_OFFICER]: (nav) => nav.filter((item) => item.name !== 'Project Associate'),
 }
 
 const PmsLayout = () => {

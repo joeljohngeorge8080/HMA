@@ -207,37 +207,6 @@ export const emsRoutes = [
   },
 
   {
-    path: '/ems/finance',
-    name: 'Finance',
-    element: placeholder('Finance'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-1',
-    name: 'Detail 1',
-    element: placeholder('Finance – Detail 1'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-2',
-    name: 'Detail 2',
-    element: placeholder('Finance – Detail 2'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-3',
-    name: 'Detail 3',
-    element: placeholder('Finance – Detail 3'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-4',
-    name: 'Detail 4',
-    element: placeholder('Finance – Detail 4'),
-    module: MODULE.FINANCE,
-  },
-
-  {
     path: '/ems/reports-analysis/visual-model',
     name: 'Visual Model',
     element: VisualModelPage,

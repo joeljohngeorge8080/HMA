@@ -33,7 +33,7 @@ import ProfilePhotoUpload from './components/ProfilePhotoUpload'
 // ─── option lists ─────────────────────────────────────────────────────────────
 
 const DEPARTMENTS = ['SDP', 'FINANCE', 'HR', 'HLL MANAGEMENT', 'UTILITY STAFF', 'OTHER']
-const USER_ROLES = ['CEO', 'Heads', 'HR', 'Finance', 'Project Officer']
+const USER_ROLES = ['CEO', 'Heads', 'HR', 'Project Officer']
 
 const GENDERS = ['Male', 'Female', 'Other']
 const CATEGORIES = ['Permanent', 'FTC', 'TPC']

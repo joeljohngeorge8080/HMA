@@ -690,11 +690,7 @@ const ProjectDetailPage = () => {
   // Activation requires both a task assigned AND a completed monthly plan —
   // the Project Officer must plan the budget before it can go live.
   const hasMonthlyPlan = Boolean(project?.monthly_plan?.length)
-  const isBudgetAdmin =
-    role === ROLE.CEO ||
-    role === ROLE.FINANCE ||
-    role === ROLE.HR ||
-    role === ROLE.PROJECT_COORDINATOR
+  const isBudgetAdmin = role === ROLE.CEO || role === ROLE.HR
   // Monthly budget planning is specifically the Project Officer's/Project
   // Associate's job (spec) — they need Monthly Plan tab edit access too,
   // in addition to (not instead of) everything isBudgetAdmin already covers.
@@ -1036,45 +1032,45 @@ const ProjectDetailPage = () => {
               'Budget & Payroll',
               'Monthly Plan',
               'Expense',
-            ].map((tab, i) => (
-              <CNavItem key={i}>
-                <CNavLink
-                  active={activeTab === i}
-                  onClick={() => setActiveTab(i)}
-                  role="button"
-                  className="fw-medium"
-                >
-                  {tab}
-                  {i === 2 && approvals.filter((a) => a.status === 'pending').length > 0 && (
-                    <CBadge color="danger" shape="rounded-pill" className="ms-2">
-                      {approvals.filter((a) => a.status === 'pending').length}
-                    </CBadge>
-                  )}
-                  {i === 3 && (
-                    <CBadge
-                      color={
-                        project.project_value -
-                          (project.expense_accounted || 0) -
-                          (project.committed_expense || 0) >=
-                        0
-                          ? 'success'
-                          : 'danger'
-                      }
-                      shape="rounded-pill"
-                      className="ms-2"
-                    >
-                      {(() => {
-                        const bal =
+            ].map((tab, i) =>
+              // Approvals tab is demo-only (no real approval workflow beyond the
+              // Project Officer's HR/Core/Admin pool release in Monthly Plan) —
+              // kept out of the nav, not removed from the index-based tab array.
+              tab === 'Approvals' ? null : (
+                <CNavItem key={i}>
+                  <CNavLink
+                    active={activeTab === i}
+                    onClick={() => setActiveTab(i)}
+                    role="button"
+                    className="fw-medium"
+                  >
+                    {tab}
+                    {i === 3 && (
+                      <CBadge
+                        color={
                           project.project_value -
-                          (project.expense_accounted || 0) -
-                          (project.committed_expense || 0)
-                        return bal >= 0 ? '✓' : '!'
-                      })()}
-                    </CBadge>
-                  )}
-                </CNavLink>
-              </CNavItem>
-            ))}
+                            (project.expense_accounted || 0) -
+                            (project.committed_expense || 0) >=
+                          0
+                            ? 'success'
+                            : 'danger'
+                        }
+                        shape="rounded-pill"
+                        className="ms-2"
+                      >
+                        {(() => {
+                          const bal =
+                            project.project_value -
+                            (project.expense_accounted || 0) -
+                            (project.committed_expense || 0)
+                          return bal >= 0 ? '✓' : '!'
+                        })()}
+                      </CBadge>
+                    )}
+                  </CNavLink>
+                </CNavItem>
+              ),
+            )}
           </CNav>
         </CCardHeader>
 
@@ -2219,7 +2215,7 @@ const ProjectDetailPage = () => {
                                 <span className="small fw-semibold" style={{ color }}>
                                   {label}
                                 </span>
-                                {isBudgetAdmin ? (
+                                {canEditMonthlyPlan ? (
                                   <CInputGroup size="sm" style={{ width: 90 }}>
                                     <CFormInput
                                       type="number"
