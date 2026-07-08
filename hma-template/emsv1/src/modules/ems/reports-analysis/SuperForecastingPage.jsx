@@ -443,7 +443,6 @@ const SuperForecastingPage = () => {
         }}
       >
         <CCardBody className="d-flex align-items-center gap-3 py-3">
-          <div style={{ fontSize: '2.2rem' }}>{isProfit ? '🎉' : '😟'}</div>
           <div className="flex-grow-1">
             <div
               className="fw-bold"
@@ -692,8 +691,10 @@ const SuperForecastingPage = () => {
                     <CTableDataCell className="text-end text-success">
                       {r.shareRevenue > 0 ? fmt(r.shareRevenue) : '—'}
                     </CTableDataCell>
-                    <CTableDataCell className="text-center" style={{ fontSize: '1.1rem' }}>
-                      {r.lsgbNeed > 0 ? '⚠️' : '✅'}
+                    <CTableDataCell className="text-center">
+                      <CBadge color={r.lsgbNeed > 0 ? 'danger' : 'success'} shape="rounded-pill">
+                        {r.lsgbNeed > 0 ? 'Borrowed' : 'Covered'}
+                      </CBadge>
                     </CTableDataCell>
                   </CTableRow>
                 ))}
@@ -705,8 +706,10 @@ const SuperForecastingPage = () => {
                   <CTableDataCell className="text-end text-success">
                     {fmt(totals.ownRevenue)}
                   </CTableDataCell>
-                  <CTableDataCell className="text-center" style={{ fontSize: '1.1rem' }}>
-                    {isProfit ? '✅' : '⚠️'}
+                  <CTableDataCell className="text-center">
+                    <CBadge color={isProfit ? 'success' : 'danger'} shape="rounded-pill">
+                      {isProfit ? 'Covered' : 'Borrowed'}
+                    </CBadge>
                   </CTableDataCell>
                 </CTableRow>
               </CTableFoot>
