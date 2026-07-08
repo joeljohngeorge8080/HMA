@@ -34,33 +34,39 @@ import TopProjectsWidget from './widgets/TopProjectsWidget'
 import UpcomingDeadlinesWidget from './widgets/UpcomingDeadlinesWidget'
 import InstallmentStatusWidget from './widgets/InstallmentStatusWidget'
 
+// ── Super Forecasting widgets (Reports & Analysis › Super Forecasting) ────────
+import LsgbReductionWidget from './widgets/LsgbReductionWidget'
+import ExpenseHealthWidget from './widgets/ExpenseHealthWidget'
+import HRPerformanceWidget from './widgets/HRPerformanceWidget'
+
 /**
  * Widget registry — ordered in CEO-friendly top-to-bottom flow:
  *
  * 1. Organisation Health (hero banner — full width)
  * 2. This Month at a Glance
- * 3. Project Status (emoji cards)
+ * 3. Project Status
  * 4. Budget Alerts
- * 5. Where Does Every Rupee Go? (donut)
- * 6. Budget Tracker (consolidated sheet)
- * 7. Revenue vs Spend (bar chart)
- * 8. Top Projects by Value
- * 9. Upcoming Deadlines
- * 10. Installment Money Tracker
- * 11. Payroll Summary
- * 12. Employee Overview
- * 13. Department Headcount
- * 14. Profit / Loss (detailed)
- * 15. Announcements
+ * 5. Cut LSGB Borrowing / Expense Health Check / How Is HR Doing? (from Super Forecasting)
+ * 6. Where Does Every Rupee Go? (donut)
+ * 7. Budget Tracker (consolidated sheet)
+ * 8. Revenue vs Spend (bar chart)
+ * 9. Top Projects by Value
+ * 10. Upcoming Deadlines
+ * 11. Installment Money Tracker
+ * 12. Payroll Summary
+ * 13. Employee Overview
+ * 14. Department Headcount
+ * 15. Profit / Loss (detailed)
+ * 16. Announcements
  * ── Advanced / technical (hidden from CEO view by default, available via Customize) ──
- * 16. Expense Pools
- * 17. Global Core Pool
- * 18. Expense Management
- * 19. Expenses by Category
- * 20. General Expenses
- * 21. Projects Overview
- * 22. Attendance Summary
- * 23. Attendance Trend
+ * 17. Expense Pools
+ * 18. Global Core Pool
+ * 19. Expense Management
+ * 20. Expenses by Category
+ * 21. General Expenses
+ * 22. Projects Overview
+ * 23. Attendance Summary
+ * 24. Attendance Trend
  */
 const ALL_WIDGETS = [
   // ── ROW 1: Hero ──────────────────────────────────────────────────────────────
@@ -97,6 +103,33 @@ const ALL_WIDGETS = [
     colProps: { xs: 12, sm: 6, xl: 4 },
     badge: { label: 'Finance', color: 'success' },
     component: BudgetAlertsWidget,
+  },
+
+  // ── ROW 2.5: Super Forecasting highlights ─────────────────────────────────────
+  {
+    id: 'lsgb_reduction',
+    title: 'Cut LSGB Borrowing',
+    description:
+      'How much new project value would cut LSGB borrowing by 10% — from Super Forecasting',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'CEO', color: 'danger' },
+    component: LsgbReductionWidget,
+  },
+  {
+    id: 'expense_health',
+    title: 'Expense Health Check',
+    description: 'Expense counts and HR/Admin/Core budget status — from Super Forecasting',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'Finance', color: 'success' },
+    component: ExpenseHealthWidget,
+  },
+  {
+    id: 'hr_performance',
+    title: 'How Is HR Doing?',
+    description: 'HR revenue vs HR’s own cost, as a coverage % — from Super Forecasting',
+    colProps: { xs: 12, sm: 6, xl: 4 },
+    badge: { label: 'HR', color: 'primary' },
+    component: HRPerformanceWidget,
   },
 
   // ── ROW 3: Money flow + Consolidated Budget ────────────────────────────────────
@@ -269,6 +302,9 @@ const CEO_DEFAULT_IDS = [
   'month_at_glance',
   'project_status',
   'budget_alerts',
+  'lsgb_reduction',
+  'expense_health',
+  'hr_performance',
   'money_flow',
   'consolidated_budget',
   'revenue_vs_spend',

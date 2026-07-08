@@ -286,12 +286,74 @@ export const computeLsgbReductionPlan = (totals, targetPct) => {
 
 /** Plain OK/Watch/Over Budget health label for one pool's monthly summary — same
  *  85%/100% threshold convention already used by GeneralExpenseWidget.jsx. */
-const poolHealth = (summary) => {
+export const poolHealth = (summary) => {
   if (!summary || summary.totalMonthlyBudget <= 0) return { label: 'No Data', color: 'secondary' }
   const pct = (summary.usedThisMonth / summary.totalMonthlyBudget) * 100
   if (pct > 100) return { label: 'Over Budget', color: 'danger' }
   if (pct > 85) return { label: 'Watch', color: 'warning' }
   return { label: 'OK', color: 'success' }
+}
+
+/**
+ * HR revenue broken down by source (recruitment/training/internship — no
+ * per-month received date on these records, so it's a period-level total
+ * exactly like the Revenue tab). Shared by the page and the HR dashboard
+ * widget so both read the exact same numbers.
+ */
+export const computeHRRevenueBreakdown = () => {
+  const rec = localRecruitments.list()
+  const recruitment = rec
+    .filter((r) => (r.activity_type || 'recruitment') === 'recruitment')
+    .reduce((s, r) => s + (r.amount_received || 0), 0)
+  const training = rec
+    .filter((r) => r.activity_type === 'training')
+    .reduce((s, r) => s + (r.amount_received || 0), 0)
+  const internship = localInternships.list().reduce((s, r) => s + (r.amount_received || 0), 0)
+  return { recruitment, training, internship, total: recruitment + training + internship }
+}
+
+/**
+ * Expense counts + per-pool budget health for a period — the "Expenses at a
+ * Glance" section. Takes the already-computed totals (from computeLsgbTotals)
+ * so callers don't need to recompute poolExpenses/projectCount twice.
+ */
+export const computeExpenseGlance = (totals) => {
+  const operatingCount = localAdminExpenses.list({ status: 'Active' }).length
+  return {
+    operatingCount,
+    poolCount: totals.poolExpenses.count,
+    projectCount: totals.projectCount,
+    hr: poolHealth(localOrgPool.getMonthlyHRPoolBudgetSummary()),
+    admin: poolHealth(localOrgPool.getMonthlyAdminPoolBudgetSummary()),
+    core: poolHealth(localOrgPool.getMonthlyCorePoolBudgetSummary()),
+  }
+}
+
+/**
+ * HR's own cost (operating vendor contracts tagged group:'HR' + Expense
+ * Pools' HR expenses) vs HR revenue, for the "How Is HR Doing?" section.
+ */
+export const computeHRHealth = (rangeStart, rangeEnd, hrRevenueTotal) => {
+  let hrOperatingCost = 0
+  localAdminExpenses
+    .list({ status: 'Active' })
+    .filter((e) => e.group === 'HR')
+    .forEach((entry) => {
+      Object.entries(entry.monthly_actuals || {}).forEach(([m, amount]) => {
+        if (m >= rangeStart && m <= rangeEnd) hrOperatingCost += parseFloat(amount) || 0
+      })
+    })
+  const hrPoolCost = localOrgPool
+    .getHRExpenses()
+    .filter((e) => {
+      const m = (e.date || '').slice(0, 7)
+      return m >= rangeStart && m <= rangeEnd
+    })
+    .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
+  const totalCost = Math.round((hrOperatingCost + hrPoolCost) * 100) / 100
+  const coveragePct =
+    totalCost > 0 ? Math.min(100, Math.round((hrRevenueTotal / totalCost) * 100)) : null
+  return { totalCost, coveragePct }
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -304,17 +366,7 @@ const SuperForecastingPage = () => {
 
   // HR revenue has no per-month received date in its records, so — like the
   // Revenue tab — it counts once as a period-level total.
-  const hrRevenue = useMemo(() => {
-    const rec = localRecruitments.list()
-    const recruitment = rec
-      .filter((r) => (r.activity_type || 'recruitment') === 'recruitment')
-      .reduce((s, r) => s + (r.amount_received || 0), 0)
-    const training = rec
-      .filter((r) => r.activity_type === 'training')
-      .reduce((s, r) => s + (r.amount_received || 0), 0)
-    const internship = localInternships.list().reduce((s, r) => s + (r.amount_received || 0), 0)
-    return { recruitment, training, internship, total: recruitment + training + internship }
-  }, [])
+  const hrRevenue = useMemo(() => computeHRRevenueBreakdown(), [])
 
   // LSGB actuals: sanctions and withdrawals inside the selected period.
   const lsgb = useMemo(() => {
@@ -343,40 +395,16 @@ const SuperForecastingPage = () => {
 
   const projectStats = useMemo(() => localProjects.getStats(), [])
 
-  const expenseGlance = useMemo(() => {
-    const operatingCount = localAdminExpenses.list({ status: 'Active' }).length
-    return {
-      operatingCount,
-      poolCount: totals.poolExpenses.count,
-      projectCount: totals.projectCount,
-      hr: poolHealth(localOrgPool.getMonthlyHRPoolBudgetSummary()),
-      admin: poolHealth(localOrgPool.getMonthlyAdminPoolBudgetSummary()),
-      core: poolHealth(localOrgPool.getMonthlyCorePoolBudgetSummary()),
-    }
-  }, [totals.poolExpenses.count, totals.projectCount])
+  const expenseGlance = useMemo(
+    () => computeExpenseGlance(totals),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [totals.poolExpenses.count, totals.projectCount],
+  )
 
-  const hrHealth = useMemo(() => {
-    let hrOperatingCost = 0
-    localAdminExpenses
-      .list({ status: 'Active' })
-      .filter((e) => e.group === 'HR')
-      .forEach((entry) => {
-        Object.entries(entry.monthly_actuals || {}).forEach(([m, amount]) => {
-          if (m >= rangeStart && m <= rangeEnd) hrOperatingCost += parseFloat(amount) || 0
-        })
-      })
-    const hrPoolCost = localOrgPool
-      .getHRExpenses()
-      .filter((e) => {
-        const m = (e.date || '').slice(0, 7)
-        return m >= rangeStart && m <= rangeEnd
-      })
-      .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
-    const totalCost = Math.round((hrOperatingCost + hrPoolCost) * 100) / 100
-    const coveragePct =
-      totalCost > 0 ? Math.min(100, Math.round((hrRevenue.total / totalCost) * 100)) : null
-    return { totalCost, coveragePct }
-  }, [rangeStart, rangeEnd, hrRevenue.total])
+  const hrHealth = useMemo(
+    () => computeHRHealth(rangeStart, rangeEnd, hrRevenue.total),
+    [rangeStart, rangeEnd, hrRevenue.total],
+  )
 
   const handleStart = (v) => {
     setRangeStart(v)
