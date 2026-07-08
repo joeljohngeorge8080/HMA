@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CBadge } from '@coreui/react'
-import { computeLsgbTotals } from '../../reports-analysis/LsgbDependencyPage'
+import { computeLsgbTotals } from '../../reports-analysis/SuperForecastingPage'
 
 const fmtCompact = (n) =>
   new Intl.NumberFormat('en-IN', {

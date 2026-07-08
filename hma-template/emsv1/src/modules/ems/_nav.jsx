@@ -131,8 +131,8 @@ const emsNav = [
       { component: CNavItem, name: 'Visual Model', to: '/ems/reports-analysis/visual-model' },
       {
         component: CNavItem,
-        name: 'Profit / Loss vs LSGB',
-        to: '/ems/reports-analysis/lsgb-dependency',
+        name: 'Super Forecasting',
+        to: '/ems/reports-analysis/super-forecasting',
       },
     ],
   },
