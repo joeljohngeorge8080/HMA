@@ -4,7 +4,7 @@
 > so the project ships value early instead of trying to build everything at
 > once. Grounded in `DECISIONS.md`, `EMS_ROADMAP.md`, and `specs/`.
 >
-> Last updated: 2026-06-17
+> Last updated: 2026-07-07
 
 ---
 
@@ -31,7 +31,7 @@ Everything else is layered on after the MVP is in users' hands.
 | RBAC enforcement (matrix + ProtectedRoute) | Role-appropriate access is the core value prop |
 | Audit logging (cross-cutting write hook) | Compliance/governance is non-negotiable (ADR-013) |
 | Employee Management (master + salary/dept history + documents) | The entity everything references |
-| Projects (master + expenses + documents) | Primary business object (CSR/LSGB/Other) |
+| Projects (PA→PO assignment, budget planning/allocation, expenses, documents) | Primary business object (CSR/LSGB/Other); scope narrowed to expense oversight, no daily task-tracking (ADR-036) |
 | Attendance import (Pace `.xlsx`) + corrections | Replaces the most painful manual workflow |
 | Basic Reporting (attendance, project, expense) + export | The reason management adopts the system |
 | Shell/Foundation (done), brand-minimum, error pages | Usable, navigable app |
@@ -62,12 +62,15 @@ Everything else is layered on after the MVP is in users' hands.
 ## 3. MVP Scope Boundary (explicit in/out)
 
 **In:** login, role-gated navigation + routes, audit writes, employee CRUD with
-history + documents, project CRUD + expenses + documents, attendance import +
-corrections + summary, three core reports with export, S3 file storage.
+history + documents, project CRUD + expenses + documents (PA→PO assignment,
+budget planning/allocation, 5% EMS share), attendance import + corrections +
+summary, three core reports with export, S3 file storage.
 
 **Out (post-MVP):** payroll, expense-management module, finance module,
 notifications, dashboard widgets, audit viewer UI (data still captured),
-forecasting, inventory, self-service, announcements.
+forecasting, inventory, self-service, announcements. **Also out (ADR-036,
+2026-07-07):** daily task-tracking/reporting and PMS dashboard KPI/phase
+widgets — the CEO wants expense oversight, not project-management tooling.
 
 **Definition of Done for the MVP:** all five roles can log in and see correct
 access; HR can manage employees and import attendance; Project Officers/Finance

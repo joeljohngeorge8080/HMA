@@ -43,7 +43,12 @@ const EmployeeStatsWidget = () => {
         <CRow className="g-0">
           <StatItem icon={cilPeople} label="Total" value={stats.total} color="#4361ee" />
           <StatItem icon={cilUserFollow} label="Active" value={stats.active} color="#06d6a0" />
-          <StatItem icon={cilUserUnfollow} label="Inactive" value={stats.inactive} color="#ef476f" />
+          <StatItem
+            icon={cilUserUnfollow}
+            label="Inactive"
+            value={stats.inactive}
+            color="#ef476f"
+          />
           <StatItem
             icon={cilBriefcase}
             label="On Project"

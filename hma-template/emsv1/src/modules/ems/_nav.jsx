@@ -5,7 +5,6 @@ import {
   cilPeople,
   cilCalendar,
   cilMoney,
-  cilDollar,
   cilCash,
   cilChartPie,
   cilListRich,
@@ -21,7 +20,7 @@ import { CNavGroup, CNavItem } from '@coreui/react'
 
 import { ROLE } from '../../constants/roles'
 
-const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
+const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR]
 
 const emsNav = [
   {
@@ -112,20 +111,6 @@ const emsNav = [
     ],
   },
 
-  // ── Other ──────────────────────────────────────────────────────────
-  {
-    component: CNavGroup,
-    name: 'Finance',
-    icon: <CIcon icon={cilDollar} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-    items: [
-      { component: CNavItem, name: 'Detail 1', to: '/ems/finance/detail-1' },
-      { component: CNavItem, name: 'Detail 2', to: '/ems/finance/detail-2' },
-      { component: CNavItem, name: 'Detail 3', to: '/ems/finance/detail-3' },
-      { component: CNavItem, name: 'Detail 4', to: '/ems/finance/detail-4' },
-    ],
-  },
-
   // ── User Management (Admin + HR) ───────────────────────────────────
   {
     component: CNavGroup,
@@ -201,17 +186,7 @@ const emsNav = [
     name: 'Notifications',
     to: '/ems/notifications',
     icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
-    roles: [
-      ROLE.HEADS,
-      ROLE.HR,
-      ROLE.FINANCE,
-      ROLE.EMPLOYEE,
-      ROLE.PROJECT_ASSOCIATE,
-      ROLE.PROJECT_OFFICER,
-      ROLE.FIELD_PERSONNEL,
-      ROLE.BACKEND_TEAM,
-      ROLE.PROJECT_COORDINATOR,
-    ],
+    roles: [ROLE.HEADS, ROLE.HR, ROLE.EMPLOYEE, ROLE.PROJECT_ASSOCIATE, ROLE.PROJECT_OFFICER],
   },
 
   {

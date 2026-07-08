@@ -142,7 +142,8 @@ const OfficerForm = ({ form, setField, formErrors }) => (
           <div className="text-danger small mt-1">{formErrors.officer_type}</div>
         )}
         <div className="text-body-secondary small mt-1">
-          LSGB officers handle projects funded by local government bodies (Panchayat / Municipality / Corporation).
+          LSGB officers handle projects funded by local government bodies (Panchayat / Municipality
+          / Corporation).
         </div>
       </CCol>
     </CRow>

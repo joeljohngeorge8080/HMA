@@ -6,10 +6,7 @@ import { localProjects } from '../../../../services/localProjects'
 
 const KpiCard = ({ icon, label, value, sub, color, bg }) => (
   <CCol xs={6}>
-    <div
-      className="rounded-3 d-flex align-items-center gap-2 px-3 py-2"
-      style={{ background: bg }}
-    >
+    <div className="rounded-3 d-flex align-items-center gap-2 px-3 py-2" style={{ background: bg }}>
       <div
         className="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0"
         style={{ width: 36, height: 36, background: `${color}22` }}
@@ -21,7 +18,11 @@ const KpiCard = ({ icon, label, value, sub, color, bg }) => (
           {value}
         </div>
         <div className="small text-body">{label}</div>
-        {sub && <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>{sub}</div>}
+        {sub && (
+          <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+            {sub}
+          </div>
+        )}
       </div>
     </div>
   </CCol>
@@ -44,10 +45,38 @@ const ProjectKPIsWidget = () => {
           Project Pipeline
         </h6>
         <CRow className="g-2">
-          <KpiCard icon={cilWarning} label="Pipeline" value={stats.pipeline} color="#f0ad4e" bg="rgba(240,173,78,0.08)" sub="Awaiting approval" />
-          <KpiCard icon={cilCheckCircle} label="Approved" value={stats.approved} color="#0dcaf0" bg="rgba(13,202,240,0.08)" sub="Ready to start" />
-          <KpiCard icon={cilClock} label="Ongoing" value={stats.ongoing} color="#4361ee" bg="rgba(67,97,238,0.08)" sub="Active" />
-          <KpiCard icon={cilFolder} label="Completed" value={stats.completed} color="#06d6a0" bg="rgba(6,214,160,0.08)" sub="Finished" />
+          <KpiCard
+            icon={cilWarning}
+            label="Pipeline"
+            value={stats.pipeline}
+            color="#f0ad4e"
+            bg="rgba(240,173,78,0.08)"
+            sub="Awaiting approval"
+          />
+          <KpiCard
+            icon={cilCheckCircle}
+            label="Approved"
+            value={stats.approved}
+            color="#0dcaf0"
+            bg="rgba(13,202,240,0.08)"
+            sub="Ready to start"
+          />
+          <KpiCard
+            icon={cilClock}
+            label="Ongoing"
+            value={stats.ongoing}
+            color="#4361ee"
+            bg="rgba(67,97,238,0.08)"
+            sub="Active"
+          />
+          <KpiCard
+            icon={cilFolder}
+            label="Completed"
+            value={stats.completed}
+            color="#06d6a0"
+            bg="rgba(6,214,160,0.08)"
+            sub="Finished"
+          />
         </CRow>
         <div className="mt-3 text-body-secondary" style={{ fontSize: '0.72rem' }}>
           {stats.pendingApprovals} pending approval{stats.pendingApprovals !== 1 ? 's' : ''}

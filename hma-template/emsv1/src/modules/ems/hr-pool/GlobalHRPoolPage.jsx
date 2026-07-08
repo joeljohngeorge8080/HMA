@@ -50,7 +50,6 @@ const fmtDate = (d) =>
       })
     : ''
 
-
 // ─── Inline Allocation Editor (per charge row in budget card) ─────────────────
 
 const AllocationEditor = ({ charge, onSave, onCancel }) => {
@@ -97,19 +96,44 @@ const AllocationEditor = ({ charge, onSave, onCancel }) => {
             step="0.1"
             value={pct}
             onChange={(e) => handlePctChange(e.target.value)}
-            style={{ textAlign: 'right', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+            style={{
+              textAlign: 'right',
+              background: 'rgba(255,255,255,0.08)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
           />
-          <CInputGroupText style={{ background: 'rgba(255,255,255,0.1)', color: '#aaa', border: '1px solid rgba(255,255,255,0.2)' }}>%</CInputGroupText>
+          <CInputGroupText
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              color: '#aaa',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
+            %
+          </CInputGroupText>
         </CInputGroup>
         <span className="text-white-50 small">or</span>
         <CInputGroup size="sm" style={{ maxWidth: 140 }}>
-          <CInputGroupText style={{ background: 'rgba(255,255,255,0.1)', color: '#aaa', border: '1px solid rgba(255,255,255,0.2)' }}>₹</CInputGroupText>
+          <CInputGroupText
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              color: '#aaa',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
+            ₹
+          </CInputGroupText>
           <CFormInput
             type="number"
             min="0"
             value={amt}
             onChange={(e) => handleAmtChange(e.target.value)}
-            style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.2)',
+            }}
           />
         </CInputGroup>
         <div className="d-flex gap-1 ms-auto">
@@ -202,14 +226,21 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
         {/* Header row */}
         <div className="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
           <div>
-            <div className="text-white-50 small fw-semibold text-uppercase mb-1" style={{ letterSpacing: '0.08em' }}>
+            <div
+              className="text-white-50 small fw-semibold text-uppercase mb-1"
+              style={{ letterSpacing: '0.08em' }}
+            >
               HR Pool Budget — Monthly View
             </div>
-            <div className="text-white fw-bold fs-5">{project?.projectName || 'Selected Project'}</div>
+            <div className="text-white fw-bold fs-5">
+              {project?.projectName || 'Selected Project'}
+            </div>
             <div className="text-white-50 small mt-1">
-              Share: <span className="text-white fw-semibold">{summary.sharePct?.toFixed(1) || 0}%</span>
-              {' '}of org-wide pool &nbsp;·&nbsp;
-              {summary.activeProjectCount} active project{summary.activeProjectCount !== 1 ? 's' : ''}
+              Share:{' '}
+              <span className="text-white fw-semibold">{summary.sharePct?.toFixed(1) || 0}%</span>{' '}
+              of org-wide pool &nbsp;·&nbsp;
+              {summary.activeProjectCount} active project
+              {summary.activeProjectCount !== 1 ? 's' : ''}
             </div>
           </div>
           <CBadge
@@ -256,17 +287,18 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                   backdropFilter: 'blur(10px)',
                 }}
               >
-                <div
-                  className="d-flex align-items-center gap-2 mb-2"
-                  style={{ color: m.accent }}
-                >
+                <div className="d-flex align-items-center gap-2 mb-2" style={{ color: m.accent }}>
                   <CIcon icon={m.icon} size="sm" />
-                  <span className="small fw-semibold text-uppercase" style={{ letterSpacing: '0.06em', fontSize: '0.7rem' }}>
+                  <span
+                    className="small fw-semibold text-uppercase"
+                    style={{ letterSpacing: '0.06em', fontSize: '0.7rem' }}
+                  >
                     {m.label}
                   </span>
                 </div>
                 <div className="fw-bold text-white" style={{ fontSize: '1.6rem', lineHeight: 1.1 }}>
-                  {m.prefix || ''}{m.value}
+                  {m.prefix || ''}
+                  {m.value}
                 </div>
                 <div className="text-white-50" style={{ fontSize: '0.75rem', marginTop: 4 }}>
                   {m.sub}
@@ -295,8 +327,8 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                 background: isOver
                   ? '#ff6b6b'
                   : usedPct > 85
-                  ? 'linear-gradient(90deg,#ffd166,#ff9f43)'
-                  : 'linear-gradient(90deg,#4facfe,#06d6a0)',
+                    ? 'linear-gradient(90deg,#ffd166,#ff9f43)'
+                    : 'linear-gradient(90deg,#4facfe,#06d6a0)',
                 transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
               }}
             />
@@ -307,7 +339,10 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
         {charges.length > 0 && (
           <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             <div className="d-flex align-items-center justify-content-between mb-2">
-              <div className="text-white-50 small fw-semibold text-uppercase" style={{ letterSpacing: '0.06em' }}>
+              <div
+                className="text-white-50 small fw-semibold text-uppercase"
+                style={{ letterSpacing: '0.06em' }}
+              >
                 Allocated Charges
               </div>
               <div className="text-white-50" style={{ fontSize: '0.65rem' }}>
@@ -324,9 +359,7 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                       cursor: 'pointer',
                       transition: 'background 0.15s',
                       background:
-                        editingCharge?.expenseId === c.id
-                          ? 'rgba(79,172,254,0.12)'
-                          : 'transparent',
+                        editingCharge?.expenseId === c.id ? 'rgba(79,172,254,0.12)' : 'transparent',
                     }}
                     onMouseEnter={(e) => {
                       if (editingCharge?.expenseId !== c.id)
@@ -346,9 +379,7 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                   >
                     <div className="d-flex align-items-center gap-2">
                       <span className="text-white fw-medium">{c.label}</span>
-                      {c.date && (
-                        <span className="text-white-50 ms-1">{fmtDate(c.date)}</span>
-                      )}
+                      {c.date && <span className="text-white-50 ms-1">{fmtDate(c.date)}</span>}
                       <CBadge
                         color={c.hasCustomAllocation ? 'warning' : 'secondary'}
                         className="ms-1"
@@ -357,7 +388,9 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                         {c.mySharePct?.toFixed(1)}% share
                       </CBadge>
                       {c.hasCustomAllocation && (
-                        <CBadge color="warning" style={{ fontSize: '0.58rem' }}>custom</CBadge>
+                        <CBadge color="warning" style={{ fontSize: '0.58rem' }}>
+                          custom
+                        </CBadge>
                       )}
                       {/* Revenue source tags */}
                       {c.revenue_sources?.includes('hr_revenue') && (
@@ -373,7 +406,8 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                         style={{
                           width: 12,
                           height: 12,
-                          color: editingCharge?.expenseId === c.id ? '#4facfe' : 'rgba(255,255,255,0.3)',
+                          color:
+                            editingCharge?.expenseId === c.id ? '#4facfe' : 'rgba(255,255,255,0.3)',
                           transition: 'color 0.15s',
                         }}
                       />
@@ -410,7 +444,9 @@ const OrgWideHRBudgetCard = () => {
 
   const { totalMonthlyBudget, usedThisMonth, remaining } = summary
   const usedPct =
-    totalMonthlyBudget > 0 ? Math.min(100, Math.round((usedThisMonth / totalMonthlyBudget) * 100)) : 0
+    totalMonthlyBudget > 0
+      ? Math.min(100, Math.round((usedThisMonth / totalMonthlyBudget) * 100))
+      : 0
   const isOver = remaining < 0
 
   return (
@@ -424,7 +460,10 @@ const OrgWideHRBudgetCard = () => {
     >
       <CCardBody className="p-4">
         <div className="mb-4">
-          <div className="text-white-50 small fw-semibold text-uppercase mb-1" style={{ letterSpacing: '0.08em' }}>
+          <div
+            className="text-white-50 small fw-semibold text-uppercase mb-1"
+            style={{ letterSpacing: '0.08em' }}
+          >
             HR Pool Budget — Monthly View
           </div>
           <div className="text-white fw-bold fs-5">All Projects (Org-Wide)</div>
@@ -492,7 +531,10 @@ const OrgWideHRBudgetCard = () => {
               {usedPct}% used {isOver && '(Over budget!)'}
             </span>
           </div>
-          <div className="rounded-pill overflow-hidden" style={{ height: 10, background: 'rgba(255,255,255,0.12)' }}>
+          <div
+            className="rounded-pill overflow-hidden"
+            style={{ height: 10, background: 'rgba(255,255,255,0.12)' }}
+          >
             <div
               className="rounded-pill h-100"
               style={{
@@ -573,7 +615,12 @@ const GlobalHRPoolPage = () => {
 
       {/* ── Project Selector + Budget Banner (collapsed by default) ──────────── */}
       <div className="mb-3">
-        <CButton size="sm" color="secondary" variant="outline" onClick={() => setShowBudgetSection((s) => !s)}>
+        <CButton
+          size="sm"
+          color="secondary"
+          variant="outline"
+          onClick={() => setShowBudgetSection((s) => !s)}
+        >
           <CIcon icon={cilChartPie} className="me-1" style={{ width: 14, height: 14 }} />
           {showBudgetSection ? 'Hide Project HR Budget' : 'Show Project HR Budget'}
         </CButton>
@@ -584,7 +631,11 @@ const GlobalHRPoolPage = () => {
           <CCard className="shadow-sm mb-3 border-0 bg-body-secondary">
             <CCardBody className="py-3 px-4">
               <div className="d-flex align-items-center gap-3 flex-wrap">
-                <CIcon icon={cilChartPie} className="text-primary" style={{ width: 20, height: 20, flexShrink: 0 }} />
+                <CIcon
+                  icon={cilChartPie}
+                  className="text-primary"
+                  style={{ width: 20, height: 20, flexShrink: 0 }}
+                />
                 <div className="fw-semibold text-nowrap">View Project HR Budget:</div>
                 <CFormSelect
                   size="sm"
@@ -600,7 +651,9 @@ const GlobalHRPoolPage = () => {
                   ))}
                 </CFormSelect>
                 {activeProjects.length === 0 && (
-                  <span className="text-body-secondary small">No active projects in the HR pool yet.</span>
+                  <span className="text-body-secondary small">
+                    No active projects in the HR pool yet.
+                  </span>
                 )}
               </div>
             </CCardBody>
@@ -662,7 +715,8 @@ const GlobalHRPoolPage = () => {
           const picked = adminExpenseItems.find((e) => e.id === id)
           if (!picked) return null
           const monthKeys = Object.keys(picked.monthly_actuals || {}).sort()
-          const latestActual = monthKeys.length > 0 ? picked.monthly_actuals[monthKeys[monthKeys.length - 1]] : 0
+          const latestActual =
+            monthKeys.length > 0 ? picked.monthly_actuals[monthKeys[monthKeys.length - 1]] : 0
           const amt = latestActual > 0 ? latestActual : Math.round((picked.annual_amount || 0) / 12)
           return {
             label: `${picked.expense_category} — ${picked.vendor_name}`,
@@ -677,7 +731,9 @@ const GlobalHRPoolPage = () => {
         updateExpense={(id, patch) => localOrgPool.updateAdminExpense(id, patch)}
         getActiveProjects={() => localOrgPool.getActiveProjectMonthlyBudgets('admin')}
         getPoolBudgetSummary={(month) => localOrgPool.getMonthlyAdminPoolBudgetSummary(month)}
-        getProjectsMonthlyRemaining={(month) => localOrgPool.getProjectsMonthlyAdminRemaining(month)}
+        getProjectsMonthlyRemaining={(month) =>
+          localOrgPool.getProjectsMonthlyAdminRemaining(month)
+        }
       />
 
       {/* ── LSGB Fund Balance (info line, unrelated to Core 5% pool math) ────── */}
@@ -686,7 +742,8 @@ const GlobalHRPoolPage = () => {
           <CIcon icon={cilDollar} style={{ width: 14, height: 14 }} />
           LSGB Fund Balance: <strong className="text-body">{fmt(lsgbSummary.remaining)}</strong>
           <span>
-            ({fmt(lsgbSummary.totalSanctioned)} sanctioned − {fmt(lsgbSummary.totalWithdrawn)} withdrawn)
+            ({fmt(lsgbSummary.totalSanctioned)} sanctioned − {fmt(lsgbSummary.totalWithdrawn)}{' '}
+            withdrawn)
           </span>
         </div>
       )}

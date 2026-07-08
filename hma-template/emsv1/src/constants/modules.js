@@ -5,7 +5,6 @@ export const MODULE = {
   ATTENDANCE: 'attendance',
   EXPENSE_MANAGEMENT: 'expense_management',
   GENERAL_EXPENSES: 'general_expenses',
-  FINANCE: 'finance',
   REPORTS: 'reports',
   AUDIT_LOGS: 'audit_logs',
 

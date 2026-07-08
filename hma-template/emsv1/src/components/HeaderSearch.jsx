@@ -63,9 +63,7 @@ const HeaderSearch = ({ nav = [] }) => {
           padding: '0 14px',
           gap: 8,
           transition: 'border-color 200ms ease, box-shadow 200ms ease',
-          boxShadow: focused
-            ? '0 0 0 3px rgba(37, 99, 235, 0.14)'
-            : '0 1px 3px rgba(0,0,0,0.06)',
+          boxShadow: focused ? '0 0 0 3px rgba(37, 99, 235, 0.14)' : '0 1px 3px rgba(0,0,0,0.06)',
         }}
       >
         <CIcon

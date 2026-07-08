@@ -18,7 +18,9 @@ const DepartmentHeadcountWidget = () => {
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
       <CCardBody className="pt-4">
-        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Department Headcount</h6>
+        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
+          Department Headcount
+        </h6>
         {departments.length === 0 ? (
           <div className="text-body-secondary small">No active employees yet.</div>
         ) : (

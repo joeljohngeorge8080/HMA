@@ -17,15 +17,6 @@ const ProtectedRoute = ({ module, action, children }) => {
     if (role === ROLE.PROJECT_ASSOCIATE || role === ROLE.PROJECT_OFFICER) {
       return '/pms/pa/dashboard'
     }
-    if (role === ROLE.BACKEND_TEAM) {
-      return '/pms/settlements'
-    }
-    if (role === ROLE.PROJECT_COORDINATOR) {
-      return '/pms/pa/dashboard'
-    }
-    if (role === ROLE.FIELD_PERSONNEL) {
-      return '/pms/daily-reports/personnel-log'
-    }
     return '/pms/dashboard'
   }
 

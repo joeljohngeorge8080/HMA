@@ -134,7 +134,13 @@ const RevenueSourceSelector = ({
               id={`rev-hr-${poolType}`}
               checked={hasHR}
               onChange={() => toggle('hr_revenue')}
-              style={{ accentColor: '#4cc9f0', width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+              style={{
+                accentColor: '#4cc9f0',
+                width: 15,
+                height: 15,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
             />
             <label
               htmlFor={`rev-hr-${poolType}`}
@@ -156,7 +162,9 @@ const RevenueSourceSelector = ({
                     onChange={(e) => handleHrPctChange(e.target.value)}
                     style={{ textAlign: 'right', fontWeight: 600 }}
                   />
-                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>%</CInputGroupText>
+                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                    %
+                  </CInputGroupText>
                 </CInputGroup>
                 {/* ₹ amount field */}
                 <CInputGroup size="sm" style={{ width: 120 }}>
@@ -193,7 +201,8 @@ const RevenueSourceSelector = ({
                   className={`small mt-1 ${isOver ? 'text-danger fw-semibold' : 'text-body-secondary'}`}
                   style={{ fontSize: '0.74rem' }}
                 >
-                  Available: {fmt(hrRevenueTotal || 0)} &nbsp;−{fmt(drawn)} this expense &nbsp;→&nbsp;
+                  Available: {fmt(hrRevenueTotal || 0)} &nbsp;−{fmt(drawn)} this expense
+                  &nbsp;→&nbsp;
                   {fmt(remaining)} remaining
                 </div>
               )
@@ -208,7 +217,13 @@ const RevenueSourceSelector = ({
               id={`rev-pool-${poolType}`}
               checked={hasPool}
               onChange={() => toggle('project_pool')}
-              style={{ accentColor: '#06d6a0', width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+              style={{
+                accentColor: '#06d6a0',
+                width: 15,
+                height: 15,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
             />
             <label
               htmlFor={`rev-pool-${poolType}`}
@@ -229,7 +244,9 @@ const RevenueSourceSelector = ({
                     onChange={(e) => handlePoolPctChange(e.target.value)}
                     style={{ textAlign: 'right', fontWeight: 600 }}
                   />
-                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>%</CInputGroupText>
+                  <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                    %
+                  </CInputGroupText>
                 </CInputGroup>
                 <CInputGroup size="sm" style={{ width: 120 }}>
                   <CInputGroupText style={{ fontSize: '0.8rem' }}>&#8377;</CInputGroupText>
@@ -573,7 +590,11 @@ const ExpensePoolCard = ({
             </h6>
             <CRow className="g-2 mb-2">
               <CCol xs={12} md={6}>
-                <CFormSelect size="sm" onChange={(e) => handleExpensePick(e.target.value)} defaultValue="">
+                <CFormSelect
+                  size="sm"
+                  onChange={(e) => handleExpensePick(e.target.value)}
+                  defaultValue=""
+                >
                   <option value="">— Select an expense (optional) —</option>
                   {expenseDropdownItems.map((e) => (
                     <option key={e.id} value={e.id}>
@@ -693,7 +714,8 @@ const ExpensePoolCard = ({
                       <span style={{ fontSize: '1rem' }}>&#9889;</span>
                       <span className="text-warning">
                         This expense will use <strong>{fmt(poolPortion)}</strong> of the{' '}
-                        <strong>{fmt(remaining)}</strong> remaining monthly pool budget ({pctUsed}%).
+                        <strong>{fmt(remaining)}</strong> remaining monthly pool budget ({pctUsed}
+                        %).
                       </span>
                     </div>
                   )
@@ -716,7 +738,8 @@ const ExpensePoolCard = ({
                       style={{ fontSize: '0.77rem', color: 'rgba(255,255,255,0.75)' }}
                     >
                       <span>
-                        Monthly budget: <strong className="text-body">{fmt(totalMonthlyBudget)}</strong>
+                        Monthly budget:{' '}
+                        <strong className="text-body">{fmt(totalMonthlyBudget)}</strong>
                       </span>
                       <span>
                         Already used: <strong className="text-body">{fmt(usedThisMonth)}</strong>
@@ -725,15 +748,16 @@ const ExpensePoolCard = ({
                         Remaining: <strong className="text-warning">{fmt(remaining)}</strong>
                       </span>
                       <span>
-                        This expense (pool portion): <strong className="text-danger">{fmt(poolPortion)}</strong>
+                        This expense (pool portion):{' '}
+                        <strong className="text-danger">{fmt(poolPortion)}</strong>
                       </span>
                       <span>
                         Overage: <strong className="text-danger">+{fmt(overage)}</strong>
                       </span>
                     </div>
                     <div className="mt-2 small text-body-secondary" style={{ fontSize: '0.73rem' }}>
-                      Reduce the expense amount, reduce the {poolFundLabel} %, or route more to HR Revenue to
-                      stay within budget.
+                      Reduce the expense amount, reduce the {poolFundLabel} %, or route more to HR
+                      Revenue to stay within budget.
                     </div>
                   </div>
                 )
@@ -787,7 +811,10 @@ const ExpensePoolCard = ({
                   <div className="fw-semibold text-success">
                     Allocation Preview Across Active Projects
                     {revSources.includes('hr_revenue') && revSources.includes('project_pool') && (
-                      <span className="text-body-secondary fw-normal ms-2" style={{ fontSize: '0.75rem' }}>
+                      <span
+                        className="text-body-secondary fw-normal ms-2"
+                        style={{ fontSize: '0.75rem' }}
+                      >
                         ({poolFundLabel} portion: {projPoolPct}% of total amount)
                       </span>
                     )}
@@ -823,7 +850,10 @@ const ExpensePoolCard = ({
                             const rem = projectRemainingMap[a.projectId]
                             if (!rem) return null
                             const isOver = rem.remaining < 0
-                            const isTight = !isOver && rem.monthlyBudget > 0 && rem.remaining < rem.monthlyBudget * 0.2
+                            const isTight =
+                              !isOver &&
+                              rem.monthlyBudget > 0 &&
+                              rem.remaining < rem.monthlyBudget * 0.2
                             const color = isOver ? '#ff6b6b' : isTight ? '#f4a261' : '#06d6a0'
                             return (
                               <span style={{ fontSize: '0.68rem', color, marginTop: 1 }}>
@@ -839,7 +869,9 @@ const ExpensePoolCard = ({
                           <span
                             className="rounded-2 px-2 py-1 fw-bold"
                             style={{
-                              background: pctValid ? 'rgba(6,214,160,0.15)' : 'rgba(255,107,107,0.15)',
+                              background: pctValid
+                                ? 'rgba(6,214,160,0.15)'
+                                : 'rgba(255,107,107,0.15)',
                               color: pctValid ? '#06d6a0' : '#ff6b6b',
                               fontSize: '0.8rem',
                               minWidth: 54,
@@ -855,24 +887,41 @@ const ExpensePoolCard = ({
                               min="0"
                               max="100"
                               step="0.01"
-                              value={a.sharePct % 1 === 0 ? a.sharePct : parseFloat(a.sharePct).toFixed(2)}
+                              value={
+                                a.sharePct % 1 === 0
+                                  ? a.sharePct
+                                  : parseFloat(a.sharePct).toFixed(2)
+                              }
                               onChange={(e) => handleAllocPctChange(a.projectId, e.target.value)}
                               onWheel={(e) => e.currentTarget.blur()}
-                              style={{ textAlign: 'right', fontWeight: 600, padding: '3px 6px', fontSize: '0.8rem' }}
+                              style={{
+                                textAlign: 'right',
+                                fontWeight: 600,
+                                padding: '3px 6px',
+                                fontSize: '0.8rem',
+                              }}
                               title="Edit % for this project"
                             />
-                            <CInputGroupText style={{ fontSize: '0.75rem', padding: '3px 5px' }}>%</CInputGroupText>
+                            <CInputGroupText style={{ fontSize: '0.75rem', padding: '3px 5px' }}>
+                              %
+                            </CInputGroupText>
                           </CInputGroup>
                         </div>
 
                         {/* ₹ Amount input with Recalculate */}
                         {(() => {
                           const draftVal = draftAmounts[a.projectId]
-                          const isDraft = draftVal !== undefined && draftVal !== String(a.amountCharged)
+                          const isDraft =
+                            draftVal !== undefined && draftVal !== String(a.amountCharged)
                           return (
-                            <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
+                            <div
+                              className="d-flex align-items-center gap-1"
+                              style={{ flexShrink: 0 }}
+                            >
                               <CInputGroup size="sm" style={{ width: 130 }}>
-                                <CInputGroupText style={{ fontSize: '0.78rem', padding: '3px 6px' }}>
+                                <CInputGroupText
+                                  style={{ fontSize: '0.78rem', padding: '3px 6px' }}
+                                >
                                   &#8377;
                                 </CInputGroupText>
                                 <CFormInput
@@ -880,7 +929,10 @@ const ExpensePoolCard = ({
                                   min="0"
                                   value={draftVal !== undefined ? draftVal : a.amountCharged}
                                   onChange={(e) => {
-                                    setDraftAmounts((d) => ({ ...d, [a.projectId]: e.target.value }))
+                                    setDraftAmounts((d) => ({
+                                      ...d,
+                                      [a.projectId]: e.target.value,
+                                    }))
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleRecalculate(a.projectId)
@@ -901,7 +953,12 @@ const ExpensePoolCard = ({
                                   size="sm"
                                   color="warning"
                                   variant="outline"
-                                  style={{ padding: '2px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '0.72rem',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0,
+                                  }}
                                   onClick={() => handleRecalculate(a.projectId)}
                                   title="Recalculate distribution based on this amount"
                                 >
@@ -925,7 +982,8 @@ const ExpensePoolCard = ({
                     </div>
                   ) : (
                     <div className="text-success small mt-2" style={{ fontSize: '0.73rem' }}>
-                      ✓ Total: {Math.round(total * 100) / 100}%{customAllocs ? ' (custom weights)' : ' (auto)'}
+                      ✓ Total: {Math.round(total * 100) / 100}%
+                      {customAllocs ? ' (custom weights)' : ' (auto)'}
                     </div>
                   )
                 })()}
@@ -938,7 +996,8 @@ const ExpensePoolCard = ({
                 style={{ background: 'rgba(76,201,240,0.07)', fontSize: '0.8rem' }}
               >
                 <span className="text-info">
-                  This expense will be fully covered by HR Revenue — no project allocation will be distributed.
+                  This expense will be fully covered by HR Revenue — no project allocation will be
+                  distributed.
                 </span>
               </div>
             )}
@@ -959,7 +1018,10 @@ const ExpensePoolCard = ({
                     if (!hasPool) return false
                     const totalAmt = parseFloat(form.amount) || 0
                     const poolPortion = Math.round(totalAmt * (projPoolPct / 100) * 100) / 100
-                    return poolBudgetSummary.totalMonthlyBudget > 0 && poolPortion > poolBudgetSummary.remaining
+                    return (
+                      poolBudgetSummary.totalMonthlyBudget > 0 &&
+                      poolPortion > poolBudgetSummary.remaining
+                    )
                   })()
                 }
               >
@@ -980,7 +1042,12 @@ const ExpensePoolCard = ({
           </div>
         ) : (
           <div className="mb-4">
-            <CButton size="sm" color="success" onClick={() => setAdding(true)} id={`btn-add-${poolType}-expense`}>
+            <CButton
+              size="sm"
+              color="success"
+              onClick={() => setAdding(true)}
+              id={`btn-add-${poolType}-expense`}
+            >
               <CIcon icon={cilPlus} className="me-1" />
               Add New {poolLabel} Expense
             </CButton>
@@ -1028,7 +1095,12 @@ const ExpensePoolCard = ({
                     <CButton size="sm" color="primary" onClick={handleEditSave}>
                       Save Changes
                     </CButton>
-                    <CButton size="sm" color="secondary" variant="ghost" onClick={() => setEditId(null)}>
+                    <CButton
+                      size="sm"
+                      color="secondary"
+                      variant="ghost"
+                      onClick={() => setEditId(null)}
+                    >
                       Cancel
                     </CButton>
                   </div>
@@ -1045,13 +1117,21 @@ const ExpensePoolCard = ({
                       {exp.revenue_sources?.includes('hr_revenue') && (
                         <CBadge color="info" shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
                           HR Revenue
-                          {exp.revenue_sources?.includes('project_pool') ? ` ${exp.hr_revenue_pct}%` : ''}
+                          {exp.revenue_sources?.includes('project_pool')
+                            ? ` ${exp.hr_revenue_pct}%`
+                            : ''}
                         </CBadge>
                       )}
                       {exp.revenue_sources?.includes('project_pool') && (
-                        <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
+                        <CBadge
+                          color="success"
+                          shape="rounded-pill"
+                          style={{ fontSize: '0.65rem' }}
+                        >
                           {poolFundLabel}
-                          {exp.revenue_sources?.includes('hr_revenue') ? ` ${exp.project_pool_pct}%` : ''}
+                          {exp.revenue_sources?.includes('hr_revenue')
+                            ? ` ${exp.project_pool_pct}%`
+                            : ''}
                         </CBadge>
                       )}
                     </div>
@@ -1060,7 +1140,8 @@ const ExpensePoolCard = ({
                       {exp.bill_no && ` · Bill #${exp.bill_no}`}
                     </div>
                     <div className="text-body-tertiary" style={{ fontSize: '0.8rem' }}>
-                      Distributed across {exp.allocations?.length || exp.project_allocations?.length || 0} active
+                      Distributed across{' '}
+                      {exp.allocations?.length || exp.project_allocations?.length || 0} active
                       project(s)
                     </div>
                   </div>

@@ -38,7 +38,6 @@ import {
   cilUser,
   cilArrowRight,
   cilCheckCircle,
-  cilBell,
   cilChevronBottom,
   cilChevronTop,
   cilWarning,
@@ -129,7 +128,6 @@ const OfficerCard = ({ officer, projects, allReports }) => {
 
   const personnel = Object.values(personnelMap)
   const totalPersonnel = personnel.length
-  const pendingReports = projects.reduce((s, p) => s + (p.pending_approvals || 0), 0)
 
   // Activity status for the officer card border
   const borderColor = activeProjects > 0 ? '#4361ee' : '#adb5bd'
@@ -184,15 +182,6 @@ const OfficerCard = ({ officer, projects, allReports }) => {
               <CIcon icon={cilPeople} style={{ width: 12 }} className="me-1" />
               {totalPersonnel} Personnel
             </span>
-            {pendingReports > 0 && (
-              <span
-                className="badge rounded-pill px-3 py-2"
-                style={{ background: 'rgba(247,127,0,0.1)', color: '#f77f00', fontSize: '0.78rem' }}
-              >
-                <CIcon icon={cilBell} style={{ width: 12 }} className="me-1" />
-                {pendingReports} Pending
-              </span>
-            )}
           </div>
         </div>
 
@@ -275,11 +264,6 @@ const OfficerCard = ({ officer, projects, allReports }) => {
                         <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
                           {p.location}
                         </div>
-                        {p.pending_approvals > 0 && (
-                          <CBadge color="warning" className="mt-1" style={{ fontSize: '0.65rem' }}>
-                            {p.pending_approvals} pending
-                          </CBadge>
-                        )}
                       </CTableDataCell>
                       <CTableDataCell className="py-2" style={{ minWidth: '110px' }}>
                         <div className="d-flex align-items-center gap-2">
@@ -477,10 +461,6 @@ const TeamOverviewPage = () => {
     .flat()
     .reduce((s, p) => s + (p.field_personnel?.length || 0), 0)
 
-  const totalPending = Object.values(projectsMap)
-    .flat()
-    .reduce((s, p) => s + (p.pending_approvals || 0), 0)
-
   const allProjectsList = Object.values(projectsMap)
     .flat()
     .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
@@ -515,13 +495,6 @@ const TeamOverviewPage = () => {
       icon: cilPeople,
       color: '#06d6a0',
       bg: 'rgba(6,214,160,0.08)',
-    },
-    {
-      label: 'Pending Approvals',
-      value: totalPending,
-      icon: cilBell,
-      color: '#f77f00',
-      bg: 'rgba(247,127,0,0.08)',
     },
     {
       label: 'Avg Progress',

@@ -68,9 +68,7 @@ const PASSWORD_LOGINS = [
 ]
 
 export const verifyPasswordLogin = (employeeId, password) => {
-  const entry = PASSWORD_LOGINS.find(
-    (p) => p.employee_id === employeeId && p.password === password,
-  )
+  const entry = PASSWORD_LOGINS.find((p) => p.employee_id === employeeId && p.password === password)
   if (!entry) return null
   const seeded = SEEDED_USERS.find((u) => u.id === entry.user_id)
   if (!seeded) return null

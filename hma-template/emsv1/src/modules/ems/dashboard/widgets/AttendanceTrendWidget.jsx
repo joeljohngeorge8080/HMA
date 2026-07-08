@@ -22,9 +22,36 @@ const AttendanceTrendWidget = () => {
       data: {
         labels: trend.months,
         datasets: [
-          { label: 'Present %', data: trend.present, borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2 },
-          { label: 'Absent %', data: trend.absent, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2 },
-          { label: 'On Leave %', data: trend.leave, borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,0.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2 },
+          {
+            label: 'Present %',
+            data: trend.present,
+            borderColor: '#059669',
+            backgroundColor: 'rgba(5,150,105,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            borderWidth: 2,
+          },
+          {
+            label: 'Absent %',
+            data: trend.absent,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            borderWidth: 2,
+          },
+          {
+            label: 'On Leave %',
+            data: trend.leave,
+            borderColor: '#d97706',
+            backgroundColor: 'rgba(217,119,6,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            borderWidth: 2,
+          },
         ],
       },
       options: {
@@ -43,7 +70,9 @@ const AttendanceTrendWidget = () => {
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
       <CCardBody className="pt-4">
-        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Attendance Trend</h6>
+        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
+          Attendance Trend
+        </h6>
         <div style={{ height: 180 }}>
           <canvas ref={canvasRef} />
         </div>
