@@ -981,7 +981,12 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
 
   const assignees = [...new Set(monthTasks.map((t) => t.assignee).filter(Boolean))]
 
-  const actualEntries = localProjectExpenses.list({ projectId: project.id, month })
+  // Excludes pool: 'project' — those are shown (and kept live) by the Actual
+  // Expense card above; mirroring them here too would go stale between the
+  // two components' independent renders and duplicate the same entry twice.
+  const actualEntries = localProjectExpenses
+    .list({ projectId: project.id, month })
+    .filter((e) => e.pool !== 'project')
 
   const sentFor = (pool) =>
     (project.sent_allocations || []).find((a) => a.pool === pool && a.month === month)
