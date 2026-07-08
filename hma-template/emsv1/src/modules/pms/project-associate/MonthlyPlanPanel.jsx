@@ -379,6 +379,275 @@ const monthLabel = (ym) => {
   return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
 }
 
+const emptyRecurringTask = () => ({ id: Date.now() + Math.random(), phase: 'design', label: '', totalAmount: '' })
+
+const RecurringTasksSection = ({ project, onProjectChange, canEdit, monthCount, months }) => {
+  const [tasks, setTasks] = useState([])
+  const [applied, setApplied] = useState(false)
+  const [taskError, setTaskError] = useState('')
+
+  const addTask = () => setTasks((prev) => [...prev, emptyRecurringTask()])
+  const removeTask = (id) => setTasks((prev) => prev.filter((t) => t.id !== id))
+  const updateTask = (id, patch) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+
+  const validTasks = tasks.filter((t) => t.label.trim() && parseFloat(t.totalAmount) > 0)
+  const totalBudget = validTasks.reduce((s, t) => s + (parseFloat(t.totalAmount) || 0), 0)
+  const perMonth = monthCount > 0 ? totalBudget / monthCount : 0
+
+  const handleApply = () => {
+    setTaskError('')
+    if (!validTasks.length) {
+      setTaskError('Add at least one task with a label and amount before applying.')
+      return
+    }
+    let updated = project
+    months.forEach((month) => {
+      const existing = updated.monthly_plan.find((m) => m.month === month)
+      const existingPhases = existing ? existing.phases.filter(
+        (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase)
+      ) : []
+      const newPhases = [
+        ...existingPhases,
+        ...validTasks.map((t) => ({
+          phase: t.phase,
+          label: t.label.trim(),
+          amount: Math.round((parseFloat(t.totalAmount) / monthCount) * 100) / 100,
+        })),
+      ]
+      const result = localProjects.updateMonthPlan(updated.id, month, newPhases)
+      updated = result.project
+    })
+    onProjectChange(updated)
+    setApplied(true)
+    setTimeout(() => setApplied(false), 3000)
+  }
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0c1a2e 100%)',
+        borderRadius: 14,
+        padding: '20px 24px 16px',
+        marginBottom: 20,
+        border: '1px solid rgba(99,179,237,0.18)',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Glow accent */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+        background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4)',
+        borderRadius: '14px 14px 0 0',
+      }} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, boxShadow: '0 2px 12px rgba(59,130,246,0.4)',
+          }}>🔁</div>
+          <div>
+            <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.01em' }}>
+              Recurring Tasks
+            </div>
+            <div style={{ color: '#64748b', fontSize: '0.72rem', marginTop: 1 }}>
+              Enter tasks to divide equally across {monthCount} month{monthCount !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {totalBudget > 0 && (
+            <div style={{
+              background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+              borderRadius: 20, padding: '3px 12px', fontSize: '0.75rem', color: '#93c5fd',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ color: '#64748b' }}>Total</span>
+              <span style={{ fontWeight: 700 }}>{fmt(totalBudget)}</span>
+              <span style={{ color: '#475569' }}>·</span>
+              <span style={{ color: '#64748b' }}>Per month</span>
+              <span style={{ fontWeight: 700, color: '#60a5fa' }}>{fmt(perMonth)}</span>
+            </div>
+          )}
+          {canEdit && (
+            <button
+              onClick={addTask}
+              style={{
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                border: 'none', borderRadius: 8, padding: '6px 14px',
+                color: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+                boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Add Task
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tasks List */}
+      {tasks.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '18px 0 10px',
+          color: '#334155', fontSize: '0.8rem',
+          border: '1.5px dashed rgba(71,85,105,0.4)', borderRadius: 10,
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 6, opacity: 0.5 }}>📋</div>
+          No recurring tasks yet.{canEdit ? ' Click \'Add Task\' to get started.' : ''}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {tasks.map((task, idx) => (
+            <div
+              key={task.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 10, padding: '9px 12px',
+                animation: 'fadeSlideIn 0.2s ease',
+              }}
+            >
+              <div style={{
+                width: 22, height: 22, borderRadius: 6,
+                background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.65rem', color: '#a5b4fc', fontWeight: 700, flexShrink: 0,
+              }}>{idx + 1}</div>
+              <select
+                value={task.phase}
+                disabled={!canEdit}
+                onChange={(e) => updateTask(task.id, { phase: e.target.value })}
+                style={{
+                  background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(71,85,105,0.5)',
+                  borderRadius: 7, padding: '4px 8px', color: '#cbd5e1',
+                  fontSize: '0.78rem', cursor: canEdit ? 'pointer' : 'default', flexShrink: 0,
+                  outline: 'none',
+                }}
+              >
+                {PHASE_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Task / activity name"
+                value={task.label}
+                disabled={!canEdit}
+                onChange={(e) => updateTask(task.id, { label: e.target.value })}
+                style={{
+                  flex: 1, background: 'rgba(15,23,42,0.8)',
+                  border: '1px solid rgba(71,85,105,0.5)', borderRadius: 7,
+                  padding: '4px 10px', color: '#e2e8f0', fontSize: '0.82rem',
+                  outline: 'none', minWidth: 0,
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+                <div style={{
+                  background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(71,85,105,0.5)',
+                  borderLeft: 'none', borderRadius: '7px 0 0 7px',
+                  padding: '4px 8px', color: '#64748b', fontSize: '0.82rem',
+                  borderRight: 'none',
+                  display: 'flex', alignItems: 'center',
+                }}>₹</div>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Total budget"
+                  value={task.totalAmount}
+                  disabled={!canEdit}
+                  onChange={(e) => updateTask(task.id, { totalAmount: e.target.value })}
+                  style={{
+                    width: 110, background: 'rgba(15,23,42,0.8)',
+                    border: '1px solid rgba(71,85,105,0.5)',
+                    borderLeft: '1px solid rgba(71,85,105,0.5)',
+                    borderRadius: '0 7px 7px 0',
+                    padding: '4px 10px', color: '#e2e8f0', fontSize: '0.82rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+              {parseFloat(task.totalAmount) > 0 && monthCount > 0 && (
+                <div style={{
+                  flexShrink: 0, fontSize: '0.72rem', color: '#60a5fa',
+                  background: 'rgba(59,130,246,0.12)', borderRadius: 6,
+                  padding: '3px 8px', whiteSpace: 'nowrap',
+                  border: '1px solid rgba(59,130,246,0.2)',
+                }}>
+                  {fmt(parseFloat(task.totalAmount) / monthCount)}/mo
+                </div>
+              )}
+              {canEdit && (
+                <button
+                  onClick={() => removeTask(task.id)}
+                  style={{
+                    background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)',
+                    borderRadius: 7, width: 28, height: 28, display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    color: '#f87171', cursor: 'pointer', flexShrink: 0,
+                    transition: 'all 0.15s', fontSize: 14,
+                  }}
+                  title="Remove task"
+                >✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer: error + apply button */}
+      {(taskError || (canEdit && tasks.length > 0)) && (
+        <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {taskError && (
+            <div style={{
+              flex: 1, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 8, padding: '6px 12px', color: '#fca5a5', fontSize: '0.78rem',
+            }}>⚠️ {taskError}</div>
+          )}
+          {applied && (
+            <div style={{
+              flex: 1, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.25)',
+              borderRadius: 8, padding: '6px 12px', color: '#86efac', fontSize: '0.78rem',
+            }}>✓ Tasks distributed across all {monthCount} months</div>
+          )}
+          {canEdit && validTasks.length > 0 && (
+            <button
+              onClick={handleApply}
+              style={{
+                background: 'linear-gradient(135deg, #059669, #047857)',
+                border: 'none', borderRadius: 9, padding: '8px 18px',
+                color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 7,
+                boxShadow: '0 2px 12px rgba(5,150,105,0.35)',
+                marginLeft: 'auto',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span>⚡</span>
+              Apply — divide equally across {monthCount} month{monthCount !== 1 ? 's' : ''}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+RecurringTasksSection.propTypes = {
+  project: PropTypes.object.isRequired,
+  onProjectChange: PropTypes.func.isRequired,
+  canEdit: PropTypes.bool,
+  monthCount: PropTypes.number.isRequired,
+  months: PropTypes.arrayOf(PropTypes.string).isRequired,
+}
+
 const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'Unknown' }) => {
   const workingPool = computeWorkingPool(project)
   const validation = validatePlanTotalWithCascade(
@@ -387,6 +656,8 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     project.pool_adjustments,
   )
   const [saved, setSaved] = useState(false)
+  const months = monthsInRange(project.start_date, project.end_date)
+  const monthCount = months.length
 
   const handleAmountChange = (month, phaseIdx, amount) => {
     const monthEntry = project.monthly_plan.find((m) => m.month === month)
@@ -475,6 +746,16 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
         </CAlert>
       )}
       <CCardBody className="p-0">
+        {/* ── Recurring Tasks ─────────────────────────────────────────────── */}
+        <div style={{ padding: '16px 16px 0' }}>
+          <RecurringTasksSection
+            project={project}
+            onProjectChange={onProjectChange}
+            canEdit={canEdit}
+            monthCount={monthCount}
+            months={months}
+          />
+        </div>
         <div style={{ overflowX: 'auto' }}>
           <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
             <CTableHead color="light">
