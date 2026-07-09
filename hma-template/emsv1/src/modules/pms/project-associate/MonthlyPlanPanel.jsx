@@ -125,8 +125,8 @@ const RecurringTasksSection = ({ project, onProjectChange, canEdit, monthCount, 
       const existing = updated.monthly_plan.find((m) => m.month === month)
       const existingPhases = existing
         ? existing.phases.filter(
-            (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
-          )
+          (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
+        )
         : []
       const newPhases = [
         ...existingPhases,
@@ -733,10 +733,10 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 <CTableRow>
                   <CTableHeaderCell>Month</CTableHeaderCell>
                   <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Project Total</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Admin</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">HR</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Core</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>Project Total</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Admin</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>HR</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Core</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
@@ -765,7 +765,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                       <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
                       <CTableDataCell>
                         {m.phases.map((ph, i) => (
-                          <div key={i} className="d-flex align-items-center gap-1 mb-1 flex-wrap">
+                          <div key={i} className="d-flex align-items-center gap-1 mb-1 flex-nowrap">
                             <div className="d-flex flex-nowrap align-items-center gap-1">
                               <CFormSelect
                                 size="sm"
@@ -790,7 +790,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                               />
                             </div>
                             <div className="d-flex flex-nowrap align-items-center gap-1">
-                              <CInputGroup style={{ width: 150 }}>
+                              <CInputGroup style={{ width: 190 }}>
                                 <CInputGroupText
                                   style={{
                                     background: '#cfe2ff',
@@ -804,12 +804,14 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                 <CFormInput
                                   type="number"
                                   min="0"
-                                  value={ph.amount}
+                                  placeholder="0"
+                                  style={{ minWidth: 90 }}
+                                  value={ph.amount || ''}
                                   disabled={!canEdit}
                                   onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
                                 />
                               </CInputGroup>
-                              <CInputGroup style={{ width: 150 }}>
+                              <CInputGroup style={{ width: 190 }}>
                                 <CInputGroupText
                                   style={{
                                     background: '#d1e7dd',
@@ -824,7 +826,8 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                   type="number"
                                   min="0"
                                   placeholder="0"
-                                  value={ph.actual ?? ''}
+                                  style={{ minWidth: 90 }}
+                                  value={ph.actual || ''}
                                   disabled={!canEdit}
                                   onChange={(e) => handleActualChange(m.month, i, e.target.value)}
                                 />
@@ -928,11 +931,12 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                       </CTableDataCell>
                       {['admin', 'hr', 'core'].map((pool) => (
                         <CTableDataCell key={pool} className="text-end">
-                          <CInputGroup size="sm" style={{ maxWidth: 130, marginLeft: 'auto' }}>
+                          <CInputGroup size="sm" style={{ width: 145, marginLeft: 'auto' }}>
                             <CInputGroupText>₹</CInputGroupText>
                             <CFormInput
                               type="number"
-                              value={computeEffectivePoolMonthly(project, pool, m.month)}
+                              placeholder="0"
+                              value={computeEffectivePoolMonthly(project, pool, m.month) || ''}
                               disabled={!canEdit}
                               onChange={(e) =>
                                 handlePoolAmountChange(pool, m.month, e.target.value)
@@ -941,12 +945,13 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                           </CInputGroup>
                           <CInputGroup
                             size="sm"
-                            style={{ maxWidth: 90, marginLeft: 'auto', marginTop: 4 }}
+                            style={{ minWidth: 80, marginLeft: 'auto', marginTop: 4 }}
                           >
                             <CFormInput
                               type="number"
                               step="0.1"
-                              value={computeEffectivePoolPct(project, pool, m.month)}
+                              placeholder="0"
+                              value={computeEffectivePoolPct(project, pool, m.month) || ''}
                               disabled={!canEdit}
                               onChange={(e) => handlePoolPctChange(pool, m.month, e.target.value)}
                             />
