@@ -13,6 +13,8 @@ import {
   computeFlatMonthlyRate,
   computeCascadeAdjustments,
   validatePlanTotalWithCascade,
+  computeActualVsPlannedTransfers,
+  computeEffectivePoolMonthly,
 } from './monthlyApportionment'
 
 const PROJECTS_KEY = 'hma_projects_v11' // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
@@ -648,7 +650,7 @@ export const localProjects = {
     updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
 
     const preservedAdjustments = (project.pool_adjustments || []).filter(
-      (a) => a.source !== 'auto_cascade',
+      (a) => a.source !== 'auto_cascade' && a.source !== 'actual_pull',
     )
     const cascadeAdjustments = computeCascadeAdjustments({
       ...project,
@@ -660,7 +662,21 @@ export const localProjects = {
       createdBy: 'System',
       createdAt: now(),
     }))
-    const poolAdjustments = [...preservedAdjustments, ...cascadeAdjustments]
+    const actualPullAdjustments = computeActualVsPlannedTransfers({
+      ...project,
+      monthly_plan: updatedPlan,
+      pool_adjustments: preservedAdjustments,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [
+      ...preservedAdjustments,
+      ...cascadeAdjustments,
+      ...actualPullAdjustments,
+    ]
 
     projects[idx] = {
       ...project,
@@ -703,7 +719,11 @@ export const localProjects = {
     if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
 
     const flat = computeFlatMonthlyRate(projects[pIdx], pool)
-    const delta = Math.round((flat - (parseFloat(newAmount) || 0)) * 100) / 100
+    const nonManualWithdrawn = (projects[pIdx].pool_adjustments || [])
+      .filter((a) => a.pool === pool && a.month === month && a.source !== 'manual')
+      .reduce((s, a) => s + (a.amount || 0), 0)
+    const delta =
+      Math.round((flat - nonManualWithdrawn - (parseFloat(newAmount) || 0)) * 100) / 100
 
     const withoutExistingManual = (projects[pIdx].pool_adjustments || []).filter(
       (a) => !(a.source === 'manual' && a.pool === pool && a.month === month),
@@ -787,6 +807,126 @@ export const localProjects = {
       (a) => !(a.pool === pool && a.month === month),
     )
     projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  // ── Actual-vs-Planned Reallocation (Case 1 automatic, Case 2 manual) ────────
+
+  /**
+   * Case 2 "Send to HR/Core": splits a month's Project surplus 50/50 into
+   * HR and Core's effective monthly figures via the existing
+   * setManualPoolAdjustment — no new schema. Each call adds its half on
+   * top of whatever that pool's current effective figure already is
+   * (not a flat overwrite), so a pre-existing manual HR/Core edit for
+   * that month is preserved and topped up, not replaced outright.
+   */
+  sendSurplusToPools(projectId, { month, surplus, createdBy }) {
+    const amt = parseFloat(surplus) || 0
+    if (amt <= 0) throw new Error('No surplus available to send for this month.')
+    const half = Math.round((amt / 2) * 100) / 100
+    const otherHalf = Math.round((amt - half) * 100) / 100
+
+    const project = localProjects.getById(projectId)
+    if (!project) throw new Error('Project not found')
+
+    const hrCurrent = computeEffectivePoolMonthly(project, 'hr', month)
+    const afterHr = localProjects.setManualPoolAdjustment(projectId, {
+      pool: 'hr',
+      month,
+      newAmount: hrCurrent + half,
+      createdBy,
+    })
+    const coreCurrent = computeEffectivePoolMonthly(afterHr, 'core', month)
+    return localProjects.setManualPoolAdjustment(projectId, {
+      pool: 'core',
+      month,
+      newAmount: coreCurrent + otherHalf,
+      createdBy,
+    })
+  },
+
+  /**
+   * Case 2 "Send to next month": pushes a month's Project surplus into
+   * next month's effective planned Project total, as a paired
+   * pool: 'project' adjustment (same sign convention/shape as the
+   * automatic 'actual_pull' transfers) — but source-tagged distinctly
+   * since this one is PO-triggered and persists until explicitly
+   * revoked, not recomputed-and-replaced on every edit.
+   */
+  sendSurplusToNextMonth(projectId, { month, surplus, createdBy }) {
+    const amt = parseFloat(surplus) || 0
+    if (amt <= 0) throw new Error('No surplus available to send for this month.')
+
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const project = projects[pIdx]
+
+    const months = monthsInRange(project.start_date, project.end_date)
+    const monthIdx = months.indexOf(month)
+    if (monthIdx === -1) throw new Error(`${month} is outside the project's duration.`)
+    const nextMonth = months[monthIdx + 1]
+    if (!nextMonth) throw new Error('There is no next month to send this surplus to.')
+
+    const withoutExistingSurplusTransfer = (project.pool_adjustments || []).filter(
+      (a) =>
+        !(
+          a.source === 'actual_surplus_next_month' &&
+          (a.month === month || a.month === nextMonth)
+        ),
+    )
+    const record = (targetMonth, amount, counterMonth, reason) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      pool: 'project',
+      month: targetMonth,
+      amount,
+      source: 'actual_surplus_next_month',
+      counterMonth,
+      reason,
+      createdBy: createdBy || 'Unknown',
+      createdAt: now(),
+    })
+
+    projects[pIdx] = {
+      ...project,
+      pool_adjustments: [
+        ...withoutExistingSurplusTransfer,
+        record(month, amt, nextMonth, `PO-sent surplus to ${nextMonth}`),
+        record(nextMonth, -amt, month, `PO-sent surplus from ${month}`),
+      ],
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  /** Reverses a Case-2 "Send to next month" transfer — removes both paired records. */
+  revokeActualSurplusTransfer(projectId, { month }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const project = projects[pIdx]
+
+    const existing = (project.pool_adjustments || []).find(
+      (a) => a.source === 'actual_surplus_next_month' && a.month === month,
+    )
+    if (!existing) return project
+
+    const counterMonth = existing.counterMonth
+    projects[pIdx] = {
+      ...project,
+      pool_adjustments: (project.pool_adjustments || []).filter(
+        (a) =>
+          !(
+            a.source === 'actual_surplus_next_month' &&
+            (a.month === month || a.month === counterMonth)
+          ),
+      ),
+      updated_at: now(),
+    }
     write(PROJECTS_KEY, projects)
     notify()
     return projects[pIdx]
