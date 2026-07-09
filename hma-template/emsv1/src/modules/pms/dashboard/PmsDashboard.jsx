@@ -21,7 +21,7 @@ const PmsDashboard = () => {
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
-          <h4 className="fw-bold mb-1">PMS Dashboard</h4>
+          <h4 className="fw-bold mb-1">Projects Dashboard</h4>
           <p className="text-body-secondary mb-0 small">
             {activeWidgets.length} of {ALL_WIDGETS.length} widgets active
           </p>
