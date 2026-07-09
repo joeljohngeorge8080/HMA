@@ -126,8 +126,8 @@ const RecurringTasksSection = ({ project, onProjectChange, canEdit, monthCount, 
       const existing = updated.monthly_plan.find((m) => m.month === month)
       const existingPhases = existing
         ? existing.phases.filter(
-          (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
-        )
+            (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
+          )
         : []
       const newPhases = [
         ...existingPhases,
@@ -894,10 +894,18 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 <CTableRow>
                   <CTableHeaderCell>Month</CTableHeaderCell>
                   <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>Project Total</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Admin</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>HR</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Core</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>
+                    Project Total
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    Admin
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    HR
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    Core
+                  </CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
