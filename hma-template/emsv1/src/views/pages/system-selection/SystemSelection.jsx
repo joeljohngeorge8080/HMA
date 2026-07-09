@@ -39,10 +39,8 @@ const SystemSelection = () => {
           >
             <CIcon icon={cilBuilding} style={{ width: 28, height: 28, color: '#60a5fa' }} />
           </div>
-          <div className="hma-sysselect__card-title">EMS</div>
+          <div className="hma-sysselect__card-title">Expense</div>
           <div className="hma-sysselect__card-desc">
-            Enterprise Management System
-            <br />
             Staff, Payroll, Attendance &amp; Finance
           </div>
           <CButton
@@ -54,7 +52,7 @@ const SystemSelection = () => {
               navigate('/ems/dashboard')
             }}
           >
-            Enter EMS
+            Enter Expense
           </CButton>
         </div>
 
@@ -72,10 +70,8 @@ const SystemSelection = () => {
           >
             <CIcon icon={cilFolder} style={{ width: 28, height: 28, color: '#34d399' }} />
           </div>
-          <div className="hma-sysselect__card-title">PMS</div>
+          <div className="hma-sysselect__card-title">Projects</div>
           <div className="hma-sysselect__card-desc">
-            Project Management System
-            <br />
             Projects, Lifecycle, Expenses &amp; Reports
           </div>
           <CButton
@@ -87,7 +83,7 @@ const SystemSelection = () => {
               navigate('/pms/dashboard')
             }}
           >
-            Enter PMS
+            Enter Projects
           </CButton>
         </div>
       </div>

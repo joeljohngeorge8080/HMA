@@ -398,6 +398,11 @@ const ProjectHRBudgetCard = ({ projectId, projects, onAllocationEdited }) => {
                           HR Rev · {c.hr_revenue_type || ''}
                         </CBadge>
                       )}
+                      {c.revenue_sources?.includes('lsgb_revenue') && (
+                        <CBadge color="warning" style={{ fontSize: '0.58rem' }}>
+                          LSGB Rev
+                        </CBadge>
+                      )}
                     </div>
                     <div className="d-flex align-items-center gap-2">
                       <span className="text-white fw-semibold">{fmt(c.myAmount)}</span>
@@ -678,6 +683,7 @@ const GlobalHRPoolPage = () => {
         poolLabel="HR"
         poolFundLabel="Project 5% Pool"
         hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
         expenseDropdownItems={hrGeneralExpenses.map((e) => ({ id: e.id, label: e.expense_name }))}
         onPickExpense={(id) => {
           const picked = hrGeneralExpenses.find((e) => e.id === id)
@@ -707,6 +713,7 @@ const GlobalHRPoolPage = () => {
         poolLabel="Admin"
         poolFundLabel="Project 5% Admin Pool"
         hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
         expenseDropdownItems={adminExpenseItems.map((e) => ({
           id: e.id,
           label: `${e.expense_category} — ${e.vendor_name}`,
@@ -736,7 +743,9 @@ const GlobalHRPoolPage = () => {
         }
       />
 
-      {/* ── LSGB Fund Balance (info line, unrelated to Core 5% pool math) ────── */}
+      {/* ── LSGB Fund Balance — this same `remaining` figure is now also the
+          "LSGB Revenue" source's available balance on all three pool cards
+          above/below (see `lsgbAvailable` prop) ─────────────────────────── */}
       {lsgbSummary && (
         <div className="d-flex align-items-center gap-2 mb-2 small text-body-secondary">
           <CIcon icon={cilDollar} style={{ width: 14, height: 14 }} />
@@ -754,6 +763,8 @@ const GlobalHRPoolPage = () => {
         poolLabel="Core"
         poolFundLabel="Core 5% Pool"
         hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
+        getAdminPoolBudgetSummary={(month) => localOrgPool.getMonthlyAdminPoolBudgetSummary(month)}
         expenseDropdownItems={(() => {
           const existingIds = new Set(localOrgPool.getCoreExpenses().map((exp) => exp.employee_id))
           return overheadEmployees

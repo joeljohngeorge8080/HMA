@@ -1,3 +1,529 @@
+# Expense Pool: LSGB Revenue + Core's Admin 5% Share Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Add "LSGB Revenue" as a third revenue-source option on all three Expense Pool cards (HR, Admin, Core), and a fourth, Core-only "Admin 5% Share" source that performs a real cross-pool deduction against Admin's own monthly budget.
+
+**Architecture:** Generalize `ExpensePoolCard.jsx`'s hardcoded 2-source revenue selector (`RevenueSourceSelector`) into an N-source model driven by a single `pctBySource` state object, reusing the file's existing proportional-redistribution algorithm (already used for splitting one expense across projects) for the revenue-source-percentage axis too. Extract the existing "Budget Cap Alert" block into a reusable `BudgetCapAlert` component so Core's new Admin-Share row can reuse the same over-budget warning the Project Pool row already has. `localOrgPool.js` gains two new persisted fields (`lsgb_revenue_pct`, `admin_share_pct`) and Admin's own budget-summary functions are extended to also scan Core's expenses for the cross-pool draw.
+
+**Tech Stack:** React 19 (function components + hooks), CoreUI React components, `localStorage`-backed services. No test runner is configured in this repo — verification is `npm run build` + `npm run lint` plus manual browser verification via the dev server (matching this repo's established convention).
+
+## Global Constraints
+
+- LSGB Revenue is informational only (like the existing HR Revenue) — its `lsgb_revenue_pct` is persisted but never read back for any budget calculation.
+- Admin 5% Share is Core-card-only — HR and Admin cards must never render or accept the `admin_pool` source.
+- Admin 5% Share has **no per-project allocation breakdown** — it's a flat monthly draw against Admin's aggregate remaining budget, not split per-project like Project Pool is.
+- Editing an already-created expense stays untouched (`editForm` only ever sets `label`/`amount`/`date` — this plan does not change that).
+- Every percentage split (2, 3, or 4 sources selected) must sum to exactly 100 after rounding — reuse the existing rounding-remainder-fix pattern, don't introduce off-by-0.01 sums.
+
+---
+
+## File Structure
+
+- **Modify:** `src/services/localOrgPool.js` — `addHRExpense`/`addAdminExpense`/`addCoreExpense` persist `lsgb_revenue_pct`; `addCoreExpense` additionally persists `admin_share_pct` and accepts `'admin_pool'` in `revenue_sources`; `getMonthlyAdminPoolBudgetSummary`/`getProjectsMonthlyAdminRemaining` also scan `getCoreExpenses()` for `admin_pool`-tagged entries.
+- **Rewrite (full file):** `src/modules/ems/hr-pool/ExpensePoolCard.jsx` — generalized `RevenueSourceSelector` (2→4 sources), new `BudgetCapAlert` component (extracted, reused twice), `ExpensePoolCard` state/handlers updated to match.
+- **Modify:** `src/modules/ems/hr-pool/GlobalHRPoolPage.jsx` — thread `lsgbAvailable` to all three `ExpensePoolCard` instances, `getAdminPoolBudgetSummary` to the Core instance only; add an "LSGB Rev" badge to the existing per-project "Allocated Charges" list; fix the now-stale "unrelated to Core 5% pool math" comment.
+
+---
+
+## Task 1: `localOrgPool.js` — persist the two new percentage fields, extend Admin's budget scan to Core
+
+**Files:**
+- Modify: `src/services/localOrgPool.js`
+
+**Interfaces:**
+- Produces: `addHRExpense`/`addAdminExpense`/`addCoreExpense` now accept an optional `expense.lsgb_revenue_pct` (number, defaults `0`), persisted as `lsgb_revenue_pct` on the new record.
+- Produces: `addCoreExpense` additionally accepts an optional `expense.admin_share_pct` (number, defaults `0`), persisted as `admin_share_pct`; `'admin_pool'` becomes a valid member of `expense.revenue_sources` for Core expenses only (no validation enforced here — the UI in Task 2/3 is what restricts this to Core).
+- Produces: `getMonthlyAdminPoolBudgetSummary(month)` and `getProjectsMonthlyAdminRemaining(month)` now also count Core expenses tagged `admin_pool` against Admin's own budget — no change to their call signature or return shape, existing callers (`GlobalHRPoolPage.jsx`'s Admin `ExpensePoolCard` instance) are unaffected.
+
+- [ ] **Step 1: Add `lsgb_revenue_pct` to `addHRExpense`**
+
+Change (`src/services/localOrgPool.js`):
+```js
+  addHRExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    // Determine revenue sources
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+
+    // Use caller-provided allocations (user-edited) if present, else auto-compute
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('hr', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid(),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      entered_by_project_id: enteredByProjectId,
+      // Revenue source metadata
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      project_pool_pct: projectPoolPct,
+      // Project allocations — may be user-customised or auto-computed
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.hr_expenses = [...(pool.hr_expenses || []), newExp]
+    writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
+```
+to:
+```js
+  addHRExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    // Determine revenue sources
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
+
+    // Use caller-provided allocations (user-edited) if present, else auto-compute
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('hr', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid(),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      entered_by_project_id: enteredByProjectId,
+      // Revenue source metadata
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
+      project_pool_pct: projectPoolPct,
+      // Project allocations — may be user-customised or auto-computed
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.hr_expenses = [...(pool.hr_expenses || []), newExp]
+    writePool(pool)
+    setTimeout(() => this.checkHRBudgetThresholds(), 100)
+```
+
+- [ ] **Step 2: Add `lsgb_revenue_pct` to `addAdminExpense`**
+
+Change:
+```js
+  addAdminExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('admin', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid(),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      entered_by_project_id: enteredByProjectId,
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      project_pool_pct: projectPoolPct,
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.admin_expenses = [...(pool.admin_expenses || []), newExp]
+    writePool(pool)
+    return newExp
+  },
+```
+to:
+```js
+  addAdminExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
+
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('admin', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid(),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      entered_by_project_id: enteredByProjectId,
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
+      project_pool_pct: projectPoolPct,
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.admin_expenses = [...(pool.admin_expenses || []), newExp]
+    writePool(pool)
+    return newExp
+  },
+```
+
+- [ ] **Step 3: Add `lsgb_revenue_pct` and `admin_share_pct` to `addCoreExpense`**
+
+Change:
+```js
+  addCoreExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('core', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid().replace('hre_', 'core_'),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      employee_id: expense.employee_id || null,
+      entered_by_project_id: enteredByProjectId,
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      project_pool_pct: projectPoolPct,
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.core_expenses = [...(pool.core_expenses || []), newExp]
+    writePool(pool)
+    return newExp
+  },
+```
+to:
+```js
+  addCoreExpense(expense, enteredByProjectId) {
+    const pool = readPool()
+    const totalAmt = parseFloat(expense.amount) || 0
+
+    const revenueSources = expense.revenue_sources || ['project_pool']
+    const projectPoolPct = parseFloat(expense.project_pool_pct) ?? 100
+    const hrRevenuePct = parseFloat(expense.hr_revenue_pct) ?? 0
+    const lsgbRevenuePct = parseFloat(expense.lsgb_revenue_pct) || 0
+    // Admin 5% Share — Core-only source, a real draw against Admin's own
+    // monthly budget (see getMonthlyAdminPoolBudgetSummary below), not just
+    // an attribution tag like HR/LSGB Revenue.
+    const adminSharePct = parseFloat(expense.admin_share_pct) || 0
+
+    let allocations
+    if (expense.project_allocations && expense.project_allocations.length > 0) {
+      allocations = expense.project_allocations
+    } else {
+      const projectPoolAmt = Math.round(totalAmt * (projectPoolPct / 100) * 100) / 100
+      allocations = revenueSources.includes('project_pool')
+        ? this.computeAllocations('core', projectPoolAmt)
+        : []
+    }
+
+    const newExp = {
+      id: uid().replace('hre_', 'core_'),
+      label: expense.label || '',
+      vendor: expense.vendor || '',
+      frequency: expense.frequency || 'Monthly',
+      yearly_price: parseFloat(expense.yearly_price) || 0,
+      amount: totalAmt,
+      date: expense.date || '',
+      notes: expense.notes || '',
+      bill_no: expense.bill_no || '',
+      employee_id: expense.employee_id || null,
+      entered_by_project_id: enteredByProjectId,
+      revenue_sources: revenueSources,
+      hr_revenue_pct: hrRevenuePct,
+      lsgb_revenue_pct: lsgbRevenuePct,
+      admin_share_pct: adminSharePct,
+      project_pool_pct: projectPoolPct,
+      project_allocations: allocations,
+      created_at: new Date().toISOString(),
+    }
+    pool.core_expenses = [...(pool.core_expenses || []), newExp]
+    writePool(pool)
+    return newExp
+  },
+```
+
+- [ ] **Step 4: Extend `getMonthlyAdminPoolBudgetSummary` to also count Core's Admin-Share draws**
+
+Change:
+```js
+  getMonthlyAdminPoolBudgetSummary(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('admin')
+    const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
+
+    const expenses = this.getAdminExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedThisMonth = expenses
+      .filter((e) => (e.date ? e.date.slice(0, 7) : targetMonth) === targetMonth)
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || ['project_pool']
+        if (!sources.includes('project_pool')) return sum
+        const poolPct = parseFloat(e.project_pool_pct) ?? 100
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
+      }, 0)
+
+    return {
+      totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
+      usedThisMonth: Math.round(usedThisMonth * 100) / 100,
+      remaining: Math.round((totalMonthlyBudget - usedThisMonth) * 100) / 100,
+    }
+  },
+```
+to:
+```js
+  getMonthlyAdminPoolBudgetSummary(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('admin')
+    const totalMonthlyBudget = budgets.length > 0 ? (budgets[0].totalMonthlyPool ?? 0) : 0
+
+    const expenses = this.getAdminExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedFromAdminExpenses = expenses
+      .filter((e) => (e.date ? e.date.slice(0, 7) : targetMonth) === targetMonth)
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || ['project_pool']
+        if (!sources.includes('project_pool')) return sum
+        const poolPct = parseFloat(e.project_pool_pct) ?? 100
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (poolPct / 100) * 100) / 100
+      }, 0)
+
+    // Core expenses can draw on the Admin pool too ("Admin 5% Share") — a
+    // real cross-pool deduction, so it counts against Admin's own budget
+    // the same as Admin's own project_pool spend does.
+    const usedFromCoreExpenses = this.getCoreExpenses()
+      .filter((e) => (e.date ? e.date.slice(0, 7) : targetMonth) === targetMonth)
+      .reduce((sum, e) => {
+        const sources = e.revenue_sources || []
+        if (!sources.includes('admin_pool')) return sum
+        const sharePct = parseFloat(e.admin_share_pct) || 0
+        const totalAmt = parseFloat(e.amount) || 0
+        return sum + Math.round(totalAmt * (sharePct / 100) * 100) / 100
+      }, 0)
+
+    const usedThisMonth = usedFromAdminExpenses + usedFromCoreExpenses
+
+    return {
+      totalMonthlyBudget: Math.round(totalMonthlyBudget * 100) / 100,
+      usedThisMonth: Math.round(usedThisMonth * 100) / 100,
+      remaining: Math.round((totalMonthlyBudget - usedThisMonth) * 100) / 100,
+    }
+  },
+```
+
+- [ ] **Step 5: Extend `getProjectsMonthlyAdminRemaining` the same way**
+
+Change:
+```js
+  getProjectsMonthlyAdminRemaining(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('admin')
+    const expenses = this.getAdminExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedMap = {}
+    for (const exp of expenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || ['project_pool']
+      if (!sources.includes('project_pool')) continue
+
+      const allocs = exp.project_allocations || []
+      if (allocs.length > 0) {
+        for (const a of allocs) {
+          usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
+        }
+      } else {
+        const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+        for (const b of budgets) {
+          const share = total > 0 ? b.monthlyBudget / total : 0
+          const poolPct = parseFloat(exp.project_pool_pct) ?? 100
+          const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
+          usedMap[b.projectId] =
+            (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+        }
+      }
+    }
+
+    const result = {}
+    for (const b of budgets) {
+      const used = Math.round((usedMap[b.projectId] || 0) * 100) / 100
+      result[b.projectId] = {
+        monthlyBudget: b.monthlyBudget,
+        usedThisMonth: used,
+        remaining: Math.round((b.monthlyBudget - used) * 100) / 100,
+      }
+    }
+    return result
+  },
+```
+to:
+```js
+  getProjectsMonthlyAdminRemaining(month) {
+    const budgets = this.getActiveProjectMonthlyBudgets('admin')
+    const expenses = this.getAdminExpenses()
+    const targetMonth = month || new Date().toISOString().slice(0, 7)
+
+    const usedMap = {}
+    for (const exp of expenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || ['project_pool']
+      if (!sources.includes('project_pool')) continue
+
+      const allocs = exp.project_allocations || []
+      if (allocs.length > 0) {
+        for (const a of allocs) {
+          usedMap[a.projectId] = (usedMap[a.projectId] || 0) + (a.amountCharged || 0)
+        }
+      } else {
+        const total = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+        for (const b of budgets) {
+          const share = total > 0 ? b.monthlyBudget / total : 0
+          const poolPct = parseFloat(exp.project_pool_pct) ?? 100
+          const poolAmt = parseFloat(exp.amount || 0) * (poolPct / 100)
+          usedMap[b.projectId] =
+            (usedMap[b.projectId] || 0) + Math.round(poolAmt * share * 100) / 100
+        }
+      }
+    }
+
+    // Core expenses tagged "Admin 5% Share" draw on this same budget. There's
+    // no per-project allocation stored for this source (flat aggregate draw
+    // only — see design spec), so distribute proportionally across Admin's
+    // active projects by their monthly-budget share, same fallback used above
+    // for a plain Admin expense with no project_allocations of its own.
+    const coreExpenses = this.getCoreExpenses()
+    const totalBudget = budgets.reduce((s, b) => s + b.monthlyBudget, 0)
+    for (const exp of coreExpenses) {
+      const eMonth = exp.date ? exp.date.slice(0, 7) : targetMonth
+      if (eMonth !== targetMonth) continue
+      const sources = exp.revenue_sources || []
+      if (!sources.includes('admin_pool')) continue
+
+      const sharePct = parseFloat(exp.admin_share_pct) || 0
+      const shareAmt = (parseFloat(exp.amount) || 0) * (sharePct / 100)
+      for (const b of budgets) {
+        const share = totalBudget > 0 ? b.monthlyBudget / totalBudget : 0
+        usedMap[b.projectId] =
+          (usedMap[b.projectId] || 0) + Math.round(shareAmt * share * 100) / 100
+      }
+    }
+
+    const result = {}
+    for (const b of budgets) {
+      const used = Math.round((usedMap[b.projectId] || 0) * 100) / 100
+      result[b.projectId] = {
+        monthlyBudget: b.monthlyBudget,
+        usedThisMonth: used,
+        remaining: Math.round((b.monthlyBudget - used) * 100) / 100,
+      }
+    }
+    return result
+  },
+```
+
+- [ ] **Step 6: Verify build**
+
+Run: `npm_config_prefix=<scratch-npm-prefix-dir> npm run build` (from `hma-template/emsv1/`)
+Expected: clean build, no errors.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/services/localOrgPool.js
+git commit -m "feat: persist LSGB Revenue and Admin 5% Share fields, cross-pool budget scan"
+```
+
+---
+
+## Task 2: Rewrite `ExpensePoolCard.jsx` — generalize the revenue-source selector to N sources
+
+**Files:**
+- Modify (full-file rewrite): `src/modules/ems/hr-pool/ExpensePoolCard.jsx`
+
+**Interfaces:**
+- Consumes: `localOrgPool.computeAllocations` (unchanged, already imported).
+- Produces: `ExpensePoolCard` gains three new optional props: `lsgbAvailable` (number, all instances), `getAdminPoolBudgetSummary` (function `(month) => {totalMonthlyBudget, usedThisMonth, remaining}`, Core instance only — its mere presence is what turns on the 4th "Admin 5% Share" source; HR/Admin instances simply don't pass it).
+- Produces: `RevenueSourceSelector` and the new `BudgetCapAlert` are internal to this file (not exported) — same as `RevenueSourceSelector` is today.
+
+This task replaces the entire file. Write the following complete content to `src/modules/ems/hr-pool/ExpensePoolCard.jsx`:
+
+```jsx
 import React, { useState, useEffect } from 'react'
 import {
   CCard,
@@ -126,7 +652,8 @@ const RevenueSourceSelector = ({
     handlePctChange(src, pct)
   }
 
-  const totalPct = Math.round(revSources.reduce((s, k) => s + (pctBySource[k] || 0), 0) * 100) / 100
+  const totalPct =
+    Math.round(revSources.reduce((s, k) => s + (pctBySource[k] || 0), 0) * 100) / 100
   const pctValid = !multiSelected || totalPct === 100
 
   const rowStyle = {
@@ -172,7 +699,9 @@ const RevenueSourceSelector = ({
                   onChange={(e) => handlePctChange(src, e.target.value)}
                   style={{ textAlign: 'right', fontWeight: 600 }}
                 />
-                <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>%</CInputGroupText>
+                <CInputGroupText style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                  %
+                </CInputGroupText>
               </CInputGroup>
               <CInputGroup size="sm" style={{ width: 120 }}>
                 <CInputGroupText style={{ fontSize: '0.8rem' }}>&#8377;</CInputGroupText>
@@ -209,7 +738,8 @@ const RevenueSourceSelector = ({
                 className={`small mt-1 ${isOver ? 'text-danger fw-semibold' : 'text-body-secondary'}`}
                 style={{ fontSize: '0.74rem' }}
               >
-                Available: {fmt(availableTotal || 0)} &nbsp;−{fmt(drawn)} this expense &nbsp;→&nbsp;
+                Available: {fmt(availableTotal || 0)} &nbsp;−{fmt(drawn)} this expense
+                &nbsp;→&nbsp;
                 {fmt(remaining)} remaining
               </div>
             )
@@ -266,8 +796,7 @@ const RevenueSourceSelector = ({
 const BudgetCapAlert = ({ label, totalAmt, poolPortion, budgetSummary }) => {
   const { totalMonthlyBudget, usedThisMonth, remaining } = budgetSummary
 
-  if (totalAmt <= 0 || totalMonthlyBudget <= 0)
-    return <div className="mb-3" style={{ minHeight: 0 }} />
+  if (totalAmt <= 0 || totalMonthlyBudget <= 0) return <div className="mb-3" style={{ minHeight: 0 }} />
 
   const overage = Math.round((poolPortion - remaining) * 100) / 100
   const pctUsed = Math.round((poolPortion / totalMonthlyBudget) * 100)
@@ -322,16 +851,15 @@ const BudgetCapAlert = ({ label, totalAmt, poolPortion, budgetSummary }) => {
           Remaining: <strong className="text-warning">{fmt(remaining)}</strong>
         </span>
         <span>
-          This expense ({label} portion):{' '}
-          <strong className="text-danger">{fmt(poolPortion)}</strong>
+          This expense ({label} portion): <strong className="text-danger">{fmt(poolPortion)}</strong>
         </span>
         <span>
           Overage: <strong className="text-danger">+{fmt(overage)}</strong>
         </span>
       </div>
       <div className="mt-2 small text-body-secondary" style={{ fontSize: '0.73rem' }}>
-        Reduce the expense amount, reduce the {label} %, or route more to another revenue source to
-        stay within budget.
+        Reduce the expense amount, reduce the {label} %, or route more to another revenue source
+        to stay within budget.
       </div>
     </div>
   )
@@ -1001,8 +1529,8 @@ const ExpensePoolCard = ({
                 style={{ background: 'rgba(76,201,240,0.07)', fontSize: '0.8rem' }}
               >
                 <span className="text-info">
-                  This expense will be fully covered by revenue sources other than {poolFundLabel}—
-                  no project allocation will be distributed.
+                  This expense will be fully covered by revenue sources other than {poolFundLabel}
+                  — no project allocation will be distributed.
                 </span>
               </div>
             )}
@@ -1225,3 +1753,213 @@ const ExpensePoolCard = ({
 }
 
 export default ExpensePoolCard
+```
+
+- [ ] **Step 1: Write the file**
+
+Write the complete content above to `src/modules/ems/hr-pool/ExpensePoolCard.jsx`, replacing the entire existing file.
+
+- [ ] **Step 2: Verify build**
+
+Run: `npm_config_prefix=<scratch-npm-prefix-dir> npm run build`
+Expected: clean build. This will fail until Task 3 updates `GlobalHRPoolPage.jsx`'s prop names/values to match — if the build errors reference `GlobalHRPoolPage.jsx`, that's expected at this point; a plain syntax/type check of `ExpensePoolCard.jsx` itself is what this step confirms (Vite doesn't type-check props across files, so it will very likely build clean even before Task 3 — just confirm no JS syntax errors in the new file).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add src/modules/ems/hr-pool/ExpensePoolCard.jsx
+git commit -m "feat: generalize ExpensePoolCard's revenue selector to 4 sources"
+```
+
+---
+
+## Task 3: `GlobalHRPoolPage.jsx` — thread the new props, add the LSGB badge, fix the stale comment
+
+**Files:**
+- Modify: `src/modules/ems/hr-pool/GlobalHRPoolPage.jsx`
+
+**Interfaces:**
+- Consumes: `ExpensePoolCard`'s new `lsgbAvailable`/`getAdminPoolBudgetSummary` props (Task 2); `localOrgPool.getMonthlyAdminPoolBudgetSummary` (Task 1, unchanged signature).
+
+- [ ] **Step 1: Add `lsgbAvailable` to the HR card**
+
+Change:
+```jsx
+      {/* ── HR Expense Pool Card ─────────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="hr"
+        poolLabel="HR"
+        poolFundLabel="Project 5% Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        expenseDropdownItems={hrGeneralExpenses.map((e) => ({ id: e.id, label: e.expense_name }))}
+```
+to:
+```jsx
+      {/* ── HR Expense Pool Card ─────────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="hr"
+        poolLabel="HR"
+        poolFundLabel="Project 5% Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
+        expenseDropdownItems={hrGeneralExpenses.map((e) => ({ id: e.id, label: e.expense_name }))}
+```
+
+- [ ] **Step 2: Add `lsgbAvailable` to the Admin card**
+
+Change:
+```jsx
+      {/* ── Admin Expense Pool Card ──────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="admin"
+        poolLabel="Admin"
+        poolFundLabel="Project 5% Admin Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        expenseDropdownItems={adminExpenseItems.map((e) => ({
+```
+to:
+```jsx
+      {/* ── Admin Expense Pool Card ──────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="admin"
+        poolLabel="Admin"
+        poolFundLabel="Project 5% Admin Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
+        expenseDropdownItems={adminExpenseItems.map((e) => ({
+```
+
+- [ ] **Step 3: Fix the stale "LSGB Fund Balance" comment**
+
+Change:
+```jsx
+      {/* ── LSGB Fund Balance (info line, unrelated to Core 5% pool math) ────── */}
+```
+to:
+```jsx
+      {/* ── LSGB Fund Balance — this same `remaining` figure is now also the
+          "LSGB Revenue" source's available balance on all three pool cards
+          above/below (see `lsgbAvailable` prop) ─────────────────────────── */}
+```
+
+- [ ] **Step 4: Add `lsgbAvailable` and `getAdminPoolBudgetSummary` to the Core card**
+
+Change:
+```jsx
+      {/* ── Core Expense Pool Card ─────────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="core"
+        poolLabel="Core"
+        poolFundLabel="Core 5% Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        expenseDropdownItems={(() => {
+```
+to:
+```jsx
+      {/* ── Core Expense Pool Card ─────────────────────────────────────────────── */}
+      <ExpensePoolCard
+        poolType="core"
+        poolLabel="Core"
+        poolFundLabel="Core 5% Pool"
+        hrRevenueTotal={hrRevenueTotal}
+        lsgbAvailable={lsgbSummary?.remaining || 0}
+        getAdminPoolBudgetSummary={(month) => localOrgPool.getMonthlyAdminPoolBudgetSummary(month)}
+        expenseDropdownItems={(() => {
+```
+
+- [ ] **Step 5: Add an "LSGB Rev" tag to the existing per-project "Allocated Charges" badges**
+
+Change (inside `ProjectHRBudgetCard`):
+```jsx
+                      {/* Revenue source tags */}
+                      {c.revenue_sources?.includes('hr_revenue') && (
+                        <CBadge color="info" style={{ fontSize: '0.58rem' }}>
+                          HR Rev · {c.hr_revenue_type || ''}
+                        </CBadge>
+                      )}
+                    </div>
+```
+to:
+```jsx
+                      {/* Revenue source tags */}
+                      {c.revenue_sources?.includes('hr_revenue') && (
+                        <CBadge color="info" style={{ fontSize: '0.58rem' }}>
+                          HR Rev · {c.hr_revenue_type || ''}
+                        </CBadge>
+                      )}
+                      {c.revenue_sources?.includes('lsgb_revenue') && (
+                        <CBadge color="warning" style={{ fontSize: '0.58rem' }}>
+                          LSGB Rev
+                        </CBadge>
+                      )}
+                    </div>
+```
+
+- [ ] **Step 6: Verify build and lint**
+
+Run: `npm_config_prefix=<scratch-npm-prefix-dir> npm run build`
+Expected: clean build, no errors.
+
+Run: `npm run lint -- src/modules/ems/hr-pool/GlobalHRPoolPage.jsx src/modules/ems/hr-pool/ExpensePoolCard.jsx src/services/localOrgPool.js`
+Expected: no new errors.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/modules/ems/hr-pool/GlobalHRPoolPage.jsx
+git commit -m "feat: wire LSGB Revenue and Admin 5% Share into the Expense Pools page"
+```
+
+---
+
+## Task 4: Manual browser verification
+
+**Files:** none (verification only)
+
+- [ ] **Step 1: Start the dev server and confirm it's serving**
+
+Run: `(nohup npm run start -- --port 5183 --strictPort > /tmp/dev-server.log 2>&1 &)`
+Run: `timeout 30 bash -c 'until curl -sf http://localhost:5183 >/dev/null; do sleep 1; done' && echo UP`
+Expected: `UP`
+
+- [ ] **Step 2: Dev-login and reach the Expense Pools page**
+
+Using Playwright (or the project's established browser-verification approach): dev-login as a role with access to EMS Expense Management (HR or CEO per this repo's RBAC — check `constants/permissions.js` for `MODULE.HR_POOL` or equivalent if the exact route requires a specific role), navigate to the "Expense Pools" page (`/ems/...` — find the exact route in `src/modules/ems/_nav.jsx` or `src/routes/ems.routes.js` under `hr-pool`), screenshot it.
+
+- [ ] **Step 3: Verify the HR card's 3-way split**
+
+Click "Add New HR Expense". Fill Vendor/Payee, Category, Monthly Cut (e.g. 10000). Check "HR Revenue", "Project 5% Pool", and "LSGB Revenue" all three. Confirm:
+- All three show %/₹ fields.
+- Toggling from 1→2→3 selected sources re-splits evenly (100 / 50-50 / ~33-33-34) each time — screenshot after each toggle.
+- Editing one source's % redistributes the other two proportionally, still summing to 100 (validation message turns green "Percentages sum to 100%").
+- The LSGB Revenue row shows "Available: ₹X − ₹Y this expense → ₹Z remaining" using the real LSGB balance from the LSGB Fund Balance line elsewhere on this page.
+- Manually set percentages that DON'T sum to 100 (e.g. 50/50/50) — confirm the "Add & Distribute Expense" button becomes disabled and the validation message turns red.
+- Fix the split back to summing to 100, click Add. Confirm the new expense appears in the list below with three badges: "HR Revenue X%", "Project 5% Pool Y%", "LSGB Revenue Z%".
+
+- [ ] **Step 4: Verify Core's 4-way split and the cross-pool Admin deduction**
+
+On the Core card, note the Admin card's current "remaining" budget figure (visible via the Admin card's own Budget Cap Alert, or by adding a small Admin expense first to get a non-zero baseline if needed — Budget Cap Alert only renders when usage crosses a threshold, so alternatively just note `poolBudgetSummary` isn't directly visible unless near-cap; simplest: use the disabled-button check instead — see next step). Click "Add New Core Expense", pick or fill an employee/vendor, enter a Monthly Cut amount. Check "Core 5% Pool" and "Admin 5% Share" (2-way split, 50/50). Confirm:
+- The Admin 5% Share row appears (it must NOT appear at all on the HR or Admin cards — verify by reopening their Add forms and confirming only 3 rows exist there, no "Admin 5% Share").
+- A Budget Cap Alert-style block appears for the Admin 5% Share portion once the amount is large enough relative to Admin's monthly budget (same visual treatment as the Core 5% Pool alert — try a large amount, e.g. ₹500000 split 50/50, to trigger the "budget exceeded" red block if Admin's monthly budget is smaller than that).
+- Click Add. Confirm the new expense shows "Core 5% Pool X%" and "Admin 5% Share Y%" badges.
+- Switch to the Admin card's Add-Expense form (or just re-open it) and confirm its own Project Pool `poolBudgetSummary`/Budget Cap Alert now reflects the Core expense's admin-share draw — i.e., open the Admin card, start adding a new Admin expense with "Project 5% Pool" checked at 100%, enter an amount close to what should now be the reduced remaining budget, and confirm the alert/disabled-button state reflects the lower remaining (proving `getMonthlyAdminPoolBudgetSummary` now counts the Core expense).
+
+- [ ] **Step 5: Check console errors and lint one more time**
+
+Run in the browser dev tools / via Playwright `console --errors` equivalent: confirm no new console errors from any of the above interactions.
+
+- [ ] **Step 6: Stop the dev server**
+
+Run: `pkill -f "vite.*5183"` (or the PID captured in Step 1).
+
+- [ ] **Step 7: Final commit if verification uncovered fixes**
+
+If any bug was found and fixed during verification, commit it separately with a clear message describing what was wrong and what changed, following this repo's established pattern (see `docs/handoff.md` and recent commits for tone/format).
+
+---
+
+## Self-Review Notes
+
+- **Spec coverage:** Task 1 covers spec §"Data model" (lsgb_revenue_pct on all three add* functions, admin_share_pct + admin_pool tag on addCoreExpense) and the cross-pool budget scan. Task 2 covers spec §1–3 (generalized selector, LSGB row, Admin Share row + BudgetCapAlert reuse). Task 3 covers prop-threading, the stale comment, and the optional per-project badge. Task 4 covers end-to-end verification of both the informational (LSGB) and real-deduction (Admin Share) behaviors. Out-of-scope items from the spec (CorePoolPage.jsx's separate salary list, LSGB module changes, per-project Admin-Share allocation, cumulative LSGB balance tracking, edit-form changes) are correctly not implemented anywhere in this plan.
+- **Type/name consistency:** `pctBySource` keys (`hr_revenue`, `project_pool`, `lsgb_revenue`, `admin_pool`) are identical across Task 1's persisted field names (`hr_revenue_pct`/`lsgb_revenue_pct`/`project_pool_pct`/`admin_share_pct` — note the deliberate naming difference for the stored field, `admin_share_pct` not `admin_pool_pct`, matching the design spec's exact wording) and Task 2's `handleAdd` mapping (`admin_share_pct: pctBySource.admin_pool`). `getAdminPoolBudgetSummary` prop name matches between Task 2's consumption and Task 3's Core-card wiring.
+- **No placeholders:** every step shows complete code, no "add validation"/"similar to Task N" shorthand. The full-file rewrite in Task 2 is shown in its entirety rather than as a diff, per the plan's own note that nearly every section of that file changes.

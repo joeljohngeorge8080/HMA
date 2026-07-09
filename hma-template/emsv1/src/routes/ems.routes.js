@@ -57,8 +57,8 @@ const ExpenseManagementPage = React.lazy(
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
 const VisualModelPage = React.lazy(() => import('../modules/ems/reports-analysis/VisualModelPage'))
-const LsgbDependencyPage = React.lazy(
-  () => import('../modules/ems/reports-analysis/LsgbDependencyPage'),
+const SuperForecastingPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/SuperForecastingPage'),
 )
 
 const placeholder = (title, message) => {
@@ -213,9 +213,9 @@ export const emsRoutes = [
     module: MODULE.REPORTS,
   },
   {
-    path: '/ems/reports-analysis/lsgb-dependency',
-    name: 'Profit / Loss vs LSGB',
-    element: LsgbDependencyPage,
+    path: '/ems/reports-analysis/super-forecasting',
+    name: 'Super Forecasting',
+    element: SuperForecastingPage,
     module: MODULE.REPORTS,
   },
   {

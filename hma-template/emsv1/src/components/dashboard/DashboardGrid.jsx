@@ -1,5 +1,7 @@
 import React, { Suspense } from 'react'
 import { CRow, CCol, CSpinner } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilChartPie } from '@coreui/icons'
 
 const WidgetSkeleton = ({ colProps }) => (
   <CCol {...colProps}>
@@ -16,7 +18,10 @@ const DashboardGrid = ({ activeWidgets }) => {
   if (activeWidgets.length === 0) {
     return (
       <div className="text-center py-5 text-body-secondary">
-        <div className="fs-1 mb-2">📊</div>
+        <CIcon
+          icon={cilChartPie}
+          style={{ width: 42, height: 42, marginBottom: 10, opacity: 0.5 }}
+        />
         <p className="mb-0">
           No widgets selected. Click <strong>Customize</strong> to add some.
         </p>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CBadge } from '@coreui/react'
-import { computeLsgbTotals } from '../../reports-analysis/LsgbDependencyPage'
+import { computeLsgbTotals } from '../../reports-analysis/SuperForecastingPage'
 
 const fmtCompact = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -41,7 +41,7 @@ const ProfitLossWidget = () => {
         <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
           {data.isProfit
             ? `Surplus ${fmtCompact(data.surplus)} — fully self-funded`
-            : `${fmtCompact(data.lsgbNeed)} (${data.lsgbSharePct.toFixed(1)}%) must come from LSGB revenue`}
+            : `${fmtCompact(data.lsgbNeed)} (${data.lsgbSharePct.toFixed(1)}%) must come from Govt grants (LSGB)`}
         </div>
       </CCardBody>
     </CCard>

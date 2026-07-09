@@ -2,15 +2,19 @@
 // Imported after CoreUI, so SCSS $variables cannot override compilation.
 // Use CSS custom properties (--cui-*) to override at runtime.
 
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
 // ─ Brand Tokens ───────────────────────────────────────────────────────────────
 :root {
   // Primary — HMA enterprise blue
   --cui-primary: #2563eb;
   --cui-primary-rgb: 37, 99, 235;
+  --cui-accent: #059669;
+  --cui-accent-rgb: 5, 150, 105;
 
-  // Inter replaces the CoreUI default type stack
+  // Fira Sans replaces the CoreUI default type stack
   --cui-body-font-family:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --cui-body-font-size: 0.875rem;
   --cui-body-line-height: 1.6;
 
