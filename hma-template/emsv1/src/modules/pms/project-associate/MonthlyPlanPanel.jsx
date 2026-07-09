@@ -19,6 +19,11 @@ import {
   CTableHeaderCell,
   CTableBody,
   CTableDataCell,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash, cilReload } from '@coreui/icons'
@@ -523,6 +528,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
   )
   const [saved, setSaved] = useState(false)
   const [reallocError, setReallocError] = useState('')
+  const [revokeConfirm, setRevokeConfirm] = useState(null) // { action: fn, label: string }
   const months = monthsInRange(project.start_date, project.end_date)
   const monthCount = months.length
   const baselinePerMonth = monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
@@ -797,6 +803,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
   }
 
   return (
+    <>
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>📊 Monthly Plan</span>
@@ -1086,11 +1093,15 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                   variant="ghost"
                                   style={{ fontSize: '0.62rem', padding: '0 4px' }}
                                   onClick={() =>
-                                    onProjectChange(
-                                      localProjects.revokeActualSurplusTransfer(project.id, {
-                                        month: m.month,
-                                      }),
-                                    )
+                                    setRevokeConfirm({
+                                      label: `surplus transfer from ${monthLabelShort(m.month)}`,
+                                      action: () =>
+                                        onProjectChange(
+                                          localProjects.revokeActualSurplusTransfer(project.id, {
+                                            month: m.month,
+                                          }),
+                                        ),
+                                    })
                                   }
                                 >
                                   Revoke
@@ -1170,6 +1181,41 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
         )}
       </CCardBody>
     </CCard>
+
+    {/* Revoke confirmation modal */}
+    <CModal
+      visible={Boolean(revokeConfirm)}
+      onClose={() => setRevokeConfirm(null)}
+      alignment="center"
+      size="sm"
+    >
+      <CModalHeader>
+        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+      </CModalHeader>
+      <CModalBody className="small">
+        <p className="mb-1">Are you sure you want to revoke the:</p>
+        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+          This action cannot be undone without re-sending.
+        </p>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
+          Cancel
+        </CButton>
+        <CButton
+          color="danger"
+          size="sm"
+          onClick={() => {
+            revokeConfirm?.action()
+            setRevokeConfirm(null)
+          }}
+        >
+          Yes, Revoke
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  </>
   )
 }
 
@@ -1380,6 +1426,7 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
   const months = (project.monthly_plan || []).map((m) => m.month)
   const [selectedMonth, setSelectedMonth] = useState(months[0] || '')
   const [sendError, setSendError] = useState('')
+  const [revokeConfirm, setRevokeConfirm] = useState(null) // { action: fn, label: string }
   const month = months.includes(selectedMonth) ? selectedMonth : months[0]
 
   if (!months.length) {
@@ -1442,12 +1489,18 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
   }
 
   const handleRevoke = (pool) => {
-    setSendError('')
-    const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
-    onProjectChange(updated)
+    setRevokeConfirm({
+      label: `${POOL_SEND_LABELS[pool]} allocation for ${monthLabel(month)}`,
+      action: () => {
+        setSendError('')
+        const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
+        onProjectChange(updated)
+      },
+    })
   }
 
   return (
+    <>
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
       <CCardBody>
@@ -1607,7 +1660,43 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
         </CRow>
       </CCardBody>
     </CCard>
-  )
+
+    {/* Revoke confirmation modal */}
+    <CModal
+      visible={Boolean(revokeConfirm)}
+      onClose={() => setRevokeConfirm(null)}
+      alignment="center"
+      size="sm"
+    >
+      <CModalHeader>
+        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+      </CModalHeader>
+      <CModalBody className="small">
+        <p className="mb-1">
+          Are you sure you want to revoke the sent budget for:
+        </p>
+        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+          This will remove access for HR to log expenses against this allocation.
+        </p>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
+          Cancel
+        </CButton>
+        <CButton
+          color="danger"
+          size="sm"
+          onClick={() => {
+            revokeConfirm?.action()
+            setRevokeConfirm(null)
+          }}
+        >
+          Yes, Revoke
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  </>)
 }
 
 ExpensePanel.propTypes = {
