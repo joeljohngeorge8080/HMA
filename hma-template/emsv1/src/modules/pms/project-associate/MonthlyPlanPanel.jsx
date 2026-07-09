@@ -929,6 +929,31 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                   const monthPlanned = computeEffectiveProjectMonthly(project, m.month)
                   const surplus = Math.round((monthPlanned - monthActual) * 100) / 100
                   const hasNextMonth = idx < project.monthly_plan.length - 1
+
+                  // Only allow revoking the LAST "Send → Next Month" in a chain.
+                  // Both sender (negative) and receiver (positive) months get entries with
+                  // source='actual_surplus_next_month'. Only negative amounts are outgoing
+                  // (i.e. this month sent surplus away). Filter to those only.
+                  const myNextMonthTransfers = projectTransfers.filter(
+                    (a) => a.source === 'actual_surplus_next_month' && (a.amount || 0) < 0,
+                  )
+                  const isChainContinued =
+                    myNextMonthTransfers.length > 0 &&
+                    (() => {
+                      const counterMonth =
+                        myNextMonthTransfers[myNextMonthTransfers.length - 1]?.counterMonth
+                      if (!counterMonth) return false
+                      // Check if the receiver month also sent surplus onward (amount < 0 = outgoing)
+                      return (project.pool_adjustments || []).some(
+                        (a) =>
+                          a.pool === 'project' &&
+                          a.month === counterMonth &&
+                          a.source === 'actual_surplus_next_month' &&
+                          (a.amount || 0) < 0,
+                      )
+                    })()
+                  const canRevokeNextMonthTransfer =
+                    myNextMonthTransfers.length > 0 && !isChainContinued
                   return (
                     <CTableRow key={m.month}>
                       <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
@@ -1053,9 +1078,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                 .map((a) => monthLabelShort(a.counterMonth))
                                 .join(', ')}
                             </CBadge>
-                            {projectTransfers.some(
-                              (a) => a.source === 'actual_surplus_next_month',
-                            ) &&
+                            {canRevokeNextMonthTransfer &&
                               canEdit && (
                                 <CButton
                                   size="sm"
