@@ -22,6 +22,7 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash, cilReload } from '@coreui/icons'
+import * as XLSX from 'xlsx-js-style'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import { localTasks } from '../../../services/localTasks'
@@ -640,6 +641,161 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     if (fresh) onProjectChange(fresh)
   }
 
+  const handleExportExcel = () => {
+    const round2 = (n) => Math.round(n * 100) / 100
+    const phaseLabelOf = (value) => PHASE_OPTIONS.find((p) => p.value === value)?.label || value
+
+    // ── Styles (xlsx-js-style cell `s` objects) ─────────────────────────
+    const edge = { style: 'thin', color: { rgb: 'B0B7C3' } }
+    const border = { top: edge, bottom: edge, left: edge, right: edge }
+    const NAVY = '1F4E79'
+    const BLUE = '2E75B6'
+    const styles = {
+      title: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: NAVY } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      },
+      sectionHead: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: BLUE } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border,
+      },
+      detailLabel: {
+        font: { bold: true, sz: 10 },
+        fill: { fgColor: { rgb: 'F2F2F2' } },
+        border,
+      },
+      detailValue: { font: { sz: 10 }, border, alignment: { horizontal: 'left' } },
+      tableHead: {
+        font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: BLUE } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border,
+      },
+      total: {
+        font: { bold: true, sz: 11 },
+        fill: { fgColor: { rgb: 'D9E2F3' } },
+        border,
+      },
+    }
+    const rowFill = (isAlt) => (isAlt ? { fill: { fgColor: { rgb: 'EEF4FB' } } } : {})
+    const dataCell = (isAlt) => ({ font: { sz: 10 }, border, ...rowFill(isAlt) })
+    const varianceCell = (v, isAlt) => ({
+      font: { sz: 10, bold: v < 0, color: { rgb: v < 0 ? 'C00000' : '1E7E34' } },
+      border,
+      ...rowFill(isAlt),
+    })
+    const MONEY = '#,##0.00'
+    const txt = (v, s) => ({ v: v === null || v === undefined || v === '' ? '—' : v, t: 's', s })
+    const num = (v, s) => ({ v: round2(v || 0), t: 'n', z: MONEY, s })
+    const pad = (s) => ({ v: '', t: 's', s })
+    const fullWidthRow = (label, s) => [txt(label, s), ...Array(6).fill(pad(s))]
+
+    // ── Sheet content ───────────────────────────────────────────────────
+    const aoa = []
+    const merges = []
+    const mergeFullRow = () =>
+      merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: 6 } })
+
+    mergeFullRow()
+    aoa.push(fullWidthRow(project.name || project.title || 'Project', styles.title))
+    aoa.push([])
+
+    mergeFullRow()
+    aoa.push(fullWidthRow('PROJECT DETAILS', styles.sectionHead))
+    const details = [
+      ['Project Code', txt(project.project_code, styles.detailValue)],
+      ['Funding Agency', txt(project.funding_agency, styles.detailValue)],
+      ['Implementing Partner', txt(project.implementing_partner, styles.detailValue)],
+      ['Location', txt(project.location, styles.detailValue)],
+      ['Project Officer', txt(project.officer_name, styles.detailValue)],
+      ['Status', txt(project.status, styles.detailValue)],
+      ['Start Date', txt(project.start_date, styles.detailValue)],
+      ['End Date', txt(project.end_date, styles.detailValue)],
+      ['Project Value (₹)', num(project.project_value, styles.detailValue)],
+      ['Amount Received (₹)', num(project.amount_received, styles.detailValue)],
+      ['Project Baseline (₹)', num(workingPool, styles.detailValue)],
+    ]
+    details.forEach(([label, valueCell]) => {
+      const r = aoa.length
+      merges.push({ s: { r, c: 0 }, e: { r, c: 1 } }) // label spans A:B
+      merges.push({ s: { r, c: 2 }, e: { r, c: 6 } }) // value spans C:G
+      aoa.push([
+        txt(label, styles.detailLabel),
+        pad(styles.detailLabel),
+        valueCell,
+        ...Array(4).fill(pad(styles.detailValue)),
+      ])
+    })
+    aoa.push([])
+
+    mergeFullRow()
+    aoa.push(fullWidthRow('PHASE BREAKDOWN — PLANNED vs ACTUAL', styles.sectionHead))
+    aoa.push(
+      [
+        'Sl No',
+        'Month',
+        'Phase',
+        'Task / Activity',
+        'Planned (₹)',
+        'Actual (₹)',
+        'Variance (₹)',
+      ].map((h) => txt(h, styles.tableHead)),
+    )
+
+    let slNo = 0
+    let plannedTotal = 0
+    let actualTotal = 0
+    ;(project.monthly_plan || []).forEach((m) => {
+      m.phases.forEach((ph) => {
+        slNo += 1
+        const planned = parseFloat(ph.amount) || 0
+        const actual = parseFloat(ph.actual) || 0
+        plannedTotal += planned
+        actualTotal += actual
+        const isAlt = slNo % 2 === 0
+        const s = dataCell(isAlt)
+        aoa.push([
+          { v: slNo, t: 'n', s },
+          txt(monthLabel(m.month), s),
+          txt(phaseLabelOf(ph.phase), s),
+          txt(ph.label, s),
+          num(planned, s),
+          num(actual, s),
+          num(planned - actual, varianceCell(planned - actual, isAlt)),
+        ])
+      })
+    })
+    aoa.push([
+      pad(styles.total),
+      pad(styles.total),
+      pad(styles.total),
+      txt('TOTAL', styles.total),
+      num(plannedTotal, styles.total),
+      num(actualTotal, styles.total),
+      num(plannedTotal - actualTotal, styles.total),
+    ])
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!merges'] = merges
+    ws['!cols'] = [
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 34 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+    ]
+    ws['!rows'] = aoa.map((_, i) => (i === 0 ? { hpt: 30 } : { hpt: 18 }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Plan')
+    const safeName = (project.name || 'project').replace(/[^\w\d-]+/g, '_').slice(0, 60)
+    XLSX.writeFile(wb, `${safeName}_monthly_plan.xlsx`)
+  }
+
   return (
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -660,6 +816,11 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 ? `Balanced — ${fmt(validation.planTotal)}`
                 : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
             </CBadge>
+          )}
+          {project.monthly_plan?.length > 0 && (
+            <CButton size="sm" color="success" className="text-white" onClick={handleExportExcel}>
+              📥 Export Excel
+            </CButton>
           )}
           {project.monthly_plan?.length > 0 && (
             <CButton size="sm" color="primary" onClick={handleSave}>
