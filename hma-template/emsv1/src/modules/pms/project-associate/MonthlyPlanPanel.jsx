@@ -787,8 +787,17 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                               disabled={!canEdit}
                               onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
                             />
-                            <CInputGroup size="sm" style={{ maxWidth: 120 }}>
-                              <CInputGroupText>₹P</CInputGroupText>
+                            <CInputGroup style={{ maxWidth: 170 }}>
+                              <CInputGroupText
+                                style={{
+                                  background: '#cfe2ff',
+                                  color: '#084298',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem',
+                                }}
+                              >
+                                Planned ₹
+                              </CInputGroupText>
                               <CFormInput
                                 type="number"
                                 min="0"
@@ -797,12 +806,21 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                 onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
                               />
                             </CInputGroup>
-                            <CInputGroup size="sm" style={{ maxWidth: 120 }}>
-                              <CInputGroupText>₹A</CInputGroupText>
+                            <CInputGroup style={{ maxWidth: 170 }}>
+                              <CInputGroupText
+                                style={{
+                                  background: '#d1e7dd',
+                                  color: '#0a3622',
+                                  fontWeight: 700,
+                                  fontSize: '0.78rem',
+                                }}
+                              >
+                                Actual ₹
+                              </CInputGroupText>
                               <CFormInput
                                 type="number"
                                 min="0"
-                                placeholder="Actual"
+                                placeholder="0"
                                 value={ph.actual ?? ''}
                                 disabled={!canEdit}
                                 onChange={(e) => handleActualChange(m.month, i, e.target.value)}
@@ -882,22 +900,20 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                           </div>
                         )}
                         {surplus > 0 && canEdit && (
-                          <div className="d-flex gap-1 mt-1 justify-content-end flex-wrap">
+                          <div className="d-flex flex-column gap-2 mt-2 align-items-stretch">
                             <CButton
-                              size="sm"
                               color="success"
-                              variant="outline"
-                              style={{ fontSize: '0.62rem', padding: '2px 6px' }}
+                              className="fw-bold text-white"
+                              style={{ fontSize: '0.85rem', padding: '8px 14px' }}
                               onClick={() => handleSendSurplusToPools(m.month, surplus)}
                             >
                               Send {fmt(surplus)} → HR/Core
                             </CButton>
                             {hasNextMonth && (
                               <CButton
-                                size="sm"
-                                color="info"
-                                variant="outline"
-                                style={{ fontSize: '0.62rem', padding: '2px 6px' }}
+                                color="primary"
+                                className="fw-bold text-white"
+                                style={{ fontSize: '0.85rem', padding: '8px 14px' }}
                                 onClick={() => handleSendSurplusToNextMonth(m.month, surplus)}
                               >
                                 Send {fmt(surplus)} → Next Month
