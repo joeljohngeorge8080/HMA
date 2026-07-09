@@ -766,66 +766,70 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                       <CTableDataCell>
                         {m.phases.map((ph, i) => (
                           <div key={i} className="d-flex align-items-center gap-1 mb-1 flex-wrap">
-                            <CFormSelect
-                              size="sm"
-                              style={{ width: 110 }}
-                              value={ph.phase}
-                              disabled={!canEdit}
-                              onChange={(e) => handlePhaseChange(m.month, i, e.target.value)}
-                            >
-                              {PHASE_OPTIONS.map((p) => (
-                                <option key={p.value} value={p.value}>
-                                  {p.label}
-                                </option>
-                              ))}
-                            </CFormSelect>
-                            <CFormInput
-                              size="sm"
-                              style={{ width: 130 }}
-                              placeholder="Task / activity"
-                              value={ph.label}
-                              disabled={!canEdit}
-                              onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
-                            />
-                            <CInputGroup style={{ maxWidth: 170 }}>
-                              <CInputGroupText
-                                style={{
-                                  background: '#cfe2ff',
-                                  color: '#084298',
-                                  fontWeight: 700,
-                                  fontSize: '0.78rem',
-                                }}
-                              >
-                                Planned ₹
-                              </CInputGroupText>
-                              <CFormInput
-                                type="number"
-                                min="0"
-                                value={ph.amount}
+                            <div className="d-flex flex-nowrap align-items-center gap-1">
+                              <CFormSelect
+                                size="sm"
+                                style={{ width: 110 }}
+                                value={ph.phase}
                                 disabled={!canEdit}
-                                onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
-                              />
-                            </CInputGroup>
-                            <CInputGroup style={{ maxWidth: 170 }}>
-                              <CInputGroupText
-                                style={{
-                                  background: '#d1e7dd',
-                                  color: '#0a3622',
-                                  fontWeight: 700,
-                                  fontSize: '0.78rem',
-                                }}
+                                onChange={(e) => handlePhaseChange(m.month, i, e.target.value)}
                               >
-                                Actual ₹
-                              </CInputGroupText>
+                                {PHASE_OPTIONS.map((p) => (
+                                  <option key={p.value} value={p.value}>
+                                    {p.label}
+                                  </option>
+                                ))}
+                              </CFormSelect>
                               <CFormInput
-                                type="number"
-                                min="0"
-                                placeholder="0"
-                                value={ph.actual ?? ''}
+                                size="sm"
+                                style={{ width: 130 }}
+                                placeholder="Task / activity"
+                                value={ph.label}
                                 disabled={!canEdit}
-                                onChange={(e) => handleActualChange(m.month, i, e.target.value)}
+                                onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
                               />
-                            </CInputGroup>
+                            </div>
+                            <div className="d-flex flex-nowrap align-items-center gap-1">
+                              <CInputGroup style={{ width: 150 }}>
+                                <CInputGroupText
+                                  style={{
+                                    background: '#cfe2ff',
+                                    color: '#084298',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                  }}
+                                >
+                                  Planned ₹
+                                </CInputGroupText>
+                                <CFormInput
+                                  type="number"
+                                  min="0"
+                                  value={ph.amount}
+                                  disabled={!canEdit}
+                                  onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
+                                />
+                              </CInputGroup>
+                              <CInputGroup style={{ width: 150 }}>
+                                <CInputGroupText
+                                  style={{
+                                    background: '#d1e7dd',
+                                    color: '#0a3622',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                  }}
+                                >
+                                  Actual ₹
+                                </CInputGroupText>
+                                <CFormInput
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={ph.actual ?? ''}
+                                  disabled={!canEdit}
+                                  onChange={(e) => handleActualChange(m.month, i, e.target.value)}
+                                />
+                              </CInputGroup>
+                            </div>
                             {canEdit && (
                               <CButton
                                 size="sm"
