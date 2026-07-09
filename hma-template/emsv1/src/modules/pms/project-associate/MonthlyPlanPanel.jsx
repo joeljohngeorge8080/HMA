@@ -21,7 +21,7 @@ import {
   CTableDataCell,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPlus, cilTrash } from '@coreui/icons'
+import { cilPlus, cilTrash, cilReload } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import { localTasks } from '../../../services/localTasks'
@@ -31,6 +31,7 @@ import {
   computeEffectivePoolMonthly,
   computeEffectivePoolPct,
   computeEffectiveProjectMonthly,
+  computeMonthActualTotal,
   sumManualPoolAdjustments,
   validatePlanTotalWithCascade,
 } from '../../../services/monthlyApportionment'
@@ -520,6 +521,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     project.pool_adjustments,
   )
   const [saved, setSaved] = useState(false)
+  const [reallocError, setReallocError] = useState('')
   const months = monthsInRange(project.start_date, project.end_date)
   const monthCount = months.length
   const baselinePerMonth = monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
@@ -534,6 +536,15 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     const monthEntry = project.monthly_plan.find((m) => m.month === month)
     const phases = monthEntry.phases.map((ph, i) =>
       i === phaseIdx ? { ...ph, amount: parseFloat(amount) || 0 } : ph,
+    )
+    const { project: updated } = localProjects.updateMonthPlan(project.id, month, phases)
+    onProjectChange(updated)
+  }
+
+  const handleActualChange = (month, phaseIdx, actual) => {
+    const monthEntry = project.monthly_plan.find((m) => m.month === month)
+    const phases = monthEntry.phases.map((ph, i) =>
+      i === phaseIdx ? { ...ph, actual: parseFloat(actual) || 0 } : ph,
     )
     const { project: updated } = localProjects.updateMonthPlan(project.id, month, phases)
     onProjectChange(updated)
@@ -555,7 +566,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
 
   const handleAddPhase = (month) => {
     const monthEntry = project.monthly_plan.find((m) => m.month === month)
-    const phases = [...monthEntry.phases, { phase: 'design', label: '', amount: 0 }]
+    const phases = [...monthEntry.phases, { phase: 'design', label: '', amount: 0, actual: 0 }]
     const { project: updated } = localProjects.updateMonthPlan(project.id, month, phases)
     onProjectChange(updated)
   }
@@ -596,11 +607,53 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const handleSendSurplusToPools = (monthValue, surplus) => {
+    setReallocError('')
+    try {
+      const updated = localProjects.sendSurplusToPools(project.id, {
+        month: monthValue,
+        surplus,
+        createdBy: currentUser,
+      })
+      onProjectChange(updated)
+    } catch (e) {
+      setReallocError(e.message)
+    }
+  }
+
+  const handleSendSurplusToNextMonth = (monthValue, surplus) => {
+    setReallocError('')
+    try {
+      const updated = localProjects.sendSurplusToNextMonth(project.id, {
+        month: monthValue,
+        surplus,
+        createdBy: currentUser,
+      })
+      onProjectChange(updated)
+    } catch (e) {
+      setReallocError(e.message)
+    }
+  }
+
+  const handleRefresh = () => {
+    const fresh = localProjects.getById(project.id)
+    if (fresh) onProjectChange(fresh)
+  }
+
   return (
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>📊 Monthly Plan</span>
         <div className="d-flex align-items-center gap-2">
+          <CButton
+            size="sm"
+            color="secondary"
+            variant="ghost"
+            title="Refresh figures"
+            onClick={handleRefresh}
+          >
+            <CIcon icon={cilReload} size="sm" />
+          </CButton>
           {project.monthly_plan?.length > 0 && (
             <CBadge color={validation.valid ? 'success' : 'danger'}>
               {validation.valid
@@ -618,6 +671,11 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
       {saved && (
         <CAlert color="success" className="mb-0 py-2 small rounded-0 text-center">
           ✓ Monthly plan saved
+        </CAlert>
+      )}
+      {reallocError && (
+        <CAlert color="danger" className="mb-0 py-2 small rounded-0 text-center">
+          {reallocError}
         </CAlert>
       )}
       <CCardBody className="p-0">
@@ -682,7 +740,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {project.monthly_plan.map((m) => {
+                {project.monthly_plan.map((m, idx) => {
                   const adjustedFor = (pool) =>
                     (project.pool_adjustments || []).some(
                       (a) => a.pool === pool && a.month === m.month,
@@ -691,6 +749,17 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                     project.pool_adjustments,
                     m.month,
                   )
+                  const projectTransfers = (project.pool_adjustments || []).filter(
+                    (a) => a.pool === 'project' && a.month === m.month,
+                  )
+                  const netProjectTransfer = projectTransfers.reduce(
+                    (s, a) => s + (a.amount || 0),
+                    0,
+                  )
+                  const monthActual = computeMonthActualTotal(m)
+                  const monthPlanned = computeEffectiveProjectMonthly(project, m.month)
+                  const surplus = Math.round((monthPlanned - monthActual) * 100) / 100
+                  const hasNextMonth = idx < project.monthly_plan.length - 1
                   return (
                     <CTableRow key={m.month}>
                       <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
@@ -719,13 +788,24 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                               onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
                             />
                             <CInputGroup size="sm" style={{ maxWidth: 120 }}>
-                              <CInputGroupText>₹</CInputGroupText>
+                              <CInputGroupText>₹P</CInputGroupText>
                               <CFormInput
                                 type="number"
                                 min="0"
                                 value={ph.amount}
                                 disabled={!canEdit}
                                 onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
+                              />
+                            </CInputGroup>
+                            <CInputGroup size="sm" style={{ maxWidth: 120 }}>
+                              <CInputGroupText>₹A</CInputGroupText>
+                              <CFormInput
+                                type="number"
+                                min="0"
+                                placeholder="Actual"
+                                value={ph.actual ?? ''}
+                                disabled={!canEdit}
+                                onChange={(e) => handleActualChange(m.month, i, e.target.value)}
                               />
                             </CInputGroup>
                             {canEdit && (
@@ -754,7 +834,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                         )}
                       </CTableDataCell>
                       <CTableDataCell className="text-end fw-bold">
-                        {fmt(computeEffectiveProjectMonthly(project, m.month))}
+                        {fmt(monthPlanned)}
                         {projectReallocation !== 0 && (
                           <CBadge
                             color="warning"
@@ -764,6 +844,66 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                           >
                             adjusted
                           </CBadge>
+                        )}
+                        {netProjectTransfer !== 0 && (
+                          <div className="mt-1">
+                            <CBadge
+                              color={netProjectTransfer > 0 ? 'warning' : 'info'}
+                              shape="rounded-pill"
+                              style={{ fontSize: '0.6rem' }}
+                            >
+                              {netProjectTransfer > 0 ? '−' : '+'}
+                              {fmt(Math.abs(netProjectTransfer))}{' '}
+                              {netProjectTransfer > 0 ? '→ given to' : '← from'}{' '}
+                              {projectTransfers
+                                .map((a) => monthLabelShort(a.counterMonth))
+                                .join(', ')}
+                            </CBadge>
+                            {projectTransfers.some(
+                              (a) => a.source === 'actual_surplus_next_month',
+                            ) &&
+                              canEdit && (
+                                <CButton
+                                  size="sm"
+                                  color="secondary"
+                                  variant="ghost"
+                                  style={{ fontSize: '0.62rem', padding: '0 4px' }}
+                                  onClick={() =>
+                                    onProjectChange(
+                                      localProjects.revokeActualSurplusTransfer(project.id, {
+                                        month: m.month,
+                                      }),
+                                    )
+                                  }
+                                >
+                                  Revoke
+                                </CButton>
+                              )}
+                          </div>
+                        )}
+                        {surplus > 0 && canEdit && (
+                          <div className="d-flex gap-1 mt-1 justify-content-end flex-wrap">
+                            <CButton
+                              size="sm"
+                              color="success"
+                              variant="outline"
+                              style={{ fontSize: '0.62rem', padding: '2px 6px' }}
+                              onClick={() => handleSendSurplusToPools(m.month, surplus)}
+                            >
+                              Send {fmt(surplus)} → HR/Core
+                            </CButton>
+                            {hasNextMonth && (
+                              <CButton
+                                size="sm"
+                                color="info"
+                                variant="outline"
+                                style={{ fontSize: '0.62rem', padding: '2px 6px' }}
+                                onClick={() => handleSendSurplusToNextMonth(m.month, surplus)}
+                              >
+                                Send {fmt(surplus)} → Next Month
+                              </CButton>
+                            )}
+                          </div>
                         )}
                       </CTableDataCell>
                       {['admin', 'hr', 'core'].map((pool) => (
@@ -931,9 +1071,10 @@ const ActualSpendPanel = ({ project }) => {
   const actualForMonth = (month) =>
     entries.filter((e) => e.month === month).reduce((s, e) => s + e.amount, 0)
 
-  const projectEntries = localProjectExpenses.list({ projectId: project.id, pool: 'project' })
-  const actualProjectForMonth = (month) =>
-    projectEntries.filter((e) => e.month === month).reduce((s, e) => s + e.amount, 0)
+  const actualProjectForMonth = (month) => {
+    const monthEntry = project.monthly_plan.find((m) => m.month === month)
+    return computeMonthActualTotal(monthEntry)
+  }
 
   return (
     <CCard className="shadow-sm mb-4">
@@ -942,8 +1083,8 @@ const ActualSpendPanel = ({ project }) => {
         <div className="small text-body-secondary mb-3">
           Real money spent against this project, month by month, compared to the planned pool rates.
           Admin actuals are logged by HR in EMS → Expense Management → Project Expenses. Project
-          actuals are logged by the PO directly in the Expense tab. HR/Core actual tracking is not
-          yet wired up.
+          actuals are entered directly on each phase line in the Monthly Plan table above. HR/Core
+          actual tracking is not yet wired up.
         </div>
         <div style={{ overflowX: 'auto' }}>
           <CTable bordered small align="middle" className="mb-0" style={{ fontSize: '0.78rem' }}>
@@ -1005,133 +1146,6 @@ const monthBounds = (month) => {
   const [y, m] = month.split('-').map(Number)
   const lastDay = new Date(y, m, 0).getDate()
   return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` }
-}
-
-const ActualExpenseCard = ({ projectId, month, plannedAmount, canEdit, currentUser }) => {
-  // No local `entries` state — read straight from the store on every render
-  // (same convention as ActualSpendPanel below). `refresh` only exists to
-  // force a re-render after a mutation; its value is never read.
-  const [, setRefresh] = useState(0)
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [desc, setDesc] = useState('')
-  const [amount, setAmount] = useState('')
-
-  const entries = localProjectExpenses.list({ projectId, pool: 'project', month })
-  const logged = entries.reduce((s, e) => s + (e.amount || 0), 0)
-  const remaining = plannedAmount - logged
-  const canAdd = desc.trim() && parseFloat(amount) > 0
-
-  const handleAdd = () => {
-    if (!canAdd) return
-    localProjectExpenses.create({
-      project_id: projectId,
-      pool: 'project',
-      month,
-      amount: parseFloat(amount),
-      label: desc.trim(),
-      date,
-      createdBy: currentUser,
-    })
-    setRefresh((r) => r + 1)
-    setDesc('')
-    setAmount('')
-  }
-
-  const handleDelete = (id) => {
-    localProjectExpenses.remove(id)
-    setRefresh((r) => r + 1)
-  }
-
-  const fmtEntryDate = (d) =>
-    d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''
-
-  return (
-    <CCard className="h-100">
-      <CCardHeader className="bg-transparent fw-semibold py-2">Actual Expense</CCardHeader>
-      <CCardBody className="p-2">
-        <div className="small text-body-secondary mb-2">
-          Planned {fmt(plannedAmount)} · Logged {fmt(logged)} · Remaining {fmt(remaining)}
-        </div>
-
-        {entries.length === 0 ? (
-          <div className="text-center text-body-tertiary small py-2">
-            No expenses logged this month.
-          </div>
-        ) : (
-          entries.map((e) => (
-            <div
-              key={e.id}
-              className="d-flex justify-content-between align-items-center border-bottom py-1 small"
-            >
-              <span>
-                {fmtEntryDate(e.date)} — {e.label}
-              </span>
-              <span className="d-flex align-items-center gap-2">
-                {fmt(e.amount)}
-                {canEdit && (
-                  <CButton
-                    size="sm"
-                    color="secondary"
-                    variant="ghost"
-                    style={{ padding: '0 4px' }}
-                    onClick={() => handleDelete(e.id)}
-                  >
-                    ✕
-                  </CButton>
-                )}
-              </span>
-            </div>
-          ))
-        )}
-
-        {canEdit && (
-          <CRow className="g-1 mt-2 align-items-center">
-            <CCol xs={4} md={3}>
-              <CFormInput
-                type="date"
-                size="sm"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </CCol>
-            <CCol xs={8} md={5}>
-              <CFormInput
-                size="sm"
-                placeholder="Description"
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-              />
-            </CCol>
-            <CCol xs={8} md={3}>
-              <CInputGroup size="sm">
-                <CInputGroupText>₹</CInputGroupText>
-                <CFormInput
-                  type="number"
-                  min="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                />
-              </CInputGroup>
-            </CCol>
-            <CCol xs={4} md={1}>
-              <CButton size="sm" color="primary" disabled={!canAdd} onClick={handleAdd}>
-                Add
-              </CButton>
-            </CCol>
-          </CRow>
-        )}
-      </CCardBody>
-    </CCard>
-  )
-}
-
-ActualExpenseCard.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  month: PropTypes.string.isRequired,
-  plannedAmount: PropTypes.number.isRequired,
-  canEdit: PropTypes.bool,
-  currentUser: PropTypes.string,
 }
 
 /**
@@ -1241,16 +1255,6 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
         </CFormSelect>
 
         <CRow className="g-3">
-          <CCol xs={12} md={6}>
-            <ActualExpenseCard
-              projectId={project.id}
-              month={month}
-              plannedAmount={computeEffectiveProjectMonthly(project, month)}
-              canEdit={canEdit}
-              currentUser={currentUser}
-            />
-          </CCol>
-
           <CCol xs={12} md={6}>
             <CCard className="h-100">
               <CCardHeader className="bg-transparent fw-semibold py-2">
