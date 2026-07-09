@@ -906,12 +906,18 @@ export const localProjects = {
     if (pIdx === -1) throw new Error('Project not found')
     const project = projects[pIdx]
 
-    const existing = (project.pool_adjustments || []).find(
-      (a) => a.source === 'actual_surplus_next_month' && a.month === month,
+    // Find the LAST (most recent) outgoing transfer from this month so that
+    // we always revoke the tail of the chain. Outgoing entries have amount < 0.
+    const outgoing = (project.pool_adjustments || []).filter(
+      (a) => a.source === 'actual_surplus_next_month' && a.month === month && (a.amount || 0) < 0,
     )
-    if (!existing) return project
+    if (!outgoing.length) return project
 
+    const existing = outgoing[outgoing.length - 1]
     const counterMonth = existing.counterMonth
+
+    // Remove the outgoing entry from `month` AND the matching incoming entry from `counterMonth`.
+    // Match by both month sides so partial duplicates don't linger.
     projects[pIdx] = {
       ...project,
       pool_adjustments: (project.pool_adjustments || []).filter(
