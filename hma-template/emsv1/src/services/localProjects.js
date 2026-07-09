@@ -722,8 +722,7 @@ export const localProjects = {
     const nonManualWithdrawn = (projects[pIdx].pool_adjustments || [])
       .filter((a) => a.pool === pool && a.month === month && a.source !== 'manual')
       .reduce((s, a) => s + (a.amount || 0), 0)
-    const delta =
-      Math.round((flat - nonManualWithdrawn - (parseFloat(newAmount) || 0)) * 100) / 100
+    const delta = Math.round((flat - nonManualWithdrawn - (parseFloat(newAmount) || 0)) * 100) / 100
 
     const withoutExistingManual = (projects[pIdx].pool_adjustments || []).filter(
       (a) => !(a.source === 'manual' && a.pool === pool && a.month === month),
@@ -872,10 +871,7 @@ export const localProjects = {
 
     const withoutExistingSurplusTransfer = (project.pool_adjustments || []).filter(
       (a) =>
-        !(
-          a.source === 'actual_surplus_next_month' &&
-          (a.month === month || a.month === nextMonth)
-        ),
+        !(a.source === 'actual_surplus_next_month' && (a.month === month || a.month === nextMonth)),
     )
     const record = (targetMonth, amount, counterMonth, reason) => ({
       id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
