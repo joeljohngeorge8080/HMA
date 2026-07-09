@@ -100,7 +100,7 @@ export const computeEffectivePoolMonthly = (project, pool, month) => {
 export const sumManualPoolAdjustments = (adjustments, month) =>
   Math.round(
     (adjustments || [])
-      .filter((a) => a.source === 'manual' && a.month === month)
+      .filter((a) => a.source === 'manual' && a.month === month && a.pool !== 'project')
       .reduce((s, a) => s + (a.amount || 0), 0) * 100,
   ) / 100
 
@@ -119,7 +119,8 @@ export const computeEffectiveProjectMonthly = (project, month) => {
   const monthEntry = (project.monthly_plan || []).find((m) => m.month === month)
   const rawTotal = monthEntry?.total || 0
   const manualDelta = sumManualPoolAdjustments(project.pool_adjustments, month)
-  return Math.round((rawTotal + manualDelta) * 100) / 100
+  const projectTransfer = sumPoolAdjustments(project.pool_adjustments, 'project', month)
+  return Math.round((rawTotal + manualDelta - projectTransfer) * 100) / 100
 }
 
 /**
@@ -226,6 +227,80 @@ export const computeCascadeAdjustments = (project) => {
   })
 
   return adjustments
+}
+
+/** Sum of a month's phase-line `actual` figures. Blank/unset lines count as 0. */
+export const computeMonthActualTotal = (monthEntry) =>
+  Math.round(
+    (monthEntry?.phases || []).reduce((s, ph) => s + (parseFloat(ph.actual) || 0), 0) * 100,
+  ) / 100
+
+/**
+ * Derives the 'actual_pull' pool_adjustments a monthly plan's actual-vs-
+ * planned figures imply: processing months chronologically, when a
+ * month's actual total exceeds its *effective* planned total (raw plan
+ * total plus/minus any transfer already applied to it earlier in this
+ * same pass), the excess is pulled from the immediately next month's
+ * effective planned total, capped at whatever that month currently has
+ * available. Never reaches past the next month — an excess bigger than
+ * next month's capacity, or a last-month excess with no next month, is
+ * simply not represented by an adjustment for the uncovered remainder
+ * (the UI flags it directly from the raw numbers, nothing is forced).
+ * Pure function of the project's current monthly_plan and
+ * pool_adjustments; does not read or preserve any existing 'actual_pull'
+ * records itself — the caller (localProjects.js updateMonthPlan) discards
+ * old ones and replaces them with this function's fresh output, the same
+ * convention computeCascadeAdjustments already uses for 'auto_cascade'.
+ * The caller must pass pool_adjustments with any stale 'actual_pull'
+ * records already stripped out, or this function will double-subtract
+ * them when computing effective planned figures.
+ */
+export const computeActualVsPlannedTransfers = (project) => {
+  const plan = project.monthly_plan || []
+  const adjustments = project.pool_adjustments || []
+  const transfers = []
+  const appliedDelta = {}
+  const effectivePlanned = (month, rawTotal) => {
+    const manualDelta = sumManualPoolAdjustments(adjustments, month)
+    const existingProjectTransfer = sumPoolAdjustments(adjustments, 'project', month)
+    return rawTotal + manualDelta - existingProjectTransfer - (appliedDelta[month] || 0)
+  }
+
+  plan.forEach((m, idx) => {
+    const rawTotal = m.total || 0
+    const planned = effectivePlanned(m.month, rawTotal)
+    const actual = computeMonthActualTotal(m)
+    const excess = Math.round((actual - planned) * 100) / 100
+    if (excess <= 0) return
+
+    const nextMonth = plan[idx + 1]
+    if (!nextMonth) return
+
+    const nextRawTotal = nextMonth.total || 0
+    const nextAvailable = effectivePlanned(nextMonth.month, nextRawTotal)
+    const pull = Math.min(excess, Math.max(nextAvailable, 0))
+    if (pull <= 0) return
+
+    transfers.push({
+      pool: 'project',
+      month: nextMonth.month,
+      amount: pull,
+      source: 'actual_pull',
+      counterMonth: m.month,
+      reason: `Auto-pulled to cover ${m.month} overage`,
+    })
+    transfers.push({
+      pool: 'project',
+      month: m.month,
+      amount: -pull,
+      source: 'actual_pull',
+      counterMonth: nextMonth.month,
+      reason: `Auto-funded from ${nextMonth.month}`,
+    })
+    appliedDelta[nextMonth.month] = (appliedDelta[nextMonth.month] || 0) + pull
+  })
+
+  return transfers
 }
 
 /**
