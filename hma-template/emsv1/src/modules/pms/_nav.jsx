@@ -58,11 +58,11 @@ const pmsNav = [
     name: 'Project Lifecycle',
     icon: <CIcon icon={cilSync} customClassName="nav-icon" />,
     items: [
-      { component: CNavItem, name: 'Pipeline', to: '/pms/project-lifecycle/pipeline' },
-      { component: CNavItem, name: 'Design Phase', to: '/pms/project-lifecycle/design' },
-      { component: CNavItem, name: 'Implementation', to: '/pms/project-lifecycle/implementation' },
-      { component: CNavItem, name: 'Follow-up', to: '/pms/project-lifecycle/followup' },
-      { component: CNavItem, name: 'Completed', to: '/pms/project-lifecycle/completed' },
+      { component: CNavItem, name: 'Pipeline', to: '/pms/projects?status=pipeline' },
+      { component: CNavItem, name: 'Design Phase', to: '/pms/projects?status=approved' },
+      { component: CNavItem, name: 'Implementation', to: '/pms/projects?status=ongoing' },
+      { component: CNavItem, name: 'Follow-up', to: '/pms/projects?status=ongoing' },
+      { component: CNavItem, name: 'Completed', to: '/pms/projects?status=completed' },
     ],
   },
 

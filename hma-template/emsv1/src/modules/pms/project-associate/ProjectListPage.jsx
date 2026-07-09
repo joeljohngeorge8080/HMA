@@ -3,7 +3,7 @@
  * Route: /pms/projects
  */
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CCard,
   CCardBody,
@@ -60,10 +60,21 @@ const STATUS_META = {
 
 const ProjectListPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
   const [total, setTotal] = useState(0)
-  const [filters, setFilters] = useState({ search: '', status: '', phase: '' })
+  const [filters, setFilters] = useState({
+    search: '',
+    status: searchParams.get('status') || '',
+    phase: '',
+  })
   const [toast, setToast] = useState(null)
+
+  // Sync filter when URL ?status= changes (e.g. clicking sidebar lifecycle items)
+  useEffect(() => {
+    const s = searchParams.get('status') || ''
+    setFilters((prev) => ({ ...prev, status: s }))
+  }, [searchParams])
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
