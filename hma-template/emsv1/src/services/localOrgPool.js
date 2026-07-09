@@ -22,7 +22,7 @@
 
 import { localNotifications } from './localNotifications'
 
-const PROJECTS_KEY = 'hma_projects_v9'
+const PROJECTS_KEY = 'hma_projects_v11' // must match localProjects.js PROJECTS_KEY
 const ORG_POOL_KEY = 'hma_org_pool_v1'
 
 // ─── Fixed allocation constants ───────────────────────────────────────────────
@@ -191,17 +191,14 @@ export const localOrgPool = {
   getActiveProjectMonthlyBudgets(pool = 'hr') {
     const todayYM = new Date().toISOString().slice(0, 7) // YYYY-MM
 
-    const statusOk = (p) =>
-      p.status === 'ongoing' || p.status === 'active' || p.status === 'approved'
-    const projects = readProjects().filter((p) =>
-      pool === 'admin' ? statusOk(p) : p.is_operations_active && statusOk(p),
-    )
+    // Include all projects
+    const projects = readProjects()
 
     const budgets = projects
       .map((p) => {
         if (pool === 'admin') {
           const pv = projectValue(p)
-          const tpm = totalProjectMonths(p)
+          const tpm = totalProjectMonths(p) || 1
           const pct = p.admin_pct ?? 5
           const monthlyBudget = pv > 0 ? Math.round(((pv * (pct / 100)) / tpm) * 100) / 100 : 0
           const poolBudget = pv > 0 ? Math.round(pv * (pct / 100) * 100) / 100 : 0
@@ -220,15 +217,15 @@ export const localOrgPool = {
           }
         }
 
-        // HR/Core only apply from the month the project was activated
-        const activationMonth = getActivationMonth(p)
-        if (!activationMonth || activationMonth > todayYM) return null
+        const activationMonth = getActivationMonth(p) || todayYM
 
-        const inst = getCurrentInstallment(p)
-        if (!inst) return null
+        let inst = getCurrentInstallment(p)
+        if (!inst) {
+          inst = (p.installments && p.installments[0]) || { id: null, label: 'N/A', amount: 0, start_date: p.start_date }
+        }
 
         const pv = projectValue(p)
-        const tpm = totalProjectMonths(p)
+        const tpm = totalProjectMonths(p) || 1
         const pcts = getEffectivePoolPcts(p, todayYM)
         const pct = pool === 'core' ? pcts.core_pct : pcts.hr_pct
 
