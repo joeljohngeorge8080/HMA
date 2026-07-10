@@ -15,6 +15,7 @@ import {
   cilBell,
   cilNotes,
   cilOptions,
+  cilCalculator,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -109,6 +110,13 @@ const emsNav = [
         icon: <CIcon icon={cilTags} customClassName="nav-icon" />,
       },
     ],
+  },
+  {
+    component: CNavGroup,
+    name: 'Finance',
+    icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+    items: [{ component: CNavItem, name: 'GST Bills', to: '/ems/finance/gst-bills' }],
   },
 
   // ── User Management (Admin + HR) ───────────────────────────────────

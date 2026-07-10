@@ -50,6 +50,7 @@ const ExpenseUpload = React.lazy(
 const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
+const GstBillsPage = React.lazy(() => import('../modules/ems/finance/GstBillsPage'))
 
 const ExpenseManagementPage = React.lazy(
   () => import('../modules/ems/expense-management/ExpenseManagementPage'),
@@ -204,6 +205,13 @@ export const emsRoutes = [
     name: 'Expense Detail',
     element: GeneralExpenseDetail,
     module: MODULE.GENERAL_EXPENSES,
+  },
+
+  {
+    path: '/ems/finance/gst-bills',
+    name: 'GST Bills',
+    element: GstBillsPage,
+    module: MODULE.FINANCE,
   },
 
   {
