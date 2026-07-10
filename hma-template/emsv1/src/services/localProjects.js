@@ -289,8 +289,7 @@ const mapSdpToLocal = (p) => {
       : [],
     created_at: '2026-01-01T00:00:00Z',
     updated_at: now(),
-    is_operations_active: statusLower === 'ongoing' || statusLower === 'completed',
-    operations_activated_at: statusLower === 'ongoing' ? p.start_date || now() : null,
+
     tasks_count: (p.phases || []).length,
     tasks_completed: (p.phases || []).filter(
       (ph) => (ph.status || '').toLowerCase() === 'completed',
@@ -390,9 +389,7 @@ export const localProjects = {
       tasks_completed: 0,
       pending_approvals: 0,
       email_sent: false,
-      is_operations_active: false,
-      operations_activated_at: null,
-      operations_activated_month: null, // YYYY-MM — set when activated
+
       pool_pct_adjustments: [], // [{ from_month, hr_pct, core_pct }]
       core_pct: 5,
       hr_pct: 5,
@@ -434,24 +431,6 @@ export const localProjects = {
     return projects[idx]
   },
 
-  activateProject(id) {
-    const projects = read(PROJECTS_KEY)
-    const idx = projects.findIndex((p) => p.id === id)
-    if (idx === -1) throw new Error('Project not found')
-    const nowStr = now()
-    projects[idx].is_operations_active = true
-    projects[idx].operations_activated_at = nowStr
-    // Record the YYYY-MM when HR/Core pool distribution begins
-    projects[idx].operations_activated_month = nowStr.slice(0, 7)
-    if (projects[idx].status === 'pipeline' || projects[idx].status === 'approved') {
-      projects[idx].status = 'ongoing'
-      projects[idx].phase = 'implementation'
-    }
-    projects[idx].updated_at = nowStr
-    write(PROJECTS_KEY, projects)
-    notify()
-    return projects[idx]
-  },
 
   // ── Monthly Planning ────────────────────────────────────────────────────────
 
@@ -906,12 +885,18 @@ export const localProjects = {
     if (pIdx === -1) throw new Error('Project not found')
     const project = projects[pIdx]
 
-    const existing = (project.pool_adjustments || []).find(
-      (a) => a.source === 'actual_surplus_next_month' && a.month === month,
+    // Find the LAST (most recent) outgoing transfer from this month so that
+    // we always revoke the tail of the chain. Outgoing entries have amount < 0.
+    const outgoing = (project.pool_adjustments || []).filter(
+      (a) => a.source === 'actual_surplus_next_month' && a.month === month && (a.amount || 0) < 0,
     )
-    if (!existing) return project
+    if (!outgoing.length) return project
 
+    const existing = outgoing[outgoing.length - 1]
     const counterMonth = existing.counterMonth
+
+    // Remove the outgoing entry from `month` AND the matching incoming entry from `counterMonth`.
+    // Match by both month sides so partial duplicates don't linger.
     projects[pIdx] = {
       ...project,
       pool_adjustments: (project.pool_adjustments || []).filter(
