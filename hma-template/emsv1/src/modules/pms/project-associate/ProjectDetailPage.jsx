@@ -779,14 +779,6 @@ const ProjectDetailPage = () => {
     setToast({ color: 'success', message: 'Utilisation Certificate submitted' })
   }
 
-  const handleActivateProject = () => {
-    const updated = localProjects.activateProject(project.id)
-    setProject(updated)
-    setToast({
-      color: 'success',
-      message: 'Project operations activated — HR & Core pool contributions are now live',
-    })
-  }
 
   const handleUpdateBeneficiaries = () => {
     const val = parseInt(beneficiariesCompleted, 10) || 0
@@ -854,42 +846,7 @@ const ProjectDetailPage = () => {
             <CIcon icon={cilPen} className="me-1" />
             Edit Project
           </CButton>
-          {!project.is_operations_active && projectTaskCount === 0 && (
-            <CBadge
-              color="secondary"
-              className="px-3 py-2 d-flex align-items-center"
-              style={{ fontSize: '0.8rem' }}
-            >
-              ⏸ Not Activated — assign a task first
-            </CBadge>
-          )}
-          {!project.is_operations_active && projectTaskCount > 0 && !hasMonthlyPlan && (
-            <CBadge
-              color="secondary"
-              className="px-3 py-2 d-flex align-items-center"
-              style={{ fontSize: '0.8rem' }}
-            >
-              ⏸ Not Activated — plan the monthly budget first
-            </CBadge>
-          )}
-          {!project.is_operations_active && projectTaskCount > 0 && hasMonthlyPlan && (
-            <CButton
-              color="success"
-              className="fw-semibold flex-shrink-0"
-              onClick={handleActivateProject}
-            >
-              ▶ Activate Project
-            </CButton>
-          )}
-          {project.is_operations_active && (
-            <CBadge
-              color="success"
-              className="px-3 py-2 d-flex align-items-center"
-              style={{ fontSize: '0.8rem' }}
-            >
-              Operations Active
-            </CBadge>
-          )}
+
           {ucAlert && (
             <CBadge
               color={ucAlert.color}

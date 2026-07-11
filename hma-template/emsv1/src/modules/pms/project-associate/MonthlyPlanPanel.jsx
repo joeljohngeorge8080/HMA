@@ -19,9 +19,15 @@ import {
   CTableHeaderCell,
   CTableBody,
   CTableDataCell,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash, cilReload } from '@coreui/icons'
+import * as XLSX from 'xlsx-js-style'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import { localTasks } from '../../../services/localTasks'
@@ -125,8 +131,8 @@ const RecurringTasksSection = ({ project, onProjectChange, canEdit, monthCount, 
       const existing = updated.monthly_plan.find((m) => m.month === month)
       const existingPhases = existing
         ? existing.phases.filter(
-          (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
-        )
+            (ph) => !validTasks.some((t) => t.label.trim() === ph.label && t.phase === ph.phase),
+          )
         : []
       const newPhases = [
         ...existingPhases,
@@ -522,6 +528,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
   )
   const [saved, setSaved] = useState(false)
   const [reallocError, setReallocError] = useState('')
+  const [revokeConfirm, setRevokeConfirm] = useState(null) // { action: fn, label: string }
   const months = monthsInRange(project.start_date, project.end_date)
   const monthCount = months.length
   const baselinePerMonth = monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
@@ -640,7 +647,163 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
     if (fresh) onProjectChange(fresh)
   }
 
+  const handleExportExcel = () => {
+    const round2 = (n) => Math.round(n * 100) / 100
+    const phaseLabelOf = (value) => PHASE_OPTIONS.find((p) => p.value === value)?.label || value
+
+    // ── Styles (xlsx-js-style cell `s` objects) ─────────────────────────
+    const edge = { style: 'thin', color: { rgb: 'B0B7C3' } }
+    const border = { top: edge, bottom: edge, left: edge, right: edge }
+    const NAVY = '1F4E79'
+    const BLUE = '2E75B6'
+    const styles = {
+      title: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: NAVY } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      },
+      sectionHead: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: BLUE } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border,
+      },
+      detailLabel: {
+        font: { bold: true, sz: 10 },
+        fill: { fgColor: { rgb: 'F2F2F2' } },
+        border,
+      },
+      detailValue: { font: { sz: 10 }, border, alignment: { horizontal: 'left' } },
+      tableHead: {
+        font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: BLUE } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border,
+      },
+      total: {
+        font: { bold: true, sz: 11 },
+        fill: { fgColor: { rgb: 'D9E2F3' } },
+        border,
+      },
+    }
+    const rowFill = (isAlt) => (isAlt ? { fill: { fgColor: { rgb: 'EEF4FB' } } } : {})
+    const dataCell = (isAlt) => ({ font: { sz: 10 }, border, ...rowFill(isAlt) })
+    const varianceCell = (v, isAlt) => ({
+      font: { sz: 10, bold: v < 0, color: { rgb: v < 0 ? 'C00000' : '1E7E34' } },
+      border,
+      ...rowFill(isAlt),
+    })
+    const MONEY = '#,##0.00'
+    const txt = (v, s) => ({ v: v === null || v === undefined || v === '' ? '—' : v, t: 's', s })
+    const num = (v, s) => ({ v: round2(v || 0), t: 'n', z: MONEY, s })
+    const pad = (s) => ({ v: '', t: 's', s })
+    const fullWidthRow = (label, s) => [txt(label, s), ...Array(6).fill(pad(s))]
+
+    // ── Sheet content ───────────────────────────────────────────────────
+    const aoa = []
+    const merges = []
+    const mergeFullRow = () =>
+      merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: 6 } })
+
+    mergeFullRow()
+    aoa.push(fullWidthRow(project.name || project.title || 'Project', styles.title))
+    aoa.push([])
+
+    mergeFullRow()
+    aoa.push(fullWidthRow('PROJECT DETAILS', styles.sectionHead))
+    const details = [
+      ['Project Code', txt(project.project_code, styles.detailValue)],
+      ['Funding Agency', txt(project.funding_agency, styles.detailValue)],
+      ['Implementing Partner', txt(project.implementing_partner, styles.detailValue)],
+      ['Location', txt(project.location, styles.detailValue)],
+      ['Project Officer', txt(project.officer_name, styles.detailValue)],
+      ['Status', txt(project.status, styles.detailValue)],
+      ['Start Date', txt(project.start_date, styles.detailValue)],
+      ['End Date', txt(project.end_date, styles.detailValue)],
+      ['Project Value (₹)', num(project.project_value, styles.detailValue)],
+      ['Amount Received (₹)', num(project.amount_received, styles.detailValue)],
+      ['Project Baseline (₹)', num(workingPool, styles.detailValue)],
+    ]
+    details.forEach(([label, valueCell]) => {
+      const r = aoa.length
+      merges.push({ s: { r, c: 0 }, e: { r, c: 1 } }) // label spans A:B
+      merges.push({ s: { r, c: 2 }, e: { r, c: 6 } }) // value spans C:G
+      aoa.push([
+        txt(label, styles.detailLabel),
+        pad(styles.detailLabel),
+        valueCell,
+        ...Array(4).fill(pad(styles.detailValue)),
+      ])
+    })
+    aoa.push([])
+
+    mergeFullRow()
+    aoa.push(fullWidthRow('PHASE BREAKDOWN — PLANNED vs ACTUAL', styles.sectionHead))
+    aoa.push(
+      [
+        'Sl No',
+        'Month',
+        'Phase',
+        'Task / Activity',
+        'Planned (₹)',
+        'Actual (₹)',
+        'Variance (₹)',
+      ].map((h) => txt(h, styles.tableHead)),
+    )
+
+    let slNo = 0
+    let plannedTotal = 0
+    let actualTotal = 0
+    ;(project.monthly_plan || []).forEach((m) => {
+      m.phases.forEach((ph) => {
+        slNo += 1
+        const planned = parseFloat(ph.amount) || 0
+        const actual = parseFloat(ph.actual) || 0
+        plannedTotal += planned
+        actualTotal += actual
+        const isAlt = slNo % 2 === 0
+        const s = dataCell(isAlt)
+        aoa.push([
+          { v: slNo, t: 'n', s },
+          txt(monthLabel(m.month), s),
+          txt(phaseLabelOf(ph.phase), s),
+          txt(ph.label, s),
+          num(planned, s),
+          num(actual, s),
+          num(planned - actual, varianceCell(planned - actual, isAlt)),
+        ])
+      })
+    })
+    aoa.push([
+      pad(styles.total),
+      pad(styles.total),
+      pad(styles.total),
+      txt('TOTAL', styles.total),
+      num(plannedTotal, styles.total),
+      num(actualTotal, styles.total),
+      num(plannedTotal - actualTotal, styles.total),
+    ])
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!merges'] = merges
+    ws['!cols'] = [
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 34 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+    ]
+    ws['!rows'] = aoa.map((_, i) => (i === 0 ? { hpt: 30 } : { hpt: 18 }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Plan')
+    const safeName = (project.name || 'project').replace(/[^\w\d-]+/g, '_').slice(0, 60)
+    XLSX.writeFile(wb, `${safeName}_monthly_plan.xlsx`)
+  }
+
   return (
+    <>
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>📊 Monthly Plan</span>
@@ -660,6 +823,11 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 ? `Balanced — ${fmt(validation.planTotal)}`
                 : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
             </CBadge>
+          )}
+          {project.monthly_plan?.length > 0 && (
+            <CButton size="sm" color="success" className="text-white" onClick={handleExportExcel}>
+              📥 Export Excel
+            </CButton>
           )}
           {project.monthly_plan?.length > 0 && (
             <CButton size="sm" color="primary" onClick={handleSave}>
@@ -733,10 +901,18 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                 <CTableRow>
                   <CTableHeaderCell>Month</CTableHeaderCell>
                   <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>Project Total</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Admin</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>HR</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>Core</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>
+                    Project Total
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    Admin
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    HR
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                    Core
+                  </CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
@@ -760,6 +936,31 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                   const monthPlanned = computeEffectiveProjectMonthly(project, m.month)
                   const surplus = Math.round((monthPlanned - monthActual) * 100) / 100
                   const hasNextMonth = idx < project.monthly_plan.length - 1
+
+                  // Only allow revoking the LAST "Send → Next Month" in a chain.
+                  // Both sender (negative) and receiver (positive) months get entries with
+                  // source='actual_surplus_next_month'. Only negative amounts are outgoing
+                  // (i.e. this month sent surplus away). Filter to those only.
+                  const myNextMonthTransfers = projectTransfers.filter(
+                    (a) => a.source === 'actual_surplus_next_month' && (a.amount || 0) < 0,
+                  )
+                  const isChainContinued =
+                    myNextMonthTransfers.length > 0 &&
+                    (() => {
+                      const counterMonth =
+                        myNextMonthTransfers[myNextMonthTransfers.length - 1]?.counterMonth
+                      if (!counterMonth) return false
+                      // Check if the receiver month also sent surplus onward (amount < 0 = outgoing)
+                      return (project.pool_adjustments || []).some(
+                        (a) =>
+                          a.pool === 'project' &&
+                          a.month === counterMonth &&
+                          a.source === 'actual_surplus_next_month' &&
+                          (a.amount || 0) < 0,
+                      )
+                    })()
+                  const canRevokeNextMonthTransfer =
+                    myNextMonthTransfers.length > 0 && !isChainContinued
                   return (
                     <CTableRow key={m.month}>
                       <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
@@ -884,9 +1085,7 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                 .map((a) => monthLabelShort(a.counterMonth))
                                 .join(', ')}
                             </CBadge>
-                            {projectTransfers.some(
-                              (a) => a.source === 'actual_surplus_next_month',
-                            ) &&
+                            {canRevokeNextMonthTransfer &&
                               canEdit && (
                                 <CButton
                                   size="sm"
@@ -894,11 +1093,15 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                   variant="ghost"
                                   style={{ fontSize: '0.62rem', padding: '0 4px' }}
                                   onClick={() =>
-                                    onProjectChange(
-                                      localProjects.revokeActualSurplusTransfer(project.id, {
-                                        month: m.month,
-                                      }),
-                                    )
+                                    setRevokeConfirm({
+                                      label: `surplus transfer from ${monthLabelShort(m.month)}`,
+                                      action: () =>
+                                        onProjectChange(
+                                          localProjects.revokeActualSurplusTransfer(project.id, {
+                                            month: m.month,
+                                          }),
+                                        ),
+                                    })
                                   }
                                 >
                                   Revoke
@@ -978,6 +1181,41 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
         )}
       </CCardBody>
     </CCard>
+
+    {/* Revoke confirmation modal */}
+    <CModal
+      visible={Boolean(revokeConfirm)}
+      onClose={() => setRevokeConfirm(null)}
+      alignment="center"
+      size="sm"
+    >
+      <CModalHeader>
+        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+      </CModalHeader>
+      <CModalBody className="small">
+        <p className="mb-1">Are you sure you want to revoke the:</p>
+        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+          This action cannot be undone without re-sending.
+        </p>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
+          Cancel
+        </CButton>
+        <CButton
+          color="danger"
+          size="sm"
+          onClick={() => {
+            revokeConfirm?.action()
+            setRevokeConfirm(null)
+          }}
+        >
+          Yes, Revoke
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  </>
   )
 }
 
@@ -1188,6 +1426,7 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
   const months = (project.monthly_plan || []).map((m) => m.month)
   const [selectedMonth, setSelectedMonth] = useState(months[0] || '')
   const [sendError, setSendError] = useState('')
+  const [revokeConfirm, setRevokeConfirm] = useState(null) // { action: fn, label: string }
   const month = months.includes(selectedMonth) ? selectedMonth : months[0]
 
   if (!months.length) {
@@ -1250,12 +1489,18 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
   }
 
   const handleRevoke = (pool) => {
-    setSendError('')
-    const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
-    onProjectChange(updated)
+    setRevokeConfirm({
+      label: `${POOL_SEND_LABELS[pool]} allocation for ${monthLabel(month)}`,
+      action: () => {
+        setSendError('')
+        const updated = localProjects.revokePoolAllocation(project.id, { pool, month })
+        onProjectChange(updated)
+      },
+    })
   }
 
   return (
+    <>
     <CCard className="shadow-sm mb-4">
       <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
       <CCardBody>
@@ -1415,7 +1660,43 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
         </CRow>
       </CCardBody>
     </CCard>
-  )
+
+    {/* Revoke confirmation modal */}
+    <CModal
+      visible={Boolean(revokeConfirm)}
+      onClose={() => setRevokeConfirm(null)}
+      alignment="center"
+      size="sm"
+    >
+      <CModalHeader>
+        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+      </CModalHeader>
+      <CModalBody className="small">
+        <p className="mb-1">
+          Are you sure you want to revoke the sent budget for:
+        </p>
+        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+          This will remove access for HR to log expenses against this allocation.
+        </p>
+      </CModalBody>
+      <CModalFooter>
+        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
+          Cancel
+        </CButton>
+        <CButton
+          color="danger"
+          size="sm"
+          onClick={() => {
+            revokeConfirm?.action()
+            setRevokeConfirm(null)
+          }}
+        >
+          Yes, Revoke
+        </CButton>
+      </CModalFooter>
+    </CModal>
+  </>)
 }
 
 ExpensePanel.propTypes = {
