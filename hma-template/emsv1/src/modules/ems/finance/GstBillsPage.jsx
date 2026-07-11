@@ -19,6 +19,7 @@ import { MODULE } from '../../../constants/modules'
 import { localGstBills } from '../../../services/localGstBills'
 import { computeGstFields } from '../../../services/gstCalculations'
 import GstUploadModal from './components/GstUploadModal'
+import EditableCell from './components/EditableCell'
 
 const money = (n) =>
   n == null
@@ -64,6 +65,11 @@ const GstBillsPage = () => {
     setBatches(localGstBills.batches.list())
   }
 
+  const updateEntry = (id, patch) => {
+    localGstBills.entries.update(id, patch)
+    reload()
+  }
+
   const departments = useMemo(() => {
     const seen = new Map()
     entries.forEach((e) => {
@@ -106,6 +112,11 @@ const GstBillsPage = () => {
 
   return (
     <CCard>
+      <datalist id="gst-rate-options">
+        {[0, 3, 5, 18, 40, 50].map((v) => (
+          <option key={v} value={v} />
+        ))}
+      </datalist>
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <strong>GST Bills — Input Tax Credit</strong>
         {canEdit && (
@@ -155,6 +166,38 @@ const GstBillsPage = () => {
           </CCol>
         </CRow>
 
+        {canEdit && batches.length > 0 && (
+          <div className="mb-3 small">
+            {batches.map((b) => (
+              <div key={b.id} className="d-flex align-items-center gap-2 py-1 border-bottom">
+                <span>
+                  {b.fileName} — uploaded {new Date(b.uploadedAt).toLocaleDateString('en-IN')}
+                  {b.uploadedBy ? ` by ${b.uploadedBy}` : ''} (
+                  {entries.filter((e) => e.batchId === b.id).length} entries)
+                </span>
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Delete upload "${b.fileName}" and all its entries? This cannot be undone.`,
+                      )
+                    ) {
+                      localGstBills.batches.remove(b.id)
+                      if (batchFilter === b.id) setBatchFilter('all')
+                      reload()
+                    }
+                  }}
+                >
+                  Delete
+                </CButton>
+              </div>
+            ))}
+          </div>
+        )}
+
         {rows.length === 0 ? (
           <CAlert color="info" className="mb-0">
             No GST bills yet. {canEdit ? 'Upload the expenditure statement Excel to begin.' : ''}
@@ -175,30 +218,109 @@ const GstBillsPage = () => {
                 {rows.map((r, i) => (
                   <tr key={r.id}>
                     <td style={numCell}>{i + 1}</td>
-                    <td>{r.department}</td>
-                    <td>{r.vertical}</td>
-                    <td>{r.partyName}</td>
+                    <td>
+                      <EditableCell
+                        value={r.department}
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { department: v })}
+                      />
+                    </td>
+                    <td>
+                      <EditableCell
+                        value={r.vertical}
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { vertical: v })}
+                      />
+                    </td>
+                    <td>
+                      <EditableCell
+                        value={r.partyName}
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { partyName: v })}
+                      />
+                    </td>
                     <td className="text-nowrap">
-                      {r.gstNo}
+                      <EditableCell
+                        value={r.gstNo}
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
+                      />
                       {!r.computed.gstinValid && (
                         <div className="text-danger small">Invalid GST No</div>
                       )}
                     </td>
-                    <td className="text-nowrap">{r.invoiceDate}</td>
-                    <td>{r.invoiceNumber}</td>
-                    <td style={numCell} className={r.needsAttention ? 'table-danger' : undefined}>
-                      {money(r.totalValue)}
+                    <td className="text-nowrap">
+                      <EditableCell
+                        value={r.invoiceDate}
+                        type="date"
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { invoiceDate: v })}
+                      />
                     </td>
-                    <td style={numCell}>{r.gstRate}</td>
-                    <td style={numCell}>{r.cessRate}</td>
+                    <td>
+                      <EditableCell
+                        value={r.invoiceNumber}
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { invoiceNumber: v })}
+                      />
+                    </td>
+                    <td style={numCell} className={r.needsAttention ? 'table-danger' : undefined}>
+                      <EditableCell
+                        value={r.totalValue}
+                        type="number"
+                        disabled={!canEdit}
+                        onCommit={(v) =>
+                          updateEntry(r.id, { totalValue: v, needsAttention: false })
+                        }
+                      />
+                    </td>
+                    <td style={numCell}>
+                      <EditableCell
+                        value={r.gstRate}
+                        type="number"
+                        listId="gst-rate-options"
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { gstRate: v, needsAttention: false })}
+                      />
+                    </td>
+                    <td style={numCell}>
+                      <EditableCell
+                        value={r.cessRate}
+                        type="number"
+                        disabled={!canEdit}
+                        onCommit={(v) => updateEntry(r.id, { cessRate: v })}
+                      />
+                    </td>
                     <td className="text-nowrap">{r.computed.state ?? '—'}</td>
                     <td style={numCell}>{money(r.computed.taxableValue)}</td>
                     <td style={numCell}>{money(r.computed.cgst)}</td>
                     <td style={numCell}>{money(r.computed.sgst)}</td>
                     <td style={numCell}>{money(r.computed.igst)}</td>
                     <td style={numCell}>{money(r.computed.cessAmount)}</td>
-                    <td className="text-nowrap">{r.accounted}</td>
-                    <td className="text-nowrap">{r.eligibility}</td>
+                    <td>
+                      <CFormSelect
+                        size="sm"
+                        disabled={!canEdit}
+                        value={r.accounted}
+                        onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
+                        aria-label="Accounted status"
+                      >
+                        <option>Not Accounted</option>
+                        <option>Accounted</option>
+                      </CFormSelect>
+                    </td>
+                    <td>
+                      <CFormSelect
+                        size="sm"
+                        disabled={!canEdit}
+                        value={r.eligibility}
+                        onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
+                        aria-label="Eligibility"
+                      >
+                        <option>Eligible</option>
+                        <option>Not Eligible</option>
+                      </CFormSelect>
+                    </td>
                   </tr>
                 ))}
               </tbody>
