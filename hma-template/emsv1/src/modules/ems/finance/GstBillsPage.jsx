@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   CAlert,
   CButton,
@@ -14,9 +14,11 @@ import CIcon from '@coreui/icons-react'
 import { cilCloudUpload } from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
+import useAuth from '../../../hooks/useAuth'
 import { MODULE } from '../../../constants/modules'
 import { localGstBills } from '../../../services/localGstBills'
 import { computeGstFields } from '../../../services/gstCalculations'
+import GstUploadModal from './components/GstUploadModal'
 
 const money = (n) =>
   n == null
@@ -24,9 +26,24 @@ const money = (n) =>
     : Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const HEADERS = [
-  'SL', 'Department', 'Vertical', 'Party Name', 'GST No', 'Invoice Date', 'Invoice Number',
-  'Total Value (incl. tax)', 'GST Rate %', 'CESS %', 'State', 'Taxable Value', 'CGST', 'SGST',
-  'IGST', 'CESS Amount', 'Accounted status', 'Eligibility',
+  'SL',
+  'Department',
+  'Vertical',
+  'Party Name',
+  'GST No',
+  'Invoice Date',
+  'Invoice Number',
+  'Total Value (incl. tax)',
+  'GST Rate %',
+  'CESS %',
+  'State',
+  'Taxable Value',
+  'CGST',
+  'SGST',
+  'IGST',
+  'CESS Amount',
+  'Accounted status',
+  'Eligibility',
 ]
 
 const numCell = { textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
@@ -34,9 +51,11 @@ const numCell = { textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteS
 const GstBillsPage = () => {
   const canView = usePermission(MODULE.FINANCE, 'view')
   const canEdit = usePermission(MODULE.FINANCE, 'edit')
+  const { user } = useAuth()
 
-  const [entries, setEntries] = useState([])
-  const [batches, setBatches] = useState([])
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [entries, setEntries] = useState(() => localGstBills.entries.list())
+  const [batches, setBatches] = useState(() => localGstBills.batches.list())
   const [deptFilter, setDeptFilter] = useState('all')
   const [batchFilter, setBatchFilter] = useState('all')
 
@@ -44,7 +63,6 @@ const GstBillsPage = () => {
     setEntries(localGstBills.entries.list())
     setBatches(localGstBills.batches.list())
   }
-  useEffect(reload, [])
 
   const departments = useMemo(() => {
     const seen = new Map()
@@ -58,7 +76,9 @@ const GstBillsPage = () => {
   const rows = useMemo(
     () =>
       entries
-        .filter((e) => deptFilter === 'all' || (e.department || '').trim().toLowerCase() === deptFilter)
+        .filter(
+          (e) => deptFilter === 'all' || (e.department || '').trim().toLowerCase() === deptFilter,
+        )
         .filter((e) => batchFilter === 'all' || e.batchId === batchFilter)
         .map((e) => ({ ...e, computed: computeGstFields(e) })),
     [entries, deptFilter, batchFilter],
@@ -89,7 +109,7 @@ const GstBillsPage = () => {
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <strong>GST Bills — Input Tax Credit</strong>
         {canEdit && (
-          <CButton color="primary" size="sm" disabled title="Upload arrives in the next task">
+          <CButton color="primary" size="sm" onClick={() => setUploadOpen(true)}>
             <CIcon icon={cilCloudUpload} className="me-1" />
             Upload Excel
           </CButton>
@@ -199,6 +219,12 @@ const GstBillsPage = () => {
           </div>
         )}
       </CCardBody>
+      <GstUploadModal
+        visible={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onImported={reload}
+        uploadedBy={user?.full_name || user?.email || ''}
+      />
     </CCard>
   )
 }
