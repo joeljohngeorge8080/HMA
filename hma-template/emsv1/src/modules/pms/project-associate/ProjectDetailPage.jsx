@@ -75,6 +75,7 @@ import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
 import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
+import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -680,9 +681,11 @@ const ProjectDetailPage = () => {
   const [actualDateVal, setActualDateVal] = useState('')
   // Beneficiaries state
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
+  const [deleteModal, setDeleteModal] = useState(false)
 
   const role = useRole()
   const { user } = useAuth()
+  const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
   // Activation requires a completed monthly plan — the Project Officer
   // must plan the budget before it can go live. (Previously also required
   // a task to be assigned first, but that gate assumed active task
@@ -786,6 +789,11 @@ const ProjectDetailPage = () => {
     setToast({ color: 'success', message: 'Beneficiaries count updated' })
   }
 
+  const handleDeleteConfirm = () => {
+    localProjects.remove(project.id)
+    navigate('/pms/projects')
+  }
+
   return (
     <>
       {/* Back */}
@@ -837,14 +845,26 @@ const ProjectDetailPage = () => {
               </span>
             </div>
           </div>
-          <CButton
-            color="light"
-            className="text-primary fw-semibold flex-shrink-0"
-            onClick={() => navigate(`/pms/projects/${id}/edit`)}
-          >
-            <CIcon icon={cilPen} className="me-1" />
-            Edit Project
-          </CButton>
+          <div className="d-flex gap-2 flex-shrink-0">
+            <CButton
+              color="light"
+              className="text-primary fw-semibold"
+              onClick={() => navigate(`/pms/projects/${id}/edit`)}
+            >
+              <CIcon icon={cilPen} className="me-1" />
+              Edit Project
+            </CButton>
+            {canDelete && (
+              <CButton
+                color="light"
+                className="text-danger fw-semibold"
+                onClick={() => setDeleteModal(true)}
+              >
+                <CIcon icon={cilTrash} className="me-1" />
+                Delete Project
+              </CButton>
+            )}
+          </div>
           {ucAlert && (
             <CBadge
               color={ucAlert.color}
@@ -2527,6 +2547,13 @@ const ProjectDetailPage = () => {
           </CToast>
         )}
       </CToaster>
+
+      <DeleteProjectConfirmModal
+        visible={deleteModal}
+        project={project}
+        onClose={() => setDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

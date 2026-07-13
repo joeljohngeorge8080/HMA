@@ -41,8 +41,12 @@ import {
   cilPeople,
   cilOptions,
   cilFolder,
+  cilTrash,
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
+import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -69,6 +73,10 @@ const ProjectListPage = () => {
     phase: '',
   })
   const [toast, setToast] = useState(null)
+  const [deleteModal, setDeleteModal] = useState({ visible: false, project: null })
+
+  const role = useRole()
+  const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
 
   // Sync filter when URL ?status= changes (e.g. clicking sidebar lifecycle items)
   useEffect(() => {
@@ -94,6 +102,14 @@ const ProjectListPage = () => {
   }
 
   const clearFilters = () => setFilters({ search: '', status: '', phase: '' })
+
+  const handleDeleteConfirm = () => {
+    const proj = deleteModal.project
+    localProjects.remove(proj.id)
+    setDeleteModal({ visible: false, project: null })
+    setToast({ color: 'success', message: `"${proj.name}" was deleted.` })
+    load()
+  }
 
   return (
     <>
@@ -330,6 +346,18 @@ const ProjectListPage = () => {
                           <CIcon icon={cilPeople} className="me-2" />
                           Assign Officer
                         </CDropdownItem>
+                        {canDelete && (
+                          <CDropdownItem
+                            className="text-danger"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteModal({ visible: true, project: p })
+                            }}
+                          >
+                            <CIcon icon={cilTrash} className="me-2" />
+                            Delete Project
+                          </CDropdownItem>
+                        )}
                       </CDropdownMenu>
                     </CDropdown>
                   </CTableDataCell>
@@ -377,6 +405,13 @@ const ProjectListPage = () => {
           </CToast>
         )}
       </CToaster>
+
+      <DeleteProjectConfirmModal
+        visible={deleteModal.visible}
+        project={deleteModal.project}
+        onClose={() => setDeleteModal({ visible: false, project: null })}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

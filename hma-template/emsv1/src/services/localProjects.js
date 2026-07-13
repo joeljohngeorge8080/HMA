@@ -431,6 +431,17 @@ export const localProjects = {
     return projects[idx]
   },
 
+  /** Permanently removes a project. Irreversible — callers must confirm first. */
+  remove(id) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === id)
+    if (idx === -1) throw new Error('Project not found')
+    const [removed] = projects.splice(idx, 1)
+    write(PROJECTS_KEY, projects)
+    notify()
+    return removed
+  },
+
 
   // ── Monthly Planning ────────────────────────────────────────────────────────
 
