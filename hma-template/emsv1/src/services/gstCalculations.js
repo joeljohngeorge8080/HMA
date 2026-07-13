@@ -49,6 +49,14 @@ export const KERALA_CODE = '32'
 
 // 15 chars: state(2 digits) + PAN(5 letters, 4 digits, 1 letter) +
 // entity(1) + 'Z' + check char.
+// 15-char GSTIN pattern:
+//   chars  1-2  : state/UT code (2 digits)
+//   chars  3-7  : PAN letters (5 uppercase letters)
+//   chars  8-11 : PAN digits  (4 digits)
+//   char  12    : PAN check letter (1 uppercase letter)
+//   char  13    : entity number (1 digit or uppercase letter, not 0)
+//   char  14    : 'Z' (reserved, always Z)
+//   char  15    : checksum digit/letter
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 const CHARSET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -76,6 +84,20 @@ export const validateGstin = (gstin) => {
   if (!GSTIN_REGEX.test(g)) return false
   if (!GST_STATE_CODES[g.slice(0, 2)]) return false
   return gstinChecksumChar(g.slice(0, 14)) === g[14]
+}
+
+/**
+ * Classifies a GSTIN into one of three statuses:
+ *   'kerala'         – valid GSTIN with state code 32 (Kerala)
+ *   'outside_kerala' – valid GSTIN from any other recognised state/UT
+ *   'invalid'        – does not match the GSTIN format or fails checksum
+ */
+export const classifyGstin = (gstin) => {
+  const g = normalizeGstin(gstin)
+  if (!GSTIN_REGEX.test(g)) return 'invalid'
+  if (!GST_STATE_CODES[g.slice(0, 2)]) return 'invalid'
+  if (gstinChecksumChar(g.slice(0, 14)) !== g[14]) return 'invalid'
+  return g.slice(0, 2) === KERALA_CODE ? 'kerala' : 'outside_kerala'
 }
 
 export const stateFromGstin = (gstin) => {
@@ -106,9 +128,11 @@ export const computeGstFields = ({ gstNo, totalValue, gstRate, cessRate }) => {
   const gstAmount = round2((taxableValue * rate) / 100)
   const cessAmount = round2((taxableValue * cess) / 100)
 
-  if (!validateGstin(gstNo)) {
+  const gstinStatus = classifyGstin(gstNo)
+  if (gstinStatus === 'invalid') {
     return {
       gstinValid: false,
+      gstinStatus,
       state: null,
       taxableValue,
       gstAmount,
@@ -124,7 +148,8 @@ export const computeGstFields = ({ gstNo, totalValue, gstRate, cessRate }) => {
   const half = round2(gstAmount / 2)
   return {
     gstinValid: true,
-    state: GST_STATE_CODES[stateCode],
+    gstinStatus,
+    state: intraState ? GST_STATE_CODES[stateCode] : 'Outside Kerala',
     taxableValue,
     gstAmount,
     cessAmount,

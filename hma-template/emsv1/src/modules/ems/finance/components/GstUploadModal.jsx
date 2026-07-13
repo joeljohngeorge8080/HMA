@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx'
 
 import { parseGstSheet } from '../../../../services/gstSheetParser'
 import { localGstBills } from '../../../../services/localGstBills'
-import { validateGstin } from '../../../../services/gstCalculations'
+import { classifyGstin } from '../../../../services/gstCalculations'
 
 // Browser-side wrapper: File → raw rows array for parseGstSheet.
 const readWorkbookRows = (file) =>
@@ -190,9 +190,10 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                       <td>{x.partyName}</td>
                       <td className="text-nowrap">
                         {x.gstNo}
-                        {!validateGstin(x.gstNo) && (
+                        {classifyGstin(x.gstNo) === 'invalid' && (
                           <div className="text-danger small">Invalid GST No</div>
                         )}
+
                       </td>
                       <td className="text-nowrap">{x.invoiceDate}</td>
                       <td>{x.invoiceNumber}</td>

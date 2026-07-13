@@ -245,9 +245,10 @@ const GstBillsPage = () => {
                         disabled={!canEdit}
                         onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
                       />
-                      {!r.computed.gstinValid && (
+                      {r.computed.gstinStatus === 'invalid' && (
                         <div className="text-danger small">Invalid GST No</div>
                       )}
+
                     </td>
                     <td className="text-nowrap">
                       <EditableCell
