@@ -193,9 +193,7 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                         {classifyGstin(x.gstNo) === 'invalid' && (
                           <div className="text-danger small">Invalid GST No</div>
                         )}
-                        {classifyGstin(x.gstNo) === 'outside_kerala' && (
-                          <div className="text-muted small">Outside Kerala</div>
-                        )}
+
                       </td>
                       <td className="text-nowrap">{x.invoiceDate}</td>
                       <td>{x.invoiceNumber}</td>
