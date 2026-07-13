@@ -245,8 +245,11 @@ const GstBillsPage = () => {
                         disabled={!canEdit}
                         onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
                       />
-                      {!r.computed.gstinValid && (
+                      {r.computed.gstinStatus === 'invalid' && (
                         <div className="text-danger small">Invalid GST No</div>
+                      )}
+                      {r.computed.gstinStatus === 'outside_kerala' && (
+                        <div className="text-muted small">Outside Kerala</div>
                       )}
                     </td>
                     <td className="text-nowrap">
