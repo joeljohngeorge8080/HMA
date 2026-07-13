@@ -683,12 +683,11 @@ const ProjectDetailPage = () => {
 
   const role = useRole()
   const { user } = useAuth()
-  const projectTaskCount = useMemo(
-    () => (project ? localTasks.getByProject(project.id).length : 0),
-    [project],
-  )
-  // Activation requires both a task assigned AND a completed monthly plan —
-  // the Project Officer must plan the budget before it can go live.
+  // Activation requires a completed monthly plan — the Project Officer
+  // must plan the budget before it can go live. (Previously also required
+  // a task to be assigned first, but that gate assumed active task
+  // monitoring by field personnel, which doesn't happen in practice, so
+  // it was removed — a project with a plan but zero tasks can activate.)
   const hasMonthlyPlan = Boolean(project?.monthly_plan?.length)
   const isBudgetAdmin = role === ROLE.CEO || role === ROLE.HR
   // Monthly budget planning is specifically the Project Officer's/Project
@@ -846,7 +845,6 @@ const ProjectDetailPage = () => {
             <CIcon icon={cilPen} className="me-1" />
             Edit Project
           </CButton>
-
           {ucAlert && (
             <CBadge
               color={ucAlert.color}
