@@ -478,6 +478,9 @@ export const localOrgPool = {
           Math.round(((installment.amount * (directPct / 100)) / instMonths) * 100) / 100
       }
 
+      const monthEntry = (project.monthly_plan || []).find((m) => m.month === month)
+      const plannedPhases = monthEntry ? monthEntry.phases : []
+
       return {
         month,
         isActive,
@@ -494,6 +497,7 @@ export const localOrgPool = {
         installmentId: installment?.id || null,
         installmentLabel: installment?.label || null,
         phaseName: installment?.phase_name || installment?.label || null,
+        plannedPhases,
       }
     })
   },
