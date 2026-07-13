@@ -11,6 +11,7 @@ import {
   applySalary20000Migration,
   syncCoreSalaryExpenses,
   applyProjectOfficerMigration,
+  applyProjectAssistantMigration,
 } from './services/seedLocalEmployees'
 
 // Pre-populate localStorage with HMA manpower data (runs once on first load)
@@ -18,6 +19,7 @@ seedLocalEmployees()
 applySalary20000Migration()
 syncCoreSalaryExpenses()
 applyProjectOfficerMigration()
+applyProjectAssistantMigration()
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 

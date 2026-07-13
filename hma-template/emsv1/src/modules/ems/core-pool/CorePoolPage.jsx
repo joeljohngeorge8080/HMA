@@ -45,6 +45,7 @@ import {
 } from '@coreui/icons'
 import { localPayroll } from '../../../services/localPayroll'
 import { localAttendance } from '../../../services/localAttendance'
+import { attendanceRevenue } from '../../../services/attendanceRevenue'
 
 // ── Core Salary Expense store ─────────────────────────────────────────────────
 // Tracks which employees' salaries are formally registered as core overhead.
@@ -116,6 +117,12 @@ const YEARS = [THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
 // deducted); this just surfaces that money-not-paid total here as savings,
 // split by whether the employee is Core (unassigned) or Project-Assigned.
 
+// Project Officers always belong to the Project-Assigned group, even before
+// an active project assignment is recorded (former Project Assistants are
+// migrated to Project Officer — see applyProjectAssistantMigration).
+const isProjectAssigned = (emp) =>
+  !emp.isOverhead || /project officer/i.test(emp.employment?.designation || '')
+
 const computeEmployeeDeduction = (emp, summary, year, month) => {
   const salary = parseFloat(emp.current_salary || 0)
   const absentCount = summary?.absent_count || 0
@@ -146,6 +153,124 @@ const computeEmployeeDeduction = (emp, summary, year, month) => {
     halfDayCount,
     excessLateUnits,
   }
+}
+
+// ── TPC Attendance Deduction Pool ────────────────────────────────────────────
+// Salary withheld from TPC (Third Party) staff for absences becomes company
+// revenue, held in this separate pool — Permanent/FTC deductions are not
+// pooled (see attendanceRevenue.js).
+
+const TpcAttendancePoolCard = () => {
+  const [pool] = useState(() => attendanceRevenue.getTotalPool())
+  const [expanded, setExpanded] = useState(false)
+
+  const latest = pool.months[pool.months.length - 1] || null
+  const latestRows = useMemo(
+    () => (latest ? attendanceRevenue.getMonthlyPool(latest.year, latest.month).rows : []),
+    [latest],
+  )
+
+  return (
+    <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>
+      <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+        <div>
+          <div className="fw-semibold">Attendance Deduction Pool — TPC Staff</div>
+          <div className="text-body-secondary small">
+            Salary withheld from Third Party (TPC) staff for Absent / Half-day / excess Late is
+            retained by the company as revenue and held in this pool.
+          </div>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          <CBadge color="info" shape="rounded-pill" className="px-3 py-2">
+            Pool balance: {fmt(pool.total)}
+          </CBadge>
+          {pool.months.length > 0 && (
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="ghost"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <CIcon icon={expanded ? cilChevronTop : cilChevronBottom} size="sm" />
+            </CButton>
+          )}
+        </div>
+      </CCardHeader>
+      {expanded && (
+        <CCardBody>
+          <CRow className="g-3 mb-3">
+            {pool.months.map((m) => (
+              <CCol key={`${m.year}-${m.month}`} xs={6} md={3}>
+                <div className="border rounded-3 p-3 text-center h-100">
+                  <div className="fw-bold" style={{ color: '#06d6a0' }}>
+                    {fmt(m.total)}
+                  </div>
+                  <div className="small text-body-secondary">
+                    {MONTHS_OPT.find((o) => o.v === m.month)?.l} {m.year}
+                  </div>
+                </div>
+              </CCol>
+            ))}
+          </CRow>
+          {latest && latestRows.length > 0 && (
+            <>
+              <div className="fw-semibold small mb-2">
+                Latest month — {MONTHS_OPT.find((o) => o.v === latest.month)?.l} {latest.year}
+              </div>
+              <div className="table-responsive">
+                <CTable hover align="middle" small className="mb-0" style={{ fontSize: '0.82rem' }}>
+                  <CTableHead className="bg-body-tertiary">
+                    <CTableRow>
+                      <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Absent
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Half-Day
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Late (excess)
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-end">
+                        To Pool
+                      </CTableHeaderCell>
+                    </CTableRow>
+                  </CTableHead>
+                  <CTableBody>
+                    {latestRows.map((r) => (
+                      <CTableRow key={r.employee_id}>
+                        <CTableDataCell>
+                          <div className="fw-semibold">{r.employee_name}</div>
+                          <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                            {r.employee_id}
+                          </div>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.absent_count || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.half_day_count || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.excess_late_units || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell
+                          className="text-end fw-semibold"
+                          style={{ color: '#06d6a0' }}
+                        >
+                          {fmt(r.totalDeduction)}
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))}
+                  </CTableBody>
+                </CTable>
+              </div>
+            </>
+          )}
+        </CCardBody>
+      )}
+    </CCard>
+  )
 }
 
 const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
@@ -770,11 +895,12 @@ const CoreExpensesTab = ({ allEmployees }) => {
   const existingIds = entries.map((e) => e.employee_id)
   const totalMonthly = entries.reduce((s, e) => s + (e.salary || 0), 0)
 
-  const coreEmployees = allEmployees.filter((e) => e.isOverhead)
-  const assignedEmployees = allEmployees.filter((e) => !e.isOverhead)
+  const coreEmployees = allEmployees.filter((e) => !isProjectAssigned(e))
+  const assignedEmployees = allEmployees.filter(isProjectAssigned)
 
   return (
     <>
+      <TpcAttendancePoolCard />
       <LeaveSavingsSummary coreEmployees={coreEmployees} assignedEmployees={assignedEmployees} />
 
       {/* Summary */}
@@ -937,8 +1063,8 @@ const CorePoolPage = () => {
       })
     : active
 
-  const unassigned = filtered.filter((e) => e.isOverhead)
-  const assigned = filtered.filter((e) => !e.isOverhead)
+  const unassigned = filtered.filter((e) => !isProjectAssigned(e))
+  const assigned = filtered.filter(isProjectAssigned)
 
   const totalUnassignedSalary = unassigned.reduce(
     (s, e) => s + (parseFloat(e.current_salary) || 0),
