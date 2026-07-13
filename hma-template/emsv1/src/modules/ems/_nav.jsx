@@ -70,24 +70,21 @@ const emsNav = [
           { component: CNavItem, name: 'Recruitment & Training', to: '/ems/recruitment' },
         ],
       },
+      {
+        component: CNavItem,
+        name: 'Expense Pools',
+        to: '/ems/hr-pool/global',
+        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Global Core Pool',
+        to: '/ems/core-pool/global',
+        icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
     ],
   },
 
-  // ── Overheads & Pools ──────────────────────────────────────────────
-  {
-    component: CNavItem,
-    name: 'Expense Pools',
-    to: '/ems/hr-pool/global',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
-  {
-    component: CNavItem,
-    name: 'Global Core Pool',
-    to: '/ems/core-pool/global',
-    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
   // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
@@ -141,6 +138,11 @@ const emsNav = [
         component: CNavItem,
         name: 'Super Forecasting',
         to: '/ems/reports-analysis/super-forecasting',
+      },
+      {
+        component: CNavItem,
+        name: 'Detailed Report',
+        to: '/ems/reports-analysis/detailed-report',
       },
     ],
   },

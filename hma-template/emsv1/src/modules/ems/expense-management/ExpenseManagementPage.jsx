@@ -29,6 +29,7 @@ import {
   CModalTitle,
   CFormInput,
   CFormLabel,
+  CFormSelect,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -376,8 +377,10 @@ const currentMonthSplitFor = (project) => {
 }
 
 const ConsolidatedSheet = ({ onDrillDown }) => {
-  const [rows, setRows] = useState([])
+  const [baseRows, setBaseRows] = useState([])
   const [loading, setLoading] = useState(true)
+  // 'all' = full project duration; otherwise a 'YYYY-MM' month key
+  const [monthFilter, setMonthFilter] = useState('all')
 
   useEffect(() => {
     // Same source as PMS › All Projects (localProjects.list with no filters) —
@@ -386,16 +389,29 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
 
     const built = allProjects.map((p) => {
       const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
-      const totalAdmin = bd.reduce((s, m) => s + m.adminBudget, 0)
-      const totalHr = bd.reduce((s, m) => s + m.hrBudget, 0)
-      const totalCore = bd.reduce((s, m) => s + m.coreBudget, 0)
-      const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
       const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
       const hrSummary = localOrgPool.getProjectHRBudgetSummary(p.id)
       const coreSummary = localOrgPool.getProjectCoreBudgetSummary(p.id)
-      const adminUsed = localProjectExpenses
-        .list({ projectId: p.id, pool: 'admin' })
-        .reduce((s, e) => s + e.amount, 0)
+
+      // Per-month "used" maps so the sheet can be filtered month-wise
+      const hrUsedByMonth = {}
+      localOrgPool.getProjectHRCharges(p.id).forEach((c) => {
+        if (!c.date) return
+        const ym = c.date.slice(0, 7)
+        hrUsedByMonth[ym] = (hrUsedByMonth[ym] || 0) + (c.myAmount || 0)
+      })
+      const coreUsedByMonth = {}
+      localOrgPool.getProjectCoreCharges(p.id).forEach((c) => {
+        if (!c.date) return
+        const ym = c.date.slice(0, 7)
+        coreUsedByMonth[ym] = (coreUsedByMonth[ym] || 0) + (c.myAmount || 0)
+      })
+      const adminUsedByMonth = {}
+      const adminEntries = localProjectExpenses.list({ projectId: p.id, pool: 'admin' })
+      adminEntries.forEach((e) => {
+        adminUsedByMonth[e.month] = (adminUsedByMonth[e.month] || 0) + e.amount
+      })
+
       const activationMonth =
         p.operations_activated_month ||
         (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
@@ -404,14 +420,17 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         projectName: p.title || p.name,
         projectType: p.project_type,
         projectValue: pv,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        durationMonths: bd.length,
         activationMonth,
-        totalAdmin,
-        totalHr,
-        totalCore,
-        totalDirect,
-        adminUsed,
-        hrUsed: hrSummary.totalCharged || 0,
-        coreUsed: coreSummary.totalCharged || 0,
+        bd,
+        hrUsedByMonth,
+        coreUsedByMonth,
+        adminUsedByMonth,
+        adminUsedTotal: adminEntries.reduce((s, e) => s + e.amount, 0),
+        hrUsedTotal: hrSummary.totalCharged || 0,
+        coreUsedTotal: coreSummary.totalCharged || 0,
       }
     })
 
@@ -423,9 +442,36 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
       return newSplit ? { ...r, newMonthSplit: newSplit } : r
     })
 
-    setRows(enriched)
+    setBaseRows(enriched)
     setLoading(false)
   }, [])
+
+  // Every month any project is running in, for the month selector
+  const monthOptions = useMemo(() => {
+    const set = new Set()
+    baseRows.forEach((r) => r.bd.forEach((m) => set.add(m.month)))
+    return [...set].sort()
+  }, [baseRows])
+
+  // Budget + used figures for the selected window (full duration or one month)
+  const rows = useMemo(
+    () =>
+      baseRows.map((r) => {
+        const months = monthFilter === 'all' ? r.bd : r.bd.filter((m) => m.month === monthFilter)
+        return {
+          ...r,
+          totalAdmin: months.reduce((s, m) => s + m.adminBudget, 0),
+          totalHr: months.reduce((s, m) => s + m.hrBudget, 0),
+          totalCore: months.reduce((s, m) => s + m.coreBudget, 0),
+          totalDirect: months.reduce((s, m) => s + m.directBudget, 0),
+          adminUsed:
+            monthFilter === 'all' ? r.adminUsedTotal : r.adminUsedByMonth[monthFilter] || 0,
+          hrUsed: monthFilter === 'all' ? r.hrUsedTotal : r.hrUsedByMonth[monthFilter] || 0,
+          coreUsed: monthFilter === 'all' ? r.coreUsedTotal : r.coreUsedByMonth[monthFilter] || 0,
+        }
+      }),
+    [baseRows, monthFilter],
+  )
 
   if (loading)
     return (
@@ -507,9 +553,25 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
             {' · '}Admin always active · HR/Core from activation · Click project to drill down
           </div>
         </div>
-        <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
-          {rows.length} Project{rows.length !== 1 ? 's' : ''}
-        </CBadge>
+        <div className="d-flex gap-2 align-items-center">
+          <CFormSelect
+            size="sm"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            style={{ width: 170 }}
+            aria-label="Consolidated sheet period"
+          >
+            <option value="all">Full duration</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </CFormSelect>
+          <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
+            {rows.length} Project{rows.length !== 1 ? 's' : ''}
+          </CBadge>
+        </div>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -576,6 +638,12 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                     style={{ fontSize: '0.78rem', fontWeight: 600, lineHeight: 1.3 }}
                   >
                     {r.projectName}
+                  </div>
+                  <div
+                    className="text-body-secondary"
+                    style={{ fontSize: '0.63rem', marginTop: 2 }}
+                  >
+                    Duration: {r.durationMonths} month{r.durationMonths !== 1 ? 's' : ''}
                   </div>
                   <CBadge
                     color="secondary"

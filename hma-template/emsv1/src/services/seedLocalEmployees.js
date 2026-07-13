@@ -215,6 +215,44 @@ export function applyProjectOfficerMigration() {
   }
 }
 
+const PA_TO_PO_FLAG = 'hma_employees_designation_pa_to_po_v1'
+
+/**
+ * One-time migration: every employee whose designation contains
+ * "Project Assistant" becomes a "Project Officer" (suffixes like
+ * "(Accounts)" are preserved). Project Officers are always listed under
+ * Global Core Pool → Project-Assigned Employees (see CorePoolPage).
+ * Runs once per browser (guarded by PA_TO_PO_FLAG); call after
+ * applyProjectOfficerMigration().
+ */
+export function applyProjectAssistantMigration() {
+  if (localStorage.getItem(PA_TO_PO_FLAG)) return
+  try {
+    const employees = JSON.parse(localStorage.getItem(KEY) || '[]')
+    let changed = false
+    const updated = employees.map((e) => {
+      if (e.employment?.designation?.includes('Project Assistant')) {
+        changed = true
+        return {
+          ...e,
+          employment: {
+            ...e.employment,
+            designation: e.employment.designation.replace('Project Assistant', 'Project Officer'),
+          },
+          updated_at: now(),
+        }
+      }
+      return e
+    })
+    if (changed) {
+      localStorage.setItem(KEY, JSON.stringify(updated))
+    }
+    localStorage.setItem(PA_TO_PO_FLAG, '1')
+  } catch (err) {
+    console.warn('[applyProjectAssistantMigration] Failed:', err)
+  }
+}
+
 export function seedLocalEmployees() {
   if (localStorage.getItem(SEED_FLAG)) return // already on v2
 

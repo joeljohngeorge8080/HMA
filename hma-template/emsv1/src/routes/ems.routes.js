@@ -61,6 +61,9 @@ const VisualModelPage = React.lazy(() => import('../modules/ems/reports-analysis
 const SuperForecastingPage = React.lazy(
   () => import('../modules/ems/reports-analysis/SuperForecastingPage'),
 )
+const DetailedReportPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/DetailedReportPage'),
+)
 
 const placeholder = (title, message) => {
   const Page = () => React.createElement(Placeholder, { title, message })
@@ -224,6 +227,12 @@ export const emsRoutes = [
     path: '/ems/reports-analysis/super-forecasting',
     name: 'Super Forecasting',
     element: SuperForecastingPage,
+    module: MODULE.REPORTS,
+  },
+  {
+    path: '/ems/reports-analysis/detailed-report',
+    name: 'Detailed Report',
+    element: DetailedReportPage,
     module: MODULE.REPORTS,
   },
   {

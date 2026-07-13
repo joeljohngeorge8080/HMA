@@ -44,6 +44,8 @@ import { localInternships } from '../../../services/localInternships'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import { localGeneralExpenses } from '../../../services/localGeneralExpenses'
 import { localForecastVisibility } from '../../../services/localForecastVisibility'
+import { localLsgb } from '../../../services/localLsgb'
+import { attendanceRevenue } from '../../../services/attendanceRevenue'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -1521,7 +1523,26 @@ const GeneralExpensesTab = () => {
     [hrRevenues],
   )
 
-  const totalBudgetCap = hrPoolMonthly + hrRevenueMonthly
+  // Attendance Deduction Pool (TPC) and LSGB revenue also fund the budget:
+  // budget remaining = all revenue (HR pool + HR revenue + attendance pool)
+  // + LSGB revenue − expenses.
+  const attendancePoolTotal = useMemo(() => {
+    try {
+      return attendanceRevenue.getTotalPool().total
+    } catch {
+      return 0
+    }
+  }, [])
+
+  const lsgbRevenueTotal = useMemo(() => {
+    try {
+      return localLsgb.getSummary().totalWithdrawn || 0
+    } catch {
+      return 0
+    }
+  }, [])
+
+  const totalBudgetCap = hrPoolMonthly + hrRevenueMonthly + attendancePoolTotal + lsgbRevenueTotal
 
   // ── Forecast — hidden rows are excluded so HR can keep one-off spend out of
   // the projection. Rows with a blank month (not just an actual ₹0) fall back
@@ -1788,6 +1809,30 @@ const GeneralExpensesTab = () => {
             >
               Edit
             </CButton>
+          </div>
+        </div>
+        <div style={{ color: 'var(--cui-border-color)' }}>+</div>
+        <div>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            Attendance Pool (TPC)
+          </div>
+          <div className="fw-bold" style={{ color: '#4cc9f0', fontSize: '1rem' }}>
+            {fmtINR(attendancePoolTotal)}
+          </div>
+        </div>
+        <div style={{ color: 'var(--cui-border-color)' }}>+</div>
+        <div>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            LSGB Revenue
+          </div>
+          <div className="fw-bold" style={{ color: '#9b5de5', fontSize: '1rem' }}>
+            {fmtINR(lsgbRevenueTotal)}
           </div>
         </div>
         <div style={{ color: 'var(--cui-border-color)' }}>=</div>
