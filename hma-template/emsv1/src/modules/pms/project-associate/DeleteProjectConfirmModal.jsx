@@ -28,7 +28,8 @@ const DeleteProjectConfirmModal = ({ visible, project, onClose, onConfirm }) => 
   }
 
   const projectName = project?.name || project?.title || ''
-  const isMatch = confirmText.length > 0 && confirmText === projectName
+  const confirmWord = projectName.split(/\s+/)[0] || projectName
+  const isMatch = confirmText.length > 0 && confirmText === confirmWord
 
   return (
     <CModal visible={visible} onClose={onClose} alignment="center">
@@ -44,12 +45,12 @@ const DeleteProjectConfirmModal = ({ visible, project, onClose, onConfirm }) => 
           </div>
         </CAlert>
         <label className="form-label small text-body-secondary">
-          Type <strong>{projectName}</strong> to confirm
+          Type <strong>{confirmWord}</strong> to confirm
         </label>
         <CFormInput
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
-          placeholder={projectName}
+          placeholder={confirmWord}
           autoFocus
         />
       </CModalBody>

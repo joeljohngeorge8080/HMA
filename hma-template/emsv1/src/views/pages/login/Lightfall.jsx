@@ -204,11 +204,21 @@ const Lightfall = ({
     const container = containerRef.current
     if (!container) return
 
-    const renderer = new Renderer({
-      dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
-      alpha: true,
-      antialias: true,
-    })
+    let renderer
+    try {
+      renderer = new Renderer({
+        dpr: dpr ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
+        alpha: true,
+        antialias: true,
+      })
+    } catch {
+      return
+    }
+    // Guard: WebGL context may be silently unavailable (headless, no GPU drivers, etc.)
+    if (!renderer.gl || !renderer.gl.canvas) {
+      try { renderer.destroy?.() } catch { /* ignore */ }
+      return
+    }
     rendererRef.current = renderer
     const gl = renderer.gl
     const canvas = gl.canvas
