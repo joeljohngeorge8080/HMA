@@ -49,7 +49,7 @@ const HEADERS = [
 
 const numCell = { textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
 
-const GstBillsPage = () => {
+const GstBillsPage = ({ projectId = null, isProjectView = false }) => {
   const canView = usePermission(MODULE.FINANCE, 'view')
   const canEdit = usePermission(MODULE.FINANCE, 'edit')
   const { user } = useAuth()
@@ -59,6 +59,15 @@ const GstBillsPage = () => {
   const [batches, setBatches] = useState(() => localGstBills.batches.list())
   const [deptFilter, setDeptFilter] = useState('all')
   const [batchFilter, setBatchFilter] = useState('all')
+
+  const projectEntries = useMemo(
+    () => entries.filter((e) => (projectId ? e.projectId === projectId : true)),
+    [entries, projectId],
+  )
+  const projectBatches = useMemo(
+    () => batches.filter((b) => (projectId ? b.projectId === projectId : true)),
+    [batches, projectId],
+  )
 
   const reload = () => {
     setEntries(localGstBills.entries.list())
@@ -72,22 +81,22 @@ const GstBillsPage = () => {
 
   const departments = useMemo(() => {
     const seen = new Map()
-    entries.forEach((e) => {
+    projectEntries.forEach((e) => {
       const d = (e.department || '').trim()
       if (d && !seen.has(d.toLowerCase())) seen.set(d.toLowerCase(), d)
     })
     return [...seen.values()].sort((x, y) => x.localeCompare(y))
-  }, [entries])
+  }, [projectEntries])
 
   const rows = useMemo(
     () =>
-      entries
+      projectEntries
         .filter(
           (e) => deptFilter === 'all' || (e.department || '').trim().toLowerCase() === deptFilter,
         )
         .filter((e) => batchFilter === 'all' || e.batchId === batchFilter)
         .map((e) => ({ ...e, computed: computeGstFields(e) })),
-    [entries, deptFilter, batchFilter],
+    [projectEntries, deptFilter, batchFilter],
   )
 
   const totals = useMemo(
@@ -106,27 +115,34 @@ const GstBillsPage = () => {
     [rows],
   )
 
-  if (!canView) {
+  if (!canView && !isProjectView) {
     return <CAlert color="warning">You do not have access to the Finance section.</CAlert>
   }
 
+  // Use a softer card border if embedded in project view
+  const cardProps = isProjectView
+    ? { className: 'border-0 shadow-sm mt-4', style: { borderRadius: '12px' } }
+    : {}
+
   return (
-    <CCard>
+    <CCard {...cardProps}>
       <datalist id="gst-rate-options">
         {[0, 3, 5, 18, 40, 50].map((v) => (
           <option key={v} value={v} />
         ))}
       </datalist>
-      <CCardHeader className="d-flex justify-content-between align-items-center">
+      <CCardHeader
+        className={`d-flex justify-content-between align-items-center ${isProjectView ? 'bg-transparent px-4 pt-4 border-bottom-0' : ''}`}
+      >
         <strong>GST Bills — Input Tax Credit</strong>
-        {canEdit && (
+        {(canEdit || isProjectView) && (
           <CButton color="primary" size="sm" onClick={() => setUploadOpen(true)}>
             <CIcon icon={cilCloudUpload} className="me-1" />
             Upload Excel
           </CButton>
         )}
       </CCardHeader>
-      <CCardBody>
+      <CCardBody className={isProjectView ? 'px-4' : ''}>
         <CRow className="mb-3 g-2 align-items-end">
           <CCol xs="auto">
             <CFormLabel htmlFor="gst-dept-filter" className="mb-0 small">
@@ -157,7 +173,7 @@ const GstBillsPage = () => {
               onChange={(e) => setBatchFilter(e.target.value)}
             >
               <option value="all">All uploads</option>
-              {batches.map((b) => (
+              {projectBatches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.fileName} ({new Date(b.uploadedAt).toLocaleDateString('en-IN')})
                 </option>
@@ -166,14 +182,14 @@ const GstBillsPage = () => {
           </CCol>
         </CRow>
 
-        {canEdit && batches.length > 0 && (
+        {(canEdit || isProjectView) && projectBatches.length > 0 && (
           <div className="mb-3 small">
-            {batches.map((b) => (
+            {projectBatches.map((b) => (
               <div key={b.id} className="d-flex align-items-center gap-2 py-1 border-bottom">
                 <span>
                   {b.fileName} — uploaded {new Date(b.uploadedAt).toLocaleDateString('en-IN')}
                   {b.uploadedBy ? ` by ${b.uploadedBy}` : ''} (
-                  {entries.filter((e) => e.batchId === b.id).length} entries)
+                  {projectEntries.filter((e) => e.batchId === b.id).length} entries)
                 </span>
                 <CButton
                   color="danger"
@@ -200,7 +216,8 @@ const GstBillsPage = () => {
 
         {rows.length === 0 ? (
           <CAlert color="info" className="mb-0">
-            No GST bills yet. {canEdit ? 'Upload the expenditure statement Excel to begin.' : ''}
+            No GST bills yet.{' '}
+            {canEdit || isProjectView ? 'Upload the expenditure statement Excel to begin.' : ''}
           </CAlert>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -221,47 +238,46 @@ const GstBillsPage = () => {
                     <td>
                       <EditableCell
                         value={r.department}
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { department: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.vertical}
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { vertical: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.partyName}
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { partyName: v })}
                       />
                     </td>
                     <td className="text-nowrap">
                       <EditableCell
                         value={r.gstNo}
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
                       />
                       {r.computed.gstinStatus === 'invalid' && (
                         <div className="text-danger small">Invalid GST No</div>
                       )}
-
                     </td>
                     <td className="text-nowrap">
                       <EditableCell
                         value={r.invoiceDate}
                         type="date"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { invoiceDate: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.invoiceNumber}
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { invoiceNumber: v })}
                       />
                     </td>
@@ -269,7 +285,7 @@ const GstBillsPage = () => {
                       <EditableCell
                         value={r.totalValue}
                         type="number"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) =>
                           updateEntry(r.id, { totalValue: v, needsAttention: false })
                         }
@@ -280,7 +296,7 @@ const GstBillsPage = () => {
                         value={r.gstRate}
                         type="number"
                         listId="gst-rate-options"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { gstRate: v, needsAttention: false })}
                       />
                     </td>
@@ -288,7 +304,7 @@ const GstBillsPage = () => {
                       <EditableCell
                         value={r.cessRate}
                         type="number"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         onCommit={(v) => updateEntry(r.id, { cessRate: v })}
                       />
                     </td>
@@ -301,7 +317,7 @@ const GstBillsPage = () => {
                     <td>
                       <CFormSelect
                         size="sm"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         value={r.accounted}
                         onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
                         aria-label="Accounted status"
@@ -313,7 +329,7 @@ const GstBillsPage = () => {
                     <td>
                       <CFormSelect
                         size="sm"
-                        disabled={!canEdit}
+                        disabled={isProjectView || !canEdit}
                         value={r.eligibility}
                         onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
                         aria-label="Eligibility"
@@ -347,6 +363,7 @@ const GstBillsPage = () => {
         onClose={() => setUploadOpen(false)}
         onImported={reload}
         uploadedBy={user?.full_name || user?.email || ''}
+        projectId={projectId}
       />
     </CCard>
   )

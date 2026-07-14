@@ -44,7 +44,7 @@ const readWorkbookRows = (file) =>
 const dupKey = (x) =>
   `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}|${String(x.gstRate ?? '').trim()}|${String(x.totalValue ?? '').trim()}`
 
-const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
+const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '', projectId = null }) => {
   const fileRef = useRef(null)
   const [fileName, setFileName] = useState('')
   const [parsedEntries, setParsedEntries] = useState(null)
@@ -95,9 +95,7 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
         setParsedEntries(
           result.entries.map((en) => ({
             ...en,
-            duplicate: Boolean(
-              en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))
-            ),
+            duplicate: Boolean(en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))),
           })),
         )
       }
@@ -110,8 +108,15 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
 
   const dupCount = parsedEntries ? parsedEntries.filter((x) => x.duplicate).length : 0
   const importCount = parsedEntries ? parsedEntries.length - (skipDuplicates ? dupCount : 0) : 0
+  const invalidGstCount = parsedEntries
+    ? parsedEntries.filter((x) => classifyGstin(x.gstNo) === 'invalid').length
+    : 0
 
   const handleImport = () => {
+    if (invalidGstCount > 0) {
+      setError('Cannot import while there are invalid GST numbers.')
+      return
+    }
     const toImport = parsedEntries
       .filter((x) => !(skipDuplicates && x.duplicate))
       .map(({ duplicate: _duplicate, ...rest }) => rest)
@@ -119,8 +124,8 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
       setError('Nothing to import — every row is a duplicate of an existing entry.')
       return
     }
-    const batch = localGstBills.batches.create({ fileName, uploadedBy })
-    localGstBills.entries.createMany(batch.id, toImport)
+    const batch = localGstBills.batches.create({ fileName, uploadedBy, projectId })
+    localGstBills.entries.createMany(batch.id, toImport, projectId)
     reset()
     onImported()
     onClose()
@@ -155,6 +160,12 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                 </>
               )}
             </p>
+            {invalidGstCount > 0 && (
+              <CAlert color="danger" className="py-2 small mb-2">
+                <strong>Cannot import:</strong> {invalidGstCount} row(s) have an invalid GST Number.
+                Please correct them in the Excel file and upload again.
+              </CAlert>
+            )}
             {dupCount > 0 && (
               <CFormCheck
                 id="gst-skip-dups"
@@ -202,7 +213,6 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                         {classifyGstin(x.gstNo) === 'invalid' && (
                           <div className="text-danger small">Invalid GST No</div>
                         )}
-
                       </td>
                       <td className="text-nowrap">{x.invoiceDate}</td>
                       <td>{x.invoiceNumber}</td>
@@ -224,7 +234,11 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
         <CButton color="secondary" variant="outline" onClick={close}>
           Cancel
         </CButton>
-        <CButton color="primary" onClick={handleImport} disabled={!parsedEntries || busy}>
+        <CButton
+          color="primary"
+          onClick={handleImport}
+          disabled={!parsedEntries || busy || invalidGstCount > 0}
+        >
           Import {parsedEntries ? `${importCount} row(s)` : ''}
         </CButton>
       </CModalFooter>

@@ -76,6 +76,7 @@ import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
 import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
 import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
+import GstBillsPage from '../../ems/finance/GstBillsPage'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -803,7 +804,6 @@ const ProjectDetailPage = () => {
     setToast({ color: 'success', message: 'Utilisation Certificate submitted' })
   }
 
-
   const handleUpdateBeneficiaries = () => {
     const val = parseInt(beneficiariesCompleted, 10) || 0
     const updated = localProjects.update(project.id, { beneficiaries_completed: val })
@@ -1515,6 +1515,8 @@ const ProjectDetailPage = () => {
                   </CRow>
                 </CCardBody>
               </CCard>
+
+              <GstBillsPage projectId={project.id} isProjectView={true} />
             </CTabPane>
 
             {/* Project Milestones Tab */}
