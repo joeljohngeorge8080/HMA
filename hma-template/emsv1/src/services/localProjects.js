@@ -38,9 +38,15 @@ const write = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data))
 }
 
-/** Broadcast a DOM event so any mounted component can react immediately */
+/**
+ * Broadcast a DOM event so any mounted component in the SAME tab can react
+ * immediately, and write a tiny heartbeat key to localStorage so the native
+ * `storage` event fires in OTHER tabs — enabling cross-tab sync.
+ */
 const notify = () => {
   window.dispatchEvent(new CustomEvent('hma_projects_changed'))
+  // Writing any key triggers the native `storage` event in other open tabs
+  localStorage.setItem('hma_projects_sync_at', Date.now().toString())
 }
 
 export const PROJECT_PHASE = {
@@ -534,6 +540,7 @@ export const localProjects = {
         updated_at: now(),
       }
       write(PROJECTS_KEY, projects)
+      notify()
       return projects[idx]
     }
 
@@ -567,6 +574,7 @@ export const localProjects = {
       updated_at: now(),
     }
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[idx]
   },
 
@@ -637,6 +645,7 @@ export const localProjects = {
       updated_at: now(),
     }
     write(PROJECTS_KEY, projects)
+    notify()
 
     const validation = validatePlanTotalWithCascade(
       updatedPlan,

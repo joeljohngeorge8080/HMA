@@ -29,6 +29,7 @@ import { MODULE } from '../../../constants/modules'
 import { localEmployees } from '../../../services/localEmployees'
 import api from '../../../services/api'
 import ProfilePhotoUpload from './components/ProfilePhotoUpload'
+import { DESIGNATIONS } from '../../../constants/employeeConstants'
 
 // ─── option lists ─────────────────────────────────────────────────────────────
 
@@ -742,10 +743,14 @@ const EmployeeForm = () => {
             <CRow className="g-3">
               <CCol md={4}>
                 <F label="Designation">
-                  <CFormInput
-                    {...register('employment.designation')}
-                    placeholder="e.g. Project Manager"
-                  />
+                  <CFormSelect {...register('employment.designation')}>
+                    <option value="">— Select designation —</option>
+                    {DESIGNATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </CFormSelect>
                 </F>
               </CCol>
               <CCol md={4}>
