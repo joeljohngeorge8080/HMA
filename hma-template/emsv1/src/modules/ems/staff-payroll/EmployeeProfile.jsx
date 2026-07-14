@@ -310,6 +310,7 @@ const EmployeeProfile = () => {
               <SalaryTab
                 employeeId={id}
                 currentSalary={profile.current_salary}
+                currentDesignation={profile.employment?.designation || ''}
                 canEdit={canEdit}
                 onSave={refreshProfile}
               />

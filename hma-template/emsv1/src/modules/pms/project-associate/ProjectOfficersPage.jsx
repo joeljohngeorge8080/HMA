@@ -56,10 +56,9 @@ import {
 } from '@coreui/icons'
 import { localOfficers, localProjects } from '../../../services/localProjects'
 import useAuth from '../../../hooks/useAuth'
+import { DESIGNATIONS } from '../../../constants/employeeConstants'
 
 const EMPTY_FORM = { name: '', email: '', phone: '', designation: '', officer_type: '' }
-
-const DESIGNATIONS = ['Senior Project Officer', 'Project Officer', 'Assistant Project Officer']
 
 const OFFICER_TYPE_COLOR = { LSGB: 'info', CSR: 'warning', General: 'secondary' }
 
