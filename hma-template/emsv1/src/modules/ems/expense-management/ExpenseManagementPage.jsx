@@ -382,7 +382,7 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
   // 'all' = full project duration; otherwise a 'YYYY-MM' month key
   const [monthFilter, setMonthFilter] = useState('all')
 
-  useEffect(() => {
+  const loadConsolidated = useCallback(() => {
     // Same source as PMS › All Projects (localProjects.list with no filters) —
     // every project entered there shows up here, not just activated ones.
     const allProjects = localProjects.list({ pageSize: 1000 }).items || []
@@ -445,6 +445,25 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
     setBaseRows(enriched)
     setLoading(false)
   }, [])
+
+  // Initial load
+  useEffect(() => {
+    loadConsolidated()
+  }, [loadConsolidated])
+
+  // Re-load when any tab saves project changes (cross-tab sync via storage event)
+  useEffect(() => {
+    const handleChange = () => loadConsolidated()
+    window.addEventListener('hma_projects_changed', handleChange)
+    const handleStorage = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleChange()
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleChange)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [loadConsolidated])
 
   // Every month any project is running in, for the month selector
   const monthOptions = useMemo(() => {
@@ -853,8 +872,23 @@ const ApportionmentSheet = () => {
     setLoading(false)
   }, [])
 
+  // Initial load
   useEffect(() => {
     loadData()
+  }, [loadData])
+
+  // Re-load when any tab saves project changes (cross-tab sync via storage event)
+  useEffect(() => {
+    const handleChange = () => loadData()
+    window.addEventListener('hma_projects_changed', handleChange)
+    const handleStorage = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleChange()
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleChange)
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [loadData])
 
   const handleSaveAdjust = () => {

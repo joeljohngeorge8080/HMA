@@ -716,13 +716,24 @@ const ProjectDetailPage = () => {
 
   // Sync when another component (e.g. EMS pool page, ExpensePanel) mutates
   // the project record in localStorage and fires hma_projects_changed.
+  // Also listens to the native `storage` event so changes made in ANOTHER
+  // browser tab (same origin) are reflected here automatically.
   useEffect(() => {
     const handleExternalChange = () => {
       const fresh = localProjects.getById(id)
       if (fresh) setProject(fresh)
     }
+    // Fires in the same tab (dispatched by localProjects.notify())
     window.addEventListener('hma_projects_changed', handleExternalChange)
-    return () => window.removeEventListener('hma_projects_changed', handleExternalChange)
+    // Fires in OTHER tabs whenever localStorage is written
+    const handleStorageEvent = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleExternalChange()
+    }
+    window.addEventListener('storage', handleStorageEvent)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleExternalChange)
+      window.removeEventListener('storage', handleStorageEvent)
+    }
   }, [id])
 
   if (!project) {
