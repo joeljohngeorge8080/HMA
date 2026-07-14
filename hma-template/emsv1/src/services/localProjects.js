@@ -685,6 +685,57 @@ export const localProjects = {
   },
 
   /**
+   * Re-derives all auto_cascade and actual_pull pool_adjustments from the
+   * project's current stored monthly_plan, then writes the result back to
+   * localStorage. Manual adjustments are preserved. This is the correct
+   * implementation for the "Refresh figures" button — it re-runs the full
+   * cascade logic so that any desync between the stored plan and computed
+   * adjustments (e.g. after external data changes or in-flight edits from
+   * another component) is corrected and reflected in the returned project.
+   */
+  recomputePlan(projectId) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) return null
+    const project = projects[idx]
+    if (!project.monthly_plan?.length) return project
+
+    const preservedAdjustments = (project.pool_adjustments || []).filter(
+      (a) => a.source !== 'auto_cascade' && a.source !== 'actual_pull',
+    )
+    const cascadeAdjustments = computeCascadeAdjustments(project).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      reason: 'Auto-funded from Project overage',
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const actualPullAdjustments = computeActualVsPlannedTransfers({
+      ...project,
+      pool_adjustments: preservedAdjustments,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [
+      ...preservedAdjustments,
+      ...cascadeAdjustments,
+      ...actualPullAdjustments,
+    ]
+
+    projects[idx] = {
+      ...project,
+      pool_adjustments: poolAdjustments,
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[idx]
+  },
+
+  /**
    * Directly sets a pool's effective figure for one month by upserting a
    * single manual pool_adjustment — replacing any prior manual adjustment
    * for that exact pool+month (not stacking). `newAmount` is the desired
