@@ -1214,23 +1214,32 @@ const ApportionmentSheet = () => {
 
                       {/* Phase sub-rows */}
                       {(() => {
-                        const phases = []
-                        const seen = new Set()
-                        bd.forEach((m) => {
-                          if (m.installmentId && !seen.has(m.installmentId)) {
-                            seen.add(m.installmentId)
-                            phases.push({
-                              id: m.installmentId,
-                              label: m.phaseName || m.installmentLabel,
-                            })
-                          }
-                        })
-                        return phases.map((ph) => {
-                          const phTotal = bd
-                            .filter((m) => m.installmentId === ph.id)
-                            .reduce((s, m) => s + m.directBudget, 0)
-                          return (
-                            <tr key={ph.id}>
+                        const hasPlannedPhases = bd.some(
+                          (m) => m.plannedPhases && m.plannedPhases.length > 0
+                        )
+
+                        if (hasPlannedPhases) {
+                          const tasksMap = new Map() // key -> { id, phase, label, total }
+                          bd.forEach((m) => {
+                            if (m.plannedPhases) {
+                              m.plannedPhases.forEach((ph, i) => {
+                                const key = `${ph.phase}-${ph.label || i}`
+                                if (!tasksMap.has(key)) {
+                                  tasksMap.set(key, {
+                                    id: key,
+                                    phase: ph.phase,
+                                    label: ph.label || ph.phase,
+                                    total: 0,
+                                  })
+                                }
+                                tasksMap.get(key).total += ph.amount || 0
+                              })
+                            }
+                          })
+
+                          const tasks = Array.from(tasksMap.values())
+                          return tasks.map((t) => (
+                            <tr key={t.id}>
                               <td
                                 className="ps-4 text-body-secondary fw-medium"
                                 style={{
@@ -1240,23 +1249,82 @@ const ApportionmentSheet = () => {
                                   background: 'var(--cui-body-bg)',
                                 }}
                               >
-                                &#8627; {ph.label}
-                              </td>
-                              <td className="text-end text-success fw-medium">{fmtL(phTotal)}</td>
-                              {bd.map((m) => (
-                                <td
-                                  key={m.month}
-                                  className="text-end text-body-tertiary"
-                                  style={{ fontSize: '0.78rem' }}
+                                &#8627; {t.label}
+                                <CBadge
+                                  color="secondary"
+                                  shape="rounded-pill"
+                                  className="ms-2"
+                                  style={{ fontSize: '0.6rem', opacity: 0.8 }}
                                 >
-                                  {m.installmentId === ph.id && m.directBudget > 0
-                                    ? fmtL(m.directBudget)
-                                    : '—'}
-                                </td>
-                              ))}
+                                  PMS Task
+                                </CBadge>
+                              </td>
+                              <td className="text-end text-success fw-medium">{fmtL(t.total)}</td>
+                              {bd.map((m) => {
+                                const pPhase = m.plannedPhases
+                                  ? m.plannedPhases.find(
+                                      (ph, i) => `${ph.phase}-${ph.label || i}` === t.id
+                                    )
+                                  : null
+                                const amt = pPhase ? pPhase.amount || 0 : 0
+                                return (
+                                  <td
+                                    key={m.month}
+                                    className="text-end text-body-tertiary"
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    {amt > 0 ? fmtL(amt) : '—'}
+                                  </td>
+                                )
+                              })}
                             </tr>
-                          )
-                        })
+                          ))
+                        } else {
+                          // Fallback to legacy Installment-based phase rows
+                          const phases = []
+                          const seen = new Set()
+                          bd.forEach((m) => {
+                            if (m.installmentId && !seen.has(m.installmentId)) {
+                              seen.add(m.installmentId)
+                              phases.push({
+                                id: m.installmentId,
+                                label: m.phaseName || m.installmentLabel,
+                              })
+                            }
+                          })
+                          return phases.map((ph) => {
+                            const phTotal = bd
+                              .filter((m) => m.installmentId === ph.id)
+                              .reduce((s, m) => s + m.directBudget, 0)
+                            return (
+                              <tr key={ph.id}>
+                                <td
+                                  className="ps-4 text-body-secondary fw-medium"
+                                  style={{
+                                    position: 'sticky',
+                                    left: 0,
+                                    zIndex: 1,
+                                    background: 'var(--cui-body-bg)',
+                                  }}
+                                >
+                                  &#8627; {ph.label}
+                                </td>
+                                <td className="text-end text-success fw-medium">{fmtL(phTotal)}</td>
+                                {bd.map((m) => (
+                                  <td
+                                    key={m.month}
+                                    className="text-end text-body-tertiary"
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    {m.installmentId === ph.id && m.directBudget > 0
+                                      ? fmtL(m.directBudget)
+                                      : '—'}
+                                  </td>
+                                ))}
+                              </tr>
+                            )
+                          })
+                        }
                       })()}
                     </tbody>
                   </table>

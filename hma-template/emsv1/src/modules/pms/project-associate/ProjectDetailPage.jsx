@@ -714,6 +714,17 @@ const ProjectDetailPage = () => {
     }
   }, [id])
 
+  // Sync when another component (e.g. EMS pool page, ExpensePanel) mutates
+  // the project record in localStorage and fires hma_projects_changed.
+  useEffect(() => {
+    const handleExternalChange = () => {
+      const fresh = localProjects.getById(id)
+      if (fresh) setProject(fresh)
+    }
+    window.addEventListener('hma_projects_changed', handleExternalChange)
+    return () => window.removeEventListener('hma_projects_changed', handleExternalChange)
+  }, [id])
+
   if (!project) {
     return (
       <>
