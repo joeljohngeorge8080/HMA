@@ -81,6 +81,11 @@ const GstBillsPage = ({ projectId = null, isProjectView = false }) => {
 
   const departments = useMemo(() => {
     const seen = new Map()
+    // Pre-populate with requested static departments
+    ;['HR', 'Projects', 'Procurement'].forEach((d) => {
+      seen.set(d.toLowerCase(), d)
+    })
+
     projectEntries.forEach((e) => {
       const d = (e.department || '').trim()
       if (d && !seen.has(d.toLowerCase())) seen.set(d.toLowerCase(), d)
@@ -92,7 +97,10 @@ const GstBillsPage = ({ projectId = null, isProjectView = false }) => {
     () =>
       projectEntries
         .filter(
-          (e) => deptFilter === 'all' || (e.department || '').trim().toLowerCase() === deptFilter,
+          (e) =>
+            deptFilter === 'all' ||
+            (e.department || '').trim().toLowerCase() === deptFilter ||
+            (deptFilter === 'projects' && e.projectId),
         )
         .filter((e) => batchFilter === 'all' || e.batchId === batchFilter)
         .map((e) => ({ ...e, computed: computeGstFields(e) })),
