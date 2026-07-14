@@ -50,6 +50,7 @@ const ExpenseUpload = React.lazy(
 const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
+const GstBillsPage = React.lazy(() => import('../modules/ems/finance/GstBillsPage'))
 
 const ExpenseManagementPage = React.lazy(
   () => import('../modules/ems/expense-management/ExpenseManagementPage'),
@@ -59,6 +60,9 @@ const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/Recr
 const VisualModelPage = React.lazy(() => import('../modules/ems/reports-analysis/VisualModelPage'))
 const SuperForecastingPage = React.lazy(
   () => import('../modules/ems/reports-analysis/SuperForecastingPage'),
+)
+const DetailedReportPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/DetailedReportPage'),
 )
 
 const placeholder = (title, message) => {
@@ -207,6 +211,13 @@ export const emsRoutes = [
   },
 
   {
+    path: '/ems/finance/gst-bills',
+    name: 'GST Bills',
+    element: GstBillsPage,
+    module: MODULE.FINANCE,
+  },
+
+  {
     path: '/ems/reports-analysis/visual-model',
     name: 'Visual Model',
     element: VisualModelPage,
@@ -216,6 +227,12 @@ export const emsRoutes = [
     path: '/ems/reports-analysis/super-forecasting',
     name: 'Super Forecasting',
     element: SuperForecastingPage,
+    module: MODULE.REPORTS,
+  },
+  {
+    path: '/ems/reports-analysis/detailed-report',
+    name: 'Detailed Report',
+    element: DetailedReportPage,
     module: MODULE.REPORTS,
   },
   {

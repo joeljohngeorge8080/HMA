@@ -32,6 +32,7 @@ import { cilPencil, cilPlus } from '@coreui/icons'
 
 import api from '../../../../services/api'
 import { localEmployees } from '../../../../services/localEmployees'
+import { DESIGNATIONS } from '../../../../constants/employeeConstants'
 
 const ALLOWED_INCREMENTS = [
   { value: '3', label: '3%' },
@@ -39,7 +40,7 @@ const ALLOWED_INCREMENTS = [
   { value: '8', label: '8%' },
 ]
 
-const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
+const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onSave }) => {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -55,8 +56,12 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
   const [editSalary, setEditSalary] = useState('')
   const [editEffectiveDate, setEditEffectiveDate] = useState('')
   const [editRemarks, setEditRemarks] = useState('')
+  const [editDesignation, setEditDesignation] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editFormError, setEditFormError] = useState('')
+
+  // Increment state
+  const [incDesignation, setIncDesignation] = useState('')
 
   const salary = Number(currentSalary)
   const preview = incrementPct
@@ -100,6 +105,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
         increment_percentage: Number(incrementPct),
         effective_date: effectiveDate,
         remarks: remarks || undefined,
+        new_designation: incDesignation.trim() || undefined,
       })
     } catch {
       try {
@@ -107,6 +113,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
           increment_percentage: Number(incrementPct),
           effective_date: effectiveDate,
           remarks: remarks || undefined,
+          new_designation: incDesignation.trim() || undefined,
         })
       } catch (localErr) {
         setFormError(localErr.message || 'Failed to apply increment')
@@ -119,6 +126,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
     setRemarks('')
     setEffectiveDate('')
     setIncrementPct('3')
+    setIncDesignation('')
     onSave()
     setSubmitting(false)
   }
@@ -140,6 +148,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
         new_salary: editNewSalary,
         effective_date: editEffectiveDate,
         remarks: editRemarks || undefined,
+        new_designation: editDesignation.trim() || undefined,
       })
     } catch {
       try {
@@ -147,6 +156,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
           new_salary: editNewSalary,
           effective_date: editEffectiveDate,
           remarks: editRemarks || undefined,
+          new_designation: editDesignation.trim() || undefined,
         })
       } catch (localErr) {
         setEditFormError(localErr.message || 'Failed to update salary')
@@ -159,6 +169,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
     setEditSalary('')
     setEditEffectiveDate('')
     setEditRemarks('')
+    setEditDesignation('')
     onSave()
     setEditSubmitting(false)
   }
@@ -219,6 +230,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
                   <CTableHeaderCell>Increment Amount</CTableHeaderCell>
                   <CTableHeaderCell>New Salary</CTableHeaderCell>
                   <CTableHeaderCell>Effective Date</CTableHeaderCell>
+                  <CTableHeaderCell>Designation</CTableHeaderCell>
                   <CTableHeaderCell>Remarks</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -241,6 +253,13 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
                       ₹{Number(h.new_salary).toLocaleString('en-IN')}
                     </CTableDataCell>
                     <CTableDataCell>{h.effective_date}</CTableDataCell>
+                    <CTableDataCell>
+                      {h.designation_changed_to ? (
+                        <CBadge color="primary" shape="rounded-pill">
+                          {h.designation_changed_to}
+                        </CBadge>
+                      ) : '—'}
+                    </CTableDataCell>
                     <CTableDataCell>{h.remarks || '—'}</CTableDataCell>
                   </CTableRow>
                 ))}
@@ -314,6 +333,27 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
                 min={new Date().toISOString().split('T')[0]}
                 required
               />
+            </div>
+
+            <div className="mb-3">
+              <CFormLabel htmlFor="editDesignation">
+                New Designation
+                <span className="text-body-secondary ms-2" style={{ fontSize: '0.78rem' }}>
+                  (leave blank to keep current: {currentDesignation || '—'})
+                </span>
+              </CFormLabel>
+              <CFormSelect
+                id="editDesignation"
+                value={editDesignation}
+                onChange={(e) => setEditDesignation(e.target.value)}
+              >
+                <option value="">— Keep current ({currentDesignation || 'unchanged'}) —</option>
+                {DESIGNATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </CFormSelect>
             </div>
 
             <div className="mb-3">
@@ -409,6 +449,27 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
             </div>
 
             <div className="mb-3">
+              <CFormLabel htmlFor="incDesignation">
+                New Designation
+                <span className="text-body-secondary ms-2" style={{ fontSize: '0.78rem' }}>
+                  (leave blank to keep current: {currentDesignation || '—'})
+                </span>
+              </CFormLabel>
+              <CFormSelect
+                id="incDesignation"
+                value={incDesignation}
+                onChange={(e) => setIncDesignation(e.target.value)}
+              >
+                <option value="">— Keep current ({currentDesignation || 'unchanged'}) —</option>
+                {DESIGNATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </CFormSelect>
+            </div>
+
+            <div className="mb-3">
               <CFormLabel htmlFor="remarks">Remarks</CFormLabel>
               <CFormTextarea
                 id="remarks"
@@ -437,6 +498,7 @@ const SalaryTab = ({ employeeId, currentSalary, canEdit, onSave }) => {
 SalaryTab.propTypes = {
   employeeId: PropTypes.string.isRequired,
   currentSalary: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  currentDesignation: PropTypes.string,
   canEdit: PropTypes.bool.isRequired,
   onSave: PropTypes.func.isRequired,
 }

@@ -15,6 +15,7 @@ import {
   cilBell,
   cilNotes,
   cilOptions,
+  cilCalculator,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -69,24 +70,21 @@ const emsNav = [
           { component: CNavItem, name: 'Recruitment & Training', to: '/ems/recruitment' },
         ],
       },
+      {
+        component: CNavItem,
+        name: 'Expense Pools',
+        to: '/ems/hr-pool/global',
+        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Global Core Pool',
+        to: '/ems/core-pool/global',
+        icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
     ],
   },
 
-  // ── Overheads & Pools ──────────────────────────────────────────────
-  {
-    component: CNavItem,
-    name: 'Expense Pools',
-    to: '/ems/hr-pool/global',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
-  {
-    component: CNavItem,
-    name: 'Global Core Pool',
-    to: '/ems/core-pool/global',
-    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
   // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
@@ -109,6 +107,13 @@ const emsNav = [
         icon: <CIcon icon={cilTags} customClassName="nav-icon" />,
       },
     ],
+  },
+  {
+    component: CNavGroup,
+    name: 'Finance',
+    icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+    roles: STAFF_ROLES,
+    items: [{ component: CNavItem, name: 'GST Bills', to: '/ems/finance/gst-bills' }],
   },
 
   // ── User Management (Admin + HR) ───────────────────────────────────
@@ -133,6 +138,11 @@ const emsNav = [
         component: CNavItem,
         name: 'Super Forecasting',
         to: '/ems/reports-analysis/super-forecasting',
+      },
+      {
+        component: CNavItem,
+        name: 'Detailed Report',
+        to: '/ems/reports-analysis/detailed-report',
       },
     ],
   },

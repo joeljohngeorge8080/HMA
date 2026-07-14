@@ -58,6 +58,14 @@ export const PERMISSIONS = {
     [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
     [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
   },
+  // Finance: Heads maintain GST bills (Admin bypasses to edit); CEO/HR read-only
+  [MODULE.FINANCE]: {
+    [ROLE.CEO]: ACCESS.VIEW,
+    [ROLE.HEADS]: ACCESS.EDIT,
+    [ROLE.HR]: ACCESS.VIEW,
+    [ROLE.PROJECT_ASSOCIATE]: ACCESS.NONE,
+    [ROLE.PROJECT_OFFICER]: ACCESS.NONE,
+  },
 
   [MODULE.HR_POOL]: {
     [ROLE.CEO]: ACCESS.VIEW,

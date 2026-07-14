@@ -29,6 +29,7 @@ import {
   CModalTitle,
   CFormInput,
   CFormLabel,
+  CFormSelect,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
@@ -376,26 +377,41 @@ const currentMonthSplitFor = (project) => {
 }
 
 const ConsolidatedSheet = ({ onDrillDown }) => {
-  const [rows, setRows] = useState([])
+  const [baseRows, setBaseRows] = useState([])
   const [loading, setLoading] = useState(true)
+  // 'all' = full project duration; otherwise a 'YYYY-MM' month key
+  const [monthFilter, setMonthFilter] = useState('all')
 
-  useEffect(() => {
+  const loadConsolidated = useCallback(() => {
     // Same source as PMS › All Projects (localProjects.list with no filters) —
     // every project entered there shows up here, not just activated ones.
     const allProjects = localProjects.list({ pageSize: 1000 }).items || []
 
     const built = allProjects.map((p) => {
       const bd = localOrgPool.buildProjectMonthlyBreakdown(p)
-      const totalAdmin = bd.reduce((s, m) => s + m.adminBudget, 0)
-      const totalHr = bd.reduce((s, m) => s + m.hrBudget, 0)
-      const totalCore = bd.reduce((s, m) => s + m.coreBudget, 0)
-      const totalDirect = bd.reduce((s, m) => s + m.directBudget, 0)
       const pv = p.project_value || p.project_valuation || p.amount_sanctioned || 0
       const hrSummary = localOrgPool.getProjectHRBudgetSummary(p.id)
       const coreSummary = localOrgPool.getProjectCoreBudgetSummary(p.id)
-      const adminUsed = localProjectExpenses
-        .list({ projectId: p.id, pool: 'admin' })
-        .reduce((s, e) => s + e.amount, 0)
+
+      // Per-month "used" maps so the sheet can be filtered month-wise
+      const hrUsedByMonth = {}
+      localOrgPool.getProjectHRCharges(p.id).forEach((c) => {
+        if (!c.date) return
+        const ym = c.date.slice(0, 7)
+        hrUsedByMonth[ym] = (hrUsedByMonth[ym] || 0) + (c.myAmount || 0)
+      })
+      const coreUsedByMonth = {}
+      localOrgPool.getProjectCoreCharges(p.id).forEach((c) => {
+        if (!c.date) return
+        const ym = c.date.slice(0, 7)
+        coreUsedByMonth[ym] = (coreUsedByMonth[ym] || 0) + (c.myAmount || 0)
+      })
+      const adminUsedByMonth = {}
+      const adminEntries = localProjectExpenses.list({ projectId: p.id, pool: 'admin' })
+      adminEntries.forEach((e) => {
+        adminUsedByMonth[e.month] = (adminUsedByMonth[e.month] || 0) + e.amount
+      })
+
       const activationMonth =
         p.operations_activated_month ||
         (p.operations_activated_at ? p.operations_activated_at.slice(0, 7) : null)
@@ -404,14 +420,17 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
         projectName: p.title || p.name,
         projectType: p.project_type,
         projectValue: pv,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        durationMonths: bd.length,
         activationMonth,
-        totalAdmin,
-        totalHr,
-        totalCore,
-        totalDirect,
-        adminUsed,
-        hrUsed: hrSummary.totalCharged || 0,
-        coreUsed: coreSummary.totalCharged || 0,
+        bd,
+        hrUsedByMonth,
+        coreUsedByMonth,
+        adminUsedByMonth,
+        adminUsedTotal: adminEntries.reduce((s, e) => s + e.amount, 0),
+        hrUsedTotal: hrSummary.totalCharged || 0,
+        coreUsedTotal: coreSummary.totalCharged || 0,
       }
     })
 
@@ -423,9 +442,55 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
       return newSplit ? { ...r, newMonthSplit: newSplit } : r
     })
 
-    setRows(enriched)
+    setBaseRows(enriched)
     setLoading(false)
   }, [])
+
+  // Initial load
+  useEffect(() => {
+    loadConsolidated()
+  }, [loadConsolidated])
+
+  // Re-load when any tab saves project changes (cross-tab sync via storage event)
+  useEffect(() => {
+    const handleChange = () => loadConsolidated()
+    window.addEventListener('hma_projects_changed', handleChange)
+    const handleStorage = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleChange()
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleChange)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [loadConsolidated])
+
+  // Every month any project is running in, for the month selector
+  const monthOptions = useMemo(() => {
+    const set = new Set()
+    baseRows.forEach((r) => r.bd.forEach((m) => set.add(m.month)))
+    return [...set].sort()
+  }, [baseRows])
+
+  // Budget + used figures for the selected window (full duration or one month)
+  const rows = useMemo(
+    () =>
+      baseRows.map((r) => {
+        const months = monthFilter === 'all' ? r.bd : r.bd.filter((m) => m.month === monthFilter)
+        return {
+          ...r,
+          totalAdmin: months.reduce((s, m) => s + m.adminBudget, 0),
+          totalHr: months.reduce((s, m) => s + m.hrBudget, 0),
+          totalCore: months.reduce((s, m) => s + m.coreBudget, 0),
+          totalDirect: months.reduce((s, m) => s + m.directBudget, 0),
+          adminUsed:
+            monthFilter === 'all' ? r.adminUsedTotal : r.adminUsedByMonth[monthFilter] || 0,
+          hrUsed: monthFilter === 'all' ? r.hrUsedTotal : r.hrUsedByMonth[monthFilter] || 0,
+          coreUsed: monthFilter === 'all' ? r.coreUsedTotal : r.coreUsedByMonth[monthFilter] || 0,
+        }
+      }),
+    [baseRows, monthFilter],
+  )
 
   if (loading)
     return (
@@ -507,9 +572,25 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
             {' · '}Admin always active · HR/Core from activation · Click project to drill down
           </div>
         </div>
-        <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
-          {rows.length} Project{rows.length !== 1 ? 's' : ''}
-        </CBadge>
+        <div className="d-flex gap-2 align-items-center">
+          <CFormSelect
+            size="sm"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            style={{ width: 170 }}
+            aria-label="Consolidated sheet period"
+          >
+            <option value="all">Full duration</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </CFormSelect>
+          <CBadge color="success" shape="rounded-pill" className="px-3 py-2">
+            {rows.length} Project{rows.length !== 1 ? 's' : ''}
+          </CBadge>
+        </div>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -576,6 +657,12 @@ const ConsolidatedSheet = ({ onDrillDown }) => {
                     style={{ fontSize: '0.78rem', fontWeight: 600, lineHeight: 1.3 }}
                   >
                     {r.projectName}
+                  </div>
+                  <div
+                    className="text-body-secondary"
+                    style={{ fontSize: '0.63rem', marginTop: 2 }}
+                  >
+                    Duration: {r.durationMonths} month{r.durationMonths !== 1 ? 's' : ''}
                   </div>
                   <CBadge
                     color="secondary"
@@ -785,8 +872,23 @@ const ApportionmentSheet = () => {
     setLoading(false)
   }, [])
 
+  // Initial load
   useEffect(() => {
     loadData()
+  }, [loadData])
+
+  // Re-load when any tab saves project changes (cross-tab sync via storage event)
+  useEffect(() => {
+    const handleChange = () => loadData()
+    window.addEventListener('hma_projects_changed', handleChange)
+    const handleStorage = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleChange()
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleChange)
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [loadData])
 
   const handleSaveAdjust = () => {
@@ -1146,23 +1248,32 @@ const ApportionmentSheet = () => {
 
                       {/* Phase sub-rows */}
                       {(() => {
-                        const phases = []
-                        const seen = new Set()
-                        bd.forEach((m) => {
-                          if (m.installmentId && !seen.has(m.installmentId)) {
-                            seen.add(m.installmentId)
-                            phases.push({
-                              id: m.installmentId,
-                              label: m.phaseName || m.installmentLabel,
-                            })
-                          }
-                        })
-                        return phases.map((ph) => {
-                          const phTotal = bd
-                            .filter((m) => m.installmentId === ph.id)
-                            .reduce((s, m) => s + m.directBudget, 0)
-                          return (
-                            <tr key={ph.id}>
+                        const hasPlannedPhases = bd.some(
+                          (m) => m.plannedPhases && m.plannedPhases.length > 0
+                        )
+
+                        if (hasPlannedPhases) {
+                          const tasksMap = new Map() // key -> { id, phase, label, total }
+                          bd.forEach((m) => {
+                            if (m.plannedPhases) {
+                              m.plannedPhases.forEach((ph, i) => {
+                                const key = `${ph.phase}-${ph.label || i}`
+                                if (!tasksMap.has(key)) {
+                                  tasksMap.set(key, {
+                                    id: key,
+                                    phase: ph.phase,
+                                    label: ph.label || ph.phase,
+                                    total: 0,
+                                  })
+                                }
+                                tasksMap.get(key).total += ph.amount || 0
+                              })
+                            }
+                          })
+
+                          const tasks = Array.from(tasksMap.values())
+                          return tasks.map((t) => (
+                            <tr key={t.id}>
                               <td
                                 className="ps-4 text-body-secondary fw-medium"
                                 style={{
@@ -1172,23 +1283,82 @@ const ApportionmentSheet = () => {
                                   background: 'var(--cui-body-bg)',
                                 }}
                               >
-                                &#8627; {ph.label}
-                              </td>
-                              <td className="text-end text-success fw-medium">{fmtL(phTotal)}</td>
-                              {bd.map((m) => (
-                                <td
-                                  key={m.month}
-                                  className="text-end text-body-tertiary"
-                                  style={{ fontSize: '0.78rem' }}
+                                &#8627; {t.label}
+                                <CBadge
+                                  color="secondary"
+                                  shape="rounded-pill"
+                                  className="ms-2"
+                                  style={{ fontSize: '0.6rem', opacity: 0.8 }}
                                 >
-                                  {m.installmentId === ph.id && m.directBudget > 0
-                                    ? fmtL(m.directBudget)
-                                    : '—'}
-                                </td>
-                              ))}
+                                  PMS Task
+                                </CBadge>
+                              </td>
+                              <td className="text-end text-success fw-medium">{fmtL(t.total)}</td>
+                              {bd.map((m) => {
+                                const pPhase = m.plannedPhases
+                                  ? m.plannedPhases.find(
+                                      (ph, i) => `${ph.phase}-${ph.label || i}` === t.id
+                                    )
+                                  : null
+                                const amt = pPhase ? pPhase.amount || 0 : 0
+                                return (
+                                  <td
+                                    key={m.month}
+                                    className="text-end text-body-tertiary"
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    {amt > 0 ? fmtL(amt) : '—'}
+                                  </td>
+                                )
+                              })}
                             </tr>
-                          )
-                        })
+                          ))
+                        } else {
+                          // Fallback to legacy Installment-based phase rows
+                          const phases = []
+                          const seen = new Set()
+                          bd.forEach((m) => {
+                            if (m.installmentId && !seen.has(m.installmentId)) {
+                              seen.add(m.installmentId)
+                              phases.push({
+                                id: m.installmentId,
+                                label: m.phaseName || m.installmentLabel,
+                              })
+                            }
+                          })
+                          return phases.map((ph) => {
+                            const phTotal = bd
+                              .filter((m) => m.installmentId === ph.id)
+                              .reduce((s, m) => s + m.directBudget, 0)
+                            return (
+                              <tr key={ph.id}>
+                                <td
+                                  className="ps-4 text-body-secondary fw-medium"
+                                  style={{
+                                    position: 'sticky',
+                                    left: 0,
+                                    zIndex: 1,
+                                    background: 'var(--cui-body-bg)',
+                                  }}
+                                >
+                                  &#8627; {ph.label}
+                                </td>
+                                <td className="text-end text-success fw-medium">{fmtL(phTotal)}</td>
+                                {bd.map((m) => (
+                                  <td
+                                    key={m.month}
+                                    className="text-end text-body-tertiary"
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    {m.installmentId === ph.id && m.directBudget > 0
+                                      ? fmtL(m.directBudget)
+                                      : '—'}
+                                  </td>
+                                ))}
+                              </tr>
+                            )
+                          })
+                        }
                       })()}
                     </tbody>
                   </table>

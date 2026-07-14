@@ -75,6 +75,7 @@ import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
 import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
+import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 
 // ─── Budget helpers ────────────────────────────────────────────────────────────
 const fmtShort = (n) => {
@@ -680,15 +681,16 @@ const ProjectDetailPage = () => {
   const [actualDateVal, setActualDateVal] = useState('')
   // Beneficiaries state
   const [beneficiariesCompleted, setBeneficiariesCompleted] = useState('')
+  const [deleteModal, setDeleteModal] = useState(false)
 
   const role = useRole()
   const { user } = useAuth()
-  const projectTaskCount = useMemo(
-    () => (project ? localTasks.getByProject(project.id).length : 0),
-    [project],
-  )
-  // Activation requires both a task assigned AND a completed monthly plan —
-  // the Project Officer must plan the budget before it can go live.
+  const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
+  // Activation requires a completed monthly plan — the Project Officer
+  // must plan the budget before it can go live. (Previously also required
+  // a task to be assigned first, but that gate assumed active task
+  // monitoring by field personnel, which doesn't happen in practice, so
+  // it was removed — a project with a plan but zero tasks can activate.)
   const hasMonthlyPlan = Boolean(project?.monthly_plan?.length)
   const isBudgetAdmin = role === ROLE.CEO || role === ROLE.HR
   // Monthly budget planning is specifically the Project Officer's/Project
@@ -709,6 +711,28 @@ const ProjectDetailPage = () => {
     // Load approvals only for projects that have pending ones
     if (p && p.pending_approvals > 0) {
       setApprovals(DEMO_APPROVALS)
+    }
+  }, [id])
+
+  // Sync when another component (e.g. EMS pool page, ExpensePanel) mutates
+  // the project record in localStorage and fires hma_projects_changed.
+  // Also listens to the native `storage` event so changes made in ANOTHER
+  // browser tab (same origin) are reflected here automatically.
+  useEffect(() => {
+    const handleExternalChange = () => {
+      const fresh = localProjects.getById(id)
+      if (fresh) setProject(fresh)
+    }
+    // Fires in the same tab (dispatched by localProjects.notify())
+    window.addEventListener('hma_projects_changed', handleExternalChange)
+    // Fires in OTHER tabs whenever localStorage is written
+    const handleStorageEvent = (e) => {
+      if (e.key === 'hma_projects_sync_at') handleExternalChange()
+    }
+    window.addEventListener('storage', handleStorageEvent)
+    return () => {
+      window.removeEventListener('hma_projects_changed', handleExternalChange)
+      window.removeEventListener('storage', handleStorageEvent)
     }
   }, [id])
 
@@ -787,6 +811,11 @@ const ProjectDetailPage = () => {
     setToast({ color: 'success', message: 'Beneficiaries count updated' })
   }
 
+  const handleDeleteConfirm = () => {
+    localProjects.remove(project.id)
+    navigate('/pms/projects')
+  }
+
   return (
     <>
       {/* Back */}
@@ -838,15 +867,26 @@ const ProjectDetailPage = () => {
               </span>
             </div>
           </div>
-          <CButton
-            color="light"
-            className="text-primary fw-semibold flex-shrink-0"
-            onClick={() => navigate(`/pms/projects/${id}/edit`)}
-          >
-            <CIcon icon={cilPen} className="me-1" />
-            Edit Project
-          </CButton>
-
+          <div className="d-flex gap-2 flex-shrink-0">
+            <CButton
+              color="light"
+              className="text-primary fw-semibold"
+              onClick={() => navigate(`/pms/projects/${id}/edit`)}
+            >
+              <CIcon icon={cilPen} className="me-1" />
+              Edit Project
+            </CButton>
+            {canDelete && (
+              <CButton
+                color="light"
+                className="text-danger fw-semibold"
+                onClick={() => setDeleteModal(true)}
+              >
+                <CIcon icon={cilTrash} className="me-1" />
+                Delete Project
+              </CButton>
+            )}
+          </div>
           {ucAlert && (
             <CBadge
               color={ucAlert.color}
@@ -2529,6 +2569,13 @@ const ProjectDetailPage = () => {
           </CToast>
         )}
       </CToaster>
+
+      <DeleteProjectConfirmModal
+        visible={deleteModal}
+        project={project}
+        onClose={() => setDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

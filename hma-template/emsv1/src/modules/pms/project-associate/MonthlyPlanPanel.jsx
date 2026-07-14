@@ -643,7 +643,11 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
   }
 
   const handleRefresh = () => {
-    const fresh = localProjects.getById(project.id)
+    // recomputePlan re-derives all auto_cascade and actual_pull adjustments
+    // from the current stored plan (preserving manual ones), writes back to
+    // localStorage, and returns the updated project — so Admin/HR/Core figures
+    // and the validation badge reflect any external changes or desync.
+    const fresh = localProjects.recomputePlan(project.id)
     if (fresh) onProjectChange(fresh)
   }
 

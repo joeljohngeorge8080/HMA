@@ -309,7 +309,7 @@ export const localEmployees = {
   },
 
   // ── updateSalaryDirect ────────────────────────────────────────────────────────
-  updateSalaryDirect(id, { new_salary, effective_date, remarks }) {
+  updateSalaryDirect(id, { new_salary, effective_date, remarks, new_designation }) {
     const rows = readAll()
     const idx = rows.findIndex((e) => e.id === id)
     if (idx === -1) throw new Error('Employee not found')
@@ -323,6 +323,11 @@ export const localEmployees = {
     rows[idx] = {
       ...old,
       current_salary: newSal,
+      // Update designation only if a new one was explicitly provided
+      employment: {
+        ...(old.employment || {}),
+        ...(new_designation ? { designation: new_designation } : {}),
+      },
       salary_history: [
         ...(old.salary_history || []),
         {
@@ -333,6 +338,7 @@ export const localEmployees = {
           new_salary: newSal,
           effective_date,
           remarks: remarks || '',
+          ...(new_designation ? { designation_changed_to: new_designation } : {}),
           created_at: ts,
         },
       ],
@@ -344,7 +350,7 @@ export const localEmployees = {
   },
 
   // ── applySalaryIncrement ──────────────────────────────────────────────────────
-  applySalaryIncrement(id, { increment_percentage, effective_date, remarks }) {
+  applySalaryIncrement(id, { increment_percentage, effective_date, remarks, new_designation }) {
     const rows = readAll()
     const idx = rows.findIndex((e) => e.id === id)
     if (idx === -1) throw new Error('Employee not found')
@@ -359,6 +365,11 @@ export const localEmployees = {
     rows[idx] = {
       ...old,
       current_salary: newSal,
+      // Update designation only if a new one was explicitly provided
+      employment: {
+        ...(old.employment || {}),
+        ...(new_designation ? { designation: new_designation } : {}),
+      },
       salary_history: [
         ...(old.salary_history || []),
         {
@@ -369,6 +380,7 @@ export const localEmployees = {
           new_salary: newSal,
           effective_date,
           remarks: remarks || '',
+          ...(new_designation ? { designation_changed_to: new_designation } : {}),
           created_at: ts,
         },
       ],
