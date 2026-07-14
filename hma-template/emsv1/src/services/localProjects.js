@@ -450,18 +450,16 @@ export const localProjects = {
    * "blocks" — each a contiguous month range with its own Design/
    * Implementation/Monitoring phase breakdown, replicated identically
    * across every month in that block's range. Months not covered by any
-   * block are filled with an even split of whatever's left of the
-   * project's own baseline (computeWorkingPool) as a single generic
-   * "Planned budget" line item per month.
+   * block start as empty stubs (no phases, ₹0 total) — nothing is
+   * auto-computed or pre-filled; a PO/PA adds real task lines afterwards
+   * via "Add Line", which themselves start at ₹0 planned/actual.
    *
    * - If blocks cover every month, the blocked total must equal the
    *   working pool exactly (no remainder exists to spread either way) or
    *   this throws.
    * - Throws if a block falls outside the project's duration, if two
-   *   blocks claim the same month, if the blocked total alone already
-   *   exceeds the working pool, or if the final plan still fails to
-   *   balance after rounding-drift reconciliation (a real algorithm bug,
-   *   not normal user error).
+   *   blocks claim the same month, or if the blocked total alone already
+   *   exceeds the working pool.
    * - Persists both `monthly_plan` (the derived per-month array consumed
    *   by the rest of the app) and `plan_blocks` (the raw block
    *   definitions, so the editor can reload and revise them later).
@@ -539,19 +537,21 @@ export const localProjects = {
       return projects[idx]
     }
 
-    const remainingPool = Math.round((workingPool - blockedTotal) * 100) / 100
-    if (remainingPool < 0) {
+    if (blockedTotal > workingPool) {
       throw new Error(
         `Blocked months' total (₹${blockedTotal}) already exceeds the project baseline ` +
           `(₹${workingPool}) — reduce block amounts.`,
       )
     }
 
-    const remainingPerMonth = Math.round((remainingPool / remainingMonths.length) * 100) / 100
+    // Months not covered by any block start as empty stubs — no auto-computed
+    // "Planned budget" line item, no pre-filled amount. A PO/PA adds a real
+    // task via "Add Line" (handleAddPhase in MonthlyPlanPanel), which starts
+    // at ₹0 planned/actual, so nothing is invented until a real task exists.
     const remainingEntries = remainingMonths.map((month) => ({
       month,
-      phases: [{ phase: 'design', label: 'Planned budget', amount: remainingPerMonth }],
-      total: remainingPerMonth,
+      phases: [],
+      total: 0,
     }))
 
     monthlyPlan = months.map(
@@ -559,44 +559,6 @@ export const localProjects = {
         blockedMonthEntries.find((e) => e.month === m) ||
         remainingEntries.find((e) => e.month === m),
     )
-
-    const drift = validatePlanTotal(monthlyPlan, workingPool)
-    if (!drift.valid) {
-      if (Math.abs(drift.diff) >= 1) {
-        throw new Error(
-          `Plan total (${drift.planTotal}) does not match the project baseline (${workingPool}) — ` +
-            `difference of ${drift.diff}. This is larger than normal rounding drift and indicates ` +
-            `a bug in the plan-generation algorithm.`,
-        )
-      }
-      const lastRemainingMonth = remainingMonths[remainingMonths.length - 1]
-      const lastIdx = monthlyPlan.findIndex((e) => e.month === lastRemainingMonth)
-      const lastEntry = monthlyPlan[lastIdx]
-      const patchedAmount = Math.round((lastEntry.phases[0].amount - drift.diff) * 100) / 100
-      if (patchedAmount < 0) {
-        throw new Error(
-          'Rounding reconciliation produced a negative amount — this indicates a bug in the ' +
-            'plan-generation algorithm.',
-        )
-      }
-      monthlyPlan = [
-        ...monthlyPlan.slice(0, lastIdx),
-        {
-          ...lastEntry,
-          phases: [{ ...lastEntry.phases[0], amount: patchedAmount }],
-          total: patchedAmount,
-        },
-        ...monthlyPlan.slice(lastIdx + 1),
-      ]
-    }
-
-    const final = validatePlanTotal(monthlyPlan, workingPool)
-    if (!final.valid) {
-      throw new Error(
-        `Plan total (${final.planTotal}) does not match the project baseline (${workingPool}) — ` +
-          `difference of ${final.diff}. Adjust the block amounts and try again.`,
-      )
-    }
 
     projects[idx] = {
       ...project,
