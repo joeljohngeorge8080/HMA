@@ -35,7 +35,13 @@ const readWorkbookRows = (file) =>
     reader.readAsArrayBuffer(file)
   })
 
-const dupKey = (x) => `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}`
+/**
+ * A row is a true duplicate only when gstNo, invoiceNumber AND gstRate all
+ * match an existing entry. Same invoice with a different GST rate is a
+ * separate line item (e.g. a mixed-rate bill) and must be imported.
+ */
+const dupKey = (x) =>
+  `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}|${String(x.gstRate ?? '').trim()}`
 
 const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
   const fileRef = useRef(null)
@@ -88,7 +94,9 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
         setParsedEntries(
           result.entries.map((en) => ({
             ...en,
-            duplicate: Boolean(en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))),
+            duplicate: Boolean(
+              en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))
+            ),
           })),
         )
       }
