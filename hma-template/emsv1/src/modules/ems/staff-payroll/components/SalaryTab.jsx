@@ -35,95 +35,7 @@ import api from '../../../../services/api'
 import { localEmployees } from '../../../../services/localEmployees'
 import { localAttendance } from '../../../../services/localAttendance'
 import { DESIGNATIONS } from '../../../../constants/employeeConstants'
-
-// ─── CTC Calculation Engine ───────────────────────────────────────────────────
-// Based on ctc detailed list.csv format
-export const computeCTC = ({
-  idealBasic = 0,
-  tnd = 30,
-  tndw = 0,
-  pt = 0,
-  recovery = 0,
-  centreInchargeAllowance = 0,
-  rsoAllowance = 0,
-}) => {
-  const basic = Number(idealBasic) || 0
-  const totalDays = Number(tnd) || 30
-  const daysPresent = Number(tndw) || 0
-  const cia = Number(centreInchargeAllowance) || 0
-  const rso = Number(rsoAllowance) || 0
-
-  // Ideal components
-  const idealHRA = basic * 0.3
-  const idealOA = basic * 0.1
-  const idealGross = basic + idealHRA + idealOA + cia + rso
-
-  // Actual components (prorated by attendance)
-  const ratio = totalDays > 0 ? daysPresent / totalDays : 0
-  const actualBasic = basic * ratio
-  const actualHRA = actualBasic * 0.3
-  const actualOA = actualBasic * 0.1
-  const actualGross = actualBasic + actualHRA + actualOA + cia + rso
-
-  // Employee deductions
-  const empEPFO = actualBasic * 0.12
-  const empESIC = idealGross < 21000 ? actualGross * 0.0075 : 0
-  const ptAmt = Number(pt) || 0
-  const recoveryAmt = Number(recovery) || 0
-  const empLWF = 50
-  const groupInsurance = idealGross < 21000 ? 0 : 200
-  const totalDeduction = empEPFO + empESIC + ptAmt + recoveryAmt + empLWF + groupInsurance
-  const netSalary = actualGross - totalDeduction
-
-  // Employer contributions
-  const employerPF = actualBasic * 0.12
-  const pfAdmin = actualBasic * 0.005
-  const edli = actualBasic * 0.005
-  const employerESIC = idealGross < 21000 ? actualGross * 0.0325 : 0
-  const employerLWF = 50
-  const totalEmployerContribution = employerPF + pfAdmin + edli + employerESIC + employerLWF
-
-  // CTC and Invoice
-  const ctc = actualGross + totalEmployerContribution
-  const serviceCharges = ctc * 0.015
-  const invoiceAmount = ctc + serviceCharges
-  const igst = invoiceAmount * 0.18
-  const totalInvoiceAmount = invoiceAmount + igst
-
-  return {
-    idealBasic: basic,
-    idealHRA,
-    idealOA,
-    cia,
-    rso,
-    idealGross,
-    tnd: totalDays,
-    tndw: daysPresent,
-    actualBasic,
-    actualHRA,
-    actualOA,
-    actualGross,
-    empEPFO,
-    empESIC,
-    ptAmt,
-    recoveryAmt,
-    empLWF,
-    groupInsurance,
-    totalDeduction,
-    netSalary,
-    employerPF,
-    pfAdmin,
-    edli,
-    employerESIC,
-    employerLWF,
-    totalEmployerContribution,
-    ctc,
-    serviceCharges,
-    invoiceAmount,
-    igst,
-    totalInvoiceAmount,
-  }
-}
+import { computeCTC } from '../ctcUtils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n, decimals = 2) =>
@@ -263,8 +175,10 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
         const { data } = await api.get(
           `/employees/${employeeId}/attendance-summary?year=${year}&month=${month}`,
         )
+        // present_count already includes half-day records as full days (per buildSummary).
+        // Correct TNDW: subtract 0.5 per half day (not add).
         const tndwVal =
-          (Number(data.present_count) || 0) + (Number(data.half_day_count) || 0) * 0.5
+          (Number(data.present_count) || 0) - (Number(data.half_day_count) || 0) * 0.5
         setTnd(String(daysInMonth))
         setTndw(String(tndwVal))
         setAttSource('api')
@@ -293,8 +207,10 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
         }
 
         if (summary) {
+          // present_count from buildSummary already includes half days as full days.
+          // Correct TNDW: subtract 0.5 per half day.
           const tndwVal =
-            (Number(summary.present_count) || 0) + (Number(summary.half_day_count) || 0) * 0.5
+            (Number(summary.present_count) || 0) - (Number(summary.half_day_count) || 0) * 0.5
           setTnd(String(daysInMonth))
           setTndw(String(tndwVal))
           setAttSource('local')
@@ -315,7 +231,16 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
     const now = new Date()
     const m = now.getMonth() + 1
     const y = now.getFullYear()
-    setIdealBasic(String(salary))
+
+    // Prefer the ideal basic from the last history entry's CTC breakdown;
+    // fall back to current_salary (which also stores idealBasic since the fix).
+    const lastEntry = history.length ? history[history.length - 1] : null
+    const prevIdealBasic =
+      lastEntry?.ctc_breakdown?.ideal_basic != null
+        ? lastEntry.ctc_breakdown.ideal_basic
+        : salary
+
+    setIdealBasic(String(prevIdealBasic))
     setStateForPT('')
     setTnd(String(new Date(y, m, 0).getDate()))
     setTndw('')
@@ -354,7 +279,7 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
 
     setEditSubmitting(true)
     const payload = {
-      new_salary: calc.ctc,
+      new_salary: calc.idealBasic,
       effective_date: editEffectiveDate,
       remarks: editRemarks || undefined,
       new_designation: editDesignation.trim() || undefined,
@@ -451,10 +376,10 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
     setSubmitting(false)
   }
 
-  // Derive basic from last history entry
-  const lastEntry = history.length ? history[0] : null
-  const displayBasic =
-    lastEntry?.ctc_breakdown?.ideal_basic ?? lastEntry?.ctc_breakdown?.actual_basic ?? null
+  // Derive the ideal CTC from current_salary (which stores idealBasic)
+  const derivedCTC = salary > 0
+    ? computeCTC({ idealBasic: salary, tnd: 30, tndw: 30 }).ctc
+    : null
 
   return (
     <>
@@ -463,15 +388,15 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
         <CCardBody>
           <CRow className="align-items-center">
             <CCol>
-              <small className="text-body-secondary">Current Salary (CTC)</small>
+              <small className="text-body-secondary">Current Basic Salary (Ideal)</small>
               <h3 className="mb-0 text-success fw-bold">
                 ₹{salary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </h3>
-              {displayBasic != null && (
+              {derivedCTC != null && (
                 <small className="text-body-secondary">
-                  Basic Salary:{' '}
+                  Ideal CTC (full attendance):{' '}
                   <span className="fw-semibold text-body">
-                    ₹{Number(displayBasic).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{Number(derivedCTC).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </small>
               )}
@@ -538,9 +463,15 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
                       ₹{Number(h.new_salary).toLocaleString('en-IN')}
                     </CTableDataCell>
                     <CTableDataCell>
-                      {h.ctc_breakdown?.ideal_basic != null
-                        ? `₹${Number(h.ctc_breakdown.ideal_basic).toLocaleString('en-IN')}`
-                        : '—'}
+                      {(() => {
+                        const basic =
+                          h.ctc_breakdown?.ideal_basic ??
+                          h.ideal_basic ??
+                          null
+                        return basic != null
+                          ? `₹${Number(basic).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : '—'
+                      })()}
                     </CTableDataCell>
                     <CTableDataCell>{h.effective_date}</CTableDataCell>
                     <CTableDataCell>
@@ -592,10 +523,10 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
                 <CFormInput
                   type="number"
                   min="0"
-                  step="1"
+                  step="any"
                   value={idealBasic}
                   onChange={(e) => setIdealBasic(e.target.value)}
-                  placeholder="e.g. 14938"
+                  placeholder="e.g. 14937.64"
                   required
                 />
                 {calc && (

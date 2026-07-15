@@ -25,7 +25,7 @@ import {
 import api from '../../../services/api'
 import { localEmployees } from '../../../services/localEmployees'
 import { localAttendance } from '../../../services/localAttendance'
-import { computeCTC } from './components/SalaryTab'
+import { computeCTC } from './ctcUtils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = [
@@ -228,7 +228,9 @@ const SalaryInvoicePage = () => {
       const { data } = await api.get(`/attendance/summaries?year=${year}&month=${month}&page_size=500`)
       const items = data.items || []
       for (const s of items) {
-        const tndwVal = (Number(s.present_count) || 0) + (Number(s.half_day_count) || 0) * 0.5
+        // present_count already includes half-day records as full days (per buildSummary).
+        // Correct TNDW: subtract 0.5 per half day (not add).
+        const tndwVal = (Number(s.present_count) || 0) - (Number(s.half_day_count) || 0) * 0.5
         map[s.employee_id] = { tnd: daysInMonth, tndw: tndwVal, source: 'api' }
       }
     } catch {
@@ -236,7 +238,9 @@ const SalaryInvoicePage = () => {
       const allSummaries = localAttendance.listMonthlySummaries({ year, month })
 
       for (const s of allSummaries) {
-        const tndwVal = (Number(s.present_count) || 0) + (Number(s.half_day_count) || 0) * 0.5
+        // present_count already includes half-day records as full days (per buildSummary).
+        // Correct TNDW: subtract 0.5 per half day (not add).
+        const tndwVal = (Number(s.present_count) || 0) - (Number(s.half_day_count) || 0) * 0.5
         // summaries are keyed by employee_id CODE
         map[s.employee_id] = { tnd: daysInMonth, tndw: tndwVal, source: 'local' }
       }
