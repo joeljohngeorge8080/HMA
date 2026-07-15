@@ -181,6 +181,229 @@ const SectionTitle = ({ children }) => (
   </div>
 )
 
+// ── Revenue & Expense details (org-wide) ──────────────────────────────────────
+// Itemized money-in vs money-out: HR revenue streams, Attendance (TPC) pool,
+// LSGB funds, and every expense register (HR/Core/Admin pools, General
+// Expenses, per-project actuals) with an expandable entry-level table.
+
+const LineRow = ({ label, value, indent, bold, color }) => (
+  <div
+    className={`d-flex justify-content-between py-1 ${bold ? 'fw-bold border-top mt-1 pt-2' : ''}`}
+    style={{ fontSize: '0.85rem', paddingLeft: indent ? 16 : 0 }}
+  >
+    <span className={bold ? '' : 'text-body-secondary'}>{label}</span>
+    <span className="fw-semibold" style={{ color: color || undefined }}>
+      {value}
+    </span>
+  </div>
+)
+
+const FinanceDetailsSection = ({ totals, projectNameById }) => {
+  const [showEntries, setShowEntries] = useState(false)
+
+  // Every expense entry across registers, newest first
+  const allEntries = useMemo(() => {
+    const rows = [
+      ...totals.hrExpenseEntries.map((e) => ({
+        id: `hr-${e.id}`,
+        date: e.date || '',
+        label: e.label || '—',
+        vendor: e.vendor || '',
+        source: 'HR Pool',
+        color: 'primary',
+        amount: parseFloat(e.amount) || 0,
+      })),
+      ...totals.coreExpenseEntries.map((e) => ({
+        id: `core-${e.id}`,
+        date: e.date || '',
+        label: e.label || '—',
+        vendor: e.vendor || '',
+        source: 'Core Pool',
+        color: 'info',
+        amount: parseFloat(e.amount) || 0,
+      })),
+      ...totals.adminExpenseEntries.map((e) => ({
+        id: `admin-${e.id}`,
+        date: e.date || '',
+        label: e.label || '—',
+        vendor: e.vendor || '',
+        source: 'Admin Pool',
+        color: 'warning',
+        amount: parseFloat(e.amount) || 0,
+      })),
+      ...totals.directEntries.map((e) => ({
+        id: `direct-${e.id}`,
+        date: e.date || e.month || '',
+        label: e.label || '—',
+        vendor: projectNameById[e.project_id] || 'Project',
+        source: 'Project Direct',
+        color: 'success',
+        amount: parseFloat(e.amount) || 0,
+      })),
+    ]
+    return rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  }, [totals, projectNameById])
+
+  return (
+    <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>
+      <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+        <div>
+          <div className="fw-semibold">Revenue & Expense Details</div>
+          <div className="text-body-secondary small">
+            All money in (HR revenue, Attendance TPC pool, LSGB funds) against all money out
+            (department pools, general and project expenses).
+          </div>
+        </div>
+        <CBadge
+          color={totals.netPosition >= 0 ? 'success' : 'danger'}
+          shape="rounded-pill"
+          className="px-3 py-2"
+        >
+          Net: {totals.netPosition >= 0 ? '' : '−'}
+          {fmtL(Math.abs(totals.netPosition))}
+        </CBadge>
+      </CCardHeader>
+      <CCardBody>
+        <CRow className="g-4">
+          {/* Revenue column */}
+          <CCol xs={12} lg={6}>
+            <SectionTitle>Revenue</SectionTitle>
+            <LineRow label="Recruitment" value={fmtL(totals.recruitmentRevenue)} indent />
+            <LineRow label="Training" value={fmtL(totals.trainingRevenue)} indent />
+            <LineRow label="Internship" value={fmtL(totals.internshipRevenue)} indent />
+            <LineRow label="HR Revenue subtotal" value={fmtL(totals.hrRevenue)} color="#06d6a0" />
+            <LineRow
+              label="Attendance Deduction Pool (TPC)"
+              value={fmtL(totals.attendancePool)}
+              color="#4cc9f0"
+            />
+            <LineRow
+              label={`LSGB funds withdrawn (${totals.lsgbWithdrawals.length} withdrawal${totals.lsgbWithdrawals.length !== 1 ? 's' : ''})`}
+              value={fmtL(totals.lsgbRevenue)}
+              color="#9b5de5"
+            />
+            <LineRow
+              label={`LSGB sanctioned across ${totals.lsgb.totalBodies} bod${totals.lsgb.totalBodies === 1 ? 'y' : 'ies'}`}
+              value={fmtL(totals.lsgb.totalSanctioned)}
+              indent
+            />
+            <LineRow
+              label="LSGB remaining to withdraw"
+              value={fmtL(totals.lsgb.remaining)}
+              indent
+            />
+            {Object.entries(totals.lsgb.byPurpose || {}).map(([purpose, amt]) => (
+              <LineRow key={purpose} label={`↳ ${purpose}`} value={fmtL(amt)} indent />
+            ))}
+            <LineRow label="Total Revenue" value={fmtL(totals.totalRevenue)} bold color="#06d6a0" />
+          </CCol>
+
+          {/* Expenses column */}
+          <CCol xs={12} lg={6}>
+            <SectionTitle>Expenses Occurred</SectionTitle>
+            <LineRow
+              label={`HR Pool expenses (${totals.hrExpenseEntries.length} bill${totals.hrExpenseEntries.length !== 1 ? 's' : ''})`}
+              value={fmtL(totals.hrExpenses)}
+              indent
+            />
+            <LineRow
+              label={`Core Pool expenses (${totals.coreExpenseEntries.length} bill${totals.coreExpenseEntries.length !== 1 ? 's' : ''})`}
+              value={fmtL(totals.coreExpenses)}
+              indent
+            />
+            <LineRow
+              label={`Admin Pool expenses (${totals.adminExpenseEntries.length} bill${totals.adminExpenseEntries.length !== 1 ? 's' : ''})`}
+              value={fmtL(totals.adminExpenses)}
+              indent
+            />
+            <LineRow
+              label="Department pools subtotal"
+              value={fmtL(totals.deptExpenses)}
+              color="#ef476f"
+            />
+            <LineRow
+              label="General Expenses (actual)"
+              value={fmtL(totals.generalActual)}
+              color="#f0ad4e"
+            />
+            <LineRow
+              label={`Project direct expenses (${totals.directEntries.length} entr${totals.directEntries.length === 1 ? 'y' : 'ies'})`}
+              value={fmtL(totals.directTotal)}
+              color="#06d6a0"
+            />
+            <LineRow
+              label="Total Expenses"
+              value={fmtL(totals.totalExpenses)}
+              bold
+              color="#ef476f"
+            />
+          </CCol>
+        </CRow>
+
+        {/* Entry-level expense table */}
+        {allEntries.length > 0 && (
+          <div className="mt-3">
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="outline"
+              onClick={() => setShowEntries((v) => !v)}
+            >
+              {showEntries ? 'Hide' : 'View'} all expense entries ({allEntries.length})
+              <CIcon
+                icon={showEntries ? cilChevronTop : cilChevronBottom}
+                className="ms-1"
+                size="sm"
+              />
+            </CButton>
+            <CCollapse visible={showEntries}>
+              <div
+                className="table-responsive mt-3 border rounded-3"
+                style={{ maxHeight: 420, overflowY: 'auto' }}
+              >
+                <CTable hover align="middle" small className="mb-0" style={{ fontSize: '0.8rem' }}>
+                  <CTableHead className="bg-body-tertiary" style={{ position: 'sticky', top: 0 }}>
+                    <CTableRow>
+                      <CTableHeaderCell className="py-2">Date</CTableHeaderCell>
+                      <CTableHeaderCell className="py-2">Expense</CTableHeaderCell>
+                      <CTableHeaderCell className="py-2">Source</CTableHeaderCell>
+                      <CTableHeaderCell className="py-2">Vendor / Project</CTableHeaderCell>
+                      <CTableHeaderCell className="py-2 text-end">Amount</CTableHeaderCell>
+                    </CTableRow>
+                  </CTableHead>
+                  <CTableBody>
+                    {allEntries.map((e) => (
+                      <CTableRow key={e.id}>
+                        <CTableDataCell className="small text-body-secondary">
+                          {e.date && e.date.length === 7 ? monthLabel(e.date) : fmtDate(e.date)}
+                        </CTableDataCell>
+                        <CTableDataCell className="fw-semibold">{e.label}</CTableDataCell>
+                        <CTableDataCell>
+                          <CBadge
+                            color={e.color}
+                            shape="rounded-pill"
+                            style={{ fontSize: '0.62rem' }}
+                          >
+                            {e.source}
+                          </CBadge>
+                        </CTableDataCell>
+                        <CTableDataCell className="small">{e.vendor || '—'}</CTableDataCell>
+                        <CTableDataCell className="text-end fw-semibold">
+                          {fmtL(e.amount)}
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))}
+                  </CTableBody>
+                </CTable>
+              </div>
+            </CCollapse>
+          </div>
+        )}
+      </CCardBody>
+    </CCard>
+  )
+}
+
 // ── Project report card ───────────────────────────────────────────────────────
 
 const ProjectReportCard = ({ report }) => {
@@ -559,23 +782,39 @@ const DetailedReportPage = () => {
 
   const allProjects = useMemo(() => localProjects.list({ pageSize: 1000 }).items || [], [])
 
+  const projectNameById = useMemo(
+    () => Object.fromEntries(allProjects.map((p) => [p.id, p.title || p.name])),
+    [allProjects],
+  )
+
   // ── Org-wide revenue & expense strip ─────────────────────────────────────
   const orgTotals = useMemo(() => {
-    const hrRevenue =
-      localRecruitments.list().reduce((s, r) => s + (r.amount_received || 0), 0) +
-      localInternships.list().reduce((s, r) => s + (r.amount_received || 0), 0)
+    // Revenue — itemized
+    const recruitmentRevenue = localRecruitments
+      .list({ activity_type: 'recruitment' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const trainingRevenue = localRecruitments
+      .list({ activity_type: 'training' })
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const internshipRevenue = localInternships
+      .list()
+      .reduce((s, r) => s + (r.amount_received || 0), 0)
+    const hrRevenue = recruitmentRevenue + trainingRevenue + internshipRevenue
     const attendancePool = attendanceRevenue.getTotalPool().total
     const lsgb = localLsgb.getSummary()
+    const lsgbWithdrawals = localLsgb.listWithdrawals()
 
-    const hrExpenses = localOrgPool
-      .getAllHRExpenses()
-      .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
-    const coreExpenses = localOrgPool
-      .getAllCoreExpenses()
-      .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
-    const adminExpenses = localOrgPool
-      .getAllAdminExpenses()
-      .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
+    // Expenses occurred — itemized entries from every register
+    const hrExpenseEntries = localOrgPool.getAllHRExpenses()
+    const coreExpenseEntries = localOrgPool.getAllCoreExpenses()
+    const adminExpenseEntries = localOrgPool.getAllAdminExpenses()
+    const directEntries = localProjectExpenses.list()
+
+    const sumAmt = (rows) => rows.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
+    const hrExpenses = sumAmt(hrExpenseEntries)
+    const coreExpenses = sumAmt(coreExpenseEntries)
+    const adminExpenses = sumAmt(adminExpenseEntries)
+    const directTotal = sumAmt(directEntries)
 
     let generalActual = 0
     try {
@@ -586,16 +825,32 @@ const DetailedReportPage = () => {
       generalActual = 0
     }
 
+    const deptExpenses = hrExpenses + coreExpenses + adminExpenses
+    const totalRevenue = hrRevenue + attendancePool + (lsgb.totalWithdrawn || 0)
+    const totalExpenses = deptExpenses + generalActual + directTotal
+
     return {
       hrRevenue,
+      recruitmentRevenue,
+      trainingRevenue,
+      internshipRevenue,
       attendancePool,
+      lsgb,
+      lsgbWithdrawals,
       lsgbRevenue: lsgb.totalWithdrawn || 0,
-      totalRevenue: hrRevenue + attendancePool + (lsgb.totalWithdrawn || 0),
+      totalRevenue,
       hrExpenses,
       coreExpenses,
       adminExpenses,
-      deptExpenses: hrExpenses + coreExpenses + adminExpenses,
+      hrExpenseEntries,
+      coreExpenseEntries,
+      adminExpenseEntries,
+      directEntries,
+      directTotal,
+      deptExpenses,
       generalActual,
+      totalExpenses,
+      netPosition: totalRevenue - totalExpenses,
     }
   }, [])
 
@@ -705,6 +960,9 @@ const DetailedReportPage = () => {
           </CCol>
         ))}
       </CRow>
+
+      {/* Itemized revenue + LSGB + expenses occurred */}
+      <FinanceDetailsSection totals={orgTotals} projectNameById={projectNameById} />
 
       {/* Controls */}
       <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>

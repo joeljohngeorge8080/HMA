@@ -46,15 +46,21 @@ export const localGstBills = {
     list: () => read(KEYS.entries),
     createMany: (batchId, rows) => {
       const ts = now()
-      const created = rows.map((row) => ({
-        id: uid(),
-        batchId,
-        ...row,
-        accounted: 'Not Accounted',
-        eligibility: 'Eligible',
-        createdAt: ts,
-        updatedAt: ts,
-      }))
+      const created = rows.map((row) => {
+        const dept = (row.department || '').trim().toLowerCase()
+        const vert = (row.vertical || '').trim().toLowerCase()
+        return {
+          id: uid(),
+          batchId,
+          ...row,
+          accounted: 'Not Accounted',
+          // Admin and CSR bills are ineligible for input tax credit by default
+          eligibility:
+            dept === 'admin' || dept === 'csr' || vert === 'csr' ? 'Not Eligible' : 'Eligible',
+          createdAt: ts,
+          updatedAt: ts,
+        }
+      })
       write(KEYS.entries, [...read(KEYS.entries), ...created])
       return created
     },

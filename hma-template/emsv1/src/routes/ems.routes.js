@@ -51,6 +51,8 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 const GstBillsPage = React.lazy(() => import('../modules/ems/finance/GstBillsPage'))
+const Gst2bComparisonPage = React.lazy(() => import('../modules/ems/finance/Gst2bComparisonPage'))
+const HrGstUploadPage = React.lazy(() => import('../modules/ems/finance/HrGstUploadPage'))
 
 const ExpenseManagementPage = React.lazy(
   () => import('../modules/ems/expense-management/ExpenseManagementPage'),
@@ -215,6 +217,18 @@ export const emsRoutes = [
     name: 'GST Bills',
     element: GstBillsPage,
     module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/gst-2b-comparison',
+    name: 'GST 2B Comparison',
+    element: Gst2bComparisonPage,
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/hr-admin/upload-gst-bill',
+    name: 'Upload GST Bill',
+    element: HrGstUploadPage,
+    module: MODULE.GST_UPLOAD,
   },
 
   {
