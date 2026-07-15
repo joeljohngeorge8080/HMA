@@ -196,11 +196,27 @@ FilterChip.propTypes = {
  * are entirely omitted — not just disabled — since that decision belongs
  * to the Head of Finance).
  */
-const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
+const GstBillsView = ({ title, canView, canEdit, showFinanceFields, projectId, isProjectView }) => {
   const { user } = useAuth()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [entries, setEntries] = useState(() => localGstBills.entries.list())
   const [batches, setBatches] = useState(() => localGstBills.batches.list())
+
+  // Embedded in a Project Detail page: scope to that project's bills only.
+  const scopedEntries = useMemo(
+    () => (projectId ? entries.filter((e) => e.projectId === projectId) : entries),
+    [entries, projectId],
+  )
+  const scopedBatches = useMemo(
+    () => (projectId ? batches.filter((b) => b.projectId === projectId) : batches),
+    [batches, projectId],
+  )
+  // Upload/delete actions are available to Finance editors, and always to
+  // an embedded project-scoped card (whoever can see the project can manage
+  // its bills). Inline cell editing, though, stays read-only when embedded
+  // — the project card is a lighter widget, not the full editing surface.
+  const showActions = canEdit || isProjectView
+  const cellsDisabled = isProjectView || !canEdit
 
   // ── Filters (top bar with chips) ────────────────────────────────────
   const [deptSelected, setDeptSelected] = useState([]) // lowercase values
@@ -235,12 +251,12 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
     reload()
   }
 
-  const departments = useMemo(() => distinctValues(entries, 'department'), [entries])
-  const verticals = useMemo(() => distinctValues(entries, 'vertical'), [entries])
+  const departments = useMemo(() => distinctValues(scopedEntries, 'department'), [scopedEntries])
+  const verticals = useMemo(() => distinctValues(scopedEntries, 'vertical'), [scopedEntries])
 
   const rows = useMemo(
     () =>
-      filterAndSort(entries, {
+      filterAndSort(scopedEntries, {
         deptSelected,
         vertSelected,
         batchFilter,
@@ -251,7 +267,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
         accountedFirst: showFinanceFields,
       }),
     [
-      entries,
+      scopedEntries,
       deptSelected,
       vertSelected,
       batchFilter,
@@ -301,14 +317,14 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
   // Builds the row set the Download Report modal asked for.
   const buildExportRows = () => {
     if (exportScope === 'all') {
-      return filterAndSort(entries, {
+      return filterAndSort(scopedEntries, {
         sortBy,
         accountedFirst: showFinanceFields,
         accounted: exportAccounted,
       })
     }
     if (exportScope === 'custom') {
-      return filterAndSort(entries, {
+      return filterAndSort(scopedEntries, {
         deptSelected: exportDepts,
         vertSelected: exportVerts,
         dateField: exportDateField,
@@ -320,7 +336,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
       })
     }
     // 'current' — exactly what the table shows, plus the accounted choice
-    return filterAndSort(entries, {
+    return filterAndSort(scopedEntries, {
       deptSelected,
       vertSelected,
       batchFilter,
@@ -534,29 +550,34 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
     reload()
   }
 
-  if (!canView) {
+  if (!canView && !isProjectView) {
     return <CAlert color="warning">You do not have access to this section.</CAlert>
   }
 
   const headers = showFinanceFields ? [...BASE_HEADERS, ...FINANCE_HEADERS] : BASE_HEADERS
+  const cardProps = isProjectView
+    ? { className: 'border-0 shadow-sm mt-4', style: { borderRadius: '12px' } }
+    : {}
 
   return (
-    <CCard>
+    <CCard {...cardProps}>
       <datalist id="gst-rate-options">
         {[0, 3, 5, 18, 40, 50].map((v) => (
           <option key={v} value={v} />
         ))}
       </datalist>
-      <CCardHeader className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <CCardHeader
+        className={`d-flex justify-content-between align-items-center flex-wrap gap-2 ${isProjectView ? 'bg-transparent px-4 pt-4 border-bottom-0' : ''}`}
+      >
         <strong>{title}</strong>
         <div className="d-flex gap-2">
-          {showFinanceFields && entries.length > 0 && (
+          {showFinanceFields && scopedEntries.length > 0 && (
             <CButton color="success" size="sm" onClick={() => setExportOpen(true)}>
               <CIcon icon={cilCloudDownload} className="me-1" />
               Download Report
             </CButton>
           )}
-          {canEdit && (
+          {showActions && (
             <CButton color="primary" size="sm" onClick={() => setUploadOpen(true)}>
               <CIcon icon={cilCloudUpload} className="me-1" />
               Upload Excel
@@ -564,7 +585,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
           )}
         </div>
       </CCardHeader>
-      <CCardBody>
+      <CCardBody className={isProjectView ? 'px-4' : ''}>
         {/* ── Filter bar ─────────────────────────────────────────────── */}
         <CRow className="mb-2 g-2 align-items-end">
           <CCol xs="auto">
@@ -594,7 +615,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
               onChange={(e) => setBatchFilter(e.target.value)}
             >
               <option value="all">All uploads</option>
-              {batches.map((b) => (
+              {scopedBatches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.fileName} ({new Date(b.uploadedAt).toLocaleDateString('en-IN')})
                 </option>
@@ -705,9 +726,9 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
 
         {rows.length === 0 ? (
           <CAlert color="info" className="mb-0">
-            {entries.length > 0
+            {scopedEntries.length > 0
               ? 'No GST bills match the current filters.'
-              : `No GST bills yet. ${canEdit ? 'Upload the expenditure statement Excel to begin.' : ''}`}
+              : `No GST bills yet. ${showActions ? 'Upload the expenditure statement Excel to begin.' : ''}`}
           </CAlert>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -728,28 +749,28 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                     <td>
                       <EditableCell
                         value={r.department}
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { department: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.vertical}
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { vertical: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.partyName}
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { partyName: v })}
                       />
                     </td>
                     <td className="text-nowrap">
                       <EditableCell
                         value={r.gstNo}
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
                       />
                       {r.computed.gstinStatus === 'invalid' && (
@@ -760,14 +781,14 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                       <EditableCell
                         value={r.invoiceDate}
                         type="date"
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { invoiceDate: v })}
                       />
                     </td>
                     <td>
                       <EditableCell
                         value={r.invoiceNumber}
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { invoiceNumber: v })}
                       />
                     </td>
@@ -775,7 +796,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                       <EditableCell
                         value={r.totalValue}
                         type="number"
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) =>
                           updateEntry(r.id, { totalValue: v, needsAttention: false })
                         }
@@ -786,7 +807,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                         value={r.gstRate}
                         type="number"
                         listId="gst-rate-options"
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { gstRate: v, needsAttention: false })}
                       />
                     </td>
@@ -794,7 +815,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                       <EditableCell
                         value={r.cessRate}
                         type="number"
-                        disabled={!canEdit}
+                        disabled={cellsDisabled}
                         onCommit={(v) => updateEntry(r.id, { cessRate: v })}
                       />
                     </td>
@@ -809,7 +830,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                         <td>
                           <CFormSelect
                             size="sm"
-                            disabled={!canEdit}
+                            disabled={cellsDisabled}
                             value={r.accounted}
                             onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
                             aria-label="Accounted status"
@@ -821,7 +842,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
                         <td>
                           <CFormSelect
                             size="sm"
-                            disabled={!canEdit}
+                            disabled={cellsDisabled}
                             value={r.eligibility}
                             onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
                             aria-label="Eligibility"
@@ -853,13 +874,13 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
         )}
 
         {/* ── Upload history (bottom of page) ────────────────────────── */}
-        {canEdit && batches.length > 0 && (
+        {showActions && scopedBatches.length > 0 && (
           <div className="mt-4">
             <div className="fw-semibold small text-body-secondary text-uppercase mb-2">
               Upload History
             </div>
             <div className="small">
-              {batches.map((b) => (
+              {scopedBatches.map((b) => (
                 <div key={b.id} className="d-flex align-items-center gap-2 py-1 border-bottom">
                   <span>
                     {b.fileName} — uploaded {new Date(b.uploadedAt).toLocaleDateString('en-IN')}
@@ -889,6 +910,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
         onClose={() => setUploadOpen(false)}
         onImported={reload}
         uploadedBy={user?.full_name || user?.email || ''}
+        projectId={projectId}
       />
 
       {/* ── Download Report modal ───────────────────────────────────────── */}
@@ -962,10 +984,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
               <div className="mb-3">
                 <div className="fw-semibold small mb-1">Filter by Department</div>
                 <div className="d-flex flex-wrap gap-3">
-                  {(departments.length > 0
-                    ? departments
-                    : ['CSR', 'Admin', 'HR']
-                  ).map((dept) => {
+                  {(departments.length > 0 ? departments : ['CSR', 'Admin', 'HR']).map((dept) => {
                     const key = dept.toLowerCase()
                     return (
                       <CFormCheck
@@ -995,10 +1014,7 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
               <div className="mb-3">
                 <div className="fw-semibold small mb-1">Filter by Vertical</div>
                 <div className="d-flex flex-wrap gap-3">
-                  {(verticals.length > 0
-                    ? verticals
-                    : ['CSR', 'HMA Admin']
-                  ).map((vert) => {
+                  {(verticals.length > 0 ? verticals : ['CSR', 'HMA Admin']).map((vert) => {
                     const key = vert.toLowerCase()
                     return (
                       <CFormCheck
@@ -1134,10 +1150,11 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields }) => {
           <CAlert color="info" className="small mb-0 py-2">
             <strong>Preview:</strong>{' '}
             {exportScope === 'all'
-              ? `All ${entries.length} bill(s) in the system`
+              ? `All ${scopedEntries.length} bill(s) in the system`
               : exportScope === 'current'
                 ? `${rows.length} bill(s) matching your current on-screen filters`
-                : 'Custom selection — bill count will be calculated on download'}.
+                : 'Custom selection — bill count will be calculated on download'}
+            .
             {exportAccounted !== 'all' && (
               <span className="ms-1 fw-semibold">· {exportAccounted} only</span>
             )}
@@ -1219,10 +1236,14 @@ GstBillsView.propTypes = {
   canView: PropTypes.bool.isRequired,
   canEdit: PropTypes.bool.isRequired,
   showFinanceFields: PropTypes.bool,
+  projectId: PropTypes.string,
+  isProjectView: PropTypes.bool,
 }
 
 GstBillsView.defaultProps = {
   showFinanceFields: false,
+  projectId: null,
+  isProjectView: false,
 }
 
 export default GstBillsView

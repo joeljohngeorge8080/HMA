@@ -26,8 +26,14 @@ const write = (key, data) => localStorage.setItem(key, JSON.stringify(data))
 export const localGstBills = {
   batches: {
     list: () => read(KEYS.batches),
-    create: ({ fileName, uploadedBy }) => {
-      const batch = { id: uid(), fileName, uploadedBy: uploadedBy || '', uploadedAt: now() }
+    create: ({ fileName, uploadedBy, projectId }) => {
+      const batch = {
+        id: uid(),
+        fileName,
+        uploadedBy: uploadedBy || '',
+        projectId,
+        uploadedAt: now(),
+      }
       write(KEYS.batches, [...read(KEYS.batches), batch])
       return batch
     },
@@ -44,7 +50,7 @@ export const localGstBills = {
   },
   entries: {
     list: () => read(KEYS.entries),
-    createMany: (batchId, rows) => {
+    createMany: (batchId, rows, projectId) => {
       const ts = now()
       const created = rows.map((row) => {
         const dept = (row.department || '').trim().toLowerCase()
@@ -52,6 +58,7 @@ export const localGstBills = {
         return {
           id: uid(),
           batchId,
+          projectId,
           ...row,
           accounted: 'Not Accounted',
           // Admin and CSR bills are ineligible for input tax credit by default

@@ -44,7 +44,7 @@ const readWorkbookRows = (file) =>
 const dupKey = (x) =>
   `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}|${String(x.gstRate ?? '').trim()}|${String(x.totalValue ?? '').trim()}`
 
-const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
+const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '', projectId = null }) => {
   const fileRef = useRef(null)
   const [fileName, setFileName] = useState('')
   const [parsedEntries, setParsedEntries] = useState(null)
@@ -108,6 +108,9 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
 
   const dupCount = parsedEntries ? parsedEntries.filter((x) => x.duplicate).length : 0
   const importCount = parsedEntries ? parsedEntries.length - (skipDuplicates ? dupCount : 0) : 0
+  const invalidGstCount = parsedEntries
+    ? parsedEntries.filter((x) => classifyGstin(x.gstNo) === 'invalid').length
+    : 0
 
   // Rows whose GST No fails format/checksum validation. One invalid row
   // blocks the whole file — fix the Excel and re-upload.
@@ -118,6 +121,10 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
     : []
 
   const handleImport = () => {
+    if (invalidGstCount > 0) {
+      setError('Cannot import while there are invalid GST numbers.')
+      return
+    }
     const toImport = parsedEntries
       .filter((x) => !(skipDuplicates && x.duplicate))
       .map(({ duplicate: _duplicate, ...rest }) => rest)
@@ -125,8 +132,8 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
       setError('Nothing to import — every row is a duplicate of an existing entry.')
       return
     }
-    const batch = localGstBills.batches.create({ fileName, uploadedBy })
-    localGstBills.entries.createMany(batch.id, toImport)
+    const batch = localGstBills.batches.create({ fileName, uploadedBy, projectId })
+    localGstBills.entries.createMany(batch.id, toImport, projectId)
     reset()
     onImported()
     onClose()

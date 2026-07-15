@@ -1,10 +1,11 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
 import GstBillsView from './components/GstBillsView'
 
-const GstBillsPage = () => {
+const GstBillsPage = ({ projectId = null, isProjectView = false }) => {
   const canView = usePermission(MODULE.FINANCE, 'view')
   const canEdit = usePermission(MODULE.FINANCE, 'edit')
 
@@ -14,8 +15,15 @@ const GstBillsPage = () => {
       canView={canView}
       canEdit={canEdit}
       showFinanceFields
+      projectId={projectId}
+      isProjectView={isProjectView}
     />
   )
+}
+
+GstBillsPage.propTypes = {
+  projectId: PropTypes.string,
+  isProjectView: PropTypes.bool,
 }
 
 export default GstBillsPage
