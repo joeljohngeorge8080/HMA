@@ -222,10 +222,18 @@ const GstBillsView = ({
   )
   // Upload/delete actions are available to Finance editors, and always to
   // an embedded project-scoped card (whoever can see the project can manage
-  // its bills). Inline cell editing, though, stays read-only when embedded
-  // — the project card is a lighter widget, not the full editing surface.
+  // its bills).
   const showActions = canEdit || isProjectView
-  const cellsDisabled = isProjectView || !canEdit
+
+  // Non-Finance surfaces (HR Admin's upload page, and the project-embedded
+  // card) are upload-only intake points, not editing surfaces: once a sheet
+  // is uploaded there, nobody can edit a cell or delete the batch from here
+  // — corrections happen on the main Finance > GST Bills page instead. Those
+  // surfaces default to just the Upload History list, with a toggle to peek
+  // at the underlying bill details read-only.
+  const restricted = !showFinanceFields
+  const cellsDisabled = restricted || !canEdit
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   // ── Filters (top bar with chips) ────────────────────────────────────
   const [deptSelected, setDeptSelected] = useState([]) // lowercase values
@@ -568,6 +576,321 @@ const GstBillsView = ({
     ? { className: 'border-0 shadow-sm mt-4', style: { borderRadius: '12px' } }
     : {}
 
+  // One upload = one row here. Delete is Finance-only — restricted surfaces
+  // (HR Admin, project-embedded) can see history but never remove a batch.
+  const batchListRows = scopedBatches.map((b) => (
+    <div key={b.id} className="d-flex align-items-center gap-2 py-1 border-bottom">
+      <span>
+        {b.fileName} — uploaded {new Date(b.uploadedAt).toLocaleDateString('en-IN')}
+        {b.uploadedBy ? ` by ${b.uploadedBy}` : ''} (
+        {entries.filter((e) => e.batchId === b.id).length} entries)
+      </span>
+      {!restricted && (
+        <CButton
+          color="danger"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setDeleteTarget(b)
+            setDeleteText('')
+          }}
+        >
+          Delete
+        </CButton>
+      )}
+    </div>
+  ))
+
+  // Filters + the full (read-only when restricted) bill table. Always shown
+  // on the Finance page; shown on restricted surfaces only once "Show
+  // Details" is toggled open.
+  const filterBarAndTable = (
+    <>
+      <CRow className="mb-2 g-2 align-items-end">
+        <CCol xs="auto">
+          <MultiSelectDropdown
+            label="Department"
+            options={departments}
+            selected={deptSelected}
+            onChange={setDeptSelected}
+          />
+        </CCol>
+        <CCol xs="auto">
+          <MultiSelectDropdown
+            label="Vertical"
+            options={verticals}
+            selected={vertSelected}
+            onChange={setVertSelected}
+          />
+        </CCol>
+        <CCol xs="auto">
+          <CFormLabel htmlFor="gst-batch-filter" className="mb-0 small">
+            Upload
+          </CFormLabel>
+          <CFormSelect
+            id="gst-batch-filter"
+            size="sm"
+            value={batchFilter}
+            onChange={(e) => setBatchFilter(e.target.value)}
+          >
+            <option value="all">All uploads</option>
+            {scopedBatches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.fileName} ({new Date(b.uploadedAt).toLocaleDateString('en-IN')})
+              </option>
+            ))}
+          </CFormSelect>
+        </CCol>
+        <CCol xs="auto">
+          <div className="small mb-0">Date filter</div>
+          <div className="d-flex align-items-center gap-2">
+            <CFormCheck
+              type="radio"
+              name="gst-date-field"
+              id="gst-date-upload"
+              label="Upload date"
+              checked={dateField === 'upload'}
+              onChange={() => setDateField('upload')}
+            />
+            <CFormCheck
+              type="radio"
+              name="gst-date-field"
+              id="gst-date-invoice"
+              label="Invoice date"
+              checked={dateField === 'invoice'}
+              onChange={() => setDateField('invoice')}
+            />
+          </div>
+        </CCol>
+        <CCol xs="auto">
+          <CFormLabel htmlFor="gst-date-from" className="mb-0 small">
+            From
+          </CFormLabel>
+          <CFormInput
+            id="gst-date-from"
+            type="date"
+            size="sm"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </CCol>
+        <CCol xs="auto">
+          <CFormLabel htmlFor="gst-date-to" className="mb-0 small">
+            To
+          </CFormLabel>
+          <CFormInput
+            id="gst-date-to"
+            type="date"
+            size="sm"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </CCol>
+        <CCol xs="auto" className="ms-auto">
+          <CFormLabel htmlFor="gst-sort" className="mb-0 small">
+            Sort by
+          </CFormLabel>
+          <CFormSelect
+            id="gst-sort"
+            size="sm"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </CFormSelect>
+        </CCol>
+      </CRow>
+
+      {hasActiveFilters && (
+        <div className="mb-3 d-flex align-items-center flex-wrap">
+          {deptSelected.map((d) => (
+            <FilterChip
+              key={`dept-${d}`}
+              text={`Department: ${displayName(departments, d)}`}
+              onRemove={() => setDeptSelected(deptSelected.filter((x) => x !== d))}
+            />
+          ))}
+          {vertSelected.map((v) => (
+            <FilterChip
+              key={`vert-${v}`}
+              text={`Vertical: ${displayName(verticals, v)}`}
+              onRemove={() => setVertSelected(vertSelected.filter((x) => x !== v))}
+            />
+          ))}
+          {batchFilter !== 'all' && (
+            <FilterChip
+              text={`Upload: ${batches.find((b) => b.id === batchFilter)?.fileName || batchFilter}`}
+              onRemove={() => setBatchFilter('all')}
+            />
+          )}
+          {(dateFrom || dateTo) && (
+            <FilterChip
+              text={`${dateField === 'upload' ? 'Uploaded' : 'Invoice'}: ${dateFrom || '…'} → ${dateTo || '…'}`}
+              onRemove={() => {
+                setDateFrom('')
+                setDateTo('')
+              }}
+            />
+          )}
+          <CButton color="link" size="sm" className="p-0 ms-1 mb-1" onClick={clearAllFilters}>
+            Clear all
+          </CButton>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <CAlert color="info" className="mb-0">
+          {scopedEntries.length > 0
+            ? 'No GST bills match the current filters.'
+            : `No GST bills yet. ${showActions ? 'Upload the expenditure statement Excel to begin.' : ''}`}
+        </CAlert>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table table-bordered table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                {headers.map((h) => (
+                  <th key={h} className="table-light text-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.id}>
+                  <td style={numCell}>{i + 1}</td>
+                  <td>
+                    <EditableCell
+                      value={r.department}
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { department: v })}
+                    />
+                  </td>
+                  <td>
+                    <EditableCell
+                      value={r.vertical}
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { vertical: v })}
+                    />
+                  </td>
+                  <td>
+                    <EditableCell
+                      value={r.partyName}
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { partyName: v })}
+                    />
+                  </td>
+                  <td className="text-nowrap">
+                    <EditableCell
+                      value={r.gstNo}
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
+                    />
+                    {r.computed.gstinStatus === 'invalid' && (
+                      <div className="text-danger small">Invalid GST No</div>
+                    )}
+                  </td>
+                  <td className="text-nowrap">
+                    <EditableCell
+                      value={r.invoiceDate}
+                      type="date"
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { invoiceDate: v })}
+                    />
+                  </td>
+                  <td>
+                    <EditableCell
+                      value={r.invoiceNumber}
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { invoiceNumber: v })}
+                    />
+                  </td>
+                  <td style={numCell} className={r.needsAttention ? 'table-danger' : undefined}>
+                    <EditableCell
+                      value={r.totalValue}
+                      type="number"
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { totalValue: v, needsAttention: false })}
+                    />
+                  </td>
+                  <td style={numCell}>
+                    <EditableCell
+                      value={r.gstRate}
+                      type="number"
+                      listId="gst-rate-options"
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { gstRate: v, needsAttention: false })}
+                    />
+                  </td>
+                  <td style={numCell}>
+                    <EditableCell
+                      value={r.cessRate}
+                      type="number"
+                      disabled={cellsDisabled}
+                      onCommit={(v) => updateEntry(r.id, { cessRate: v })}
+                    />
+                  </td>
+                  <td className="text-nowrap">{r.computed.state ?? '—'}</td>
+                  <td style={numCell}>{money(r.computed.taxableValue)}</td>
+                  <td style={numCell}>{money(r.computed.cgst)}</td>
+                  <td style={numCell}>{money(r.computed.sgst)}</td>
+                  <td style={numCell}>{money(r.computed.igst)}</td>
+                  <td style={numCell}>{money(r.computed.cessAmount)}</td>
+                  {showFinanceFields && (
+                    <>
+                      <td>
+                        <CFormSelect
+                          size="sm"
+                          disabled={cellsDisabled}
+                          value={r.accounted}
+                          onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
+                          aria-label="Accounted status"
+                        >
+                          <option>Not Accounted</option>
+                          <option>Accounted</option>
+                        </CFormSelect>
+                      </td>
+                      <td>
+                        <CFormSelect
+                          size="sm"
+                          disabled={cellsDisabled}
+                          value={r.eligibility}
+                          onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
+                          aria-label="Eligibility"
+                        >
+                          <option>Eligible</option>
+                          <option>Not Eligible</option>
+                        </CFormSelect>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="fw-semibold table-light">
+                <td colSpan={7}>Totals ({rows.length} bills)</td>
+                <td style={numCell}>{money(totals.totalValue)}</td>
+                <td colSpan={3} />
+                <td style={numCell}>{money(totals.taxableValue)}</td>
+                <td style={numCell}>{money(totals.cgst)}</td>
+                <td style={numCell}>{money(totals.sgst)}</td>
+                <td style={numCell}>{money(totals.igst)}</td>
+                <td style={numCell}>{money(totals.cessAmount)}</td>
+                {showFinanceFields && <td colSpan={2} />}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <CCard {...cardProps}>
       <datalist id="gst-rate-options">
@@ -595,322 +918,43 @@ const GstBillsView = ({
         </div>
       </CCardHeader>
       <CCardBody className={isProjectView ? 'px-4' : ''}>
-        {/* ── Filter bar ─────────────────────────────────────────────── */}
-        <CRow className="mb-2 g-2 align-items-end">
-          <CCol xs="auto">
-            <MultiSelectDropdown
-              label="Department"
-              options={departments}
-              selected={deptSelected}
-              onChange={setDeptSelected}
-            />
-          </CCol>
-          <CCol xs="auto">
-            <MultiSelectDropdown
-              label="Vertical"
-              options={verticals}
-              selected={vertSelected}
-              onChange={setVertSelected}
-            />
-          </CCol>
-          <CCol xs="auto">
-            <CFormLabel htmlFor="gst-batch-filter" className="mb-0 small">
-              Upload
-            </CFormLabel>
-            <CFormSelect
-              id="gst-batch-filter"
-              size="sm"
-              value={batchFilter}
-              onChange={(e) => setBatchFilter(e.target.value)}
-            >
-              <option value="all">All uploads</option>
-              {scopedBatches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.fileName} ({new Date(b.uploadedAt).toLocaleDateString('en-IN')})
-                </option>
-              ))}
-            </CFormSelect>
-          </CCol>
-          <CCol xs="auto">
-            <div className="small mb-0">Date filter</div>
-            <div className="d-flex align-items-center gap-2">
-              <CFormCheck
-                type="radio"
-                name="gst-date-field"
-                id="gst-date-upload"
-                label="Upload date"
-                checked={dateField === 'upload'}
-                onChange={() => setDateField('upload')}
-              />
-              <CFormCheck
-                type="radio"
-                name="gst-date-field"
-                id="gst-date-invoice"
-                label="Invoice date"
-                checked={dateField === 'invoice'}
-                onChange={() => setDateField('invoice')}
-              />
-            </div>
-          </CCol>
-          <CCol xs="auto">
-            <CFormLabel htmlFor="gst-date-from" className="mb-0 small">
-              From
-            </CFormLabel>
-            <CFormInput
-              id="gst-date-from"
-              type="date"
-              size="sm"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-          </CCol>
-          <CCol xs="auto">
-            <CFormLabel htmlFor="gst-date-to" className="mb-0 small">
-              To
-            </CFormLabel>
-            <CFormInput
-              id="gst-date-to"
-              type="date"
-              size="sm"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-          </CCol>
-          <CCol xs="auto" className="ms-auto">
-            <CFormLabel htmlFor="gst-sort" className="mb-0 small">
-              Sort by
-            </CFormLabel>
-            <CFormSelect
-              id="gst-sort"
-              size="sm"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </CFormSelect>
-          </CCol>
-        </CRow>
-
-        {/* ── Active filter chips ────────────────────────────────────── */}
-        {hasActiveFilters && (
-          <div className="mb-3 d-flex align-items-center flex-wrap">
-            {deptSelected.map((d) => (
-              <FilterChip
-                key={`dept-${d}`}
-                text={`Department: ${displayName(departments, d)}`}
-                onRemove={() => setDeptSelected(deptSelected.filter((x) => x !== d))}
-              />
-            ))}
-            {vertSelected.map((v) => (
-              <FilterChip
-                key={`vert-${v}`}
-                text={`Vertical: ${displayName(verticals, v)}`}
-                onRemove={() => setVertSelected(vertSelected.filter((x) => x !== v))}
-              />
-            ))}
-            {batchFilter !== 'all' && (
-              <FilterChip
-                text={`Upload: ${batches.find((b) => b.id === batchFilter)?.fileName || batchFilter}`}
-                onRemove={() => setBatchFilter('all')}
-              />
-            )}
-            {(dateFrom || dateTo) && (
-              <FilterChip
-                text={`${dateField === 'upload' ? 'Uploaded' : 'Invoice'}: ${dateFrom || '…'} → ${dateTo || '…'}`}
-                onRemove={() => {
-                  setDateFrom('')
-                  setDateTo('')
-                }}
-              />
-            )}
-            <CButton color="link" size="sm" className="p-0 ms-1 mb-1" onClick={clearAllFilters}>
-              Clear all
-            </CButton>
-          </div>
-        )}
-
-        {rows.length === 0 ? (
-          <CAlert color="info" className="mb-0">
-            {scopedEntries.length > 0
-              ? 'No GST bills match the current filters.'
-              : `No GST bills yet. ${showActions ? 'Upload the expenditure statement Excel to begin.' : ''}`}
-          </CAlert>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table table-bordered table-sm align-middle mb-0">
-              <thead>
-                <tr>
-                  {headers.map((h) => (
-                    <th key={h} className="table-light text-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id}>
-                    <td style={numCell}>{i + 1}</td>
-                    <td>
-                      <EditableCell
-                        value={r.department}
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { department: v })}
-                      />
-                    </td>
-                    <td>
-                      <EditableCell
-                        value={r.vertical}
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { vertical: v })}
-                      />
-                    </td>
-                    <td>
-                      <EditableCell
-                        value={r.partyName}
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { partyName: v })}
-                      />
-                    </td>
-                    <td className="text-nowrap">
-                      <EditableCell
-                        value={r.gstNo}
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { gstNo: v.toUpperCase() })}
-                      />
-                      {r.computed.gstinStatus === 'invalid' && (
-                        <div className="text-danger small">Invalid GST No</div>
-                      )}
-                    </td>
-                    <td className="text-nowrap">
-                      <EditableCell
-                        value={r.invoiceDate}
-                        type="date"
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { invoiceDate: v })}
-                      />
-                    </td>
-                    <td>
-                      <EditableCell
-                        value={r.invoiceNumber}
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { invoiceNumber: v })}
-                      />
-                    </td>
-                    <td style={numCell} className={r.needsAttention ? 'table-danger' : undefined}>
-                      <EditableCell
-                        value={r.totalValue}
-                        type="number"
-                        disabled={cellsDisabled}
-                        onCommit={(v) =>
-                          updateEntry(r.id, { totalValue: v, needsAttention: false })
-                        }
-                      />
-                    </td>
-                    <td style={numCell}>
-                      <EditableCell
-                        value={r.gstRate}
-                        type="number"
-                        listId="gst-rate-options"
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { gstRate: v, needsAttention: false })}
-                      />
-                    </td>
-                    <td style={numCell}>
-                      <EditableCell
-                        value={r.cessRate}
-                        type="number"
-                        disabled={cellsDisabled}
-                        onCommit={(v) => updateEntry(r.id, { cessRate: v })}
-                      />
-                    </td>
-                    <td className="text-nowrap">{r.computed.state ?? '—'}</td>
-                    <td style={numCell}>{money(r.computed.taxableValue)}</td>
-                    <td style={numCell}>{money(r.computed.cgst)}</td>
-                    <td style={numCell}>{money(r.computed.sgst)}</td>
-                    <td style={numCell}>{money(r.computed.igst)}</td>
-                    <td style={numCell}>{money(r.computed.cessAmount)}</td>
-                    {showFinanceFields && (
-                      <>
-                        <td>
-                          <CFormSelect
-                            size="sm"
-                            disabled={cellsDisabled}
-                            value={r.accounted}
-                            onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
-                            aria-label="Accounted status"
-                          >
-                            <option>Not Accounted</option>
-                            <option>Accounted</option>
-                          </CFormSelect>
-                        </td>
-                        <td>
-                          <CFormSelect
-                            size="sm"
-                            disabled={cellsDisabled}
-                            value={r.eligibility}
-                            onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
-                            aria-label="Eligibility"
-                          >
-                            <option>Eligible</option>
-                            <option>Not Eligible</option>
-                          </CFormSelect>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="fw-semibold table-light">
-                  <td colSpan={7}>Totals ({rows.length} bills)</td>
-                  <td style={numCell}>{money(totals.totalValue)}</td>
-                  <td colSpan={3} />
-                  <td style={numCell}>{money(totals.taxableValue)}</td>
-                  <td style={numCell}>{money(totals.cgst)}</td>
-                  <td style={numCell}>{money(totals.sgst)}</td>
-                  <td style={numCell}>{money(totals.igst)}</td>
-                  <td style={numCell}>{money(totals.cessAmount)}</td>
-                  {showFinanceFields && <td colSpan={2} />}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        {/* ── Upload history (bottom of page) ────────────────────────── */}
-        {showActions && scopedBatches.length > 0 && (
-          <div className="mt-4">
-            <div className="fw-semibold small text-body-secondary text-uppercase mb-2">
-              Upload History
-            </div>
-            <div className="small">
-              {scopedBatches.map((b) => (
-                <div key={b.id} className="d-flex align-items-center gap-2 py-1 border-bottom">
-                  <span>
-                    {b.fileName} — uploaded {new Date(b.uploadedAt).toLocaleDateString('en-IN')}
-                    {b.uploadedBy ? ` by ${b.uploadedBy}` : ''} (
-                    {entries.filter((e) => e.batchId === b.id).length} entries)
-                  </span>
-                  <CButton
-                    color="danger"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDeleteTarget(b)
-                      setDeleteText('')
-                    }}
-                  >
-                    Delete
-                  </CButton>
+        {restricted ? (
+          scopedBatches.length === 0 ? (
+            <CAlert color="info" className="mb-0">
+              No GST bills yet.{' '}
+              {showActions ? 'Upload the expenditure statement Excel to begin.' : ''}
+            </CAlert>
+          ) : (
+            <>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="fw-semibold small text-body-secondary text-uppercase">
+                  Upload History
                 </div>
-              ))}
-            </div>
-          </div>
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDetailsOpen((v) => !v)}
+                >
+                  {detailsOpen ? 'Hide Details' : 'Show Details'}
+                </CButton>
+              </div>
+              <div className="small mb-3">{batchListRows}</div>
+              {detailsOpen && <div className="border-top pt-3">{filterBarAndTable}</div>}
+            </>
+          )
+        ) : (
+          <>
+            {filterBarAndTable}
+            {showActions && scopedBatches.length > 0 && (
+              <div className="mt-4">
+                <div className="fw-semibold small text-body-secondary text-uppercase mb-2">
+                  Upload History
+                </div>
+                <div className="small">{batchListRows}</div>
+              </div>
+            )}
+          </>
         )}
       </CCardBody>
 
