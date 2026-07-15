@@ -389,17 +389,19 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
           <CRow className="align-items-center">
             <CCol>
               <small className="text-body-secondary">Current Basic Salary (Ideal)</small>
-              <h3 className="mb-0 text-success fw-bold">
-                ₹{salary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </h3>
-              {derivedCTC != null && (
-                <small className="text-body-secondary">
-                  Ideal CTC (full attendance):{' '}
-                  <span className="fw-semibold text-body">
-                    ₹{Number(derivedCTC).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <div className="d-flex align-items-baseline gap-3 flex-wrap">
+                <h3 className="mb-0 text-success fw-bold">
+                  ₹{salary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </h3>
+                {derivedCTC != null && (
+                  <span className="text-body-secondary" style={{ borderLeft: '1px solid var(--cui-border-color)', paddingLeft: '0.75rem' }}>
+                    <small>Ideal CTC (full attendance):{' '}</small>
+                    <span className="fw-semibold text-body">
+                      ₹{Number(derivedCTC).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
                   </span>
-                </small>
-              )}
+                )}
+              </div>
             </CCol>
             {canEdit && (
               <CCol xs="auto" className="d-flex gap-2">
@@ -437,7 +439,8 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
                   <CTableHeaderCell>Previous Salary</CTableHeaderCell>
                   <CTableHeaderCell>Increment %</CTableHeaderCell>
                   <CTableHeaderCell>Increment Amount</CTableHeaderCell>
-                  <CTableHeaderCell>New Salary (CTC)</CTableHeaderCell>
+                  <CTableHeaderCell>New Basic Salary</CTableHeaderCell>
+                  <CTableHeaderCell>CTC</CTableHeaderCell>
                   <CTableHeaderCell>Basic Salary</CTableHeaderCell>
                   <CTableHeaderCell>Effective Date</CTableHeaderCell>
                   <CTableHeaderCell>Designation</CTableHeaderCell>
@@ -460,7 +463,12 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
                       +₹{Number(h.increment_amount).toLocaleString('en-IN')}
                     </CTableDataCell>
                     <CTableDataCell className="fw-semibold">
-                      ₹{Number(h.new_salary).toLocaleString('en-IN')}
+                      ₹{Number(h.new_salary).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </CTableDataCell>
+                    <CTableDataCell className="fw-semibold text-success">
+                      {h.ctc_breakdown?.ctc != null
+                        ? `₹${Number(h.ctc_breakdown.ctc).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '—'}
                     </CTableDataCell>
                     <CTableDataCell>
                       {(() => {
