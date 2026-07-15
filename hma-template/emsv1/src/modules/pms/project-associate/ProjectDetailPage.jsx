@@ -74,7 +74,8 @@ import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import useRole from '../../../hooks/useRole'
 import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
-import MonthlyPlanPanel, { ExpensePanel } from './MonthlyPlanPanel'
+import BudgetPlanPanel from './BudgetPlanPanel'
+import { ExpensePanel } from './MonthlyPlanPanel'
 import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 import GstBillsPage from '../../ems/finance/GstBillsPage'
 
@@ -2429,7 +2430,7 @@ const ProjectDetailPage = () => {
 
             {/* Monthly Plan Tab */}
             <CTabPane visible={activeTab === 6}>
-              <MonthlyPlanPanel
+              <BudgetPlanPanel
                 project={project}
                 onProjectChange={setProject}
                 canEdit={canEditMonthlyPlan}
