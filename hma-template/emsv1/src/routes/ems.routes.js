@@ -18,6 +18,7 @@ const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyPr
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
 const EmployeeProfile = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeProfile'))
 const EmployeeForm = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeForm'))
+const SalaryInvoicePage = React.lazy(() => import('../modules/ems/staff-payroll/SalaryInvoicePage'))
 const AttendanceDashboard = React.lazy(
   () => import('../modules/ems/attendance/AttendanceDashboard'),
 )
@@ -97,6 +98,12 @@ export const emsRoutes = [
     path: '/ems/staff-payroll/:id/edit',
     name: 'Edit Employee',
     element: EmployeeForm,
+    module: MODULE.STAFF_PAYROLL,
+  },
+  {
+    path: '/ems/staff-payroll/salary-invoice',
+    name: 'Salary Invoice',
+    element: SalaryInvoicePage,
     module: MODULE.STAFF_PAYROLL,
   },
   {
