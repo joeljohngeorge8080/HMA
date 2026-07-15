@@ -48,10 +48,22 @@ const emsNav = [
     roles: STAFF_ROLES,
     items: [
       {
-        component: CNavItem,
+        component: CNavGroup,
         name: 'Staff & Payroll',
-        to: '/ems/staff-payroll',
         icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+        items: [
+          {
+            component: CNavItem,
+            name: 'Staff List',
+            to: '/ems/staff-payroll',
+          },
+          {
+            component: CNavItem,
+            name: 'Salary Invoice',
+            to: '/ems/staff-payroll/salary-invoice',
+            icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+          },
+        ],
       },
       {
         component: CNavGroup,

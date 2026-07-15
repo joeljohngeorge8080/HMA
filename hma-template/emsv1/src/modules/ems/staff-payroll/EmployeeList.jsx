@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -28,6 +29,7 @@ import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
 import api from '../../../services/api'
 import { localEmployees } from '../../../services/localEmployees'
+import { computeCTC } from './ctcUtils'
 
 const STATUS_COLORS = {
   Active: 'success',
@@ -197,7 +199,8 @@ const EmployeeList = () => {
                     <CTableHeaderCell>Department</CTableHeaderCell>
                     <CTableHeaderCell>Category</CTableHeaderCell>
                     <CTableHeaderCell>Gender</CTableHeaderCell>
-                    <CTableHeaderCell>Monthly CTC</CTableHeaderCell>
+                    <CTableHeaderCell>Basic Salary</CTableHeaderCell>
+                    <CTableHeaderCell>Ideal CTC</CTableHeaderCell>
                     <CTableHeaderCell>Joined</CTableHeaderCell>
                     <CTableHeaderCell>Status</CTableHeaderCell>
                   </CTableRow>
@@ -205,7 +208,7 @@ const EmployeeList = () => {
                 <CTableBody>
                   {employees.length === 0 ? (
                     <CTableRow>
-                      <CTableDataCell colSpan={10}>
+                      <CTableDataCell colSpan={11}>
                         <div className="hma-empty-state">
                           <CIcon icon={cilUser} className="hma-empty-state__icon" />
                           <p className="hma-empty-state__title">
@@ -230,7 +233,13 @@ const EmployeeList = () => {
                         '—'
                       const designation = emp.employment?.designation || emp.designation || '—'
                       const department = emp.employment?.department || emp.department || '—'
-                      const salary = emp.current_salary || 0
+                      const salary = parseFloat(emp.current_salary || 0)
+
+                      // Ideal CTC at full attendance (tnd = tndw = 30)
+                      const ctcCalc = salary > 0
+                        ? computeCTC({ idealBasic: salary, tnd: 30, tndw: 30 })
+                        : null
+                      const idealCTC = ctcCalc?.ctc || 0
 
                       return (
                         <CTableRow
@@ -249,8 +258,15 @@ const EmployeeList = () => {
                           <CTableDataCell>{department}</CTableDataCell>
                           <CTableDataCell>{emp.employee_category || '—'}</CTableDataCell>
                           <CTableDataCell>{emp.gender || '—'}</CTableDataCell>
-                          <CTableDataCell>
-                            {salary > 0 ? `₹${Number(salary).toLocaleString('en-IN')}` : '—'}
+                          <CTableDataCell className="fw-semibold">
+                            {salary > 0
+                              ? `₹${salary.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : '—'}
+                          </CTableDataCell>
+                          <CTableDataCell className="fw-semibold text-success">
+                            {idealCTC > 0
+                              ? `₹${idealCTC.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : '—'}
                           </CTableDataCell>
                           <CTableDataCell className="text-body-secondary">
                             {emp.joined_date || emp.employment?.start_date || '—'}
