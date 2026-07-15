@@ -33,6 +33,7 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
   const [error, setError] = useState('')
   const [form, setForm] = useState({
     bank_name: '',
+    branch_name: '',
     account_number: '',
     ifsc_code: '',
     is_primary: false,
@@ -46,7 +47,7 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
     try {
       await api.post(`/employees/${employeeId}/bank-accounts`, form)
       setShowModal(false)
-      setForm({ bank_name: '', account_number: '', ifsc_code: '', is_primary: false })
+      setForm({ bank_name: '', branch_name: '', account_number: '', ifsc_code: '', is_primary: false })
       onSave()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to add account')
@@ -74,6 +75,7 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
           <CTableHead color="light">
             <CTableRow>
               <CTableHeaderCell>Bank Name</CTableHeaderCell>
+              <CTableHeaderCell>Branch Name</CTableHeaderCell>
               <CTableHeaderCell>Account Number</CTableHeaderCell>
               <CTableHeaderCell>IFSC Code</CTableHeaderCell>
               <CTableHeaderCell>Primary</CTableHeaderCell>
@@ -83,6 +85,7 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
             {bankAccounts.map((acc) => (
               <CTableRow key={acc.id}>
                 <CTableDataCell>{acc.bank_name}</CTableDataCell>
+                <CTableDataCell>{acc.branch_name}</CTableDataCell>
                 <CTableDataCell>{acc.account_number}</CTableDataCell>
                 <CTableDataCell>{acc.ifsc_code}</CTableDataCell>
                 <CTableDataCell>
@@ -102,9 +105,13 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
           <CModalBody>
             {error && <CAlert color="danger">{error}</CAlert>}
             <CRow className="g-3">
-              <CCol md={12}>
+              <CCol md={6}>
                 <CFormLabel>Bank Name *</CFormLabel>
                 <CFormInput value={form.bank_name} onChange={set('bank_name')} required />
+              </CCol>
+              <CCol md={6}>
+                <CFormLabel>Branch Name</CFormLabel>
+                <CFormInput value={form.branch_name} onChange={set('branch_name')} />
               </CCol>
               <CCol md={6}>
                 <CFormLabel>Account Number *</CFormLabel>
