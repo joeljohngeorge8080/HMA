@@ -6,7 +6,7 @@
  * embedding into the project record, so this module only ever needs
  * budgetPlan.js (no dependency on localProjects.js and its demo-seed data).
  */
-import { monthsInRange } from './budgetPlan.js'
+import { monthsInRange, equalSplit } from './budgetPlan.js'
 
 const KEY = 'hma_budget_plans_v1'
 
@@ -99,5 +99,119 @@ export const localBudgetPlan = {
     const all = readAll()
     delete all[projectId]
     writeAll(all)
+  },
+
+  requirePlanning(plan) {
+    if (plan.status !== 'planning') {
+      throw new Error('Plan is locked — planning is closed.')
+    }
+  },
+
+  addTask(projectId, month, { phase, name, recurring = false }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    monthEntry.tasks.push({
+      id: uid('task'),
+      phase,
+      name: (name || '').trim(),
+      recurring,
+      added_in_actual: false,
+      subtasks: [],
+    })
+    writeAll(all)
+    return plan
+  },
+
+  removeTask(projectId, month, taskId) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    monthEntry.tasks = monthEntry.tasks.filter((t) => t.id !== taskId)
+    writeAll(all)
+    return plan
+  },
+
+  addSubtask(projectId, month, taskId, { name, planned_amount }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    const task = monthEntry.tasks.find((t) => t.id === taskId)
+    if (!task) throw new Error('Task not found.')
+    if (!task.added_in_actual) localBudgetPlan.requirePlanning(plan)
+    task.subtasks.push({
+      id: uid('sub'),
+      name: (name || '').trim(),
+      planned_amount: Math.round((parseFloat(planned_amount) || 0) * 100) / 100,
+      actual_amount: 0,
+      actual_status: 'pending',
+    })
+    writeAll(all)
+    return plan
+  },
+
+  removeSubtask(projectId, month, taskId, subtaskId) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    const task = monthEntry.tasks.find((t) => t.id === taskId)
+    if (!task) throw new Error('Task not found.')
+    task.subtasks = task.subtasks.filter((s) => s.id !== subtaskId)
+    writeAll(all)
+    return plan
+  },
+
+  updateSubtaskPlanned(projectId, month, taskId, subtaskId, amount) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    const task = monthEntry.tasks.find((t) => t.id === taskId)
+    if (!task) throw new Error('Task not found.')
+    const subtask = task.subtasks.find((s) => s.id === subtaskId)
+    if (!subtask) throw new Error('Subtask not found.')
+    subtask.planned_amount = Math.round((parseFloat(amount) || 0) * 100) / 100
+    writeAll(all)
+    return plan
+  },
+
+  /** Divides `totalAmount` equally across every month, creating one
+   * recurring task + single subtask per month (spec Section 4.1). */
+  applyRecurringTasks(projectId, { phase, name, totalAmount }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const amt = Math.round((parseFloat(totalAmount) || 0) * 100) / 100
+    if (amt <= 0) throw new Error('Total amount must be greater than zero.')
+    if (!name || !name.trim()) throw new Error('A task name is required.')
+    const shares = equalSplit(amt, plan.months.length)
+    plan.months.forEach((monthEntry, i) => {
+      monthEntry.tasks.push({
+        id: uid('task'),
+        phase,
+        name: name.trim(),
+        recurring: true,
+        added_in_actual: false,
+        subtasks: [
+          {
+            id: uid('sub'),
+            name: name.trim(),
+            planned_amount: shares[i],
+            actual_amount: 0,
+            actual_status: 'pending',
+          },
+        ],
+      })
+    })
+    writeAll(all)
+    return plan
   },
 }
