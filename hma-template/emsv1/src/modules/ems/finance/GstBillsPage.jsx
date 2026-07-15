@@ -14,9 +14,17 @@ const GstBillsPage = ({ projectId = null, isProjectView = false }) => {
       title="GST Bills — Input Tax Credit"
       canView={canView}
       canEdit={canEdit}
-      showFinanceFields
+      // Embedded in a Project's Financials tab: same stripped-down shape as
+      // HR's "Upload GST Bill" page — no Accounted/Eligibility, those stay
+      // Finance-only and are set from the main GST Bills page.
+      showFinanceFields={!isProjectView}
       projectId={projectId}
       isProjectView={isProjectView}
+      // Bills uploaded from a project's Financials tab are project/CSR
+      // expenses — default Department and Vertical to CSR when the sheet
+      // doesn't already specify them.
+      defaultDepartment={isProjectView ? 'CSR' : ''}
+      defaultVertical={isProjectView ? 'CSR' : ''}
     />
   )
 }

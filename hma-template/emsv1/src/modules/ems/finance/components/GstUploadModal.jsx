@@ -44,7 +44,15 @@ const readWorkbookRows = (file) =>
 const dupKey = (x) =>
   `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}|${String(x.gstRate ?? '').trim()}|${String(x.totalValue ?? '').trim()}`
 
-const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '', projectId = null }) => {
+const GstUploadModal = ({
+  visible,
+  onClose,
+  onImported,
+  uploadedBy = '',
+  projectId = null,
+  defaultDepartment = '',
+  defaultVertical = '',
+}) => {
   const fileRef = useRef(null)
   const [fileName, setFileName] = useState('')
   const [parsedEntries, setParsedEntries] = useState(null)
@@ -95,6 +103,11 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '', project
         setParsedEntries(
           result.entries.map((en) => ({
             ...en,
+            // Sheets uploaded from a project's Financials tab or HR Admin
+            // don't always fill in Department/Vertical — default them so
+            // CSR eligibility and department filters still work correctly.
+            department: en.department || defaultDepartment,
+            vertical: en.vertical || defaultVertical,
             duplicate: Boolean(en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))),
           })),
         )
@@ -276,6 +289,9 @@ GstUploadModal.propTypes = {
   onClose: PropTypes.func.isRequired,
   onImported: PropTypes.func.isRequired,
   uploadedBy: PropTypes.string,
+  projectId: PropTypes.string,
+  defaultDepartment: PropTypes.string,
+  defaultVertical: PropTypes.string,
 }
 
 export default GstUploadModal

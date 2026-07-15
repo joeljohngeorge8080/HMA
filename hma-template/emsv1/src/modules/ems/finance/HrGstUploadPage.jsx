@@ -17,6 +17,9 @@ const HrGstUploadPage = () => {
       canView={canView}
       canEdit={canEdit}
       showFinanceFields={false}
+      // HR-uploaded bills default to Department = HR when the sheet
+      // doesn't already specify one.
+      defaultDepartment="HR"
     />
   )
 }

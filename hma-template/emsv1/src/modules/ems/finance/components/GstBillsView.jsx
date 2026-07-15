@@ -196,7 +196,16 @@ FilterChip.propTypes = {
  * are entirely omitted — not just disabled — since that decision belongs
  * to the Head of Finance).
  */
-const GstBillsView = ({ title, canView, canEdit, showFinanceFields, projectId, isProjectView }) => {
+const GstBillsView = ({
+  title,
+  canView,
+  canEdit,
+  showFinanceFields,
+  projectId,
+  isProjectView,
+  defaultDepartment,
+  defaultVertical,
+}) => {
   const { user } = useAuth()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [entries, setEntries] = useState(() => localGstBills.entries.list())
@@ -911,6 +920,8 @@ const GstBillsView = ({ title, canView, canEdit, showFinanceFields, projectId, i
         onImported={reload}
         uploadedBy={user?.full_name || user?.email || ''}
         projectId={projectId}
+        defaultDepartment={defaultDepartment}
+        defaultVertical={defaultVertical}
       />
 
       {/* ── Download Report modal ───────────────────────────────────────── */}
@@ -1238,12 +1249,16 @@ GstBillsView.propTypes = {
   showFinanceFields: PropTypes.bool,
   projectId: PropTypes.string,
   isProjectView: PropTypes.bool,
+  defaultDepartment: PropTypes.string,
+  defaultVertical: PropTypes.string,
 }
 
 GstBillsView.defaultProps = {
   showFinanceFields: false,
   projectId: null,
   isProjectView: false,
+  defaultDepartment: '',
+  defaultVertical: '',
 }
 
 export default GstBillsView
