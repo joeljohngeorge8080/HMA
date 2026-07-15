@@ -448,7 +448,6 @@ export const localProjects = {
     return removed
   },
 
-
   // ── Monthly Planning ────────────────────────────────────────────────────────
 
   /**
