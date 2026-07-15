@@ -48,9 +48,28 @@ export const computeWorkingPool = (projectValue, poolPct) => {
   return Math.round(projectValue * (projectPct / 100) * 100) / 100
 }
 
-/** The working pool spread evenly across every month — the pre-transfer baseline. */
+/**
+ * A single representative "if split evenly" figure — display convenience
+ * only (e.g. "₹X/month if split evenly"). NOT exact when workingPool
+ * doesn't divide evenly by monthCount (the remainder paisa would be
+ * dropped) — any computation that must sum back to workingPool exactly
+ * (allocation math, invariant/settlement checks) must use monthBaselines
+ * below instead, never this scalar.
+ */
 export const monthBaseline = (workingPool, monthCount) =>
   monthCount > 0 ? Math.round((workingPool / monthCount) * 100) / 100 : 0
+
+/**
+ * Exact per-month baseline shares of the working pool — equalSplit, so
+ * the last month absorbs whatever paisa remain and the shares always sum
+ * to workingPool exactly. This is the baseline every real allocation
+ * computation (monthAllocated, validateTransfer, grandInvariantCheck,
+ * settlementCheck) must use — monthBaseline's flat scalar is display-only.
+ */
+export const monthBaselines = (workingPool, months) => {
+  const shares = equalSplit(workingPool, (months || []).length)
+  return Object.fromEntries((months || []).map((m, i) => [m, shares[i]]))
+}
 
 /**
  * Net effect of the ledger on one entity (a month or a pool): every
@@ -124,7 +143,7 @@ const monthOf = (key) => key.slice('month:'.length)
  * transfer through this before appending it to the ledger.
  */
 export const validateTransfer = (
-  { projectValue, poolPct, transfers, months, monthTasksByMonth, baseline },
+  { projectValue, poolPct, transfers, months, monthTasksByMonth },
   { from, to, amount },
 ) => {
   const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
@@ -144,16 +163,24 @@ export const validateTransfer = (
   if (isPoolKey(from)) {
     const balance = poolBalance(projectValue, poolPct, from, transfers)
     if (amt - balance > 0.005) {
-      return { valid: false, error: `${from.toUpperCase()} only has ₹${balance.toFixed(2)} available.` }
+      return {
+        valid: false,
+        error: `${from.toUpperCase()} only has ₹${balance.toFixed(2)} available.`,
+      }
     }
   }
   if (isMonthKey(from)) {
     const month = monthOf(from)
-    const effectiveBaseline =
-      baseline ?? monthBaseline(computeWorkingPool(projectValue, poolPct), (months || []).length)
+    const effectiveBaseline = monthBaselines(
+      computeWorkingPool(projectValue, poolPct),
+      months || [],
+    )[month]
     const available = monthAvailableBalance(effectiveBaseline, transfers, monthTasksByMonth, month)
     if (amt - available > 0.005) {
-      return { valid: false, error: `${month} only has ₹${available.toFixed(2)} balance available.` }
+      return {
+        valid: false,
+        error: `${month} only has ₹${available.toFixed(2)} balance available.`,
+      }
     }
   }
   return { valid: true }
@@ -166,8 +193,11 @@ export const removeTransfersOriginatingFrom = (transfers, month) =>
 /** Σ month allocated + Σ pool balances must always equal project value. */
 export const grandInvariantCheck = ({ projectValue, poolPct, months, transfers }) => {
   const workingPool = computeWorkingPool(projectValue, poolPct)
-  const baseline = monthBaseline(workingPool, (months || []).length)
-  const monthsTotal = (months || []).reduce((s, m) => s + monthAllocated(baseline, transfers, m), 0)
+  const baselines = monthBaselines(workingPool, months || [])
+  const monthsTotal = (months || []).reduce(
+    (s, m) => s + monthAllocated(baselines[m], transfers, m),
+    0,
+  )
   const poolsTotal = ['hr', 'core', 'admin'].reduce(
     (s, p) => s + poolBalance(projectValue, poolPct, p, transfers),
     0,
@@ -185,13 +215,19 @@ export const grandInvariantCheck = ({ projectValue, poolPct, months, transfers }
  * whether HR+Core can cover it and, if not, the exact remainder Admin
  * would need to cover (the 85/95/100 ladder) — never a flat percentage.
  */
-export const settlementCheck = ({ projectValue, poolPct, months, monthTasksByMonth, transfers }) => {
+export const settlementCheck = ({
+  projectValue,
+  poolPct,
+  months,
+  monthTasksByMonth,
+  transfers,
+}) => {
   const workingPool = computeWorkingPool(projectValue, poolPct)
-  const baseline = monthBaseline(workingPool, (months || []).length)
+  const baselines = monthBaselines(workingPool, months || [])
 
   const monthIssues = (months || [])
     .map((month) => {
-      const allocated = monthAllocated(baseline, transfers, month)
+      const allocated = monthAllocated(baselines[month], transfers, month)
       const planned = monthPlannedTotal((monthTasksByMonth || {})[month] || [])
       const diff = Math.round((planned - allocated) * 100) / 100
       return { month, allocated, planned, diff }
@@ -212,7 +248,10 @@ export const settlementCheck = ({ projectValue, poolPct, months, monthTasksByMon
 
   let adminDraw = null
   if (totalShortfall > 0) {
-    const coverableByHrCore = Math.min(totalShortfall, Math.max(hrBalance, 0) + Math.max(coreBalance, 0))
+    const coverableByHrCore = Math.min(
+      totalShortfall,
+      Math.max(hrBalance, 0) + Math.max(coreBalance, 0),
+    )
     const remainder = Math.round((totalShortfall - coverableByHrCore) * 100) / 100
     if (remainder > 0.005) {
       const cappedAmount = Math.min(remainder, Math.max(adminBalance, 0))
