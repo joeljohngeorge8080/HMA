@@ -11,6 +11,7 @@ import {
   equalSplit,
   validateTransfer,
   removeTransfersOriginatingFrom,
+  settlementCheck,
 } from './budgetPlan.js'
 
 const KEY = 'hma_budget_plans_v1'
@@ -260,7 +261,7 @@ export const localBudgetPlan = {
       const from = direction === 'send' ? `month:${originMonth}` : target
       const to = direction === 'send' ? target : `month:${originMonth}`
       const validation = validateTransfer(
-        { ...ctx, transfers: [...ctx.transfers, ...newTransfers] },
+        { ...ctx, phase, transfers: [...ctx.transfers, ...newTransfers] },
         { from, to, amount: share },
       )
       if (!validation.valid) throw new Error(validation.error)
@@ -368,6 +369,99 @@ export const localBudgetPlan = {
         },
       ]
     }
+    writeAll(all)
+    return plan
+  },
+
+  computeSettlement(projectId) {
+    const plan = requirePlan(readAll(), projectId)
+    return settlementCheck(localBudgetPlan.buildTransferCtx(plan))
+  },
+
+  /** Submits the plan (spec Section 5) — blocked until settlementCheck.valid. */
+  submit(projectId) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const check = settlementCheck(localBudgetPlan.buildTransferCtx(plan))
+    if (!check.valid) {
+      throw new Error(
+        'Plan is not fully settled — settle every month (and any HR/Core/Admin shortfall) before submitting.',
+      )
+    }
+    plan.status = 'submitted'
+    plan.submitted_at = now()
+    writeAll(all)
+    return plan
+  },
+
+  /**
+   * The one last-resort submit-time action (spec Section 5): draws the
+   * settlementCheck's reported adminDraw.amount from Admin, split equally
+   * across every month still in deficit after HR/Core's own capacity is
+   * accounted for by settlementCheck's math.
+   */
+  drawFromAdmin(projectId, { createdBy }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const check = settlementCheck(localBudgetPlan.buildTransferCtx(plan))
+    if (!check.adminDraw || check.adminDraw.amount <= 0) {
+      throw new Error('No Admin draw is needed right now.')
+    }
+    const deficitMonths = check.monthIssues.filter((i) => i.diff > 0).map((i) => i.month)
+    const shares = equalSplit(check.adminDraw.amount, deficitMonths.length)
+    const newTransfers = deficitMonths.map((month, i) => ({
+      id: uid('xfer'),
+      phase: 'planning',
+      origin_month: month,
+      from: 'admin',
+      to: `month:${month}`,
+      amount: shares[i],
+      created_at: now(),
+      created_by: createdBy || 'Unknown',
+    }))
+    plan.transfers = [...plan.transfers, ...newTransfers]
+    writeAll(all)
+    return plan
+  },
+
+  requireSubmitted(plan) {
+    if (plan.status !== 'submitted') {
+      throw new Error('Actual expense entry opens only after the plan is submitted.')
+    }
+  },
+
+  updateActual(projectId, month, taskId, subtaskId, amount) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    const task = monthEntry?.tasks.find((t) => t.id === taskId)
+    const subtask = task?.subtasks.find((s) => s.id === subtaskId)
+    if (!subtask) throw new Error('Subtask not found.')
+    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
+    subtask.actual_amount = amt
+    subtask.actual_status = amt > 0 ? 'entered' : 'pending'
+    writeAll(all)
+    return plan
+  },
+
+  /** New task row added during actual entry — has no planned amount (spec Section 6). */
+  addActualTask(projectId, month, { phase, name }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    monthEntry.tasks.push({
+      id: uid('task'),
+      phase,
+      name: (name || '').trim(),
+      recurring: false,
+      added_in_actual: true,
+      subtasks: [],
+    })
     writeAll(all)
     return plan
   },

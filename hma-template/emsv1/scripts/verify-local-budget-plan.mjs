@@ -262,4 +262,112 @@ assert.equal(
   false,
 )
 
+// ── computeSettlement / submit ──────────────────────────────────────
+localBudgetPlan.fullDelete(PID)
+plan = localBudgetPlan.initializePlan(PID, {
+  projectValue: 300000,
+  startDate: '2026-08',
+  endDate: '2026-08',
+  poolPct: { admin: 5, hr: 5, core: 5 },
+})
+// working pool = 255000, 1 month → baseline 255000. Plan nothing yet → unsettled (surplus).
+let check = localBudgetPlan.computeSettlement(PID)
+assert.equal(check.valid, false)
+assert.equal(check.totalSurplus, 255000)
+assert.throws(() => localBudgetPlan.submit(PID), /settle/i)
+
+plan = localBudgetPlan.addTask(PID, '2026-08', { phase: 'design', name: 'X' })
+const soleTaskId = plan.months[0].tasks[0].id
+plan = localBudgetPlan.addSubtask(PID, '2026-08', soleTaskId, { name: 'Y', planned_amount: 255000 })
+check = localBudgetPlan.computeSettlement(PID)
+assert.equal(check.valid, true)
+
+plan = localBudgetPlan.submit(PID)
+assert.equal(plan.status, 'submitted')
+assert.ok(plan.submitted_at)
+assert.equal(plan.months[0].tasks[0].subtasks[0].actual_amount, 0)
+assert.equal(plan.months[0].tasks[0].subtasks[0].actual_status, 'pending')
+
+// planning mutators are now locked
+assert.throws(() => localBudgetPlan.addTask(PID, '2026-08', { phase: 'design', name: 'Z' }), /locked/)
+
+// ── drawFromAdmin (96% regression case, exercised pre-submit) ───────
+localBudgetPlan.fullDelete(PID)
+plan = localBudgetPlan.initializePlan(PID, {
+  projectValue: 1000000,
+  startDate: '2026-08',
+  endDate: '2026-08',
+  poolPct: { admin: 5, hr: 5, core: 5 },
+})
+plan = localBudgetPlan.addTask(PID, '2026-08', { phase: 'design', name: 'Big' })
+const bigTaskId = plan.months[0].tasks[0].id
+plan = localBudgetPlan.addSubtask(PID, '2026-08', bigTaskId, { name: 'Everything', planned_amount: 960000 })
+check = localBudgetPlan.computeSettlement(PID)
+assert.equal(check.adminDraw.amount, 10000)
+assert.throws(() => localBudgetPlan.submit(PID), /settle/i, 'still unsettled — HR/Core not yet drawn')
+
+// PO takes from HR/Core first (as the ladder message directs)
+plan = localBudgetPlan.moveBalance(PID, {
+  originMonth: '2026-08',
+  direction: 'take',
+  targets: ['hr', 'core'],
+  amount: 100000,
+  phase: 'planning',
+  createdBy: 'PO',
+})
+check = localBudgetPlan.computeSettlement(PID)
+assert.equal(check.valid, false)
+assert.equal(check.adminDraw.amount, 10000, 'exactly the true remainder, not a flat 5%')
+
+plan = localBudgetPlan.drawFromAdmin(PID, { createdBy: 'PO' })
+check = localBudgetPlan.computeSettlement(PID)
+assert.equal(check.valid, true)
+assert.ok(
+  localBudgetPlan.getPlan(PID).transfers.some((t) => t.from === 'admin' && t.to === 'month:2026-08'),
+)
+plan = localBudgetPlan.submit(PID)
+assert.equal(plan.status, 'submitted')
+
+// ── actual phase: updateActual, addActualTask, Send remainder ──────
+plan = localBudgetPlan.updateActual(PID, '2026-08', bigTaskId, plan.months[0].tasks[0].subtasks[0].id, 900000)
+const bigSubtaskId = plan.months[0].tasks[0].subtasks[0].id
+assert.equal(plan.months[0].tasks[0].subtasks[0].actual_amount, 900000)
+assert.equal(plan.months[0].tasks[0].subtasks[0].actual_status, 'entered')
+
+plan = localBudgetPlan.addActualTask(PID, '2026-08', { phase: 'monitoring', name: 'Unplanned extra' })
+const extraTask = plan.months[0].tasks.find((t) => t.name === 'Unplanned extra')
+assert.equal(extraTask.added_in_actual, true)
+assert.equal(extraTask.subtasks.length, 0)
+
+// send the 60000 actual remainder from the big subtask to HR/Core
+plan = localBudgetPlan.moveBalance(PID, {
+  originMonth: '2026-08',
+  direction: 'send',
+  targets: ['hr', 'core'],
+  amount: 60000,
+  phase: 'actual',
+  createdBy: 'PO',
+  subtaskRef: { month: '2026-08', taskId: bigTaskId, subtaskId: bigSubtaskId },
+})
+assert.equal(
+  plan.months[0].tasks[0].subtasks[0].actual_status,
+  'transferred',
+  'sending a subtask remainder flags it transferred',
+)
+
+// addSubtask is allowed on an added_in_actual task even though the plan is submitted
+plan = localBudgetPlan.getPlan(PID)
+assert.equal(plan.status, 'submitted')
+const extraTaskId = plan.months[0].tasks.find((t) => t.added_in_actual).id
+plan = localBudgetPlan.addSubtask(PID, '2026-08', extraTaskId, { name: 'Fuel', planned_amount: 0 })
+assert.equal(
+  plan.months[0].tasks.find((t) => t.id === extraTaskId).subtasks.length,
+  1,
+)
+// but a normal (non-added_in_actual) task still can't get a new subtask post-submit
+assert.throws(
+  () => localBudgetPlan.addSubtask(PID, '2026-08', bigTaskId, { name: 'X', planned_amount: 0 }),
+  /locked/,
+)
+
 console.log('localBudgetPlan.js: ALL PASSED')

@@ -121,11 +121,25 @@ export const poolBalance = (projectValue, poolPct, pool, transfers) => {
   return Math.round((base + netForEntity(transfers, pool)) * 100) / 100
 }
 
-/** How much of a month's allocated budget is not yet claimed by a planned subtask. */
-export const monthAvailableBalance = (baseline, transfers, monthTasksByMonth, month) =>
+/**
+ * How much of a month's allocated budget is not yet claimed. `totalsFn`
+ * picks which side of a task's figures counts as "claimed" — planned
+ * (the default, for planning-phase checks, where actual figures don't
+ * exist/matter yet) or monthActualTotal (for actual-phase checks, where
+ * planned already equals allocated by construction — settlement forced
+ * that at submit — so the real spare amount is allocated minus what's
+ * actually been spent so far, not minus the frozen planned figure).
+ */
+export const monthAvailableBalance = (
+  baseline,
+  transfers,
+  monthTasksByMonth,
+  month,
+  totalsFn = monthPlannedTotal,
+) =>
   Math.round(
     (monthAllocated(baseline, transfers, month) -
-      monthPlannedTotal((monthTasksByMonth || {})[month] || [])) *
+      totalsFn((monthTasksByMonth || {})[month] || [])) *
       100,
   ) / 100
 
@@ -143,7 +157,7 @@ const monthOf = (key) => key.slice('month:'.length)
  * transfer through this before appending it to the ledger.
  */
 export const validateTransfer = (
-  { projectValue, poolPct, transfers, months, monthTasksByMonth },
+  { projectValue, poolPct, transfers, months, monthTasksByMonth, phase },
   { from, to, amount },
 ) => {
   const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
@@ -175,7 +189,14 @@ export const validateTransfer = (
       computeWorkingPool(projectValue, poolPct),
       months || [],
     )[month]
-    const available = monthAvailableBalance(effectiveBaseline, transfers, monthTasksByMonth, month)
+    const totalsFn = phase === 'actual' ? monthActualTotal : monthPlannedTotal
+    const available = monthAvailableBalance(
+      effectiveBaseline,
+      transfers,
+      monthTasksByMonth,
+      month,
+      totalsFn,
+    )
     if (amt - available > 0.005) {
       return {
         valid: false,
