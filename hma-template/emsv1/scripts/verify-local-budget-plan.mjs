@@ -127,4 +127,139 @@ assert.throws(() => localBudgetPlan.addTask(PID, '2026-08', { phase: 'design', n
 plan.status = 'planning'
 localBudgetPlan.__setPlanForTest(PID, plan)
 
+// ── moveBalance: send from a month to HR/Core (planning phase) ─────
+localBudgetPlan.fullDelete(PID)
+plan = localBudgetPlan.initializePlan(PID, {
+  projectValue: 1000000,
+  startDate: '2026-08',
+  endDate: '2026-10',
+  poolPct: { admin: 5, hr: 5, core: 5 },
+})
+// month 2026-08 baseline is ~283,333.33 (850000/3); send 3000 to HR+Core, 50/50
+plan = localBudgetPlan.moveBalance(PID, {
+  originMonth: '2026-08',
+  direction: 'send',
+  targets: ['hr', 'core'],
+  amount: 3000,
+  phase: 'planning',
+  createdBy: 'PO',
+})
+const sendTransfers = plan.transfers.filter((t) => t.origin_month === '2026-08')
+assert.equal(sendTransfers.length, 2)
+assert.equal(
+  sendTransfers.reduce((s, t) => s + t.amount, 0),
+  3000,
+)
+assert.ok(sendTransfers.every((t) => t.from === 'month:2026-08'))
+assert.deepEqual(sendTransfers.map((t) => t.to).sort(), ['core', 'hr'])
+
+// ── moveBalance: send to multiple months, equal split ──────────────
+plan = localBudgetPlan.moveBalance(PID, {
+  originMonth: '2026-09',
+  direction: 'send',
+  targets: ['month:2026-08', 'month:2026-10'],
+  amount: 100,
+  phase: 'planning',
+  createdBy: 'PO',
+})
+const monthSendTransfers = plan.transfers.filter((t) => t.origin_month === '2026-09')
+assert.equal(monthSendTransfers.length, 2)
+assert.deepEqual(
+  monthSendTransfers.map((t) => t.amount).sort((a, b) => a - b),
+  [50, 50],
+)
+
+// ── moveBalance: take from HR/Core into a month ────────────────────
+plan = localBudgetPlan.moveBalance(PID, {
+  originMonth: '2026-10',
+  direction: 'take',
+  targets: ['hr'],
+  amount: 200,
+  phase: 'planning',
+  createdBy: 'PO',
+})
+const takeTransfer = plan.transfers.find(
+  (t) => t.origin_month === '2026-10' && t.from === 'hr' && t.to === 'month:2026-10',
+)
+assert.ok(takeTransfer)
+assert.equal(takeTransfer.amount, 200)
+
+// ── moveBalance rejects an invalid transfer with a plain error ──────
+assert.throws(
+  () =>
+    localBudgetPlan.moveBalance(PID, {
+      originMonth: '2026-10',
+      direction: 'take',
+      targets: ['hr'],
+      amount: 9999999,
+      phase: 'planning',
+      createdBy: 'PO',
+    }),
+  /available/,
+)
+
+// ── revokeTransfer ──────────────────────────────────────────────────
+const toRevoke = plan.transfers.find((t) => t.id === takeTransfer.id)
+plan = localBudgetPlan.revokeTransfer(PID, toRevoke.id)
+assert.equal(plan.transfers.some((t) => t.id === toRevoke.id), false)
+
+// revoking a planning transfer after submit is blocked
+const someTransferId = plan.transfers[0].id
+plan.status = 'submitted'
+localBudgetPlan.__setPlanForTest(PID, plan)
+assert.throws(() => localBudgetPlan.revokeTransfer(PID, someTransferId), /locked/)
+plan.status = 'planning'
+localBudgetPlan.__setPlanForTest(PID, plan)
+
+// ── resetMonth ───────────────────────────────────────────────────────
+// 2026-09's outgoing transfers should vanish; 2026-08/2026-10's incoming
+// halves of that same pair also vanish (paired removal, both sides
+// tagged with origin_month = 2026-09 in this implementation — see below).
+plan = localBudgetPlan.resetMonth(PID, '2026-09')
+assert.equal(
+  plan.transfers.some((t) => t.origin_month === '2026-09'),
+  false,
+)
+// the 2026-08 → HR/Core send from earlier (origin_month 2026-08) must still be there
+assert.ok(plan.transfers.some((t) => t.origin_month === '2026-08'))
+
+// ── setPoolCapAdjustment ─────────────────────────────────────────────
+localBudgetPlan.fullDelete(PID)
+plan = localBudgetPlan.initializePlan(PID, {
+  projectValue: 1000000,
+  startDate: '2026-08',
+  endDate: '2026-08',
+  poolPct: { admin: 5, hr: 5, core: 5 },
+})
+// HR cap is 50000 (5% of 1,000,000). Lower it to 30000 → 20000 flows to the target month.
+plan = localBudgetPlan.setPoolCapAdjustment(PID, {
+  pool: 'hr',
+  targetMonth: '2026-08',
+  newAmount: 30000,
+  createdBy: 'PO',
+})
+const capTransfer = plan.transfers.find((t) => t.tag === 'pool_cap_adjustment' && t.pool_ref === 'hr')
+assert.ok(capTransfer)
+assert.equal(capTransfer.amount, 20000)
+// raising it back above the 50000 cap is rejected
+assert.throws(() =>
+  localBudgetPlan.setPoolCapAdjustment(PID, {
+    pool: 'hr',
+    targetMonth: '2026-08',
+    newAmount: 60000,
+    createdBy: 'PO',
+  }),
+)
+// raising back to exactly the cap removes the adjustment transfer entirely
+plan = localBudgetPlan.setPoolCapAdjustment(PID, {
+  pool: 'hr',
+  targetMonth: '2026-08',
+  newAmount: 50000,
+  createdBy: 'PO',
+})
+assert.equal(
+  plan.transfers.some((t) => t.tag === 'pool_cap_adjustment' && t.pool_ref === 'hr'),
+  false,
+)
+
 console.log('localBudgetPlan.js: ALL PASSED')

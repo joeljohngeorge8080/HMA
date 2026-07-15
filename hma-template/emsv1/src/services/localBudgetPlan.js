@@ -6,7 +6,12 @@
  * embedding into the project record, so this module only ever needs
  * budgetPlan.js (no dependency on localProjects.js and its demo-seed data).
  */
-import { monthsInRange, equalSplit } from './budgetPlan.js'
+import {
+  monthsInRange,
+  equalSplit,
+  validateTransfer,
+  removeTransfersOriginatingFrom,
+} from './budgetPlan.js'
 
 const KEY = 'hma_budget_plans_v1'
 
@@ -211,6 +216,158 @@ export const localBudgetPlan = {
         ],
       })
     })
+    writeAll(all)
+    return plan
+  },
+
+  buildMonthTasksByMonth(plan) {
+    return Object.fromEntries(plan.months.map((m) => [m.month, m.tasks]))
+  },
+
+  buildTransferCtx(plan) {
+    return {
+      projectValue: plan.project_value,
+      poolPct: plan.pool_pct,
+      months: plan.months.map((m) => m.month),
+      monthTasksByMonth: localBudgetPlan.buildMonthTasksByMonth(plan),
+      transfers: plan.transfers,
+    }
+  },
+
+  /**
+   * Moves `amount` either away from `originMonth` (direction 'send', split
+   * across `targets`) or into it (direction 'take', drawn from `targets`),
+   * validating and appending one ledger record per target. `subtaskRef`
+   * (actual phase only) flags the originating subtask 'transferred' when
+   * sending its remainder away (spec Section 6).
+   */
+  moveBalance(
+    projectId,
+    { originMonth, direction, targets, amount, phase, createdBy, subtaskRef },
+  ) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
+    if (amt <= 0) throw new Error('Amount must be greater than zero.')
+    if (!targets || targets.length === 0) throw new Error('Select at least one destination.')
+
+    const shares = equalSplit(amt, targets.length)
+    const ctx = localBudgetPlan.buildTransferCtx(plan)
+    const newTransfers = []
+
+    targets.forEach((target, i) => {
+      const share = shares[i]
+      const from = direction === 'send' ? `month:${originMonth}` : target
+      const to = direction === 'send' ? target : `month:${originMonth}`
+      const validation = validateTransfer(
+        { ...ctx, transfers: [...ctx.transfers, ...newTransfers] },
+        { from, to, amount: share },
+      )
+      if (!validation.valid) throw new Error(validation.error)
+      newTransfers.push({
+        id: uid('xfer'),
+        phase,
+        origin_month: originMonth,
+        from,
+        to,
+        amount: share,
+        created_at: now(),
+        created_by: createdBy || 'Unknown',
+      })
+    })
+
+    plan.transfers = [...plan.transfers, ...newTransfers]
+
+    if (subtaskRef && direction === 'send' && phase === 'actual') {
+      const monthEntry = plan.months.find((m) => m.month === subtaskRef.month)
+      const task = monthEntry?.tasks.find((t) => t.id === subtaskRef.taskId)
+      const subtask = task?.subtasks.find((s) => s.id === subtaskRef.subtaskId)
+      if (subtask) subtask.actual_status = 'transferred'
+    }
+
+    writeAll(all)
+    return plan
+  },
+
+  /** Removes one ledger record by id. Planning-phase transfers are frozen once submitted. */
+  revokeTransfer(projectId, transferId) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    const transfer = plan.transfers.find((t) => t.id === transferId)
+    if (!transfer) throw new Error('Transfer not found.')
+    if (transfer.phase === 'planning' && plan.status === 'submitted') {
+      throw new Error('Planning transfers are locked after submit.')
+    }
+    plan.transfers = plan.transfers.filter((t) => t.id !== transferId)
+    writeAll(all)
+    return plan
+  },
+
+  /**
+   * Reset this month: restore its tasks from the save snapshot (or empty)
+   * AND drop every ledger transfer this month originated (which restores
+   * every other month/pool that transfer touched) — spec Section 4.2.
+   * Transfers where this month is only a counterparty (originated by a
+   * DIFFERENT month) are kept.
+   */
+  resetMonth(projectId, month) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+
+    const savedMonth = plan.saved_snapshot?.months.find((m) => m.month === month)
+    monthEntry.tasks = savedMonth ? JSON.parse(JSON.stringify(savedMonth.tasks)) : []
+    plan.transfers = removeTransfersOriginatingFrom(plan.transfers, month)
+
+    writeAll(all)
+    return plan
+  },
+
+  /**
+   * The header HR/Core amount input (spec Section 4.1): upserts the single
+   * pool→month adjustment tagged 'pool_cap_adjustment' for this pool,
+   * capped so the pool's balance never exceeds its original pct cap.
+   * Raising back to exactly the cap removes the adjustment (no no-op record).
+   */
+  setPoolCapAdjustment(projectId, { pool, targetMonth, newAmount, createdBy }) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requirePlanning(plan)
+    if (pool !== 'hr' && pool !== 'core') throw new Error('Pool must be hr or core.')
+
+    const cap = Math.round(((plan.project_value * (plan.pool_pct[pool] || 0)) / 100) * 100) / 100
+    const amt = Math.round((parseFloat(newAmount) || 0) * 100) / 100
+    if (amt > cap + 0.005) {
+      throw new Error(`${pool.toUpperCase()} cannot be raised above its set ₹${cap.toFixed(2)}.`)
+    }
+    if (amt < 0) throw new Error(`${pool.toUpperCase()} cannot go below zero.`)
+
+    const delta = Math.round((cap - amt) * 100) / 100
+    const withoutExisting = plan.transfers.filter(
+      (t) => !(t.tag === 'pool_cap_adjustment' && t.pool_ref === pool),
+    )
+
+    if (Math.abs(delta) < 0.01) {
+      plan.transfers = withoutExisting
+    } else {
+      plan.transfers = [
+        ...withoutExisting,
+        {
+          id: uid('xfer'),
+          phase: 'planning',
+          origin_month: targetMonth,
+          from: pool,
+          to: `month:${targetMonth}`,
+          amount: delta,
+          tag: 'pool_cap_adjustment',
+          pool_ref: pool,
+          created_at: now(),
+          created_by: createdBy || 'Unknown',
+        },
+      ]
+    }
     writeAll(all)
     return plan
   },
