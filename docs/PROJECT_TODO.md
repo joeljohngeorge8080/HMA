@@ -4,7 +4,7 @@
 > HMA IEMS Architecture v2.0 and **EMS_ROADMAP.md**. Update the status marker
 > as work progresses.
 >
-> Last updated: 2026-06-17  (Phase 1 started)
+> Last updated: 2026-07-07  (Phase 1 started; P4 scope narrowed per ADR-036)
 
 ## Status Legend
 - ✅ Done
@@ -106,12 +106,19 @@ all ─▶ P14 (Brand & QA)
 
 ## P4 — Projects  ⬜  · deps: P2 (hard), P3 (soft: officer/team)
 
+> **Scope narrowed 2026-07-07 (ADR-036):** CEO wants expense oversight, not a full
+> PMS. In scope: PA assigns PO; PO plans/allocates budget (incl. 5% EMS share,
+> already implemented via `localOrgPool`) and manages expenses. **Out of scope:**
+> daily task-tracking/reporting (`pms/daily-reports`) and PMS dashboard KPI/phase
+> widgets — do not prioritize P4.3 below.
+
 ### Epic P4.1 — Project core
 - ⬜ P4.1.1 `ProjectList` parameterized by category (CSR/LSGB/Other) — *dep: P2.1.1*
 - ⬜ P4.1.2 `ProjectForm` create/edit (Project Officer); `project_value` immutable
 - ⬜ P4.1.3 `ProjectDetail` shell (5 tabs); read-only banner on Completed
 - ⬜ P4.1.4 Status lifecycle (Draft→Active→Completed/Archived/Cancelled)
 - ⬜ P4.1.5 Officer reassignment → `project_officer_history` — *dep: P3.1.1*
+- ⬜ P4.1.6 Project Associate assignment step (PA assigns PO on intake) — *ADR-036*
 
 ### Epic P4.2 — Expenses & documents
 - ⬜ P4.2.1 `project_expenses` CRUD (Finance + Project Officer) — *dep: P4.1.3*
@@ -119,6 +126,10 @@ all ─▶ P14 (Brand & QA)
 - ⬜ P4.2.3 Finance edit-boundary guard (expenses only, not master fields)
 - ⬜ P4.2.4 Project documents tab + S3 (`project_documents`)
 - ⬜ P4.2.5 Team-assignments tab — *dep: P3.2.4*
+- ⬜ P4.2.6 5% EMS share display/reporting on top of `localOrgPool` HR/Core split — *ADR-036*
+
+### Epic P4.3 — Daily task-tracking — ⏸ out of scope (ADR-036)
+- ⏸ P4.3.1 Task assignment/management, my-tasks, task report submit/edit — not needed for CEO's expense-oversight goal; do not build against this epic
 
 ---
 

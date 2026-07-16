@@ -1,0 +1,9 @@
+There is a change in the architecture after the recent meeting with our ceo , the thing he want is about the expense only , he does not need any of the pms - He wants to know whether the company is moving in the correct way , is the expense handling correctly ? , is the expenses planning correctly etc
+Change : NO need of the pms - actually we only need what the project officers are doing , and the project associate does
+i will now explain the flow - there are actually 2 project associate , and multiple project officers 
+when a project arrives the project officer assigns a project officer then the project officers add more details to it , 
+the po is the one who is then handling everything  - he plans the budget  ,allocates the budget etc 
+There is no other things in the pms
+
+After the planning of the project by the po , the po will give the money to the ems ( hr ) - which is the 5% share 
+IN the hr side which is the ems it is the rest - what we have told about .

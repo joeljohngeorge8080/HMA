@@ -91,6 +91,39 @@ export const computeEffectivePoolMonthly = (project, pool, month) => {
 }
 
 /**
+ * Sum of every manual pool_adjustment delta (admin+hr+core) recorded
+ * against one exact month, regardless of which pool. Excludes
+ * auto_cascade adjustments — those already fund an overage the month's
+ * raw phase total already includes, so folding them in here would
+ * double-count the same rupees.
+ */
+export const sumManualPoolAdjustments = (adjustments, month) =>
+  Math.round(
+    (adjustments || [])
+      .filter((a) => a.source === 'manual' && a.month === month && a.pool !== 'project')
+      .reduce((s, a) => s + (a.amount || 0), 0) * 100,
+  ) / 100
+
+/**
+ * A month's Project Total after folding in manual pool reallocation: a
+ * pool reduction (positive delta) adds to Project; a manual top-up above
+ * the flat rate (negative delta) subtracts from it. Symmetric by
+ * construction — the same delta is subtracted from the pool's own
+ * effective figure (computeEffectivePoolMonthly) and added here, so the
+ * two changes cancel and a month's grand total (Project + Admin + HR +
+ * Core) is unaffected by any manual reallocation. Not clamped at 0 for
+ * the same reason computeEffectivePoolMonthly isn't — a large enough
+ * cross-pool top-up can legitimately push this negative.
+ */
+export const computeEffectiveProjectMonthly = (project, month) => {
+  const monthEntry = (project.monthly_plan || []).find((m) => m.month === month)
+  const rawTotal = monthEntry?.total || 0
+  const manualDelta = sumManualPoolAdjustments(project.pool_adjustments, month)
+  const projectTransfer = sumPoolAdjustments(project.pool_adjustments, 'project', month)
+  return Math.round((rawTotal + manualDelta - projectTransfer) * 100) / 100
+}
+
+/**
  * A pool's effective monthly figure re-expressed as a % of that month's
  * slice of total project value (project_value ÷ duration). Purely a
  * derived display/edit convenience — there is no separate stored
@@ -135,18 +168,25 @@ export const computeMonthHRCore = (project, month) =>
  * month's Project total (P) exceeds its baseline share (B), the excess is
  * funded by pulling from HR/Core — first that same month's own HR+Core
  * capacity (HC), split 50/50, then, if the excess is larger than HC, the
- * remainder is spread evenly across every OTHER month's HR+Core, also
- * split 50/50 within each. Pure function of the project's current
- * monthly_plan; does not read or preserve any existing pool_adjustments —
- * the caller (localProjects.js) merges this against manual ones. A
- * shortfall that can't be covered (a single-month project, or an excess
- * larger than every other month's combined capacity) is simply not
- * represented by any adjustment — no clamping, no error, nothing forced.
+ * remainder is spread across every OTHER month's HR+Core (also split 50/50
+ * within each), capped at whatever capacity each month actually has left —
+ * a month already drained by a previous excess in this same pass (or by its
+ * own same-month pull) cannot be double-drawn. If the excess still can't be
+ * fully placed after every month's HR+Core capacity is exhausted, the
+ * remainder is drawn from that month's own Admin share instead — Admin is
+ * the funder of last resort so HR/Core are never pushed into deficit by a
+ * plan that overcommits past the entire project's combined capacity (Admin
+ * itself is not clamped at 0 for the same reason HR/Core effective figures
+ * aren't — see computeEffectivePoolMonthly).
+ *
+ * Pure function of the project's current monthly_plan; does not read or
+ * preserve any existing pool_adjustments — the caller (localProjects.js)
+ * merges this against manual ones.
  *
  * Every split below computes one side and derives the other as the exact
- * remainder (never rounding both sides independently), and the last month
- * in an even cross-month spread absorbs any leftover rounding — so the sum
- * of every adjustment this function creates for one month's excess always
+ * remainder (never rounding both sides independently), and each capped
+ * round's last recipient absorbs any leftover rounding — so the sum of
+ * every adjustment this function creates for one month's excess always
  * equals that excess exactly, to the paisa. This matters:
  * validatePlanTotalWithCascade compares the raw plan total against
  * workingPool + (sum of every auto_cascade amount), and that comparison
@@ -160,40 +200,150 @@ export const computeCascadeAdjustments = (project) => {
   const baseline = computeMonthBaseline(project)
   const adjustments = []
 
+  // Shared, mutated across the whole pass — once a month's HR+Core capacity
+  // funds one overage (its own or another month's), it can't fund a second.
+  const capacityRemaining = {}
+  allMonths.forEach((m) => {
+    capacityRemaining[m] = computeMonthHRCore(project, m)
+  })
+
   const pushSplit = (month, total) => {
+    if (total <= 0) return
     const hrShare = Math.round((total / 2) * 100) / 100
     const coreShare = Math.round((total - hrShare) * 100) / 100
     adjustments.push({ pool: 'hr', month, amount: hrShare, source: 'auto_cascade' })
     adjustments.push({ pool: 'core', month, amount: coreShare, source: 'auto_cascade' })
+    capacityRemaining[month] = Math.round((capacityRemaining[month] - total) * 100) / 100
+  }
+
+  // Spreads `amount` across `targetMonths`, as evenly as possible, never
+  // drawing a month past its own remaining capacity. Months whose capacity
+  // is smaller than an even share are drained fully and dropped, then the
+  // rest is re-divided among what's left (classic water-filling) — this
+  // terminates because each non-final round removes at least one month.
+  // Returns whatever amount had nowhere left to go.
+  const distributeCapped = (amount, targetMonths) => {
+    let remaining = Math.round(amount * 100) / 100
+    let pool = targetMonths.filter((mm) => capacityRemaining[mm] > 0)
+
+    while (remaining > 0 && pool.length > 0) {
+      const evenShare = Math.round((remaining / pool.length) * 100) / 100
+      const saturated = pool.filter((mm) => capacityRemaining[mm] < evenShare)
+
+      if (saturated.length === 0) {
+        pool.forEach((mm, i) => {
+          const isLast = i === pool.length - 1
+          const take = isLast ? remaining : evenShare
+          pushSplit(mm, take)
+          remaining = Math.round((remaining - take) * 100) / 100
+        })
+        break
+      }
+
+      saturated.forEach((mm) => {
+        const take = capacityRemaining[mm]
+        pushSplit(mm, take)
+        remaining = Math.round((remaining - take) * 100) / 100
+      })
+      pool = pool.filter((mm) => !saturated.includes(mm))
+    }
+
+    return Math.max(Math.round(remaining * 100) / 100, 0)
   }
 
   plan.forEach((m) => {
-    const hc = computeMonthHRCore(project, m.month)
     const excess = Math.round((m.total - baseline) * 100) / 100
     if (excess <= 0) return
 
-    const sameMonthPull = Math.min(excess, hc)
-    if (sameMonthPull > 0) {
-      pushSplit(m.month, sameMonthPull)
-    }
+    const sameMonthPull = Math.min(excess, capacityRemaining[m.month])
+    pushSplit(m.month, sameMonthPull)
 
     const remaining = Math.round((excess - sameMonthPull) * 100) / 100
-    if (remaining > 0) {
-      const otherMonths = allMonths.filter((mm) => mm !== m.month)
-      if (otherMonths.length > 0) {
-        const perMonth = Math.round((remaining / otherMonths.length) * 100) / 100
-        otherMonths.forEach((om, i) => {
-          const isLast = i === otherMonths.length - 1
-          const amt = isLast
-            ? Math.round((remaining - perMonth * (otherMonths.length - 1)) * 100) / 100
-            : perMonth
-          pushSplit(om, amt)
-        })
-      }
+    if (remaining <= 0) return
+
+    const otherMonths = allMonths.filter((mm) => mm !== m.month)
+    const unfunded = distributeCapped(remaining, otherMonths)
+
+    if (unfunded > 0) {
+      adjustments.push({ pool: 'admin', month: m.month, amount: unfunded, source: 'auto_cascade' })
     }
   })
 
   return adjustments
+}
+
+/** Sum of a month's phase-line `actual` figures. Blank/unset lines count as 0. */
+export const computeMonthActualTotal = (monthEntry) =>
+  Math.round(
+    (monthEntry?.phases || []).reduce((s, ph) => s + (parseFloat(ph.actual) || 0), 0) * 100,
+  ) / 100
+
+/**
+ * Derives the 'actual_pull' pool_adjustments a monthly plan's actual-vs-
+ * planned figures imply: processing months chronologically, when a
+ * month's actual total exceeds its *effective* planned total (raw plan
+ * total plus/minus any transfer already applied to it earlier in this
+ * same pass), the excess is pulled from the immediately next month's
+ * effective planned total, capped at whatever that month currently has
+ * available. Never reaches past the next month — an excess bigger than
+ * next month's capacity, or a last-month excess with no next month, is
+ * simply not represented by an adjustment for the uncovered remainder
+ * (the UI flags it directly from the raw numbers, nothing is forced).
+ * Pure function of the project's current monthly_plan and
+ * pool_adjustments; does not read or preserve any existing 'actual_pull'
+ * records itself — the caller (localProjects.js updateMonthPlan) discards
+ * old ones and replaces them with this function's fresh output, the same
+ * convention computeCascadeAdjustments already uses for 'auto_cascade'.
+ * The caller must pass pool_adjustments with any stale 'actual_pull'
+ * records already stripped out, or this function will double-subtract
+ * them when computing effective planned figures.
+ */
+export const computeActualVsPlannedTransfers = (project) => {
+  const plan = project.monthly_plan || []
+  const adjustments = project.pool_adjustments || []
+  const transfers = []
+  const appliedDelta = {}
+  const effectivePlanned = (month, rawTotal) => {
+    const manualDelta = sumManualPoolAdjustments(adjustments, month)
+    const existingProjectTransfer = sumPoolAdjustments(adjustments, 'project', month)
+    return rawTotal + manualDelta - existingProjectTransfer - (appliedDelta[month] || 0)
+  }
+
+  plan.forEach((m, idx) => {
+    const rawTotal = m.total || 0
+    const planned = effectivePlanned(m.month, rawTotal)
+    const actual = computeMonthActualTotal(m)
+    const excess = Math.round((actual - planned) * 100) / 100
+    if (excess <= 0) return
+
+    const nextMonth = plan[idx + 1]
+    if (!nextMonth) return
+
+    const nextRawTotal = nextMonth.total || 0
+    const nextAvailable = effectivePlanned(nextMonth.month, nextRawTotal)
+    const pull = Math.min(excess, Math.max(nextAvailable, 0))
+    if (pull <= 0) return
+
+    transfers.push({
+      pool: 'project',
+      month: nextMonth.month,
+      amount: pull,
+      source: 'actual_pull',
+      counterMonth: m.month,
+      reason: `Auto-pulled to cover ${m.month} overage`,
+    })
+    transfers.push({
+      pool: 'project',
+      month: m.month,
+      amount: -pull,
+      source: 'actual_pull',
+      counterMonth: nextMonth.month,
+      reason: `Auto-funded from ${nextMonth.month}`,
+    })
+    appliedDelta[nextMonth.month] = (appliedDelta[nextMonth.month] || 0) + pull
+  })
+
+  return transfers
 }
 
 /**

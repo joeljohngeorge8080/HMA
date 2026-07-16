@@ -45,6 +45,7 @@ import {
 } from '@coreui/icons'
 import { localPayroll } from '../../../services/localPayroll'
 import { localAttendance } from '../../../services/localAttendance'
+import { attendanceRevenue } from '../../../services/attendanceRevenue'
 
 // ── Core Salary Expense store ─────────────────────────────────────────────────
 // Tracks which employees' salaries are formally registered as core overhead.
@@ -55,7 +56,11 @@ const uid = () => `cse_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
 const coreExpenses = {
   read: () => {
-    try { return JSON.parse(localStorage.getItem(CORE_SAL_KEY) || '[]') } catch { return [] }
+    try {
+      return JSON.parse(localStorage.getItem(CORE_SAL_KEY) || '[]')
+    } catch {
+      return []
+    }
   },
   write: (data) => localStorage.setItem(CORE_SAL_KEY, JSON.stringify(data)),
   add(entry) {
@@ -75,17 +80,32 @@ const coreExpenses = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (n) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(n || 0)
 
 const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  d
+    ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—'
 
 const CATEGORY_COLOR = { Permanent: 'primary', FTC: 'warning', TPC: 'info' }
 
 const MONTHS_OPT = [
-  { v: 1, l: 'January' }, { v: 2, l: 'February' }, { v: 3, l: 'March' }, { v: 4, l: 'April' },
-  { v: 5, l: 'May' }, { v: 6, l: 'June' }, { v: 7, l: 'July' }, { v: 8, l: 'August' },
-  { v: 9, l: 'September' }, { v: 10, l: 'October' }, { v: 11, l: 'November' }, { v: 12, l: 'December' },
+  { v: 1, l: 'January' },
+  { v: 2, l: 'February' },
+  { v: 3, l: 'March' },
+  { v: 4, l: 'April' },
+  { v: 5, l: 'May' },
+  { v: 6, l: 'June' },
+  { v: 7, l: 'July' },
+  { v: 8, l: 'August' },
+  { v: 9, l: 'September' },
+  { v: 10, l: 'October' },
+  { v: 11, l: 'November' },
+  { v: 12, l: 'December' },
 ]
 const THIS_YEAR = new Date().getFullYear()
 const THIS_MONTH = new Date().getMonth() + 1
@@ -97,13 +117,27 @@ const YEARS = [THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
 // deducted); this just surfaces that money-not-paid total here as savings,
 // split by whether the employee is Core (unassigned) or Project-Assigned.
 
+// Project Officers always belong to the Project-Assigned group, even before
+// an active project assignment is recorded (former Project Assistants are
+// migrated to Project Officer — see applyProjectAssistantMigration).
+const isProjectAssigned = (emp) =>
+  !emp.isOverhead || /project officer/i.test(emp.employment?.designation || '')
+
 const computeEmployeeDeduction = (emp, summary, year, month) => {
   const salary = parseFloat(emp.current_salary || 0)
   const absentCount = summary?.absent_count || 0
   const halfDayCount = summary?.half_day_count || 0
   const excessLateUnits = summary?.excess_late_units || 0
   if (salary <= 0 || !summary) {
-    return { absentDeduction: 0, halfDayDeduction: 0, lateDeduction: 0, totalDeduction: 0, absentCount, halfDayCount, excessLateUnits }
+    return {
+      absentDeduction: 0,
+      halfDayDeduction: 0,
+      lateDeduction: 0,
+      totalDeduction: 0,
+      absentCount,
+      halfDayCount,
+      excessLateUnits,
+    }
   }
   const daysInMonth = new Date(year, month, 0).getDate()
   const perDayRate = salary / daysInMonth
@@ -121,6 +155,124 @@ const computeEmployeeDeduction = (emp, summary, year, month) => {
   }
 }
 
+// ── TPC Attendance Deduction Pool ────────────────────────────────────────────
+// Salary withheld from TPC (Third Party) staff for absences becomes company
+// revenue, held in this separate pool — Permanent/FTC deductions are not
+// pooled (see attendanceRevenue.js).
+
+const TpcAttendancePoolCard = () => {
+  const [pool] = useState(() => attendanceRevenue.getTotalPool())
+  const [expanded, setExpanded] = useState(false)
+
+  const latest = pool.months[pool.months.length - 1] || null
+  const latestRows = useMemo(
+    () => (latest ? attendanceRevenue.getMonthlyPool(latest.year, latest.month).rows : []),
+    [latest],
+  )
+
+  return (
+    <CCard className="border-0 shadow-sm mb-4" style={{ borderRadius: 12 }}>
+      <CCardHeader className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+        <div>
+          <div className="fw-semibold">Attendance Deduction Pool — TPC Staff</div>
+          <div className="text-body-secondary small">
+            Salary withheld from Third Party (TPC) staff for Absent / Half-day / excess Late is
+            retained by the company as revenue and held in this pool.
+          </div>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          <CBadge color="info" shape="rounded-pill" className="px-3 py-2">
+            Pool balance: {fmt(pool.total)}
+          </CBadge>
+          {pool.months.length > 0 && (
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="ghost"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <CIcon icon={expanded ? cilChevronTop : cilChevronBottom} size="sm" />
+            </CButton>
+          )}
+        </div>
+      </CCardHeader>
+      {expanded && (
+        <CCardBody>
+          <CRow className="g-3 mb-3">
+            {pool.months.map((m) => (
+              <CCol key={`${m.year}-${m.month}`} xs={6} md={3}>
+                <div className="border rounded-3 p-3 text-center h-100">
+                  <div className="fw-bold" style={{ color: '#06d6a0' }}>
+                    {fmt(m.total)}
+                  </div>
+                  <div className="small text-body-secondary">
+                    {MONTHS_OPT.find((o) => o.v === m.month)?.l} {m.year}
+                  </div>
+                </div>
+              </CCol>
+            ))}
+          </CRow>
+          {latest && latestRows.length > 0 && (
+            <>
+              <div className="fw-semibold small mb-2">
+                Latest month — {MONTHS_OPT.find((o) => o.v === latest.month)?.l} {latest.year}
+              </div>
+              <div className="table-responsive">
+                <CTable hover align="middle" small className="mb-0" style={{ fontSize: '0.82rem' }}>
+                  <CTableHead className="bg-body-tertiary">
+                    <CTableRow>
+                      <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Absent
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Half-Day
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-center">
+                        Late (excess)
+                      </CTableHeaderCell>
+                      <CTableHeaderCell className="border-0 py-2 text-end">
+                        To Pool
+                      </CTableHeaderCell>
+                    </CTableRow>
+                  </CTableHead>
+                  <CTableBody>
+                    {latestRows.map((r) => (
+                      <CTableRow key={r.employee_id}>
+                        <CTableDataCell>
+                          <div className="fw-semibold">{r.employee_name}</div>
+                          <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                            {r.employee_id}
+                          </div>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.absent_count || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.half_day_count || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-center">
+                          {r.excess_late_units || '—'}
+                        </CTableDataCell>
+                        <CTableDataCell
+                          className="text-end fw-semibold"
+                          style={{ color: '#06d6a0' }}
+                        >
+                          {fmt(r.totalDeduction)}
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))}
+                  </CTableBody>
+                </CTable>
+              </div>
+            </>
+          )}
+        </CCardBody>
+      )}
+    </CCard>
+  )
+}
+
 const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
   const [year, setYear] = useState(THIS_YEAR)
   const [month, setMonth] = useState(THIS_MONTH)
@@ -132,7 +284,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
 
   const summaryByEmpId = useMemo(() => {
     const map = {}
-    summaries.forEach((s) => { map[s.employee_id] = s })
+    summaries.forEach((s) => {
+      map[s.employee_id] = s
+    })
     return map
   }, [summaries])
 
@@ -180,7 +334,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
             style={{ width: 130 }}
           >
             {MONTHS_OPT.map((m) => (
-              <option key={m.v} value={m.v}>{m.l}</option>
+              <option key={m.v} value={m.v}>
+                {m.l}
+              </option>
             ))}
           </CFormSelect>
           <CFormSelect
@@ -190,7 +346,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
             style={{ width: 90 }}
           >
             {YEARS.map((y) => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>
+                {y}
+              </option>
             ))}
           </CFormSelect>
         </div>
@@ -199,7 +357,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
         <CRow className="g-3 mb-3">
           <CCol xs={12} md={6}>
             <div className="border rounded-3 p-3 text-center h-100">
-              <div className="fw-bold fs-5" style={{ color: '#06d6a0' }}>{fmt(core.total)}</div>
+              <div className="fw-bold fs-5" style={{ color: '#06d6a0' }}>
+                {fmt(core.total)}
+              </div>
               <div className="small text-body-secondary">
                 Saved — Core Employees ({core.rows.length} affected)
               </div>
@@ -207,7 +367,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
           </CCol>
           <CCol xs={12} md={6}>
             <div className="border rounded-3 p-3 text-center h-100">
-              <div className="fw-bold fs-5" style={{ color: '#4361ee' }}>{fmt(assigned.total)}</div>
+              <div className="fw-bold fs-5" style={{ color: '#4361ee' }}>
+                {fmt(assigned.total)}
+              </div>
               <div className="small text-body-secondary">
                 Saved — Project-Assigned Employees ({assigned.rows.length} affected)
               </div>
@@ -227,8 +389,12 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                   <CTableHeaderCell className="border-0 py-2">Employee</CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2">Group</CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-center">Absent</CTableHeaderCell>
-                  <CTableHeaderCell className="border-0 py-2 text-center">Half-Day</CTableHeaderCell>
-                  <CTableHeaderCell className="border-0 py-2 text-center">Late (excess)</CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-center">
+                    Half-Day
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="border-0 py-2 text-center">
+                    Late (excess)
+                  </CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-end">Saved</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -237,16 +403,23 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                   <CTableRow key={r.emp.id}>
                     <CTableDataCell>
                       <div className="fw-semibold">{r.emp.employee_name}</div>
-                      <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>{r.emp.employee_id}</div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                        {r.emp.employee_id}
+                      </div>
                     </CTableDataCell>
                     <CTableDataCell>
-                      <CBadge color={r.groupLabel === 'Core' ? 'warning' : 'success'} shape="rounded-pill">
+                      <CBadge
+                        color={r.groupLabel === 'Core' ? 'warning' : 'success'}
+                        shape="rounded-pill"
+                      >
                         {r.groupLabel}
                       </CBadge>
                     </CTableDataCell>
                     <CTableDataCell className="text-center">{r.absentCount || '—'}</CTableDataCell>
                     <CTableDataCell className="text-center">{r.halfDayCount || '—'}</CTableDataCell>
-                    <CTableDataCell className="text-center">{r.excessLateUnits || '—'}</CTableDataCell>
+                    <CTableDataCell className="text-center">
+                      {r.excessLateUnits || '—'}
+                    </CTableDataCell>
                     <CTableDataCell className="text-end fw-semibold" style={{ color: '#06d6a0' }}>
                       {fmt(r.totalDeduction)}
                     </CTableDataCell>
@@ -272,7 +445,10 @@ const EmployeeDetailPanel = ({ emp }) => {
       <CRow className="g-3">
         {/* Personal / Employment details */}
         <CCol xs={12} md={6} lg={4}>
-          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+          <div
+            className="small fw-semibold text-body-secondary text-uppercase mb-2"
+            style={{ letterSpacing: '0.5px' }}
+          >
             Employment Details
           </div>
           <div className="d-flex flex-column gap-1" style={{ fontSize: '0.82rem' }}>
@@ -286,7 +462,9 @@ const EmployeeDetailPanel = ({ emp }) => {
               ['Reporting To', emp.employment?.reporting_to],
             ].map(([label, value]) => (
               <div key={label} className="d-flex gap-2">
-                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>{label}</span>
+                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>
+                  {label}
+                </span>
                 <span className="fw-medium text-truncate">{value || '—'}</span>
               </div>
             ))}
@@ -295,7 +473,10 @@ const EmployeeDetailPanel = ({ emp }) => {
 
         {/* Salary & Contact */}
         <CCol xs={12} md={6} lg={4}>
-          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+          <div
+            className="small fw-semibold text-body-secondary text-uppercase mb-2"
+            style={{ letterSpacing: '0.5px' }}
+          >
             Salary & Contact
           </div>
           <div className="d-flex flex-column gap-1" style={{ fontSize: '0.82rem' }}>
@@ -307,7 +488,9 @@ const EmployeeDetailPanel = ({ emp }) => {
               ['Location', emp.address?.resident_location],
             ].map(([label, value]) => (
               <div key={label} className="d-flex gap-2">
-                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>{label}</span>
+                <span className="text-body-secondary flex-shrink-0" style={{ minWidth: 110 }}>
+                  {label}
+                </span>
                 <span className="fw-medium text-truncate">{value || '—'}</span>
               </div>
             ))}
@@ -316,7 +499,10 @@ const EmployeeDetailPanel = ({ emp }) => {
 
         {/* Project assignments */}
         <CCol xs={12} lg={4}>
-          <div className="small fw-semibold text-body-secondary text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>
+          <div
+            className="small fw-semibold text-body-secondary text-uppercase mb-2"
+            style={{ letterSpacing: '0.5px' }}
+          >
             Project Assignments
           </div>
           {activeAssignments.length === 0 && pastAssignments.length === 0 ? (
@@ -324,17 +510,35 @@ const EmployeeDetailPanel = ({ emp }) => {
           ) : (
             <div className="d-flex flex-column gap-1">
               {activeAssignments.map((a, i) => (
-                <div key={i} className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-success-subtle border border-success-subtle" style={{ fontSize: '0.8rem' }}>
-                  <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>Active</CBadge>
-                  <span className="fw-semibold text-truncate flex-grow-1">{a.project_name || 'Unnamed'}</span>
-                  <span className="text-body-secondary text-nowrap">{fmtDate(a.assigned_date)}</span>
+                <div
+                  key={i}
+                  className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-success-subtle border border-success-subtle"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>
+                    Active
+                  </CBadge>
+                  <span className="fw-semibold text-truncate flex-grow-1">
+                    {a.project_name || 'Unnamed'}
+                  </span>
+                  <span className="text-body-secondary text-nowrap">
+                    {fmtDate(a.assigned_date)}
+                  </span>
                 </div>
               ))}
               {pastAssignments.map((a, i) => (
-                <div key={i} className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-body-tertiary border" style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                  <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>{a.status || 'Past'}</CBadge>
+                <div
+                  key={i}
+                  className="d-flex align-items-center gap-2 rounded-2 px-2 py-1 bg-body-tertiary border"
+                  style={{ fontSize: '0.8rem', opacity: 0.7 }}
+                >
+                  <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>
+                    {a.status || 'Past'}
+                  </CBadge>
                   <span className="text-truncate flex-grow-1">{a.project_name || 'Unnamed'}</span>
-                  <span className="text-body-secondary text-nowrap">{fmtDate(a.assigned_date)}</span>
+                  <span className="text-body-secondary text-nowrap">
+                    {fmtDate(a.assigned_date)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -361,7 +565,9 @@ const EmployeeRow = ({ emp, index, showProjects }) => {
         <CTableDataCell className="ps-3 text-body-secondary small">{index + 1}</CTableDataCell>
         <CTableDataCell>
           <div className="fw-semibold">{emp.employee_name}</div>
-          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{emp.employee_id}</div>
+          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+            {emp.employee_id}
+          </div>
         </CTableDataCell>
         <CTableDataCell className="small">{emp.employment?.designation || '—'}</CTableDataCell>
         <CTableDataCell className="small">{emp.employment?.department || '—'}</CTableDataCell>
@@ -371,7 +577,11 @@ const EmployeeRow = ({ emp, index, showProjects }) => {
           </CBadge>
         </CTableDataCell>
         <CTableDataCell className="fw-semibold" style={{ color: '#4361ee' }}>
-          {emp.current_salary ? fmt(emp.current_salary) : <span className="text-body-secondary small">Not set</span>}
+          {emp.current_salary ? (
+            fmt(emp.current_salary)
+          ) : (
+            <span className="text-body-secondary small">Not set</span>
+          )}
         </CTableDataCell>
         {showProjects && (
           <CTableDataCell>
@@ -405,7 +615,11 @@ const EmployeeTable = ({ employees, showProjects, emptyIcon, emptyText }) => {
   if (employees.length === 0) {
     return (
       <div className="text-center text-body-secondary py-5">
-        <CIcon icon={emptyIcon} style={{ width: 40, height: 40, opacity: 0.3 }} className="mb-2 d-block mx-auto" />
+        <CIcon
+          icon={emptyIcon}
+          style={{ width: 40, height: 40, opacity: 0.3 }}
+          className="mb-2 d-block mx-auto"
+        />
         <div className="small">{emptyText}</div>
       </div>
     )
@@ -422,7 +636,9 @@ const EmployeeTable = ({ employees, showProjects, emptyIcon, emptyText }) => {
             <CTableHeaderCell className="border-0 py-2">Department</CTableHeaderCell>
             <CTableHeaderCell className="border-0 py-2">Category</CTableHeaderCell>
             <CTableHeaderCell className="border-0 py-2">Monthly Salary</CTableHeaderCell>
-            {showProjects && <CTableHeaderCell className="border-0 py-2">Projects</CTableHeaderCell>}
+            {showProjects && (
+              <CTableHeaderCell className="border-0 py-2">Projects</CTableHeaderCell>
+            )}
             <CTableHeaderCell className="border-0 py-2" />
           </CTableRow>
         </CTableHead>
@@ -455,8 +671,14 @@ const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds })
   }
 
   const handleAdd = () => {
-    if (!selectedId) { setError('Please select an employee.'); return }
-    if (!salary || parseFloat(salary) <= 0) { setError('Please enter a valid salary amount.'); return }
+    if (!selectedId) {
+      setError('Please select an employee.')
+      return
+    }
+    if (!salary || parseFloat(salary) <= 0) {
+      setError('Please enter a valid salary amount.')
+      return
+    }
     onAdd({
       employee_id: selected.id,
       employee_code: selected.employee_id,
@@ -492,14 +714,15 @@ const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds })
           Select an employee whose salary will be tracked as a core overhead expense.
         </p>
 
-        {error && <CAlert color="danger" className="py-2 small">{error}</CAlert>}
+        {error && (
+          <CAlert color="danger" className="py-2 small">
+            {error}
+          </CAlert>
+        )}
 
         <div className="mb-3">
           <CFormLabel className="small fw-semibold">Employee</CFormLabel>
-          <CFormSelect
-            value={selectedId}
-            onChange={(e) => handleSelect(e.target.value)}
-          >
+          <CFormSelect value={selectedId} onChange={(e) => handleSelect(e.target.value)}>
             <option value="">— Select employee —</option>
             {available.map((emp) => (
               <option key={emp.id} value={emp.id}>
@@ -514,17 +737,29 @@ const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds })
         </div>
 
         {selected && (
-          <div className="rounded-3 px-3 py-2 bg-body-secondary mb-3" style={{ fontSize: '0.82rem' }}>
+          <div
+            className="rounded-3 px-3 py-2 bg-body-secondary mb-3"
+            style={{ fontSize: '0.82rem' }}
+          >
             <div className="d-flex gap-4 flex-wrap">
-              <div><span className="text-body-secondary">Dept: </span><span className="fw-medium">{selected.employment?.department || '—'}</span></div>
-              <div><span className="text-body-secondary">Category: </span>
-                <CBadge color={CATEGORY_COLOR[selected.employee_category] || 'secondary'} shape="rounded-pill" style={{ fontSize: '0.65rem' }}>
+              <div>
+                <span className="text-body-secondary">Dept: </span>
+                <span className="fw-medium">{selected.employment?.department || '—'}</span>
+              </div>
+              <div>
+                <span className="text-body-secondary">Category: </span>
+                <CBadge
+                  color={CATEGORY_COLOR[selected.employee_category] || 'secondary'}
+                  shape="rounded-pill"
+                  style={{ fontSize: '0.65rem' }}
+                >
                   {selected.employee_category || '—'}
                 </CBadge>
               </div>
-              <div><span className="text-body-secondary">On projects: </span>
+              <div>
+                <span className="text-body-secondary">On projects: </span>
                 <span className="fw-medium">
-                  {(selected.project_assignments || []).filter(a => a.status === 'Active').length}
+                  {(selected.project_assignments || []).filter((a) => a.status === 'Active').length}
                 </span>
               </div>
             </div>
@@ -544,12 +779,16 @@ const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds })
             />
           </CInputGroup>
           {selected?.current_salary === 0 && (
-            <div className="small text-warning mt-1">No salary on record — please enter the amount manually.</div>
+            <div className="small text-warning mt-1">
+              No salary on record — please enter the amount manually.
+            </div>
           )}
         </div>
 
         <div className="mb-1">
-          <CFormLabel className="small fw-semibold">Notes <span className="fw-normal text-body-secondary">(optional)</span></CFormLabel>
+          <CFormLabel className="small fw-semibold">
+            Notes <span className="fw-normal text-body-secondary">(optional)</span>
+          </CFormLabel>
           <CFormInput
             placeholder="e.g. FY 2026–27 overhead"
             value={notes}
@@ -558,7 +797,9 @@ const AddExpenseModal = ({ visible, onClose, onAdd, allEmployees, existingIds })
         </div>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" variant="ghost" onClick={handleClose}>Cancel</CButton>
+        <CButton color="secondary" variant="ghost" onClick={handleClose}>
+          Cancel
+        </CButton>
         <CButton color="primary" onClick={handleAdd} disabled={available.length === 0}>
           <CIcon icon={cilPlus} className="me-1" />
           Add to Core Expenses
@@ -575,7 +816,10 @@ const EditExpenseModal = ({ visible, entry, onClose, onSave }) => {
   const [notes, setNotes] = useState(entry?.notes || '')
 
   useEffect(() => {
-    if (entry) { setSalary(String(entry.salary || '')); setNotes(entry.notes || '') }
+    if (entry) {
+      setSalary(String(entry.salary || ''))
+      setNotes(entry.notes || '')
+    }
   }, [entry])
 
   const handleSave = () => {
@@ -594,17 +838,30 @@ const EditExpenseModal = ({ visible, entry, onClose, onSave }) => {
           <CFormLabel className="small fw-semibold">Monthly Salary (₹)</CFormLabel>
           <CInputGroup>
             <CInputGroupText>₹</CInputGroupText>
-            <CFormInput type="number" min="0" value={salary} onChange={(e) => setSalary(e.target.value)} />
+            <CFormInput
+              type="number"
+              min="0"
+              value={salary}
+              onChange={(e) => setSalary(e.target.value)}
+            />
           </CInputGroup>
         </div>
         <div>
           <CFormLabel className="small fw-semibold">Notes</CFormLabel>
-          <CFormInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" />
+          <CFormInput
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Optional notes"
+          />
         </div>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" variant="ghost" onClick={onClose}>Cancel</CButton>
-        <CButton color="primary" onClick={handleSave}>Save</CButton>
+        <CButton color="secondary" variant="ghost" onClick={onClose}>
+          Cancel
+        </CButton>
+        <CButton color="primary" onClick={handleSave}>
+          Save
+        </CButton>
       </CModalFooter>
     </CModal>
   )
@@ -618,20 +875,32 @@ const CoreExpensesTab = ({ allEmployees }) => {
   const [editEntry, setEditEntry] = useState(null)
 
   const reload = useCallback(() => setEntries(coreExpenses.read()), [])
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    reload()
+  }, [reload])
 
-  const handleAdd = (entry) => { coreExpenses.add(entry); reload() }
-  const handleRemove = (id) => { coreExpenses.remove(id); reload() }
-  const handleEditSave = (id, patch) => { coreExpenses.update(id, patch); reload() }
+  const handleAdd = (entry) => {
+    coreExpenses.add(entry)
+    reload()
+  }
+  const handleRemove = (id) => {
+    coreExpenses.remove(id)
+    reload()
+  }
+  const handleEditSave = (id, patch) => {
+    coreExpenses.update(id, patch)
+    reload()
+  }
 
   const existingIds = entries.map((e) => e.employee_id)
   const totalMonthly = entries.reduce((s, e) => s + (e.salary || 0), 0)
 
-  const coreEmployees = allEmployees.filter((e) => e.isOverhead)
-  const assignedEmployees = allEmployees.filter((e) => !e.isOverhead)
+  const coreEmployees = allEmployees.filter((e) => !isProjectAssigned(e))
+  const assignedEmployees = allEmployees.filter(isProjectAssigned)
 
   return (
     <>
+      <TpcAttendancePoolCard />
       <LeaveSavingsSummary coreEmployees={coreEmployees} assignedEmployees={assignedEmployees} />
 
       {/* Summary */}
@@ -639,7 +908,8 @@ const CoreExpensesTab = ({ allEmployees }) => {
         <div>
           <div className="fw-semibold">Core Salary Expenses</div>
           <div className="text-body-secondary small">
-            Salaries of employees not assigned to any project — registered as organizational overhead.
+            Salaries of employees not assigned to any project — registered as organizational
+            overhead.
           </div>
         </div>
         <div className="d-flex gap-2 align-items-center">
@@ -658,9 +928,16 @@ const CoreExpensesTab = ({ allEmployees }) => {
       {/* Entries list */}
       {entries.length === 0 ? (
         <div className="text-center py-5 text-body-secondary border rounded-3 bg-body-secondary">
-          <CIcon icon={cilMoney} style={{ width: 40, height: 40, opacity: 0.3 }} className="mb-2 d-block mx-auto" />
+          <CIcon
+            icon={cilMoney}
+            style={{ width: 40, height: 40, opacity: 0.3 }}
+            className="mb-2 d-block mx-auto"
+          />
           <div className="small">No core salary expenses registered yet.</div>
-          <div className="small mt-1">Click <strong>Add Employee</strong> to register an employee's salary as a core overhead expense.</div>
+          <div className="small mt-1">
+            Click <strong>Add Employee</strong> to register an employee's salary as a core overhead
+            expense.
+          </div>
         </div>
       ) : (
         <div className="table-responsive">
@@ -681,22 +958,32 @@ const CoreExpensesTab = ({ allEmployees }) => {
             <CTableBody>
               {entries.map((entry, i) => (
                 <CTableRow key={entry.id}>
-                  <CTableDataCell className="ps-3 text-body-secondary small">{i + 1}</CTableDataCell>
+                  <CTableDataCell className="ps-3 text-body-secondary small">
+                    {i + 1}
+                  </CTableDataCell>
                   <CTableDataCell>
                     <div className="fw-semibold">{entry.employee_name}</div>
-                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{entry.employee_code}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      {entry.employee_code}
+                    </div>
                   </CTableDataCell>
                   <CTableDataCell className="small">{entry.designation || '—'}</CTableDataCell>
                   <CTableDataCell className="small">{entry.department || '—'}</CTableDataCell>
                   <CTableDataCell>
-                    <CBadge color={CATEGORY_COLOR[entry.category] || 'secondary'} shape="rounded-pill">
+                    <CBadge
+                      color={CATEGORY_COLOR[entry.category] || 'secondary'}
+                      shape="rounded-pill"
+                    >
                       {entry.category || '—'}
                     </CBadge>
                   </CTableDataCell>
                   <CTableDataCell className="fw-bold" style={{ color: '#4361ee' }}>
                     {fmt(entry.salary)}
                   </CTableDataCell>
-                  <CTableDataCell className="small text-body-secondary text-truncate" style={{ maxWidth: 150 }}>
+                  <CTableDataCell
+                    className="small text-body-secondary text-truncate"
+                    style={{ maxWidth: 150 }}
+                  >
                     {entry.notes || '—'}
                   </CTableDataCell>
                   <CTableDataCell className="small text-body-secondary">
@@ -704,14 +991,19 @@ const CoreExpensesTab = ({ allEmployees }) => {
                   </CTableDataCell>
                   <CTableDataCell className="text-end pe-3">
                     <CButton
-                      color="secondary" variant="ghost" size="sm" className="me-1"
+                      color="secondary"
+                      variant="ghost"
+                      size="sm"
+                      className="me-1"
                       title="Edit"
                       onClick={() => setEditEntry(entry)}
                     >
                       <CIcon icon={cilPencil} />
                     </CButton>
                     <CButton
-                      color="danger" variant="ghost" size="sm"
+                      color="danger"
+                      variant="ghost"
+                      size="sm"
                       title="Remove"
                       onClick={() => handleRemove(entry.id)}
                     >
@@ -737,7 +1029,10 @@ const CoreExpensesTab = ({ allEmployees }) => {
         visible={!!editEntry}
         entry={editEntry}
         onClose={() => setEditEntry(null)}
-        onSave={(patch) => { handleEditSave(editEntry.id, patch); setEditEntry(null) }}
+        onSave={(patch) => {
+          handleEditSave(editEntry.id, patch)
+          setEditEntry(null)
+        }}
       />
     </>
   )
@@ -768,10 +1063,13 @@ const CorePoolPage = () => {
       })
     : active
 
-  const unassigned = filtered.filter((e) => e.isOverhead)
-  const assigned = filtered.filter((e) => !e.isOverhead)
+  const unassigned = filtered.filter((e) => !isProjectAssigned(e))
+  const assigned = filtered.filter(isProjectAssigned)
 
-  const totalUnassignedSalary = unassigned.reduce((s, e) => s + (parseFloat(e.current_salary) || 0), 0)
+  const totalUnassignedSalary = unassigned.reduce(
+    (s, e) => s + (parseFloat(e.current_salary) || 0),
+    0,
+  )
   const totalAssignedSalary = assigned.reduce((s, e) => s + (parseFloat(e.current_salary) || 0), 0)
 
   return (
@@ -780,7 +1078,8 @@ const CorePoolPage = () => {
       <div className="mb-4">
         <h4 className="fw-bold mb-1">Global Core Pool</h4>
         <p className="text-body-secondary mb-0 small">
-          Track core employee assignments and register unassigned employee salaries as overhead expenses.
+          Track core employee assignments and register unassigned employee salaries as overhead
+          expenses.
         </p>
       </div>
 
@@ -788,16 +1087,36 @@ const CorePoolPage = () => {
       <CRow className="g-3 mb-4">
         {[
           { label: 'Total Employees', value: active.length, color: '#4361ee' },
-          { label: 'Unassigned (Overhead)', value: unassigned.length, color: '#f0ad4e', sub: totalUnassignedSalary > 0 ? fmt(totalUnassignedSalary) + '/mo' : null },
-          { label: 'On Projects', value: assigned.length, color: '#06d6a0', sub: totalAssignedSalary > 0 ? fmt(totalAssignedSalary) + '/mo' : null },
-          { label: 'Total Payroll', value: fmt(totalUnassignedSalary + totalAssignedSalary), color: '#9b5de5' },
+          {
+            label: 'Unassigned (Overhead)',
+            value: unassigned.length,
+            color: '#f0ad4e',
+            sub: totalUnassignedSalary > 0 ? fmt(totalUnassignedSalary) + '/mo' : null,
+          },
+          {
+            label: 'On Projects',
+            value: assigned.length,
+            color: '#06d6a0',
+            sub: totalAssignedSalary > 0 ? fmt(totalAssignedSalary) + '/mo' : null,
+          },
+          {
+            label: 'Total Payroll',
+            value: fmt(totalUnassignedSalary + totalAssignedSalary),
+            color: '#9b5de5',
+          },
         ].map((stat) => (
           <CCol key={stat.label} xs={6} md={3}>
             <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
               <CCardBody className="py-3 px-3">
-                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: stat.color }}>{stat.value}</div>
+                <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: stat.color }}>
+                  {stat.value}
+                </div>
                 <div className="small text-body-secondary">{stat.label}</div>
-                {stat.sub && <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>{stat.sub}</div>}
+                {stat.sub && (
+                  <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                    {stat.sub}
+                  </div>
+                )}
               </CCardBody>
             </CCard>
           </CCol>
@@ -807,14 +1126,24 @@ const CorePoolPage = () => {
       {/* Tabs */}
       <CNav variant="tabs" className="mb-0">
         <CNavItem>
-          <CNavLink active={activeTab === 'employees'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('employees')}>
+          <CNavLink
+            active={activeTab === 'employees'}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setActiveTab('employees')}
+          >
             <CIcon icon={cilPeople} className="me-1" size="sm" />
             Employees
-            <CBadge color="primary" shape="rounded-pill" className="ms-2">{active.length}</CBadge>
+            <CBadge color="primary" shape="rounded-pill" className="ms-2">
+              {active.length}
+            </CBadge>
           </CNavLink>
         </CNavItem>
         <CNavItem>
-          <CNavLink active={activeTab === 'expenses'} style={{ cursor: 'pointer' }} onClick={() => setActiveTab('expenses')}>
+          <CNavLink
+            active={activeTab === 'expenses'}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setActiveTab('expenses')}
+          >
             <CIcon icon={cilMoney} className="me-1" size="sm" />
             Core Expenses
           </CNavLink>
@@ -822,11 +1151,12 @@ const CorePoolPage = () => {
       </CNav>
 
       <CTabContent className="border border-top-0 rounded-bottom bg-body mb-4">
-
         {/* ── Employees tab ── */}
         <CTabPane visible={activeTab === 'employees'} className="p-3">
           <CInputGroup size="sm" className="mb-4" style={{ maxWidth: 380 }}>
-            <CInputGroupText><CIcon icon={cilSearch} size="sm" /></CInputGroupText>
+            <CInputGroupText>
+              <CIcon icon={cilSearch} size="sm" />
+            </CInputGroupText>
             <CFormInput
               placeholder="Search name, ID, designation, department…"
               value={search}
@@ -844,12 +1174,18 @@ const CorePoolPage = () => {
             <CCardHeader className="bg-transparent border-bottom d-flex align-items-center justify-content-between py-3">
               <div>
                 <span className="fw-semibold">Unassigned Employees</span>
-                <span className="text-body-secondary small ms-2">— not currently on any project</span>
+                <span className="text-body-secondary small ms-2">
+                  — not currently on any project
+                </span>
               </div>
               <div className="d-flex gap-2 align-items-center flex-wrap">
-                <CBadge color="warning" shape="rounded-pill">{unassigned.length} employees</CBadge>
+                <CBadge color="warning" shape="rounded-pill">
+                  {unassigned.length} employees
+                </CBadge>
                 {totalUnassignedSalary > 0 && (
-                  <CBadge color="secondary" shape="rounded-pill">{fmt(totalUnassignedSalary)} / mo</CBadge>
+                  <CBadge color="secondary" shape="rounded-pill">
+                    {fmt(totalUnassignedSalary)} / mo
+                  </CBadge>
                 )}
               </div>
             </CCardHeader>
@@ -858,7 +1194,11 @@ const CorePoolPage = () => {
                 employees={unassigned}
                 showProjects={false}
                 emptyIcon={cilPeople}
-                emptyText={search ? 'No unassigned employees match your search.' : 'All employees are currently assigned to projects.'}
+                emptyText={
+                  search
+                    ? 'No unassigned employees match your search.'
+                    : 'All employees are currently assigned to projects.'
+                }
               />
             </CCardBody>
           </CCard>
@@ -868,12 +1208,18 @@ const CorePoolPage = () => {
             <CCardHeader className="bg-transparent border-bottom d-flex align-items-center justify-content-between py-3">
               <div>
                 <span className="fw-semibold">Project-Assigned Employees</span>
-                <span className="text-body-secondary small ms-2">— click a row to expand details</span>
+                <span className="text-body-secondary small ms-2">
+                  — click a row to expand details
+                </span>
               </div>
               <div className="d-flex gap-2 align-items-center flex-wrap">
-                <CBadge color="success" shape="rounded-pill">{assigned.length} employees</CBadge>
+                <CBadge color="success" shape="rounded-pill">
+                  {assigned.length} employees
+                </CBadge>
                 {totalAssignedSalary > 0 && (
-                  <CBadge color="secondary" shape="rounded-pill">{fmt(totalAssignedSalary)} / mo</CBadge>
+                  <CBadge color="secondary" shape="rounded-pill">
+                    {fmt(totalAssignedSalary)} / mo
+                  </CBadge>
                 )}
               </div>
             </CCardHeader>
@@ -882,7 +1228,11 @@ const CorePoolPage = () => {
                 employees={assigned}
                 showProjects={true}
                 emptyIcon={cilBriefcase}
-                emptyText={search ? 'No assigned employees match your search.' : 'No employees are currently assigned to any project.'}
+                emptyText={
+                  search
+                    ? 'No assigned employees match your search.'
+                    : 'No employees are currently assigned to any project.'
+                }
               />
             </CCardBody>
           </CCard>
@@ -892,7 +1242,6 @@ const CorePoolPage = () => {
         <CTabPane visible={activeTab === 'expenses'} className="p-3">
           <CoreExpensesTab allEmployees={active} />
         </CTabPane>
-
       </CTabContent>
     </>
   )

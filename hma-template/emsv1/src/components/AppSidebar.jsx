@@ -18,8 +18,18 @@ import useRole from '../hooks/useRole'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 const SidebarClock = () => {
@@ -47,7 +57,9 @@ const SidebarClock = () => {
         <span className="sidebar-clock__ampm">{ampm}</span>
       </div>
       <div>{day}</div>
-      <div>{date} {month} {year}</div>
+      <div>
+        {date} {month} {year}
+      </div>
     </div>
   )
 }

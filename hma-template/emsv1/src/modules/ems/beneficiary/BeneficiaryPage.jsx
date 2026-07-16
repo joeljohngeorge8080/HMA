@@ -52,7 +52,10 @@ const FollowUpDots = ({ beneficiary, onChange }) => {
 
   const handleAdd = () => {
     if (!note.trim()) return
-    const updated = localBeneficiaries.addFollowUp(beneficiary.id, { note: note.trim(), completed: false })
+    const updated = localBeneficiaries.addFollowUp(beneficiary.id, {
+      note: note.trim(),
+      completed: false,
+    })
     onChange(updated)
     setNote('')
   }
@@ -86,9 +89,7 @@ const FollowUpDots = ({ beneficiary, onChange }) => {
             />
           )
         })}
-        {total > 3 && (
-          <span className="small text-body-secondary ms-1">+{total - 3}</span>
-        )}
+        {total > 3 && <span className="small text-body-secondary ms-1">+{total - 3}</span>}
       </button>
 
       {open && (
@@ -100,9 +101,15 @@ const FollowUpDots = ({ beneficiary, onChange }) => {
           {followUps.length === 0 && (
             <p className="text-body-secondary small mb-2">No follow-ups yet.</p>
           )}
-          <div className="d-flex flex-column gap-1 mb-2" style={{ maxHeight: 180, overflowY: 'auto' }}>
+          <div
+            className="d-flex flex-column gap-1 mb-2"
+            style={{ maxHeight: 180, overflowY: 'auto' }}
+          >
             {followUps.map((fu, idx) => (
-              <label key={fu.id} className="d-flex align-items-center gap-2 small cursor-pointer mb-0">
+              <label
+                key={fu.id}
+                className="d-flex align-items-center gap-2 small cursor-pointer mb-0"
+              >
                 <input
                   type="checkbox"
                   checked={!!fu.completed}
@@ -144,9 +151,7 @@ const BeneficiaryModal = ({ form, setForm, editTarget, onSave, onClose, saving, 
       <div className="modal-dialog modal-lg">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">
-              {editTarget ? 'Edit Beneficiary' : 'Add Beneficiary'}
-            </h5>
+            <h5 className="modal-title">{editTarget ? 'Edit Beneficiary' : 'Add Beneficiary'}</h5>
             <button type="button" className="btn-close" onClick={onClose} disabled={saving} />
           </div>
           <div className="modal-body">

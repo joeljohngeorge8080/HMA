@@ -11,8 +11,16 @@ const fmt = (n) =>
   }).format(n)
 
 const COLORS = [
-  '#4361ee', '#06d6a0', '#f77f00', '#ef476f', '#2ec4b6',
-  '#9b5de5', '#f15bb5', '#00bbf9', '#fee440', '#fb5607',
+  '#4361ee',
+  '#06d6a0',
+  '#f77f00',
+  '#ef476f',
+  '#2ec4b6',
+  '#9b5de5',
+  '#f15bb5',
+  '#00bbf9',
+  '#fee440',
+  '#fb5607',
 ]
 
 const ExpenseByCategoryWidget = () => {

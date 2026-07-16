@@ -22,9 +22,8 @@ const FieldPersonnelWidget = () => {
       (r) => r.status === REPORT_STATUS.SUBMITTED || r.status === REPORT_STATUS.RESUBMITTED,
     ).length
 
-    const completionRate = totalTasks > 0
-      ? Math.round((completedTasks.length / totalTasks) * 100)
-      : 0
+    const completionRate =
+      totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0
 
     setData({
       personnelCount: personnelIds.length,
@@ -45,7 +44,10 @@ const FieldPersonnelWidget = () => {
         </h6>
         <CRow className="g-2 mb-3">
           <CCol xs={6}>
-            <div className="text-center rounded-3 py-2" style={{ background: 'rgba(67,97,238,0.08)' }}>
+            <div
+              className="text-center rounded-3 py-2"
+              style={{ background: 'rgba(67,97,238,0.08)' }}
+            >
               <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: '#4361ee' }}>
                 {data.personnelCount}
               </div>
@@ -53,7 +55,10 @@ const FieldPersonnelWidget = () => {
             </div>
           </CCol>
           <CCol xs={6}>
-            <div className="text-center rounded-3 py-2" style={{ background: 'rgba(247,127,0,0.08)' }}>
+            <div
+              className="text-center rounded-3 py-2"
+              style={{ background: 'rgba(247,127,0,0.08)' }}
+            >
               <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: '#f77f00' }}>
                 {data.activeTasks}
               </div>
@@ -61,7 +66,10 @@ const FieldPersonnelWidget = () => {
             </div>
           </CCol>
           <CCol xs={6}>
-            <div className="text-center rounded-3 py-2" style={{ background: 'rgba(6,214,160,0.08)' }}>
+            <div
+              className="text-center rounded-3 py-2"
+              style={{ background: 'rgba(6,214,160,0.08)' }}
+            >
               <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: '#06d6a0' }}>
                 {data.completedTasks}
               </div>
@@ -69,7 +77,10 @@ const FieldPersonnelWidget = () => {
             </div>
           </CCol>
           <CCol xs={6}>
-            <div className="text-center rounded-3 py-2" style={{ background: 'rgba(240,173,78,0.08)' }}>
+            <div
+              className="text-center rounded-3 py-2"
+              style={{ background: 'rgba(240,173,78,0.08)' }}
+            >
               <div className="fw-bold fs-5 lh-1 mb-1" style={{ color: '#f0ad4e' }}>
                 {data.pendingReports}
               </div>
@@ -84,7 +95,9 @@ const FieldPersonnelWidget = () => {
         <CProgress
           value={data.completionRate}
           height={6}
-          color={data.completionRate >= 75 ? 'success' : data.completionRate >= 40 ? 'warning' : 'danger'}
+          color={
+            data.completionRate >= 75 ? 'success' : data.completionRate >= 40 ? 'warning' : 'danger'
+          }
           className="rounded-pill"
         />
       </CCardBody>

@@ -32,9 +32,8 @@ const GeneralExpenseWidget = () => {
   if (!data) return null
 
   const variance = data.ytd_actual - data.ytd_planned
-  const utilPct = data.ytd_planned > 0
-    ? Math.min(100, Math.round((data.ytd_actual / data.ytd_planned) * 100))
-    : 0
+  const utilPct =
+    data.ytd_planned > 0 ? Math.min(100, Math.round((data.ytd_actual / data.ytd_planned) * 100)) : 0
 
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
@@ -45,11 +44,16 @@ const GeneralExpenseWidget = () => {
         <CRow className="g-2 mb-3">
           <CCol xs={6}>
             <div className="small text-body-secondary mb-1">YTD Planned</div>
-            <div className="fw-bold" style={{ color: '#4361ee' }}>{fmt(data.ytd_planned)}</div>
+            <div className="fw-bold" style={{ color: '#4361ee' }}>
+              {fmt(data.ytd_planned)}
+            </div>
           </CCol>
           <CCol xs={6}>
             <div className="small text-body-secondary mb-1">YTD Actual</div>
-            <div className="fw-bold" style={{ color: data.ytd_actual > data.ytd_planned ? '#ef476f' : '#06d6a0' }}>
+            <div
+              className="fw-bold"
+              style={{ color: data.ytd_actual > data.ytd_planned ? '#ef476f' : '#06d6a0' }}
+            >
               {fmt(data.ytd_actual)}
             </div>
           </CCol>
@@ -60,7 +64,8 @@ const GeneralExpenseWidget = () => {
           <CCol xs={6}>
             <div className="small text-body-secondary mb-1">Variance</div>
             <div className="fw-semibold" style={{ color: variance > 0 ? '#ef476f' : '#06d6a0' }}>
-              {variance > 0 ? '+' : ''}{fmt(variance)}
+              {variance > 0 ? '+' : ''}
+              {fmt(variance)}
             </div>
           </CCol>
         </CRow>

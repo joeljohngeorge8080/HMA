@@ -133,7 +133,10 @@ export const localAdminExpenses = {
     if (idx === -1) throw new Error('Expense not found')
     rows[idx] = {
       ...rows[idx],
-      monthly_actuals: { ...(rows[idx].monthly_actuals || {}), [monthKey]: parseFloat(amount) || 0 },
+      monthly_actuals: {
+        ...(rows[idx].monthly_actuals || {}),
+        [monthKey]: parseFloat(amount) || 0,
+      },
       updated_at: new Date().toISOString(),
     }
     write(rows)

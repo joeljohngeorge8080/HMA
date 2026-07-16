@@ -28,7 +28,7 @@ const ProjectOverheadsList = () => {
     const all = localProjects
       .list({ pageSize: 1000 })
       .items.filter(
-        (p) => p.is_operations_active && ['ongoing', 'active', 'approved'].includes(p.status),
+        (p) => ['ongoing', 'active', 'approved'].includes(p.status),
       )
 
     // Enrich with hr/core budgets

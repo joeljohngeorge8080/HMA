@@ -2,9 +2,10 @@
  * Local store for per-project actual expense entries. Distinct from
  * localAdminExpenses.js (the org-wide vendor-contract ledger) — these
  * entries are tied to one specific project via project_id, and feed the
- * PMS "Actual Spend" section and the Budget & Payroll Admin Expenses card.
- * Only pool: 'admin' is exposed in the UI so far; 'hr'/'core' are accepted
- * by the shape as a provision for later.
+ * PMS "Actual Spend" section, the Budget & Payroll Admin Expenses card,
+ * and the PO's own Actual Expense entry (pool: 'project') in the Expense
+ * tab. 'hr'/'core' are accepted by the shape as a provision for later,
+ * not yet exposed in any UI.
  */
 
 const KEY = 'hma_project_expenses'
@@ -23,7 +24,7 @@ const read = () => {
 }
 const write = (data) => localStorage.setItem(KEY, JSON.stringify(data))
 
-const VALID_POOLS = ['admin', 'hr', 'core']
+const VALID_POOLS = ['admin', 'hr', 'core', 'project']
 
 export const localProjectExpenses = {
   list({ projectId = '', pool = '', month = '' } = {}) {
@@ -34,9 +35,9 @@ export const localProjectExpenses = {
     return rows
   },
 
-  create({ project_id, pool, month, amount, label, createdBy }) {
+  create({ project_id, pool, month, amount, label, createdBy, date }) {
     if (!project_id) throw new Error('A project is required.')
-    if (!VALID_POOLS.includes(pool)) throw new Error('Pool must be admin, hr, or core.')
+    if (!VALID_POOLS.includes(pool)) throw new Error('Pool must be admin, hr, core, or project.')
     if (!month) throw new Error('A month is required.')
     const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
     if (amt <= 0) throw new Error('Amount must be greater than zero.')
@@ -50,6 +51,7 @@ export const localProjectExpenses = {
       month,
       amount: amt,
       label: label.trim(),
+      date: date || new Date().toISOString().slice(0, 10),
       createdBy: createdBy || 'Unknown',
       createdAt: new Date().toISOString(),
     }

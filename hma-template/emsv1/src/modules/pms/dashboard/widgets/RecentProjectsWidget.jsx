@@ -59,7 +59,11 @@ const RecentProjectsWidget = () => {
       <CCardBody className="p-0">
         {projects.length === 0 ? (
           <div className="text-center py-5 text-body-secondary">
-            <CIcon icon={cilFolder} style={{ width: 36, height: 36, opacity: 0.4 }} className="mb-2 d-block mx-auto" />
+            <CIcon
+              icon={cilFolder}
+              style={{ width: 36, height: 36, opacity: 0.4 }}
+              className="mb-2 d-block mx-auto"
+            />
             <div className="small">No projects yet</div>
           </div>
         ) : (
@@ -91,7 +95,9 @@ const RecentProjectsWidget = () => {
                       </div>
                     </CTableDataCell>
                     <CTableDataCell className="py-2">
-                      <div className="fw-semibold">{fmt(p.project_value || p.project_valuation || 0)}</div>
+                      <div className="fw-semibold">
+                        {fmt(p.project_value || p.project_valuation || 0)}
+                      </div>
                     </CTableDataCell>
                     <CTableDataCell className="py-2" style={{ minWidth: 90 }}>
                       <div className="d-flex align-items-center gap-1">

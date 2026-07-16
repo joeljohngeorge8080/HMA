@@ -5,7 +5,6 @@ import {
   cilPeople,
   cilCalendar,
   cilMoney,
-  cilDollar,
   cilCash,
   cilChartPie,
   cilListRich,
@@ -16,12 +15,14 @@ import {
   cilBell,
   cilNotes,
   cilOptions,
+  cilCalculator,
+  cilCloudUpload,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
 import { ROLE } from '../../constants/roles'
 
-const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR, ROLE.FINANCE]
+const STAFF_ROLES = [ROLE.ADMIN, ROLE.CEO, ROLE.HEADS, ROLE.HR]
 
 const emsNav = [
   {
@@ -47,10 +48,22 @@ const emsNav = [
     roles: STAFF_ROLES,
     items: [
       {
-        component: CNavItem,
+        component: CNavGroup,
         name: 'Staff & Payroll',
-        to: '/ems/staff-payroll',
         icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+        items: [
+          {
+            component: CNavItem,
+            name: 'Staff List',
+            to: '/ems/staff-payroll',
+          },
+          {
+            component: CNavItem,
+            name: 'Salary Invoice',
+            to: '/ems/staff-payroll/salary-invoice',
+            icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+          },
+        ],
       },
       {
         component: CNavGroup,
@@ -63,12 +76,6 @@ const emsNav = [
         ],
       },
       {
-        component: CNavItem,
-        name: 'HR & Core Pool',
-        to: '/ems/hr-pool/global',
-        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-      },
-      {
         component: CNavGroup,
         name: 'Activity',
         items: [
@@ -76,24 +83,27 @@ const emsNav = [
           { component: CNavItem, name: 'Recruitment & Training', to: '/ems/recruitment' },
         ],
       },
+      {
+        component: CNavItem,
+        name: 'Expense Pools',
+        to: '/ems/hr-pool/global',
+        icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Global Core Pool',
+        to: '/ems/core-pool/global',
+        icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Upload GST Bill',
+        to: '/ems/hr-admin/upload-gst-bill',
+        icon: <CIcon icon={cilCloudUpload} customClassName="nav-icon" />,
+      },
     ],
   },
 
-  // ── Overheads & Pools ──────────────────────────────────────────────
-  {
-    component: CNavItem,
-    name: 'Global HR Pool',
-    to: '/ems/hr-pool/global',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
-  {
-    component: CNavItem,
-    name: 'Global Core Pool',
-    to: '/ems/core-pool/global',
-    icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
-    roles: STAFF_ROLES,
-  },
   // ── Expenses ───────────────────────────────────────────────────────
   {
     component: CNavItem,
@@ -117,18 +127,14 @@ const emsNav = [
       },
     ],
   },
-
-  // ── Other ──────────────────────────────────────────────────────────
   {
     component: CNavGroup,
     name: 'Finance',
-    icon: <CIcon icon={cilDollar} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
     items: [
-      { component: CNavItem, name: 'Detail 1', to: '/ems/finance/detail-1' },
-      { component: CNavItem, name: 'Detail 2', to: '/ems/finance/detail-2' },
-      { component: CNavItem, name: 'Detail 3', to: '/ems/finance/detail-3' },
-      { component: CNavItem, name: 'Detail 4', to: '/ems/finance/detail-4' },
+      { component: CNavItem, name: 'GST Bills', to: '/ems/finance/gst-bills' },
+      { component: CNavItem, name: 'GST 2B Comparison', to: '/ems/finance/gst-2b-comparison' },
     ],
   },
 
@@ -152,8 +158,13 @@ const emsNav = [
       { component: CNavItem, name: 'Visual Model', to: '/ems/reports-analysis/visual-model' },
       {
         component: CNavItem,
-        name: 'Profit / Loss vs LSGB',
-        to: '/ems/reports-analysis/lsgb-dependency',
+        name: 'Super Forecasting',
+        to: '/ems/reports-analysis/super-forecasting',
+      },
+      {
+        component: CNavItem,
+        name: 'Detailed Report',
+        to: '/ems/reports-analysis/detailed-report',
       },
     ],
   },
@@ -207,17 +218,7 @@ const emsNav = [
     name: 'Notifications',
     to: '/ems/notifications',
     icon: <CIcon icon={cilBell} customClassName="nav-icon" />,
-    roles: [
-      ROLE.HEADS,
-      ROLE.HR,
-      ROLE.FINANCE,
-      ROLE.EMPLOYEE,
-      ROLE.PROJECT_ASSOCIATE,
-      ROLE.PROJECT_OFFICER,
-      ROLE.FIELD_PERSONNEL,
-      ROLE.BACKEND_TEAM,
-      ROLE.PROJECT_COORDINATOR,
-    ],
+    roles: [ROLE.HEADS, ROLE.HR, ROLE.EMPLOYEE, ROLE.PROJECT_ASSOCIATE, ROLE.PROJECT_OFFICER],
   },
 
   {

@@ -24,9 +24,7 @@ const SettlementsWidget = () => {
     const settledAmount = settled.reduce((s, r) => s + (r.bill_amount || 0), 0)
     const totalAmount = pendingAmount + settledAmount
 
-    const settlePct = totalAmount > 0
-      ? Math.round((settledAmount / totalAmount) * 100)
-      : 0
+    const settlePct = totalAmount > 0 ? Math.round((settledAmount / totalAmount) * 100) : 0
 
     setData({
       pendingCount: approved.length,
@@ -42,9 +40,7 @@ const SettlementsWidget = () => {
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
       <CCardBody className="pt-4">
-        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">
-          Settlements
-        </h6>
+        <h6 className="fw-semibold mb-3 small text-uppercase text-body-secondary">Settlements</h6>
         <CRow className="g-2 mb-3">
           <CCol xs={6}>
             <div className="small text-body-secondary mb-1">Pending</div>

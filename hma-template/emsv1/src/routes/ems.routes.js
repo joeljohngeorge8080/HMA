@@ -18,6 +18,7 @@ const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyPr
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
 const EmployeeProfile = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeProfile'))
 const EmployeeForm = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeForm'))
+const SalaryInvoicePage = React.lazy(() => import('../modules/ems/staff-payroll/SalaryInvoicePage'))
 const AttendanceDashboard = React.lazy(
   () => import('../modules/ems/attendance/AttendanceDashboard'),
 )
@@ -50,6 +51,9 @@ const ExpenseUpload = React.lazy(
 const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
+const GstBillsPage = React.lazy(() => import('../modules/ems/finance/GstBillsPage'))
+const Gst2bComparisonPage = React.lazy(() => import('../modules/ems/finance/Gst2bComparisonPage'))
+const HrGstUploadPage = React.lazy(() => import('../modules/ems/finance/HrGstUploadPage'))
 
 const ExpenseManagementPage = React.lazy(
   () => import('../modules/ems/expense-management/ExpenseManagementPage'),
@@ -57,8 +61,11 @@ const ExpenseManagementPage = React.lazy(
 const InternshipPage = React.lazy(() => import('../modules/ems/internship/InternshipPage'))
 const RecruitmentPage = React.lazy(() => import('../modules/ems/recruitment/RecruitmentPage'))
 const VisualModelPage = React.lazy(() => import('../modules/ems/reports-analysis/VisualModelPage'))
-const LsgbDependencyPage = React.lazy(
-  () => import('../modules/ems/reports-analysis/LsgbDependencyPage'),
+const SuperForecastingPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/SuperForecastingPage'),
+)
+const DetailedReportPage = React.lazy(
+  () => import('../modules/ems/reports-analysis/DetailedReportPage'),
 )
 
 const placeholder = (title, message) => {
@@ -93,6 +100,12 @@ export const emsRoutes = [
     path: '/ems/staff-payroll/:id/edit',
     name: 'Edit Employee',
     element: EmployeeForm,
+    module: MODULE.STAFF_PAYROLL,
+  },
+  {
+    path: '/ems/staff-payroll/salary-invoice',
+    name: 'Salary Invoice',
+    element: SalaryInvoicePage,
     module: MODULE.STAFF_PAYROLL,
   },
   {
@@ -134,7 +147,7 @@ export const emsRoutes = [
   },
   {
     path: '/ems/hr-pool/global',
-    name: 'Global HR Pool',
+    name: 'Expense Pools',
     element: GlobalHRPoolPage,
     module: MODULE.HR_POOL,
   },
@@ -207,34 +220,22 @@ export const emsRoutes = [
   },
 
   {
-    path: '/ems/finance',
-    name: 'Finance',
-    element: placeholder('Finance'),
+    path: '/ems/finance/gst-bills',
+    name: 'GST Bills',
+    element: GstBillsPage,
     module: MODULE.FINANCE,
   },
   {
-    path: '/ems/finance/detail-1',
-    name: 'Detail 1',
-    element: placeholder('Finance – Detail 1'),
+    path: '/ems/finance/gst-2b-comparison',
+    name: 'GST 2B Comparison',
+    element: Gst2bComparisonPage,
     module: MODULE.FINANCE,
   },
   {
-    path: '/ems/finance/detail-2',
-    name: 'Detail 2',
-    element: placeholder('Finance – Detail 2'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-3',
-    name: 'Detail 3',
-    element: placeholder('Finance – Detail 3'),
-    module: MODULE.FINANCE,
-  },
-  {
-    path: '/ems/finance/detail-4',
-    name: 'Detail 4',
-    element: placeholder('Finance – Detail 4'),
-    module: MODULE.FINANCE,
+    path: '/ems/hr-admin/upload-gst-bill',
+    name: 'Upload GST Bill',
+    element: HrGstUploadPage,
+    module: MODULE.GST_UPLOAD,
   },
 
   {
@@ -244,9 +245,15 @@ export const emsRoutes = [
     module: MODULE.REPORTS,
   },
   {
-    path: '/ems/reports-analysis/lsgb-dependency',
-    name: 'Profit / Loss vs LSGB',
-    element: LsgbDependencyPage,
+    path: '/ems/reports-analysis/super-forecasting',
+    name: 'Super Forecasting',
+    element: SuperForecastingPage,
+    module: MODULE.REPORTS,
+  },
+  {
+    path: '/ems/reports-analysis/detailed-report',
+    name: 'Detailed Report',
+    element: DetailedReportPage,
     module: MODULE.REPORTS,
   },
   {

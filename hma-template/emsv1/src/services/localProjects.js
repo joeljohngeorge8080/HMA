@@ -13,9 +13,11 @@ import {
   computeFlatMonthlyRate,
   computeCascadeAdjustments,
   validatePlanTotalWithCascade,
+  computeActualVsPlannedTransfers,
+  computeEffectivePoolMonthly,
 } from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v11'   // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
+const PROJECTS_KEY = 'hma_projects_v11' // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
 const OFFICERS_KEY = 'hma_project_officers_v6'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -36,9 +38,15 @@ const write = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data))
 }
 
-/** Broadcast a DOM event so any mounted component can react immediately */
+/**
+ * Broadcast a DOM event so any mounted component in the SAME tab can react
+ * immediately, and write a tiny heartbeat key to localStorage so the native
+ * `storage` event fires in OTHER tabs — enabling cross-tab sync.
+ */
 const notify = () => {
   window.dispatchEvent(new CustomEvent('hma_projects_changed'))
+  // Writing any key triggers the native `storage` event in other open tabs
+  localStorage.setItem('hma_projects_sync_at', Date.now().toString())
 }
 
 export const PROJECT_PHASE = {
@@ -60,33 +68,114 @@ export const PHASE_CONFIG = {
 // ─── Seed Officers — derived from real project officer names in the CSV ────────
 
 const DEMO_OFFICERS = [
-  { id: 'po_csv_01', name: 'Dr. Arjuna V Nath',  email: 'arjuna.nath@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_01'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_02', name: 'Syamili.M',           email: 'syamili.m@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_02','sdp_05','sdp_16','sdp_17'], created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_03', name: 'Shone Kiran K.S.',    email: 'shone.kiran@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_03'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_04', name: 'Anjali A.S.',          email: 'anjali.as@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_04','sdp_14'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_05', name: 'K Anakha Soman',       email: 'anakha.soman@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_06'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_06', name: 'Dr. Bhavya RJ',        email: 'bhavya.rj@hma.org',       phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_07'],             created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_07', name: 'Rejitha Ravi',          email: 'rejitha.ravi@hma.org',    phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_08','sdp_09'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_08', name: 'Rakhi Mohan',           email: 'rakhi.mohan@hma.org',     phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_10','sdp_11'],    created_at: '2026-01-01T00:00:00Z' },
-  { id: 'po_csv_09', name: 'Swathy Krishna',        email: 'swathy.krishna@hma.org',  phone: '', designation: 'Project Officer', status: 'active', projects_assigned: ['sdp_12','sdp_13'],   created_at: '2026-01-01T00:00:00Z' },
+  {
+    id: 'po_csv_01',
+    name: 'Dr. Arjuna V Nath',
+    email: 'arjuna.nath@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_01'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_02',
+    name: 'Syamili.M',
+    email: 'syamili.m@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_02', 'sdp_05', 'sdp_16', 'sdp_17'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_03',
+    name: 'Shone Kiran K.S.',
+    email: 'shone.kiran@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_03'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_04',
+    name: 'Anjali A.S.',
+    email: 'anjali.as@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_04', 'sdp_14'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_05',
+    name: 'K Anakha Soman',
+    email: 'anakha.soman@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_06'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_06',
+    name: 'Dr. Bhavya RJ',
+    email: 'bhavya.rj@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_07'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_07',
+    name: 'Rejitha Ravi',
+    email: 'rejitha.ravi@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_08', 'sdp_09'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_08',
+    name: 'Rakhi Mohan',
+    email: 'rakhi.mohan@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_10', 'sdp_11'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'po_csv_09',
+    name: 'Swathy Krishna',
+    email: 'swathy.krishna@hma.org',
+    phone: '',
+    designation: 'Project Officer',
+    status: 'active',
+    projects_assigned: ['sdp_12', 'sdp_13'],
+    created_at: '2026-01-01T00:00:00Z',
+  },
 ]
 
 /** Map officer name → officer id for quick lookup */
 const OFFICER_BY_NAME = Object.fromEntries(
-  DEMO_OFFICERS.map(o => [o.name.trim().toLowerCase(), o])
+  DEMO_OFFICERS.map((o) => [o.name.trim().toLowerCase(), o]),
 )
 
 /** Resolve the phase string from CSV phases array */
 const resolvePhase = (phases = [], csvStatus) => {
   const lower = (csvStatus || '').toLowerCase()
   if (lower === 'completed') return 'completed'
-  if (lower === 'approved')  return 'approved'
+  if (lower === 'approved') return 'approved'
   // find the active phase
-  const activePhase = phases.find(ph => (ph.status || '').toLowerCase() === 'ongoing')
+  const activePhase = phases.find((ph) => (ph.status || '').toLowerCase() === 'ongoing')
   if (activePhase) {
     const phLower = (activePhase.phase || '').toLowerCase()
     if (phLower.includes('design') || phLower.includes('initiation')) return 'design_and_initiation'
-    if (phLower.includes('implement'))  return 'implementation'
+    if (phLower.includes('implement')) return 'implementation'
     if (phLower.includes('monitoring')) return 'monitoring_and_evaluation'
   }
   return 'implementation'
@@ -134,14 +223,19 @@ const mapSdpToLocal = (p) => {
     title: ph.phase || `Phase ${idx + 1}`,
     amount: 0,
     target_date: parseSdpDate(ph.pending_date),
-    actual_date: (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
-    uc_status: (ph.status || '').toLowerCase() === 'completed' ? 'Approved'
-               : (ph.status || '').toLowerCase() === 'ongoing'  ? 'Submitted' : 'Pending',
+    actual_date:
+      (ph.status || '').toLowerCase() === 'completed' ? parseSdpDate(ph.pending_date) : null,
+    uc_status:
+      (ph.status || '').toLowerCase() === 'completed'
+        ? 'Approved'
+        : (ph.status || '').toLowerCase() === 'ongoing'
+          ? 'Submitted'
+          : 'Pending',
   }))
 
   // Build risks from phase risk fields
   const risks = (p.phases || [])
-    .filter(ph => ph.risk)
+    .filter((ph) => ph.risk)
     .map((ph, idx) => ({
       id: `r_${p.id}_${idx + 1}`,
       title: ph.risk,
@@ -151,7 +245,7 @@ const mapSdpToLocal = (p) => {
 
   // Amount received = sum of received installments
   const amountReceived = (p.installments || [])
-    .filter(i => i.status === 'Received')
+    .filter((i) => i.status === 'Received')
     .reduce((s, i) => s + (i.amount || 0), 0)
 
   return {
@@ -165,7 +259,14 @@ const mapSdpToLocal = (p) => {
     implementing_partner: p.implementing_partner,
     location: p.location,
     district: (p.location || '').split(',')[0].trim(),
-    status: statusLower === 'ongoing' ? 'ongoing' : statusLower === 'approved' ? 'approved' : statusLower === 'completed' ? 'completed' : 'pipeline',
+    status:
+      statusLower === 'ongoing'
+        ? 'ongoing'
+        : statusLower === 'approved'
+          ? 'approved'
+          : statusLower === 'completed'
+            ? 'completed'
+            : 'pipeline',
     phase: resolvePhase(p.phases, p.status),
     project_value: p.value,
     project_valuation: p.value,
@@ -187,14 +288,18 @@ const mapSdpToLocal = (p) => {
     officer_email: officer ? officer.email : null,
     email_sent: !!p.project_officer,
     field_personnel: p.field_team
-      ? p.field_team.split(',').map(name => ({ name: name.trim(), email: '', status: 'active', invited_at: now() })).filter(fp => fp.name)
+      ? p.field_team
+          .split(',')
+          .map((name) => ({ name: name.trim(), email: '', status: 'active', invited_at: now() }))
+          .filter((fp) => fp.name)
       : [],
     created_at: '2026-01-01T00:00:00Z',
     updated_at: now(),
-    is_operations_active: statusLower === 'ongoing' || statusLower === 'completed',
-    operations_activated_at: statusLower === 'ongoing' ? p.start_date || now() : null,
+
     tasks_count: (p.phases || []).length,
-    tasks_completed: (p.phases || []).filter(ph => (ph.status || '').toLowerCase() === 'completed').length,
+    tasks_completed: (p.phases || []).filter(
+      (ph) => (ph.status || '').toLowerCase() === 'completed',
+    ).length,
     pending_approvals: statusLower === 'approved' ? 1 : 0,
     milestones,
     installments,
@@ -212,7 +317,6 @@ const mapSdpToLocal = (p) => {
 /** All 17 CSV projects mapped to the localProjects schema */
 const DEMO_PROJECTS = SDP_PROJECTS.map(mapSdpToLocal)
 
-
 export const localProjects = {
   seedDemoData() {
     // Always seed projects from CSV data (key v10 forces fresh reseed on upgrade)
@@ -223,7 +327,6 @@ export const localProjects = {
       write(OFFICERS_KEY, DEMO_OFFICERS)
     }
   },
-
 
   list({ search = '', status = '', phase = '', officerId = '', page = 1, pageSize = 50 } = {}) {
     let items = read(PROJECTS_KEY)
@@ -292,10 +395,8 @@ export const localProjects = {
       tasks_completed: 0,
       pending_approvals: 0,
       email_sent: false,
-      is_operations_active: false,
-      operations_activated_at: null,
-      operations_activated_month: null,   // YYYY-MM — set when activated
-      pool_pct_adjustments: [],           // [{ from_month, hr_pct, core_pct }]
+
+      pool_pct_adjustments: [], // [{ from_month, hr_pct, core_pct }]
       core_pct: 5,
       hr_pct: 5,
       admin_pct: 5,
@@ -336,23 +437,15 @@ export const localProjects = {
     return projects[idx]
   },
 
-  activateProject(id) {
+  /** Permanently removes a project. Irreversible — callers must confirm first. */
+  remove(id) {
     const projects = read(PROJECTS_KEY)
     const idx = projects.findIndex((p) => p.id === id)
     if (idx === -1) throw new Error('Project not found')
-    const nowStr = now()
-    projects[idx].is_operations_active = true
-    projects[idx].operations_activated_at = nowStr
-    // Record the YYYY-MM when HR/Core pool distribution begins
-    projects[idx].operations_activated_month = nowStr.slice(0, 7)
-    if (projects[idx].status === 'pipeline' || projects[idx].status === 'approved') {
-      projects[idx].status = 'ongoing'
-      projects[idx].phase = 'implementation'
-    }
-    projects[idx].updated_at = nowStr
+    const [removed] = projects.splice(idx, 1)
     write(PROJECTS_KEY, projects)
     notify()
-    return projects[idx]
+    return removed
   },
 
   // ── Monthly Planning ────────────────────────────────────────────────────────
@@ -362,18 +455,16 @@ export const localProjects = {
    * "blocks" — each a contiguous month range with its own Design/
    * Implementation/Monitoring phase breakdown, replicated identically
    * across every month in that block's range. Months not covered by any
-   * block are filled with an even split of whatever's left of the
-   * project's own baseline (computeWorkingPool) as a single generic
-   * "Planned budget" line item per month.
+   * block start as empty stubs (no phases, ₹0 total) — nothing is
+   * auto-computed or pre-filled; a PO/PA adds real task lines afterwards
+   * via "Add Line", which themselves start at ₹0 planned/actual.
    *
    * - If blocks cover every month, the blocked total must equal the
    *   working pool exactly (no remainder exists to spread either way) or
    *   this throws.
    * - Throws if a block falls outside the project's duration, if two
-   *   blocks claim the same month, if the blocked total alone already
-   *   exceeds the working pool, or if the final plan still fails to
-   *   balance after rounding-drift reconciliation (a real algorithm bug,
-   *   not normal user error).
+   *   blocks claim the same month, or if the blocked total alone already
+   *   exceeds the working pool.
    * - Persists both `monthly_plan` (the derived per-month array consumed
    *   by the rest of the app) and `plan_blocks` (the raw block
    *   definitions, so the editor can reload and revise them later).
@@ -448,22 +539,25 @@ export const localProjects = {
         updated_at: now(),
       }
       write(PROJECTS_KEY, projects)
+      notify()
       return projects[idx]
     }
 
-    const remainingPool = Math.round((workingPool - blockedTotal) * 100) / 100
-    if (remainingPool < 0) {
+    if (blockedTotal > workingPool) {
       throw new Error(
         `Blocked months' total (₹${blockedTotal}) already exceeds the project baseline ` +
           `(₹${workingPool}) — reduce block amounts.`,
       )
     }
 
-    const remainingPerMonth = Math.round((remainingPool / remainingMonths.length) * 100) / 100
+    // Months not covered by any block start as empty stubs — no auto-computed
+    // "Planned budget" line item, no pre-filled amount. A PO/PA adds a real
+    // task via "Add Line" (handleAddPhase in MonthlyPlanPanel), which starts
+    // at ₹0 planned/actual, so nothing is invented until a real task exists.
     const remainingEntries = remainingMonths.map((month) => ({
       month,
-      phases: [{ phase: 'design', label: 'Planned budget', amount: remainingPerMonth }],
-      total: remainingPerMonth,
+      phases: [],
+      total: 0,
     }))
 
     monthlyPlan = months.map(
@@ -472,44 +566,6 @@ export const localProjects = {
         remainingEntries.find((e) => e.month === m),
     )
 
-    const drift = validatePlanTotal(monthlyPlan, workingPool)
-    if (!drift.valid) {
-      if (Math.abs(drift.diff) >= 1) {
-        throw new Error(
-          `Plan total (${drift.planTotal}) does not match the project baseline (${workingPool}) — ` +
-            `difference of ${drift.diff}. This is larger than normal rounding drift and indicates ` +
-            `a bug in the plan-generation algorithm.`,
-        )
-      }
-      const lastRemainingMonth = remainingMonths[remainingMonths.length - 1]
-      const lastIdx = monthlyPlan.findIndex((e) => e.month === lastRemainingMonth)
-      const lastEntry = monthlyPlan[lastIdx]
-      const patchedAmount = Math.round((lastEntry.phases[0].amount - drift.diff) * 100) / 100
-      if (patchedAmount < 0) {
-        throw new Error(
-          'Rounding reconciliation produced a negative amount — this indicates a bug in the ' +
-            'plan-generation algorithm.',
-        )
-      }
-      monthlyPlan = [
-        ...monthlyPlan.slice(0, lastIdx),
-        {
-          ...lastEntry,
-          phases: [{ ...lastEntry.phases[0], amount: patchedAmount }],
-          total: patchedAmount,
-        },
-        ...monthlyPlan.slice(lastIdx + 1),
-      ]
-    }
-
-    const final = validatePlanTotal(monthlyPlan, workingPool)
-    if (!final.valid) {
-      throw new Error(
-        `Plan total (${final.planTotal}) does not match the project baseline (${workingPool}) — ` +
-          `difference of ${final.diff}. Adjust the block amounts and try again.`,
-      )
-    }
-
     projects[idx] = {
       ...project,
       monthly_plan: monthlyPlan,
@@ -517,6 +573,7 @@ export const localProjects = {
       updated_at: now(),
     }
     write(PROJECTS_KEY, projects)
+    notify()
     return projects[idx]
   },
 
@@ -552,7 +609,7 @@ export const localProjects = {
     updatedPlan[mIdx] = { ...updatedPlan[mIdx], phases, total }
 
     const preservedAdjustments = (project.pool_adjustments || []).filter(
-      (a) => a.source !== 'auto_cascade',
+      (a) => a.source !== 'auto_cascade' && a.source !== 'actual_pull',
     )
     const cascadeAdjustments = computeCascadeAdjustments({
       ...project,
@@ -564,7 +621,21 @@ export const localProjects = {
       createdBy: 'System',
       createdAt: now(),
     }))
-    const poolAdjustments = [...preservedAdjustments, ...cascadeAdjustments]
+    const actualPullAdjustments = computeActualVsPlannedTransfers({
+      ...project,
+      monthly_plan: updatedPlan,
+      pool_adjustments: preservedAdjustments,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [
+      ...preservedAdjustments,
+      ...cascadeAdjustments,
+      ...actualPullAdjustments,
+    ]
 
     projects[idx] = {
       ...project,
@@ -573,6 +644,7 @@ export const localProjects = {
       updated_at: now(),
     }
     write(PROJECTS_KEY, projects)
+    notify()
 
     const validation = validatePlanTotalWithCascade(
       updatedPlan,
@@ -580,6 +652,57 @@ export const localProjects = {
       poolAdjustments,
     )
     return { project: projects[idx], validation }
+  },
+
+  /**
+   * Re-derives all auto_cascade and actual_pull pool_adjustments from the
+   * project's current stored monthly_plan, then writes the result back to
+   * localStorage. Manual adjustments are preserved. This is the correct
+   * implementation for the "Refresh figures" button — it re-runs the full
+   * cascade logic so that any desync between the stored plan and computed
+   * adjustments (e.g. after external data changes or in-flight edits from
+   * another component) is corrected and reflected in the returned project.
+   */
+  recomputePlan(projectId) {
+    const projects = read(PROJECTS_KEY)
+    const idx = projects.findIndex((p) => p.id === projectId)
+    if (idx === -1) return null
+    const project = projects[idx]
+    if (!project.monthly_plan?.length) return project
+
+    const preservedAdjustments = (project.pool_adjustments || []).filter(
+      (a) => a.source !== 'auto_cascade' && a.source !== 'actual_pull',
+    )
+    const cascadeAdjustments = computeCascadeAdjustments(project).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      reason: 'Auto-funded from Project overage',
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const actualPullAdjustments = computeActualVsPlannedTransfers({
+      ...project,
+      pool_adjustments: preservedAdjustments,
+    }).map((a) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      ...a,
+      createdBy: 'System',
+      createdAt: now(),
+    }))
+    const poolAdjustments = [
+      ...preservedAdjustments,
+      ...cascadeAdjustments,
+      ...actualPullAdjustments,
+    ]
+
+    projects[idx] = {
+      ...project,
+      pool_adjustments: poolAdjustments,
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[idx]
   },
 
   /**
@@ -607,7 +730,10 @@ export const localProjects = {
     if (!months.includes(month)) throw new Error(`${month} is outside the project's duration.`)
 
     const flat = computeFlatMonthlyRate(projects[pIdx], pool)
-    const delta = Math.round((flat - (parseFloat(newAmount) || 0)) * 100) / 100
+    const nonManualWithdrawn = (projects[pIdx].pool_adjustments || [])
+      .filter((a) => a.pool === pool && a.month === month && a.source !== 'manual')
+      .reduce((s, a) => s + (a.amount || 0), 0)
+    const delta = Math.round((flat - nonManualWithdrawn - (parseFloat(newAmount) || 0)) * 100) / 100
 
     const withoutExistingManual = (projects[pIdx].pool_adjustments || []).filter(
       (a) => !(a.source === 'manual' && a.pool === pool && a.month === month),
@@ -691,6 +817,129 @@ export const localProjects = {
       (a) => !(a.pool === pool && a.month === month),
     )
     projects[pIdx].updated_at = now()
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  // ── Actual-vs-Planned Reallocation (Case 1 automatic, Case 2 manual) ────────
+
+  /**
+   * Case 2 "Send to HR/Core": splits a month's Project surplus 50/50 into
+   * HR and Core's effective monthly figures via the existing
+   * setManualPoolAdjustment — no new schema. Each call adds its half on
+   * top of whatever that pool's current effective figure already is
+   * (not a flat overwrite), so a pre-existing manual HR/Core edit for
+   * that month is preserved and topped up, not replaced outright.
+   */
+  sendSurplusToPools(projectId, { month, surplus, createdBy }) {
+    const amt = parseFloat(surplus) || 0
+    if (amt <= 0) throw new Error('No surplus available to send for this month.')
+    const half = Math.round((amt / 2) * 100) / 100
+    const otherHalf = Math.round((amt - half) * 100) / 100
+
+    const project = localProjects.getById(projectId)
+    if (!project) throw new Error('Project not found')
+
+    const hrCurrent = computeEffectivePoolMonthly(project, 'hr', month)
+    const afterHr = localProjects.setManualPoolAdjustment(projectId, {
+      pool: 'hr',
+      month,
+      newAmount: hrCurrent + half,
+      createdBy,
+    })
+    const coreCurrent = computeEffectivePoolMonthly(afterHr, 'core', month)
+    return localProjects.setManualPoolAdjustment(projectId, {
+      pool: 'core',
+      month,
+      newAmount: coreCurrent + otherHalf,
+      createdBy,
+    })
+  },
+
+  /**
+   * Case 2 "Send to next month": pushes a month's Project surplus into
+   * next month's effective planned Project total, as a paired
+   * pool: 'project' adjustment (same sign convention/shape as the
+   * automatic 'actual_pull' transfers) — but source-tagged distinctly
+   * since this one is PO-triggered and persists until explicitly
+   * revoked, not recomputed-and-replaced on every edit.
+   */
+  sendSurplusToNextMonth(projectId, { month, surplus, createdBy }) {
+    const amt = parseFloat(surplus) || 0
+    if (amt <= 0) throw new Error('No surplus available to send for this month.')
+
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const project = projects[pIdx]
+
+    const months = monthsInRange(project.start_date, project.end_date)
+    const monthIdx = months.indexOf(month)
+    if (monthIdx === -1) throw new Error(`${month} is outside the project's duration.`)
+    const nextMonth = months[monthIdx + 1]
+    if (!nextMonth) throw new Error('There is no next month to send this surplus to.')
+
+    const withoutExistingSurplusTransfer = (project.pool_adjustments || []).filter(
+      (a) =>
+        !(a.source === 'actual_surplus_next_month' && (a.month === month || a.month === nextMonth)),
+    )
+    const record = (targetMonth, amount, counterMonth, reason) => ({
+      id: `padj_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      pool: 'project',
+      month: targetMonth,
+      amount,
+      source: 'actual_surplus_next_month',
+      counterMonth,
+      reason,
+      createdBy: createdBy || 'Unknown',
+      createdAt: now(),
+    })
+
+    projects[pIdx] = {
+      ...project,
+      pool_adjustments: [
+        ...withoutExistingSurplusTransfer,
+        record(month, amt, nextMonth, `PO-sent surplus to ${nextMonth}`),
+        record(nextMonth, -amt, month, `PO-sent surplus from ${month}`),
+      ],
+      updated_at: now(),
+    }
+    write(PROJECTS_KEY, projects)
+    notify()
+    return projects[pIdx]
+  },
+
+  /** Reverses a Case-2 "Send to next month" transfer — removes both paired records. */
+  revokeActualSurplusTransfer(projectId, { month }) {
+    const projects = read(PROJECTS_KEY)
+    const pIdx = projects.findIndex((p) => p.id === projectId)
+    if (pIdx === -1) throw new Error('Project not found')
+    const project = projects[pIdx]
+
+    // Find the LAST (most recent) outgoing transfer from this month so that
+    // we always revoke the tail of the chain. Outgoing entries have amount < 0.
+    const outgoing = (project.pool_adjustments || []).filter(
+      (a) => a.source === 'actual_surplus_next_month' && a.month === month && (a.amount || 0) < 0,
+    )
+    if (!outgoing.length) return project
+
+    const existing = outgoing[outgoing.length - 1]
+    const counterMonth = existing.counterMonth
+
+    // Remove the outgoing entry from `month` AND the matching incoming entry from `counterMonth`.
+    // Match by both month sides so partial duplicates don't linger.
+    projects[pIdx] = {
+      ...project,
+      pool_adjustments: (project.pool_adjustments || []).filter(
+        (a) =>
+          !(
+            a.source === 'actual_surplus_next_month' &&
+            (a.month === month || a.month === counterMonth)
+          ),
+      ),
+      updated_at: now(),
+    }
     write(PROJECTS_KEY, projects)
     notify()
     return projects[pIdx]
@@ -797,22 +1046,11 @@ export const localProjects = {
 
   assignOfficer(projectId, officerId) {
     const projects = read(PROJECTS_KEY)
-    const officers = read(OFFICERS_KEY)
     const pIdx = projects.findIndex((p) => p.id === projectId)
     if (pIdx === -1) throw new Error('Project not found')
-    const officer = officers.find((o) => o.id === officerId)
-    if (!officer) throw new Error('Officer not found')
 
-    // Remove project from previous officer
-    const prevOfficerId = projects[pIdx].officer_id
-    if (prevOfficerId && prevOfficerId !== officerId) {
-      const prevOIdx = officers.findIndex((o) => o.id === prevOfficerId)
-      if (prevOIdx !== -1) {
-        officers[prevOIdx].projects_assigned = officers[prevOIdx].projects_assigned.filter(
-          (pid) => pid !== projectId,
-        )
-      }
-    }
+    const officer = localOfficers.getById(officerId)
+    if (!officer) throw new Error('Officer not found')
 
     // Assign to new officer
     projects[pIdx].officer_id = officerId
@@ -822,13 +1060,7 @@ export const localProjects = {
     projects[pIdx].email_sent = true // simulate SES
     projects[pIdx].updated_at = now()
 
-    // Add project to officer's list
-    if (!officers.find((o) => o.id === officerId).projects_assigned.includes(projectId)) {
-      officers.find((o) => o.id === officerId).projects_assigned.push(projectId)
-    }
-
     write(PROJECTS_KEY, projects)
-    write(OFFICERS_KEY, officers)
     notify()
     return projects[pIdx]
   },
@@ -901,8 +1133,26 @@ export const localProjects = {
 // ─── Project Officers API ──────────────────────────────────────────────────────
 
 export const localOfficers = {
+  _getOfficersFromStaff() {
+    const employees = read('hma_employees') || []
+    return employees
+      .filter((e) => (e.employment?.designation || '').toLowerCase().includes('project officer'))
+      .map((e) => ({
+        id: e.id,
+        name: e.employee_name,
+        email: e.contact?.working_email || e.contact?.personal_email || '',
+        phone: e.contact?.mobile || '',
+        designation: e.employment?.designation || 'Project Officer',
+        status: (e.status || 'active').toLowerCase(),
+        projects_assigned: read(PROJECTS_KEY)
+          .filter((p) => p.officer_id === e.id)
+          .map((p) => p.id),
+        created_at: e.created_at || now(),
+      }))
+  },
+
   list({ search = '', status = '' } = {}) {
-    let items = read(OFFICERS_KEY)
+    let items = this._getOfficersFromStaff()
     if (search) {
       const q = search.toLowerCase()
       items = items.filter(
@@ -917,39 +1167,24 @@ export const localOfficers = {
   },
 
   getById(id) {
-    return read(OFFICERS_KEY).find((o) => o.id === id) || null
+    return this._getOfficersFromStaff().find((o) => o.id === id) || null
   },
 
   create(data) {
-    const officers = read(OFFICERS_KEY)
-    const newOfficer = {
-      id: offUid(),
-      ...data,
-      status: 'active',
-      projects_assigned: [],
-      created_at: now(),
-    }
-    officers.push(newOfficer)
-    write(OFFICERS_KEY, officers)
-    return newOfficer
+    throw new Error('Project Officers must be created via Staff & Payroll')
   },
 
   update(id, data) {
-    const officers = read(OFFICERS_KEY)
-    const idx = officers.findIndex((o) => o.id === id)
-    if (idx === -1) throw new Error('Officer not found')
-    officers[idx] = { ...officers[idx], ...data }
-    write(OFFICERS_KEY, officers)
-    return officers[idx]
+    throw new Error('Update Project Officers via Staff & Payroll')
   },
 
   getAvailable() {
-    return read(OFFICERS_KEY).filter((o) => o.status === 'active')
+    return this._getOfficersFromStaff().filter((o) => o.status === 'active')
   },
 
   getProjectsForOfficer(officerId) {
-    const officer = read(OFFICERS_KEY).find((o) => o.id === officerId)
-    if (!officer) return []
-    return read(PROJECTS_KEY).filter((p) => officer.projects_assigned.includes(p.id))
+    return read(PROJECTS_KEY).filter(
+      (p) => p.officer_id === officerId || p.assigned_officer_id === officerId,
+    )
   },
 }

@@ -44,6 +44,8 @@ import { localInternships } from '../../../services/localInternships'
 import { localAdminExpenses } from '../../../services/localAdminExpenses'
 import { localGeneralExpenses } from '../../../services/localGeneralExpenses'
 import { localForecastVisibility } from '../../../services/localForecastVisibility'
+import { localLsgb } from '../../../services/localLsgb'
+import { attendanceRevenue } from '../../../services/attendanceRevenue'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -54,8 +56,7 @@ const fmtINR = (n) => {
   return `₹${Math.round(n).toLocaleString('en-IN')}`
 }
 
-const fmtFull = (n) =>
-  `₹${Math.round(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+const fmtFull = (n) => `₹${Math.round(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 
 // ── Seed data extracted from "hr and admin expenses - Sheet1.csv" ─────────────
 // Each entry: { id, category, vendor, service, values: { '2026-03', '2026-04', '2026-05' } }
@@ -218,7 +219,11 @@ const SEED_DATA = [
     frequency: 'Monthly',
     annualCommitment: 56640,
     values: { '2026-03': 0, '2026-04': 0, '2026-05': 4720 },
-    link: { store: 'admin', vendor: 'Pestindia Trading Corporation', category: 'Pest Control Services' },
+    link: {
+      store: 'admin',
+      vendor: 'Pestindia Trading Corporation',
+      category: 'Pest Control Services',
+    },
   },
 ]
 
@@ -251,7 +256,10 @@ const monthLabel = (ym) => {
 }
 
 // Months HR can pick a range from — the trailing 24 months up to this one.
-const AVAILABLE_MONTHS = monthsBetween(addMonths(monthKeyOf(new Date()), -23), monthKeyOf(new Date()))
+const AVAILABLE_MONTHS = monthsBetween(
+  addMonths(monthKeyOf(new Date()), -23),
+  monthKeyOf(new Date()),
+)
 
 const DEFAULT_RANGE = (() => {
   const preferredStart = '2026-03'
@@ -274,8 +282,8 @@ const monthParts = (ym) => {
 }
 
 const loadLinkedRows = (dataMonths) => {
-  const outsourcedCat = localGeneralExpenses
-    .categories.list()
+  const outsourcedCat = localGeneralExpenses.categories
+    .list()
     .find((c) => c.name === 'Outsourced Services')
   const visibility = localForecastVisibility.get()
 
@@ -301,8 +309,15 @@ const loadLinkedRows = (dataMonths) => {
         }
       })
       const values = {}
-      dataMonths.forEach((m) => { values[m] = entry.monthly_actuals?.[m] })
-      return { ...row, id: `admin:${entry.id}`, values, linkRef: { store: 'admin', entryId: entry.id } }
+      dataMonths.forEach((m) => {
+        values[m] = entry.monthly_actuals?.[m]
+      })
+      return {
+        ...row,
+        id: `admin:${entry.id}`,
+        values,
+        linkRef: { store: 'admin', entryId: entry.id },
+      }
     }
 
     // store: 'general' — Outsourced Services category in localGeneralExpenses
@@ -315,7 +330,10 @@ const loadLinkedRows = (dataMonths) => {
         return
       }
       const { items } = localGeneralExpenses.expenses.list({
-        year, month, category_id: outsourcedCat.id, page_size: 500,
+        year,
+        month,
+        category_id: outsourcedCat.id,
+        page_size: 500,
       })
       let record = items.find(
         (e) => e.expense_name.toLowerCase() === row.link.expenseName.toLowerCase(),
@@ -326,7 +344,8 @@ const loadLinkedRows = (dataMonths) => {
         record = localGeneralExpenses.expenses.create({
           category_id: outsourcedCat.id,
           expense_name: row.link.expenseName,
-          month, year,
+          month,
+          year,
           frequency: row.frequency,
           planned_amount: Math.round(row.annualCommitment / 12),
           actual_amount: row.values[m],
@@ -360,7 +379,9 @@ const loadLinkedRows = (dataMonths) => {
         return null
       }
       const values = {}
-      dataMonths.forEach((m) => { values[m] = entry.monthly_actuals?.[m] })
+      dataMonths.forEach((m) => {
+        values[m] = entry.monthly_actuals?.[m]
+      })
       return {
         id: `admin:${entry.id}`,
         category: entry.group === 'HR' ? 'HR' : 'Admin',
@@ -374,7 +395,10 @@ const loadLinkedRows = (dataMonths) => {
     })
     .filter(Boolean)
 
-  return [...legacyRows, ...extraRows].map((r) => ({ ...r, hidden: visibility.hidden.includes(r.id) }))
+  return [...legacyRows, ...extraRows].map((r) => ({
+    ...r,
+    hidden: visibility.hidden.includes(r.id),
+  }))
 }
 
 // ── Forecast: weighted average, falling back to a plain average of known
@@ -394,7 +418,12 @@ const computeForecast = (vals) => {
   }
   // Some months blank — plain average of only the months that have data.
   const total = known.reduce((a, b) => a + b, 0)
-  return { value: Math.round(total / known.length), knownCount: known.length, totalCount, weighted: false }
+  return {
+    value: Math.round(total / known.length),
+    knownCount: known.length,
+    totalCount,
+    weighted: false,
+  }
 }
 
 // ── Category colour map ───────────────────────────────────────────────────────
@@ -407,11 +436,16 @@ const CAT_COLORS = {
 // ── Month Summary Card ────────────────────────────────────────────────────────
 
 const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) => {
-  const hrTotal = rows.filter((r) => r.category === 'HR').reduce((s, r) => s + (r.values[monthKey] || 0), 0)
-  const adminTotal = rows.filter((r) => r.category === 'Admin').reduce((s, r) => s + (r.values[monthKey] || 0), 0)
+  const hrTotal = rows
+    .filter((r) => r.category === 'HR')
+    .reduce((s, r) => s + (r.values[monthKey] || 0), 0)
+  const adminTotal = rows
+    .filter((r) => r.category === 'Admin')
+    .reduce((s, r) => s + (r.values[monthKey] || 0), 0)
   const grandTotal = hrTotal + adminTotal
 
-  const utilizedPct = totalBudget > 0 ? Math.min(100, Math.round((grandTotal / totalBudget) * 100)) : 0
+  const utilizedPct =
+    totalBudget > 0 ? Math.min(100, Math.round((grandTotal / totalBudget) * 100)) : 0
   const remaining = totalBudget - grandTotal
   const isOver = remaining < 0
 
@@ -430,9 +464,7 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
           : 'var(--cui-card-bg, var(--cui-body-bg))',
         padding: '18px 20px',
         position: 'relative',
-        boxShadow: isForecast
-          ? '0 4px 24px rgba(6,214,160,0.12)'
-          : '0 2px 12px rgba(0,0,0,0.08)',
+        boxShadow: isForecast ? '0 4px 24px rgba(6,214,160,0.12)' : '0 2px 12px rgba(0,0,0,0.08)',
         transition: 'box-shadow 0.2s ease',
       }}
     >
@@ -446,7 +478,11 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
             {label}
           </div>
           {isForecast && (
-            <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.65rem', marginTop: 4 }}>
+            <CBadge
+              color="success"
+              shape="rounded-pill"
+              style={{ fontSize: '0.65rem', marginTop: 4 }}
+            >
               🔮 WMA Forecast
             </CBadge>
           )}
@@ -470,7 +506,11 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
         <div style={{ marginBottom: 14 }}>
           <div
             className="rounded-pill"
-            style={{ height: 6, background: 'var(--cui-secondary-bg, #e9ecef)', overflow: 'hidden' }}
+            style={{
+              height: 6,
+              background: 'var(--cui-secondary-bg, #e9ecef)',
+              overflow: 'hidden',
+            }}
           >
             <div
               style={{
@@ -479,16 +519,19 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
                 background: isOver
                   ? '#ff6b6b'
                   : utilizedPct > 85
-                  ? '#ffd166'
-                  : isForecast
-                  ? '#06d6a0'
-                  : '#4cc9f0',
+                    ? '#ffd166'
+                    : isForecast
+                      ? '#06d6a0'
+                      : '#4cc9f0',
                 borderRadius: 999,
                 transition: 'width 0.5s ease',
               }}
             />
           </div>
-          <div className="d-flex justify-content-between mt-1" style={{ fontSize: '0.68rem', color: 'var(--cui-secondary-color)' }}>
+          <div
+            className="d-flex justify-content-between mt-1"
+            style={{ fontSize: '0.68rem', color: 'var(--cui-secondary-color)' }}
+          >
             <span>{utilizedPct}% utilized</span>
             <span>{isOver ? 'Over budget' : `${fmtINR(remaining)} left`}</span>
           </div>
@@ -498,13 +541,17 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
       {/* Key metrics */}
       <div className="d-flex flex-column gap-2">
         <div className="d-flex justify-content-between align-items-center">
-          <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>HR Expenses</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>
+            HR Expenses
+          </span>
           <span className="fw-semibold" style={{ fontSize: '0.82rem', color: '#4cc9f0' }}>
             {fmtINR(hrTotal)}
           </span>
         </div>
         <div className="d-flex justify-content-between align-items-center">
-          <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>Admin Expenses</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>
+            Admin Expenses
+          </span>
           <span className="fw-semibold" style={{ fontSize: '0.82rem', color: '#ffd166' }}>
             {fmtINR(adminTotal)}
           </span>
@@ -521,19 +568,25 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Budget Utilized</span>
             <span
               className="fw-bold"
-              style={{ fontSize: '0.9rem', color: isOver ? '#ff6b6b' : isForecast ? '#06d6a0' : 'var(--cui-body-color)' }}
+              style={{
+                fontSize: '0.9rem',
+                color: isOver ? '#ff6b6b' : isForecast ? '#06d6a0' : 'var(--cui-body-color)',
+              }}
             >
               {fmtINR(grandTotal)}
             </span>
           </div>
           {totalBudget > 0 && (
             <div className="d-flex justify-content-between align-items-center mt-1">
-              <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>Budget Remaining</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--cui-secondary-color)' }}>
+                Budget Remaining
+              </span>
               <span
                 className="fw-semibold"
                 style={{ fontSize: '0.82rem', color: isOver ? '#ff6b6b' : '#06d6a0' }}
               >
-                {isOver ? '−' : ''}{fmtINR(Math.abs(remaining))}
+                {isOver ? '−' : ''}
+                {fmtINR(Math.abs(remaining))}
               </span>
             </div>
           )}
@@ -545,11 +598,27 @@ const MonthCard = ({ monthKey, label, rows, totalBudget, isForecast, onEdit }) =
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 
-const EMPTY_NEW_EXPENSE = { vendor: '', service: '', group: 'Admin', frequency: 'Monthly', annual: '', amount: '' }
+const EMPTY_NEW_EXPENSE = {
+  vendor: '',
+  service: '',
+  group: 'Admin',
+  frequency: 'Monthly',
+  annual: '',
+  amount: '',
+}
 const FREQUENCIES = ['Monthly', 'Quarterly', 'Half Yearly', 'Annually']
 
 const EditMonthModal = ({
-  visible, monthKey, rows, candidateEntries, onClose, onSave, onHide, onUnhide, onAddNew, onAddExisting,
+  visible,
+  monthKey,
+  rows,
+  candidateEntries,
+  onClose,
+  onSave,
+  onHide,
+  onUnhide,
+  onAddNew,
+  onAddExisting,
 }) => {
   const [draft, setDraft] = useState({})
   const [addMode, setAddMode] = useState(null) // null | 'new' | 'existing'
@@ -562,7 +631,9 @@ const EditMonthModal = ({
   React.useEffect(() => {
     if (visible && monthKey) {
       const init = {}
-      visibleRows.forEach((r) => { init[r.id] = String(r.values[monthKey] ?? 0) })
+      visibleRows.forEach((r) => {
+        init[r.id] = String(r.values[monthKey] ?? 0)
+      })
       setDraft(init)
     }
     if (!visible) {
@@ -625,7 +696,10 @@ const EditMonthModal = ({
         </div>
 
         {addMode && (
-          <div className="border rounded-3 p-3 mb-3" style={{ background: 'var(--cui-tertiary-bg)' }}>
+          <div
+            className="border rounded-3 p-3 mb-3"
+            style={{ background: 'var(--cui-tertiary-bg)' }}
+          >
             <div className="d-flex gap-2 mb-3 align-items-center">
               <CButton
                 size="sm"
@@ -643,7 +717,13 @@ const EditMonthModal = ({
               >
                 Existing Expense
               </CButton>
-              <CButton size="sm" color="secondary" variant="ghost" className="ms-auto p-1" onClick={() => setAddMode(null)}>
+              <CButton
+                size="sm"
+                color="secondary"
+                variant="ghost"
+                className="ms-auto p-1"
+                onClick={() => setAddMode(null)}
+              >
                 <CIcon icon={cilX} style={{ width: 12, height: 12 }} />
               </CButton>
             </div>
@@ -683,7 +763,9 @@ const EditMonthModal = ({
                     style={{ maxWidth: 130 }}
                   >
                     {FREQUENCIES.map((f) => (
-                      <option key={f} value={f}>{f}</option>
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
                     ))}
                   </select>
                   <CFormInput
@@ -731,10 +813,17 @@ const EditMonthModal = ({
                       : 'Select an expense already in Admin Expenses…'}
                   </option>
                   {candidateEntries.map((e) => (
-                    <option key={e.id} value={e.id}>{e.expense_category} — {e.vendor_name}</option>
+                    <option key={e.id} value={e.id}>
+                      {e.expense_category} — {e.vendor_name}
+                    </option>
                   ))}
                 </select>
-                <CButton size="sm" color="primary" disabled={!existingPick} onClick={handleAddExisting}>
+                <CButton
+                  size="sm"
+                  color="primary"
+                  disabled={!existingPick}
+                  onClick={handleAddExisting}
+                >
                   Add
                 </CButton>
               </div>
@@ -742,65 +831,82 @@ const EditMonthModal = ({
           </div>
         )}
 
-        {[{ label: 'HR Expenses', rows: hrRows, color: '#4cc9f0' }, { label: 'Admin Expenses', rows: adminRows, color: '#ffd166' }].map(
-          ({ label, rows: catRows, color }) => (
-            <div key={label} className="mb-4">
-              <div
-                className="fw-semibold mb-2 pb-1"
-                style={{ borderBottom: `2px solid ${color}`, color, fontSize: '0.85rem', letterSpacing: '0.05em' }}
-              >
-                {label}
-              </div>
-              <div className="d-flex flex-column gap-2">
-                {catRows.length === 0 && (
-                  <div className="text-body-secondary small">No visible expenses in this section.</div>
-                )}
-                {catRows.map((r) => (
-                  <div key={r.id} className="d-flex align-items-center gap-3">
-                    <div style={{ flex: 1, fontSize: '0.82rem' }}>
-                      <div className="fw-medium">{r.service}</div>
-                      <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                        {r.vendor} · {r.frequency}
-                      </div>
-                    </div>
-                    <div style={{ width: 140 }}>
-                      <CFormInput
-                        type="number"
-                        size="sm"
-                        min={0}
-                        step={1}
-                        value={draft[r.id] ?? ''}
-                        onChange={(e) => handleChange(r.id, e.target.value)}
-                        style={{ textAlign: 'right' }}
-                      />
-                    </div>
-                    <CButton
-                      size="sm"
-                      color="ghost"
-                      className="p-1 text-body-secondary flex-shrink-0"
-                      title="Hide from forecast"
-                      onClick={() => onHide(r.id)}
-                    >
-                      <CIcon icon={cilLowVision} style={{ width: 14, height: 14 }} />
-                    </CButton>
-                  </div>
-                ))}
-              </div>
+        {[
+          { label: 'HR Expenses', rows: hrRows, color: '#4cc9f0' },
+          { label: 'Admin Expenses', rows: adminRows, color: '#ffd166' },
+        ].map(({ label, rows: catRows, color }) => (
+          <div key={label} className="mb-4">
+            <div
+              className="fw-semibold mb-2 pb-1"
+              style={{
+                borderBottom: `2px solid ${color}`,
+                color,
+                fontSize: '0.85rem',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {label}
             </div>
-          )
-        )}
+            <div className="d-flex flex-column gap-2">
+              {catRows.length === 0 && (
+                <div className="text-body-secondary small">
+                  No visible expenses in this section.
+                </div>
+              )}
+              {catRows.map((r) => (
+                <div key={r.id} className="d-flex align-items-center gap-3">
+                  <div style={{ flex: 1, fontSize: '0.82rem' }}>
+                    <div className="fw-medium">{r.service}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      {r.vendor} · {r.frequency}
+                    </div>
+                  </div>
+                  <div style={{ width: 140 }}>
+                    <CFormInput
+                      type="number"
+                      size="sm"
+                      min={0}
+                      step={1}
+                      value={draft[r.id] ?? ''}
+                      onChange={(e) => handleChange(r.id, e.target.value)}
+                      style={{ textAlign: 'right' }}
+                    />
+                  </div>
+                  <CButton
+                    size="sm"
+                    color="ghost"
+                    className="p-1 text-body-secondary flex-shrink-0"
+                    title="Hide from forecast"
+                    onClick={() => onHide(r.id)}
+                  >
+                    <CIcon icon={cilLowVision} style={{ width: 14, height: 14 }} />
+                  </CButton>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {hiddenRows.length > 0 && (
           <div className="mt-1">
-            <div className="fw-semibold mb-2 small text-body-secondary" style={{ letterSpacing: '0.05em' }}>
+            <div
+              className="fw-semibold mb-2 small text-body-secondary"
+              style={{ letterSpacing: '0.05em' }}
+            >
               HIDDEN FROM FORECAST ({hiddenRows.length})
             </div>
             <div className="d-flex flex-column gap-2">
               {hiddenRows.map((r) => (
-                <div key={r.id} className="d-flex align-items-center gap-3" style={{ opacity: 0.65 }}>
+                <div
+                  key={r.id}
+                  className="d-flex align-items-center gap-3"
+                  style={{ opacity: 0.65 }}
+                >
                   <div style={{ flex: 1, fontSize: '0.82rem' }}>
                     <div className="fw-medium">{r.service}</div>
-                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{r.vendor}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                      {r.vendor}
+                    </div>
                   </div>
                   <CButton size="sm" color="ghost" onClick={() => onUnhide(r.id)}>
                     Unhide
@@ -836,11 +942,7 @@ const HRRevenueModal = ({ visible, revenues, onClose, onSave }) => {
     setDraft((d) => d.map((r, i) => (i === idx ? { ...r, [field]: val } : r)))
   }
 
-  const addRow = () =>
-    setDraft((d) => [
-      ...d,
-      { id: `rev_${Date.now()}`, label: '', amount: '' },
-    ])
+  const addRow = () => setDraft((d) => [...d, { id: `rev_${Date.now()}`, label: '', amount: '' }])
 
   const removeRow = (idx) => setDraft((d) => d.filter((_, i) => i !== idx))
 
@@ -872,7 +974,12 @@ const HRRevenueModal = ({ visible, revenues, onClose, onSave }) => {
                 onChange={(e) => handleChange(idx, 'amount', e.target.value)}
                 style={{ flex: 1, textAlign: 'right' }}
               />
-              <CButton size="sm" color="ghost" className="p-1 text-danger" onClick={() => removeRow(idx)}>
+              <CButton
+                size="sm"
+                color="ghost"
+                className="p-1 text-danger"
+                onClick={() => removeRow(idx)}
+              >
                 <CIcon icon={cilX} style={{ width: 13, height: 13 }} />
               </CButton>
             </div>
@@ -894,7 +1001,7 @@ const HRRevenueModal = ({ visible, revenues, onClose, onSave }) => {
             onSave(
               draft
                 .filter((r) => r.label && parseFloat(r.amount) > 0)
-                .map((r) => ({ ...r, amount: parseFloat(r.amount) || 0 }))
+                .map((r) => ({ ...r, amount: parseFloat(r.amount) || 0 })),
             )
             onClose()
           }}
@@ -913,9 +1020,7 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
   const adminRows = rows.filter((r) => r.category === 'Admin')
 
   const renderSection = (catRows, catLabel, color) => {
-    const totals = dataMonths.map((m) =>
-      catRows.reduce((s, r) => s + (r.values[m] || 0), 0)
-    )
+    const totals = dataMonths.map((m) => catRows.reduce((s, r) => s + (r.values[m] || 0), 0))
     const forecastTotal = catRows.reduce((s, r) => s + (forecastValues[r.id] || 0), 0)
 
     return (
@@ -966,12 +1071,24 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
               >
                 {fc > 0 ? fmtINR(fc) : <span className="text-body-tertiary">—</span>}
                 {result && !result.weighted && result.knownCount > 0 && (
-                  <div style={{ fontSize: '0.63rem', color: 'var(--cui-secondary-color)', marginTop: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '0.63rem',
+                      color: 'var(--cui-secondary-color)',
+                      marginTop: 1,
+                    }}
+                  >
                     avg of {result.knownCount}/{result.totalCount} mo
                   </div>
                 )}
                 {trend !== 0 && (
-                  <div style={{ fontSize: '0.63rem', color: trend > 0 ? '#ff6b6b' : '#06d6a0', marginTop: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '0.63rem',
+                      color: trend > 0 ? '#ff6b6b' : '#06d6a0',
+                      marginTop: 1,
+                    }}
+                  >
                     {trend > 0 ? '▲' : '▼'} trend
                   </div>
                 )}
@@ -1013,7 +1130,13 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
             {dataMonths.map((m) => (
               <th key={m} className="text-center" style={{ minWidth: 110 }}>
                 {monthLabel(m)}
-                <div style={{ fontSize: '0.65rem', color: 'var(--cui-secondary-color)', fontWeight: 400 }}>
+                <div
+                  style={{
+                    fontSize: '0.65rem',
+                    color: 'var(--cui-secondary-color)',
+                    fontWeight: 400,
+                  }}
+                >
                   Actual
                 </div>
               </th>
@@ -1032,13 +1155,30 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
           </tr>
         </thead>
         <tbody>
-          {renderSection(rows.filter((r) => r.category === 'HR'), 'HR Expenses', '#4cc9f0')}
+          {renderSection(
+            rows.filter((r) => r.category === 'HR'),
+            'HR Expenses',
+            '#4cc9f0',
+          )}
           <tr style={{ height: 6 }}>
-            <td colSpan={dataMonths.length + 2} style={{ background: 'var(--cui-border-color)', padding: 0 }} />
+            <td
+              colSpan={dataMonths.length + 2}
+              style={{ background: 'var(--cui-border-color)', padding: 0 }}
+            />
           </tr>
-          {renderSection(rows.filter((r) => r.category === 'Admin'), 'Admin Expenses', '#ffd166')}
+          {renderSection(
+            rows.filter((r) => r.category === 'Admin'),
+            'Admin Expenses',
+            '#ffd166',
+          )}
           {/* Grand total */}
-          <tr style={{ borderTop: '2.5px solid var(--cui-border-color)', fontWeight: 800, fontSize: '0.88rem' }}>
+          <tr
+            style={{
+              borderTop: '2.5px solid var(--cui-border-color)',
+              fontWeight: 800,
+              fontSize: '0.88rem',
+            }}
+          >
             <td>Grand Total</td>
             {dataMonths.map((m) => {
               const total = rows.reduce((s, r) => s + (r.values[m] || 0), 0)
@@ -1065,7 +1205,15 @@ const DetailTable = ({ rows, forecastValues, forecastResults, dataMonths, foreca
 // Not an income-vs-expense statement — a trend check: is the forecast month
 // costing more than actual historical spend (Loss) or holding/falling (Profit)?
 
-const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, monthTotals, avgActual, forecastTotal }) => {
+const ProfitLossReport = ({
+  rows,
+  dataMonths,
+  forecastMonth,
+  forecastValues,
+  monthTotals,
+  avgActual,
+  forecastTotal,
+}) => {
   const lastActualTotal = monthTotals[monthTotals.length - 1]?.total || 0
   const netChangeVsAvg = forecastTotal - avgActual
   const pctVsAvg = avgActual > 0 ? (netChangeVsAvg / avgActual) * 100 : null
@@ -1075,7 +1223,9 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
   const catStats = useMemo(() => {
     return ['HR', 'Admin'].map((cat) => {
       const catRows = rows.filter((r) => r.category === cat)
-      const monthlyTotals = dataMonths.map((m) => catRows.reduce((s, r) => s + (r.values[m] || 0), 0))
+      const monthlyTotals = dataMonths.map((m) =>
+        catRows.reduce((s, r) => s + (r.values[m] || 0), 0),
+      )
       const avg = monthlyTotals.length
         ? Math.round(monthlyTotals.reduce((a, b) => a + b, 0) / monthlyTotals.length)
         : 0
@@ -1087,8 +1237,12 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
   const rowStats = useMemo(() => {
     return rows
       .map((r) => {
-        const known = dataMonths.map((m) => r.values[m]).filter((v) => v !== undefined && v !== null)
-        const baseline = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : null
+        const known = dataMonths
+          .map((m) => r.values[m])
+          .filter((v) => v !== undefined && v !== null)
+        const baseline = known.length
+          ? Math.round(known.reduce((a, b) => a + b, 0) / known.length)
+          : null
         const forecast = forecastValues[r.id] || 0
         const diff = baseline === null ? null : forecast - baseline
         const pct = baseline ? (diff / baseline) * 100 : null
@@ -1113,14 +1267,17 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
         >
           <div style={{ fontSize: '2rem' }}>{isLoss ? '📈' : '📉'}</div>
           <div>
-            <div className="fw-bold" style={{ fontSize: '1.1rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}>
+            <div
+              className="fw-bold"
+              style={{ fontSize: '1.1rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}
+            >
               {isLoss ? 'LOSS — Expenses trending up' : 'PROFIT — Expenses stable or falling'}
             </div>
             <div className="small text-body-secondary">
-              {monthLabel(forecastMonth)} is forecasted at {fmtINR(forecastTotal)}, {isLoss ? 'up' : 'down'}{' '}
-              {fmtINR(Math.abs(netChangeVsAvg))}
-              {pctVsAvg !== null && ` (${Math.abs(pctVsAvg).toFixed(1)}%)`}
-              {' '}compared to the {dataMonths.length}-month actual average of {fmtINR(avgActual)}.
+              {monthLabel(forecastMonth)} is forecasted at {fmtINR(forecastTotal)},{' '}
+              {isLoss ? 'up' : 'down'} {fmtINR(Math.abs(netChangeVsAvg))}
+              {pctVsAvg !== null && ` (${Math.abs(pctVsAvg).toFixed(1)}%)`} compared to the{' '}
+              {dataMonths.length}-month actual average of {fmtINR(avgActual)}.
             </div>
           </div>
         </div>
@@ -1129,11 +1286,16 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
         <div className="d-flex flex-wrap gap-4 mb-4">
           <div>
             <div className="text-body-secondary small">{dataMonths.length}-month Avg Actual</div>
-            <div className="fw-bold" style={{ fontSize: '1.05rem' }}>{fmtINR(avgActual)}</div>
+            <div className="fw-bold" style={{ fontSize: '1.05rem' }}>
+              {fmtINR(avgActual)}
+            </div>
           </div>
           <div>
             <div className="text-body-secondary small">{monthLabel(forecastMonth)} Forecast</div>
-            <div className="fw-bold" style={{ fontSize: '1.05rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}>
+            <div
+              className="fw-bold"
+              style={{ fontSize: '1.05rem', color: isLoss ? '#ff6b6b' : '#06d6a0' }}
+            >
               {fmtINR(forecastTotal)}
             </div>
           </div>
@@ -1145,7 +1307,8 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
               className="fw-bold"
               style={{ fontSize: '1.05rem', color: netChangeVsLast > 0 ? '#ff6b6b' : '#06d6a0' }}
             >
-              {netChangeVsLast > 0 ? '+' : ''}{fmtINR(netChangeVsLast)}
+              {netChangeVsLast > 0 ? '+' : ''}
+              {fmtINR(netChangeVsLast)}
             </div>
           </div>
         </div>
@@ -1155,7 +1318,11 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
           <div className="fw-semibold small mb-2">By Category</div>
           <div className="d-flex flex-wrap gap-3">
             {catStats.map((c) => (
-              <div key={c.cat} className="border rounded-3 p-3" style={{ minWidth: 220, flex: '1 1 220px' }}>
+              <div
+                key={c.cat}
+                className="border rounded-3 p-3"
+                style={{ minWidth: 220, flex: '1 1 220px' }}
+              >
                 <div className="d-flex justify-content-between align-items-center mb-1">
                   <span className="fw-semibold">{c.cat} Expenses</span>
                   <CBadge color={c.diff > 0 ? 'danger' : 'success'} shape="rounded-pill">
@@ -1163,16 +1330,22 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
                   </CBadge>
                 </div>
                 <div className="d-flex justify-content-between small text-body-secondary">
-                  <span>Avg Actual</span><span>{fmtINR(c.avg)}</span>
+                  <span>Avg Actual</span>
+                  <span>{fmtINR(c.avg)}</span>
                 </div>
                 <div className="d-flex justify-content-between small text-body-secondary">
-                  <span>Forecast</span><span>{fmtINR(c.forecast)}</span>
+                  <span>Forecast</span>
+                  <span>{fmtINR(c.forecast)}</span>
                 </div>
                 <div
                   className="d-flex justify-content-between small fw-semibold mt-1"
                   style={{ color: c.diff > 0 ? '#ff6b6b' : '#06d6a0' }}
                 >
-                  <span>Change</span><span>{c.diff > 0 ? '+' : ''}{fmtINR(c.diff)}</span>
+                  <span>Change</span>
+                  <span>
+                    {c.diff > 0 ? '+' : ''}
+                    {fmtINR(c.diff)}
+                  </span>
                 </div>
               </div>
             ))}
@@ -1182,7 +1355,10 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
         {/* Per-line-item detail — biggest projected increases first */}
         <div className="fw-semibold small mb-2">By Expense Line</div>
         <div style={{ overflowX: 'auto' }}>
-          <table className="table table-bordered table-sm align-middle mb-0" style={{ fontSize: '0.8rem' }}>
+          <table
+            className="table table-bordered table-sm align-middle mb-0"
+            style={{ fontSize: '0.8rem' }}
+          >
             <thead>
               <tr className="bg-body-tertiary">
                 <th>Expense</th>
@@ -1197,29 +1373,50 @@ const ProfitLossReport = ({ rows, dataMonths, forecastMonth, forecastValues, mon
                 <tr key={r.id}>
                   <td>
                     <div className="fw-medium">{r.service}</div>
-                    <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>{r.vendor}</div>
+                    <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                      {r.vendor}
+                    </div>
                   </td>
                   <td className="text-end">
-                    {r.baseline !== null ? fmtINR(r.baseline) : <span className="text-body-tertiary">—</span>}
+                    {r.baseline !== null ? (
+                      fmtINR(r.baseline)
+                    ) : (
+                      <span className="text-body-tertiary">—</span>
+                    )}
                   </td>
                   <td className="text-end">
-                    {r.forecast > 0 ? fmtINR(r.forecast) : <span className="text-body-tertiary">—</span>}
+                    {r.forecast > 0 ? (
+                      fmtINR(r.forecast)
+                    ) : (
+                      <span className="text-body-tertiary">—</span>
+                    )}
                   </td>
-                  <td className="text-end" style={{ color: r.diff === null ? undefined : r.diff > 0 ? '#ff6b6b' : '#06d6a0' }}>
+                  <td
+                    className="text-end"
+                    style={{
+                      color: r.diff === null ? undefined : r.diff > 0 ? '#ff6b6b' : '#06d6a0',
+                    }}
+                  >
                     {r.diff === null ? (
                       <span className="text-body-secondary">New</span>
                     ) : (
                       <>
-                        {r.diff > 0 ? '+' : ''}{fmtINR(r.diff)}
+                        {r.diff > 0 ? '+' : ''}
+                        {fmtINR(r.diff)}
                         {r.pct !== null && (
-                          <div style={{ fontSize: '0.65rem' }}>({r.pct > 0 ? '+' : ''}{r.pct.toFixed(0)}%)</div>
+                          <div style={{ fontSize: '0.65rem' }}>
+                            ({r.pct > 0 ? '+' : ''}
+                            {r.pct.toFixed(0)}%)
+                          </div>
                         )}
                       </>
                     )}
                   </td>
                   <td className="text-center">
                     {r.diff === null ? (
-                      <CBadge color="secondary" shape="rounded-pill">New</CBadge>
+                      <CBadge color="secondary" shape="rounded-pill">
+                        New
+                      </CBadge>
                     ) : (
                       <CBadge color={r.diff > 0 ? 'danger' : 'success'} shape="rounded-pill">
                         {r.diff > 0 ? 'Loss' : 'Profit'}
@@ -1242,7 +1439,8 @@ const GeneralExpensesTab = () => {
   // Actual-data range HR forecasts from — persisted across sessions.
   const [range, setRangeState] = useState(() => {
     const saved = localForecastVisibility.getRange()
-    const start = saved?.start && AVAILABLE_MONTHS.includes(saved.start) ? saved.start : DEFAULT_RANGE.start
+    const start =
+      saved?.start && AVAILABLE_MONTHS.includes(saved.start) ? saved.start : DEFAULT_RANGE.start
     const end = saved?.end && AVAILABLE_MONTHS.includes(saved.end) ? saved.end : DEFAULT_RANGE.end
     return start <= end ? { start, end } : DEFAULT_RANGE
   })
@@ -1322,10 +1520,29 @@ const GeneralExpensesTab = () => {
 
   const hrRevenueMonthly = useMemo(
     () => hrRevenues.reduce((s, r) => s + (r.amount || 0), 0),
-    [hrRevenues]
+    [hrRevenues],
   )
 
-  const totalBudgetCap = hrPoolMonthly + hrRevenueMonthly
+  // Attendance Deduction Pool (TPC) and LSGB revenue also fund the budget:
+  // budget remaining = all revenue (HR pool + HR revenue + attendance pool)
+  // + LSGB revenue − expenses.
+  const attendancePoolTotal = useMemo(() => {
+    try {
+      return attendanceRevenue.getTotalPool().total
+    } catch {
+      return 0
+    }
+  }, [])
+
+  const lsgbRevenueTotal = useMemo(() => {
+    try {
+      return localLsgb.getSummary().totalWithdrawn || 0
+    } catch {
+      return 0
+    }
+  }, [])
+
+  const totalBudgetCap = hrPoolMonthly + hrRevenueMonthly + attendancePoolTotal + lsgbRevenueTotal
 
   // ── Forecast — hidden rows are excluded so HR can keep one-off spend out of
   // the projection. Rows with a blank month (not just an actual ₹0) fall back
@@ -1341,7 +1558,9 @@ const GeneralExpensesTab = () => {
 
   const forecastValues = useMemo(() => {
     const fc = {}
-    Object.entries(forecastResults).forEach(([id, r]) => { fc[id] = r.value })
+    Object.entries(forecastResults).forEach(([id, r]) => {
+      fc[id] = r.value
+    })
     return fc
   }, [forecastResults])
 
@@ -1354,76 +1573,92 @@ const GeneralExpensesTab = () => {
   }, [visibleRows, forecastValues, forecastMonth])
 
   // ── Edit handler — writes back into the same General Expenses records ───────
-  const handleSaveEdits = useCallback((monthKey, parsed) => {
-    const outsourcedCat = localGeneralExpenses
-      .categories.list()
-      .find((c) => c.name === 'Outsourced Services')
+  const handleSaveEdits = useCallback(
+    (monthKey, parsed) => {
+      const outsourcedCat = localGeneralExpenses.categories
+        .list()
+        .find((c) => c.name === 'Outsourced Services')
 
-    rows.forEach((row) => {
-      const val = parsed[row.id]
-      if (val === undefined) return
-      if (row.linkRef.store === 'admin') {
-        localAdminExpenses.setMonthlyActual(row.linkRef.entryId, monthKey, val)
-      } else {
-        const recordId = row.linkRef.monthIds[monthKey]
-        if (recordId) {
-          localGeneralExpenses.expenses.update(recordId, {
-            actual_amount: val,
-            status: val > 0 ? 'Paid' : 'Pending',
-          })
-        } else if (outsourcedCat) {
-          // This month never had a record (was blank) — create it now.
-          const { year, month } = monthParts(monthKey)
-          localGeneralExpenses.expenses.create({
-            category_id: outsourcedCat.id,
-            expense_name: row.link.expenseName,
-            month, year,
-            frequency: row.frequency,
-            planned_amount: Math.round((row.annualCommitment || 0) / 12),
-            actual_amount: val,
-            status: val > 0 ? 'Paid' : 'Pending',
-            remarks: `Vendor: ${row.link.vendor}`,
-          })
+      rows.forEach((row) => {
+        const val = parsed[row.id]
+        if (val === undefined) return
+        if (row.linkRef.store === 'admin') {
+          localAdminExpenses.setMonthlyActual(row.linkRef.entryId, monthKey, val)
+        } else {
+          const recordId = row.linkRef.monthIds[monthKey]
+          if (recordId) {
+            localGeneralExpenses.expenses.update(recordId, {
+              actual_amount: val,
+              status: val > 0 ? 'Paid' : 'Pending',
+            })
+          } else if (outsourcedCat) {
+            // This month never had a record (was blank) — create it now.
+            const { year, month } = monthParts(monthKey)
+            localGeneralExpenses.expenses.create({
+              category_id: outsourcedCat.id,
+              expense_name: row.link.expenseName,
+              month,
+              year,
+              frequency: row.frequency,
+              planned_amount: Math.round((row.annualCommitment || 0) / 12),
+              actual_amount: val,
+              status: val > 0 ? 'Paid' : 'Pending',
+              remarks: `Vendor: ${row.link.vendor}`,
+            })
+          }
         }
-      }
-    })
-    setRows(loadLinkedRows(dataMonths))
-  }, [rows, dataMonths])
+      })
+      setRows(loadLinkedRows(dataMonths))
+    },
+    [rows, dataMonths],
+  )
 
   // ── Hide / unhide — Forecast-tab-only visibility, doesn't touch the record ──
-  const handleHideRow = useCallback((rowId) => {
-    localForecastVisibility.hide(rowId)
-    setRows(loadLinkedRows(dataMonths))
-  }, [dataMonths])
+  const handleHideRow = useCallback(
+    (rowId) => {
+      localForecastVisibility.hide(rowId)
+      setRows(loadLinkedRows(dataMonths))
+    },
+    [dataMonths],
+  )
 
-  const handleUnhideRow = useCallback((rowId) => {
-    localForecastVisibility.unhide(rowId)
-    setRows(loadLinkedRows(dataMonths))
-  }, [dataMonths])
+  const handleUnhideRow = useCallback(
+    (rowId) => {
+      localForecastVisibility.unhide(rowId)
+      setRows(loadLinkedRows(dataMonths))
+    },
+    [dataMonths],
+  )
 
   // ── Add a brand-new Admin Expenses entry and show it in this tab ────────────
-  const handleAddNewExpense = useCallback((data) => {
-    const entry = localAdminExpenses.create({
-      vendor_name: data.vendor,
-      expense_category: data.service,
-      frequency: data.frequency,
-      annual_amount: parseFloat(data.annual) || 0,
-      group: data.group,
-      status: 'Active',
-    })
-    const amount = parseFloat(data.amount) || 0
-    if (amount > 0 && data.monthKey) {
-      localAdminExpenses.setMonthlyActual(entry.id, data.monthKey, amount)
-    }
-    localForecastVisibility.include(`admin:${entry.id}`)
-    setRows(loadLinkedRows(dataMonths))
-  }, [dataMonths])
+  const handleAddNewExpense = useCallback(
+    (data) => {
+      const entry = localAdminExpenses.create({
+        vendor_name: data.vendor,
+        expense_category: data.service,
+        frequency: data.frequency,
+        annual_amount: parseFloat(data.annual) || 0,
+        group: data.group,
+        status: 'Active',
+      })
+      const amount = parseFloat(data.amount) || 0
+      if (amount > 0 && data.monthKey) {
+        localAdminExpenses.setMonthlyActual(entry.id, data.monthKey, amount)
+      }
+      localForecastVisibility.include(`admin:${entry.id}`)
+      setRows(loadLinkedRows(dataMonths))
+    },
+    [dataMonths],
+  )
 
   // ── Pull an existing Admin Expenses entry into this tab ─────────────────────
-  const handleAddExistingExpense = useCallback((entryId) => {
-    localForecastVisibility.include(`admin:${entryId}`)
-    setRows(loadLinkedRows(dataMonths))
-  }, [dataMonths])
+  const handleAddExistingExpense = useCallback(
+    (entryId) => {
+      localForecastVisibility.include(`admin:${entryId}`)
+      setRows(loadLinkedRows(dataMonths))
+    },
+    [dataMonths],
+  )
 
   // ── Stats ────────────────────────────────────────────────────────────────────
   const monthTotals = useMemo(
@@ -1432,17 +1667,17 @@ const GeneralExpensesTab = () => {
         month: m,
         total: visibleRows.reduce((s, r) => s + (r.values[m] || 0), 0),
       })),
-    [visibleRows, dataMonths]
+    [visibleRows, dataMonths],
   )
 
   const forecastTotal = useMemo(
     () => visibleRows.reduce((s, r) => s + (forecastValues[r.id] || 0), 0),
-    [visibleRows, forecastValues]
+    [visibleRows, forecastValues],
   )
 
   const avgActual = useMemo(
     () => Math.round(monthTotals.reduce((s, m) => s + m.total, 0) / monthTotals.length),
-    [monthTotals]
+    [monthTotals],
   )
 
   return (
@@ -1452,28 +1687,36 @@ const GeneralExpensesTab = () => {
         <div>
           <h6 className="fw-bold mb-1">General Expenses — HR & Admin</h6>
           <div className="text-body-secondary small">
-            Actual data: {monthLabel(dataMonths[0])} – {monthLabel(dataMonths[dataMonths.length - 1])}
-            {' '}&nbsp;·&nbsp; {monthLabel(forecastMonth)} forecasted via{' '}
+            Actual data: {monthLabel(dataMonths[0])} –{' '}
+            {monthLabel(dataMonths[dataMonths.length - 1])} &nbsp;·&nbsp;{' '}
+            {monthLabel(forecastMonth)} forecasted via{' '}
             <span style={{ color: '#06d6a0', fontWeight: 600 }}>Weighted Moving Average</span>
           </div>
-          <div className="text-body-secondary small mt-1" style={{ fontSize: '0.72rem', opacity: 0.7 }}>
-            💡 Forecast accuracy improves as more months of data are added. Currently using {dataMonths.length} month{dataMonths.length !== 1 ? 's' : ''}.
+          <div
+            className="text-body-secondary small mt-1"
+            style={{ fontSize: '0.72rem', opacity: 0.7 }}
+          >
+            💡 Forecast accuracy improves as more months of data are added. Currently using{' '}
+            {dataMonths.length} month{dataMonths.length !== 1 ? 's' : ''}.
           </div>
-          <div className="text-body-secondary small mt-1" style={{ fontSize: '0.72rem', opacity: 0.7 }}>
-            🔗 Actual values are the same records shown on General Expenses — editing a month here updates them there too.
+          <div
+            className="text-body-secondary small mt-1"
+            style={{ fontSize: '0.72rem', opacity: 0.7 }}
+          >
+            🔗 Actual values are the same records shown on General Expenses — editing a month here
+            updates them there too.
           </div>
-          <div className="text-body-secondary small mt-1" style={{ fontSize: '0.72rem', opacity: 0.7 }}>
-            👁️ Open a month's pencil to hide a line item from the forecast, or add a new/existing expense.
+          <div
+            className="text-body-secondary small mt-1"
+            style={{ fontSize: '0.72rem', opacity: 0.7 }}
+          >
+            👁️ Open a month's pencil to hide a line item from the forecast, or add a new/existing
+            expense.
           </div>
         </div>
         <div className="d-flex flex-column align-items-end gap-2">
           <div className="d-flex gap-2 flex-wrap">
-            <CButton
-              size="sm"
-              color="info"
-              variant="ghost"
-              onClick={() => setRevenueModal(true)}
-            >
+            <CButton size="sm" color="info" variant="ghost" onClick={() => setRevenueModal(true)}>
               <CIcon icon={cilPlus} className="me-1" style={{ width: 13, height: 13 }} />
               HR Revenue
             </CButton>
@@ -1496,7 +1739,9 @@ const GeneralExpensesTab = () => {
               style={{ width: 150 }}
             >
               {AVAILABLE_MONTHS.map((m) => (
-                <option key={m} value={m}>{monthLabel(m)}</option>
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                </option>
               ))}
             </select>
             <span className="text-body-secondary small">to</span>
@@ -1507,7 +1752,9 @@ const GeneralExpensesTab = () => {
               style={{ width: 150 }}
             >
               {AVAILABLE_MONTHS.map((m) => (
-                <option key={m} value={m}>{monthLabel(m)}</option>
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                </option>
               ))}
             </select>
           </div>
@@ -1524,12 +1771,20 @@ const GeneralExpensesTab = () => {
         }}
       >
         <div>
-          <div className="text-body-secondary" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
             HR Pool Budget (5% from Projects)
           </div>
           <div className="fw-bold" style={{ color: '#4cc9f0', fontSize: '1rem' }}>
-            {hrPoolMonthly > 0 ? fmtINR(hrPoolMonthly) + ' /mo' : (
-              <span className="text-body-secondary" style={{ fontSize: '0.82rem', fontWeight: 400 }}>
+            {hrPoolMonthly > 0 ? (
+              fmtINR(hrPoolMonthly) + ' /mo'
+            ) : (
+              <span
+                className="text-body-secondary"
+                style={{ fontSize: '0.82rem', fontWeight: 400 }}
+              >
                 No active projects — set via PMS
               </span>
             )}
@@ -1537,7 +1792,10 @@ const GeneralExpensesTab = () => {
         </div>
         <div style={{ color: 'var(--cui-border-color)' }}>+</div>
         <div>
-          <div className="text-body-secondary" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
             HR Revenue (Internship / Training / Hall Rent…)
           </div>
           <div className="fw-bold" style={{ color: '#06d6a0', fontSize: '1rem' }}>
@@ -1553,13 +1811,46 @@ const GeneralExpensesTab = () => {
             </CButton>
           </div>
         </div>
+        <div style={{ color: 'var(--cui-border-color)' }}>+</div>
+        <div>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            Attendance Pool (TPC)
+          </div>
+          <div className="fw-bold" style={{ color: '#4cc9f0', fontSize: '1rem' }}>
+            {fmtINR(attendancePoolTotal)}
+          </div>
+        </div>
+        <div style={{ color: 'var(--cui-border-color)' }}>+</div>
+        <div>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
+            LSGB Revenue
+          </div>
+          <div className="fw-bold" style={{ color: '#9b5de5', fontSize: '1rem' }}>
+            {fmtINR(lsgbRevenueTotal)}
+          </div>
+        </div>
         <div style={{ color: 'var(--cui-border-color)' }}>=</div>
         <div>
-          <div className="text-body-secondary" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div
+            className="text-body-secondary"
+            style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          >
             Total Monthly Budget Cap
           </div>
           <div className="fw-bold" style={{ fontSize: '1.1rem' }}>
-            {totalBudgetCap > 0 ? fmtINR(totalBudgetCap) : <span className="text-body-secondary" style={{ fontWeight: 400 }}>—</span>}
+            {totalBudgetCap > 0 ? (
+              fmtINR(totalBudgetCap)
+            ) : (
+              <span className="text-body-secondary" style={{ fontWeight: 400 }}>
+                —
+              </span>
+            )}
           </div>
         </div>
         <div className="ms-auto text-body-secondary small">
@@ -1584,11 +1875,19 @@ const GeneralExpensesTab = () => {
         {/* Divider */}
         <div
           className="d-flex align-items-center"
-          style={{ color: 'var(--cui-secondary-color)', fontSize: '0.75rem', writingMode: 'vertical-rl' }}
+          style={{
+            color: 'var(--cui-secondary-color)',
+            fontSize: '0.75rem',
+            writingMode: 'vertical-rl',
+          }}
         >
-          <div style={{ width: 1, height: 40, background: 'var(--cui-border-color)', marginBottom: 6 }} />
+          <div
+            style={{ width: 1, height: 40, background: 'var(--cui-border-color)', marginBottom: 6 }}
+          />
           forecast
-          <div style={{ width: 1, height: 40, background: 'var(--cui-border-color)', marginTop: 6 }} />
+          <div
+            style={{ width: 1, height: 40, background: 'var(--cui-border-color)', marginTop: 6 }}
+          />
         </div>
 
         {/* Forecast card */}
@@ -1615,13 +1914,13 @@ const GeneralExpensesTab = () => {
           🔮 How the {monthLabel(forecastMonth)} Forecast Works
         </div>
         <div className="text-body-secondary">
-          <strong>Weighted average</strong> — each expense line is forecasted independently over the
-          {' '}{dataMonths.length} selected month{dataMonths.length !== 1 ? 's' : ''}, weighted 1, 2, 3…
-          up to {dataMonths.length} (most recent month counts more) — <em>when it has data for every
-          selected month</em>. If a line is blank for some months (never entered, not an actual ₹0),
-          it falls back to a plain average of just the months it does have — see "avg of k/n mo" in the
-          detail table below.
-          {' '}Forecast will auto-improve once you have 6+ months of data (Exponential Smoothing) or 12+ months (seasonal detection).
+          <strong>Weighted average</strong> — each expense line is forecasted independently over the{' '}
+          {dataMonths.length} selected month{dataMonths.length !== 1 ? 's' : ''}, weighted 1, 2, 3…
+          up to {dataMonths.length} (most recent month counts more) —{' '}
+          <em>when it has data for every selected month</em>. If a line is blank for some months
+          (never entered, not an actual ₹0), it falls back to a plain average of just the months it
+          does have — see "avg of k/n mo" in the detail table below. Forecast will auto-improve once
+          you have 6+ months of data (Exponential Smoothing) or 12+ months (seasonal detection).
         </div>
         <div className="mt-2 d-flex flex-wrap gap-3">
           {dataMonths.map((m, i) => (

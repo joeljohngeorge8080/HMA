@@ -2,10 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { CCard, CCardBody, CProgress, CRow, CCol } from '@coreui/react'
 import { localAttendance } from '../../../../services/localAttendance'
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-]
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const AttendanceSummaryWidget = () => {
   const [data, setData] = useState(null)
@@ -38,9 +35,7 @@ const AttendanceSummaryWidget = () => {
   return (
     <CCard className="border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
       <CCardBody className="pt-4">
-        <h6 className="fw-semibold mb-1 small text-uppercase text-body-secondary">
-          Attendance
-        </h6>
+        <h6 className="fw-semibold mb-1 small text-uppercase text-body-secondary">Attendance</h6>
         {data ? (
           <>
             <div className="text-body-secondary mb-3" style={{ fontSize: '0.75rem' }}>

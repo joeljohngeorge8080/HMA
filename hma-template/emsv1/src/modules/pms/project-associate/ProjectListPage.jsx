@@ -3,7 +3,7 @@
  * Route: /pms/projects
  */
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CCard,
   CCardBody,
@@ -41,8 +41,12 @@ import {
   cilPeople,
   cilOptions,
   cilFolder,
+  cilTrash,
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
+import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -60,10 +64,25 @@ const STATUS_META = {
 
 const ProjectListPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
   const [total, setTotal] = useState(0)
-  const [filters, setFilters] = useState({ search: '', status: '', phase: '' })
+  const [filters, setFilters] = useState({
+    search: '',
+    status: searchParams.get('status') || '',
+    phase: '',
+  })
   const [toast, setToast] = useState(null)
+  const [deleteModal, setDeleteModal] = useState({ visible: false, project: null })
+
+  const role = useRole()
+  const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
+
+  // Sync filter when URL ?status= changes (e.g. clicking sidebar lifecycle items)
+  useEffect(() => {
+    const s = searchParams.get('status') || ''
+    setFilters((prev) => ({ ...prev, status: s }))
+  }, [searchParams])
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
@@ -83,6 +102,14 @@ const ProjectListPage = () => {
   }
 
   const clearFilters = () => setFilters({ search: '', status: '', phase: '' })
+
+  const handleDeleteConfirm = () => {
+    const proj = deleteModal.project
+    localProjects.remove(proj.id)
+    setDeleteModal({ visible: false, project: null })
+    setToast({ color: 'success', message: `"${proj.name}" was deleted.` })
+    load()
+  }
 
   return (
     <>
@@ -213,16 +240,6 @@ const ProjectListPage = () => {
                     <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
                       {p.location} · {p.funding_agency}
                     </div>
-                    {p.pending_approvals > 0 && (
-                      <CBadge
-                        color="warning"
-                        shape="rounded-pill"
-                        className="mt-1"
-                        style={{ fontSize: '0.65rem' }}
-                      >
-                        {p.pending_approvals} pending approval
-                      </CBadge>
-                    )}
                   </CTableDataCell>
                   <CTableDataCell className="py-3">
                     <span
@@ -329,6 +346,18 @@ const ProjectListPage = () => {
                           <CIcon icon={cilPeople} className="me-2" />
                           Assign Officer
                         </CDropdownItem>
+                        {canDelete && (
+                          <CDropdownItem
+                            className="text-danger"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteModal({ visible: true, project: p })
+                            }}
+                          >
+                            <CIcon icon={cilTrash} className="me-2" />
+                            Delete Project
+                          </CDropdownItem>
+                        )}
                       </CDropdownMenu>
                     </CDropdown>
                   </CTableDataCell>
@@ -376,6 +405,13 @@ const ProjectListPage = () => {
           </CToast>
         )}
       </CToaster>
+
+      <DeleteProjectConfirmModal
+        visible={deleteModal.visible}
+        project={deleteModal.project}
+        onClose={() => setDeleteModal({ visible: false, project: null })}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   )
 }

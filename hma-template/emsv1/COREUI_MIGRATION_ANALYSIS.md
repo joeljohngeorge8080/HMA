@@ -1,4 +1,4 @@
-# HMA EMS - CoreUI Migration Analysis & Action Plan
+np# HMA EMS - CoreUI Migration Analysis & Action Plan
 
 **Date:** June 11, 2026  
 **Status:** Final Analysis for Implementation  
