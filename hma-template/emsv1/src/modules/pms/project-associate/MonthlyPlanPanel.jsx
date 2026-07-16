@@ -1434,7 +1434,10 @@ const monthBounds = (month) => {
  * pool+month is what unlocks HR to log actual expenses against it in EMS,
  * capped at the sent amount; a pool+month that's never sent simply never
  * becomes available there — that IS the PO's restriction, no separate
- * block action needed.
+ * block action needed. For projects on the new Budget Plan, HR and Core
+ * additionally can't be sent until the PO approves that month in the
+ * Budget Plan's actual phase (localBudgetPlan.approveMonth) — Admin is
+ * never gated by this.
  */
 const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser = 'Unknown' }) => {
   // New-model projects never populate project.monthly_plan (it's the old
@@ -1466,14 +1469,21 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
     return Math.round((flat + monthNet) * 100) / 100
   }
 
+  const budgetMonthEntry = budgetPlan?.months.find((m) => m.month === month)
+
   const transferredSubtasks =
-    budgetPlan?.months
-      .find((m) => m.month === month)
-      ?.tasks.flatMap((t) =>
-        t.subtasks
-          .filter((s) => s.actual_status === 'transferred')
-          .map((s) => ({ ...s, taskName: t.name })),
-      ) || []
+    budgetMonthEntry?.tasks.flatMap((t) =>
+      t.subtasks
+        .filter((s) => s.actual_status === 'transferred')
+        .map((s) => ({ ...s, taskName: t.name })),
+    ) || []
+
+  // HR/Core can only be sent once the PO has approved that month in the
+  // Budget Plan's actual phase — Admin is never gated by this. Legacy
+  // projects with no budgetPlan predate the approval concept entirely, so
+  // they're never blocked by it.
+  const monthApproved = budgetMonthEntry?.approved || false
+  const requiresApproval = (pool) => pool !== 'admin' && Boolean(budgetPlan)
 
   if (!months.length) {
     return (
@@ -1514,6 +1524,12 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
 
   const handleSend = (pool) => {
     setSendError('')
+    if (requiresApproval(pool) && !monthApproved) {
+      setSendError(
+        `${POOL_SEND_LABELS[pool]} for ${monthLabel(month)} can't be sent until the PO approves this month in the Budget Plan's actual phase.`,
+      )
+      return
+    }
     const amount = poolMonthAmount(pool, month)
     if (amount <= 0) {
       setSendError(
@@ -1554,7 +1570,9 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
             Pick a month to see everything relevant to running it — tasks, milestones, assignees,
             and the Admin/HR/Core split. Sending a pool+month unlocks HR to log actual expenses
             against it in EMS, capped at the sent amount. A pool+month that&apos;s never sent stays
-            unavailable there — simply don&apos;t send it to restrict that month.
+            unavailable there — simply don&apos;t send it to restrict that month. HR and Core also
+            need the PO to approve that month in the Budget Plan&apos;s actual phase first; Admin
+            does not.
           </div>
 
           <CFormSelect
@@ -1637,6 +1655,7 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
                     const amount = poolMonthAmount(pool, month)
                     const sent = sentFor(pool)
                     const notAllowed = amount <= 0
+                    const blockedByApproval = requiresApproval(pool) && !monthApproved
                     return (
                       <div
                         key={pool}
@@ -1675,6 +1694,14 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
                             style={{ fontSize: '0.62rem' }}
                           >
                             Not allowed to take
+                          </CBadge>
+                        ) : blockedByApproval ? (
+                          <CBadge
+                            color="warning"
+                            shape="rounded-pill"
+                            style={{ fontSize: '0.62rem' }}
+                          >
+                            Awaiting month approval
                           </CBadge>
                         ) : (
                           canEdit && (

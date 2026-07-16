@@ -109,9 +109,7 @@ assert.equal(plan.months[0].tasks.length, 0)
 
 // ── recurring tasks ─────────────────────────────────────────────────
 plan = localBudgetPlan.applyRecurringTasks(PID, {
-  phase: 'monitoring',
-  name: 'Field visit',
-  totalAmount: 100,
+  tasks: [{ phase: 'monitoring', name: 'Field visit', totalAmount: 100 }],
 })
 assert.equal(plan.months[0].tasks.length, 1)
 assert.equal(plan.months[1].tasks.length, 1)
@@ -119,6 +117,35 @@ assert.equal(plan.months[0].tasks[0].recurring, true)
 // 100 split across 2 months: 50/50
 assert.equal(plan.months[0].tasks[0].subtasks[0].planned_amount, 50)
 assert.equal(plan.months[1].tasks[0].subtasks[0].planned_amount, 50)
+
+// batch with subtasks + a flat task in the same Apply
+plan = localBudgetPlan.applyRecurringTasks(PID, {
+  tasks: [
+    {
+      phase: 'implementation',
+      name: 'Training',
+      subtasks: [
+        { name: 'Venue rent', totalAmount: 100 },
+        { name: 'Food', totalAmount: 50 },
+      ],
+    },
+    { phase: 'design', name: 'Printing', totalAmount: 30 },
+  ],
+})
+assert.equal(plan.months[0].tasks.length, 3) // Field visit + Training + Printing
+const training0 = plan.months[0].tasks.find((t) => t.name === 'Training')
+assert.equal(training0.subtasks.length, 2)
+assert.equal(training0.subtasks[0].name, 'Venue rent')
+assert.equal(training0.subtasks[0].planned_amount, 50) // 100 / 2 months
+assert.equal(training0.subtasks[1].planned_amount, 25) // 50 / 2 months
+const printing0 = plan.months[0].tasks.find((t) => t.name === 'Printing')
+assert.equal(printing0.subtasks[0].planned_amount, 15) // 30 / 2 months
+
+assert.throws(() => localBudgetPlan.applyRecurringTasks(PID, { tasks: [] }), /at least one task/)
+assert.throws(
+  () => localBudgetPlan.applyRecurringTasks(PID, { tasks: [{ phase: 'design', name: '' }] }),
+  /needs a name/,
+)
 
 // ── locked once submitted ───────────────────────────────────────────
 plan.status = 'submitted'
@@ -369,5 +396,75 @@ assert.throws(
   () => localBudgetPlan.addSubtask(PID, '2026-08', bigTaskId, { name: 'X', planned_amount: 0 }),
   /locked/,
 )
+
+// ── approveMonth / unapproveMonth ───────────────────────────────────
+plan = localBudgetPlan.approveMonth(PID, '2026-08')
+assert.equal(plan.months[0].approved, true)
+assert.throws(
+  () => localBudgetPlan.resetActualMonth(PID, '2026-08'),
+  /Un-approve/,
+  'an approved month cannot be reset',
+)
+plan = localBudgetPlan.unapproveMonth(PID, '2026-08')
+assert.equal(plan.months[0].approved, false)
+
+// ── resetActualMonth: clears only this month's actual-phase data ──
+const planningTransferCountBefore = plan.transfers.filter((t) => t.phase === 'planning').length
+plan = localBudgetPlan.resetActualMonth(PID, '2026-08')
+assert.equal(
+  plan.months[0].tasks.some((t) => t.added_in_actual),
+  false,
+  'added_in_actual tasks are dropped on reset',
+)
+const resetSubtask = plan.months[0].tasks.find((t) => t.id === bigTaskId).subtasks[0]
+assert.equal(resetSubtask.actual_amount, 0)
+assert.equal(resetSubtask.actual_status, 'pending')
+assert.equal(
+  plan.transfers.some((t) => t.phase === 'actual' && t.origin_month === '2026-08'),
+  false,
+  'actual-phase transfers this month originated are gone',
+)
+assert.equal(
+  plan.transfers.filter((t) => t.phase === 'planning').length,
+  planningTransferCountBefore,
+  'planning-phase transfers are untouched by an actual-phase reset',
+)
+
+// ── reopenPlanning: erases ALL actual-phase data, restores planning ─
+plan = localBudgetPlan.updateActual(PID, '2026-08', bigTaskId, bigSubtaskId, 5000)
+plan = localBudgetPlan.approveMonth(PID, '2026-08')
+const plannedTotalsBefore = plan.months.map((m) =>
+  m.tasks.reduce((s, t) => s + t.subtasks.reduce((ss, st) => ss + st.planned_amount, 0), 0),
+)
+plan = localBudgetPlan.reopenPlanning(PID)
+assert.equal(plan.status, 'planning')
+assert.equal(plan.submitted_at, null)
+assert.ok(
+  plan.months.every((m) => !m.approved),
+  'every month approval is cleared',
+)
+assert.ok(
+  plan.months.every((m) => m.tasks.every((t) => !t.added_in_actual)),
+  'every added_in_actual task is dropped',
+)
+assert.ok(
+  plan.months.every((m) => m.tasks.every((t) => t.subtasks.every((s) => s.actual_amount === 0))),
+  'every actual amount is reset to zero',
+)
+assert.ok(
+  plan.transfers.every((t) => t.phase !== 'actual'),
+  'every actual-phase transfer is removed',
+)
+assert.ok(
+  plan.transfers.some((t) => t.phase === 'planning'),
+  'planning-phase transfers survive',
+)
+const plannedTotalsAfter = plan.months.map((m) =>
+  m.tasks.reduce((s, t) => s + t.subtasks.reduce((ss, st) => ss + st.planned_amount, 0), 0),
+)
+assert.deepEqual(plannedTotalsAfter, plannedTotalsBefore, 'planned amounts are untouched')
+// editing is open again now that we're back in planning
+plan = localBudgetPlan.addTask(PID, '2026-08', { phase: 'design', name: 'Post-reopen edit' })
+assert.ok(plan.months[0].tasks.some((t) => t.name === 'Post-reopen edit'))
 
 console.log('localBudgetPlan.js: ALL PASSED')

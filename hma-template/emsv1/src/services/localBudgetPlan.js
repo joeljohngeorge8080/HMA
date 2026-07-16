@@ -189,32 +189,60 @@ export const localBudgetPlan = {
     return plan
   },
 
-  /** Divides `totalAmount` equally across every month, creating one
-   * recurring task + single subtask per month (spec Section 4.1). */
-  applyRecurringTasks(projectId, { phase, name, totalAmount }) {
+  /**
+   * Applies a batch of recurring tasks at once (spec Section 4.1, extended
+   * to support subtasks). Each task's total — or, if it has explicit
+   * subtasks, each subtask's own total — is divided equally across every
+   * month (paise-exact), creating one recurring task per month with either
+   * a single auto-named subtask (flat mode) or the given subtasks.
+   */
+  applyRecurringTasks(projectId, { tasks }) {
     const all = readAll()
     const plan = requirePlan(all, projectId)
     localBudgetPlan.requirePlanning(plan)
-    const amt = Math.round((parseFloat(totalAmount) || 0) * 100) / 100
-    if (amt <= 0) throw new Error('Total amount must be greater than zero.')
-    if (!name || !name.trim()) throw new Error('A task name is required.')
-    const shares = equalSplit(amt, plan.months.length)
-    plan.months.forEach((monthEntry, i) => {
-      monthEntry.tasks.push({
-        id: uid('task'),
+    if (!tasks || tasks.length === 0) throw new Error('Add at least one task before applying.')
+
+    const monthCount = plan.months.length
+    const prepared = tasks.map(({ phase, name, totalAmount, subtasks }) => {
+      if (!name || !name.trim()) throw new Error('Every task needs a name.')
+      const trimmedName = name.trim()
+      const hasSubtasks = subtasks && subtasks.length > 0
+
+      if (hasSubtasks) {
+        const preparedSubtasks = subtasks.map(({ name: subName, totalAmount: subTotal }) => {
+          if (!subName || !subName.trim()) throw new Error('Every subtask needs a name.')
+          const amt = Math.round((parseFloat(subTotal) || 0) * 100) / 100
+          if (amt <= 0) throw new Error(`"${subName}" needs an amount greater than zero.`)
+          return { name: subName.trim(), shares: equalSplit(amt, monthCount) }
+        })
+        return { phase, name: trimmedName, subtasks: preparedSubtasks }
+      }
+
+      const amt = Math.round((parseFloat(totalAmount) || 0) * 100) / 100
+      if (amt <= 0) throw new Error(`"${trimmedName}" needs an amount greater than zero.`)
+      return {
         phase,
-        name: name.trim(),
-        recurring: true,
-        added_in_actual: false,
-        subtasks: [
-          {
+        name: trimmedName,
+        subtasks: [{ name: trimmedName, shares: equalSplit(amt, monthCount) }],
+      }
+    })
+
+    plan.months.forEach((monthEntry, i) => {
+      prepared.forEach((task) => {
+        monthEntry.tasks.push({
+          id: uid('task'),
+          phase: task.phase,
+          name: task.name,
+          recurring: true,
+          added_in_actual: false,
+          subtasks: task.subtasks.map((sub) => ({
             id: uid('sub'),
-            name: name.trim(),
-            planned_amount: shares[i],
+            name: sub.name,
+            planned_amount: sub.shares[i],
             actual_amount: 0,
             actual_status: 'pending',
-          },
-        ],
+          })),
+        })
       })
     })
     writeAll(all)
@@ -462,6 +490,85 @@ export const localBudgetPlan = {
       added_in_actual: true,
       subtasks: [],
     })
+    writeAll(all)
+    return plan
+  },
+
+  /**
+   * Sends the plan back to the planning phase (the "Back to Planning"
+   * escape hatch). Erases every actual-phase entry — actual amounts, tasks
+   * added during actual entry, actual-phase transfers, and month approvals
+   * — but leaves planned amounts, plan structure, and planning-phase
+   * transfers exactly as they were at submit, since nothing in the actual
+   * phase can touch those (requirePlanning already guards them).
+   */
+  reopenPlanning(projectId) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    plan.months.forEach((monthEntry) => {
+      monthEntry.tasks = monthEntry.tasks.filter((t) => !t.added_in_actual)
+      monthEntry.tasks.forEach((t) => {
+        t.subtasks.forEach((s) => {
+          s.actual_amount = 0
+          s.actual_status = 'pending'
+        })
+      })
+      monthEntry.approved = false
+    })
+    plan.transfers = plan.transfers.filter((t) => t.phase !== 'actual')
+    plan.status = 'planning'
+    plan.submitted_at = null
+    writeAll(all)
+    return plan
+  },
+
+  /** Reset one month's actual-phase entries only (spec-analogous to
+   * resetMonth in planning): drops tasks added in actual, zeroes every
+   * subtask's actual figures, and removes actual-phase transfers this
+   * month originated (transfers other months sent into it are kept). */
+  resetActualMonth(projectId, month) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    if (monthEntry.approved) throw new Error('Un-approve this month before resetting it.')
+    monthEntry.tasks = monthEntry.tasks.filter((t) => !t.added_in_actual)
+    monthEntry.tasks.forEach((t) => {
+      t.subtasks.forEach((s) => {
+        s.actual_amount = 0
+        s.actual_status = 'pending'
+      })
+    })
+    plan.transfers = plan.transfers.filter(
+      (t) => !(t.phase === 'actual' && t.origin_month === month),
+    )
+    writeAll(all)
+    return plan
+  },
+
+  /** Approving a month freezes its actual entries — amounts, added tasks,
+   * transfers, and this month's own Reset all become unavailable until
+   * it's un-approved. */
+  approveMonth(projectId, month) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    monthEntry.approved = true
+    writeAll(all)
+    return plan
+  },
+
+  unapproveMonth(projectId, month) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    monthEntry.approved = false
     writeAll(all)
     return plan
   },

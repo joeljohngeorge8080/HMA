@@ -4,17 +4,15 @@ import {
   CButton,
   CCard,
   CCardBody,
-  CFormInput,
-  CInputGroup,
-  CInputGroupText,
   CModal,
   CModalHeader,
   CModalTitle,
   CModalBody,
   CModalFooter,
 } from '@coreui/react'
-import { computeWorkingPool, poolBalance } from '../../../../services/budgetPlan'
+import { computeWorkingPool, poolBalance, monthBaselines } from '../../../../services/budgetPlan'
 import { localBudgetPlan } from '../../../../services/localBudgetPlan'
+import BaselineSplitStrip from './BaselineSplitStrip'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -23,36 +21,18 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n || 0)
 
-const PlanHeader = ({
-  project,
-  plan,
-  canEdit,
-  onPlanChange,
-  onFullDelete,
-  currentUser,
-  focusedMonth,
-}) => {
-  const [confirmModal, setConfirmModal] = useState(null) // 'reset' | 'delete' | null
+const PlanHeader = ({ project, plan, canEdit, onPlanChange, onFullDelete, currentUser }) => {
+  const [confirmModal, setConfirmModal] = useState(null) // 'reset' | 'delete' | 'reopen' | null
   const workingPool = computeWorkingPool(plan.project_value, plan.pool_pct)
   const hrBalance = poolBalance(plan.project_value, plan.pool_pct, 'hr', plan.transfers)
   const coreBalance = poolBalance(plan.project_value, plan.pool_pct, 'core', plan.transfers)
   const adminBalance = poolBalance(plan.project_value, plan.pool_pct, 'admin', plan.transfers)
   const projectPct = 100 - plan.pool_pct.admin - plan.pool_pct.hr - plan.pool_pct.core
+  const months = plan.months.map((m) => m.month)
+  const baselines = monthBaselines(workingPool, months)
 
   const handleSave = () => onPlanChange(localBudgetPlan.save(project.id))
   const handleResetCalculation = () => onPlanChange(localBudgetPlan.getPlan(project.id))
-  const handlePoolInput = (pool, value) => {
-    const target = focusedMonth || plan.months[0]?.month
-    if (!target) return
-    onPlanChange(
-      localBudgetPlan.setPoolCapAdjustment(project.id, {
-        pool,
-        targetMonth: target,
-        newAmount: parseFloat(value) || 0,
-        createdBy: currentUser,
-      }),
-    )
-  }
 
   return (
     <CCard className="mb-3">
@@ -76,37 +56,19 @@ const PlanHeader = ({
             <div className="small text-body-secondary">Admin ({plan.pool_pct.admin}%)</div>
             <div className="fw-bold">{fmt(adminBalance)}</div>
           </div>
-          <div style={{ minWidth: 180 }}>
+          <div style={{ minWidth: 160 }}>
             <div className="small text-body-secondary">HR (max {plan.pool_pct.hr}%)</div>
-            {canEdit && plan.status === 'planning' ? (
-              <CInputGroup size="sm">
-                <CInputGroupText>₹</CInputGroupText>
-                <CFormInput
-                  type="number"
-                  value={hrBalance}
-                  onChange={(e) => handlePoolInput('hr', e.target.value)}
-                />
-              </CInputGroup>
-            ) : (
-              <div className="fw-bold">{fmt(hrBalance)}</div>
-            )}
+            <div className="fw-bold">{fmt(hrBalance)}</div>
           </div>
-          <div style={{ minWidth: 180 }}>
+          <div style={{ minWidth: 160 }}>
             <div className="small text-body-secondary">Core (max {plan.pool_pct.core}%)</div>
-            {canEdit && plan.status === 'planning' ? (
-              <CInputGroup size="sm">
-                <CInputGroupText>₹</CInputGroupText>
-                <CFormInput
-                  type="number"
-                  value={coreBalance}
-                  onChange={(e) => handlePoolInput('core', e.target.value)}
-                />
-              </CInputGroup>
-            ) : (
-              <div className="fw-bold">{fmt(coreBalance)}</div>
-            )}
+            <div className="fw-bold">{fmt(coreBalance)}</div>
           </div>
         </div>
+
+        {plan.status === 'planning' && (
+          <BaselineSplitStrip months={months} amounts={baselines} workingPool={workingPool} />
+        )}
 
         {canEdit && plan.status === 'planning' && (
           <div className="d-flex flex-wrap gap-2">
@@ -134,6 +96,17 @@ const PlanHeader = ({
             </CButton>
           </div>
         )}
+
+        {canEdit && plan.status === 'submitted' && (
+          <CButton
+            size="sm"
+            color="danger"
+            variant="outline"
+            onClick={() => setConfirmModal('reopen')}
+          >
+            Back to Planning
+          </CButton>
+        )}
       </CCardBody>
 
       <CModal
@@ -146,9 +119,12 @@ const PlanHeader = ({
           <CModalTitle>Confirm</CModalTitle>
         </CModalHeader>
         <CModalBody className="small">
-          {confirmModal === 'reset'
-            ? 'This restores every month and transfer back to the last Save (or the empty state if you never saved). Continue?'
-            : 'This permanently deletes the entire budget plan. Continue?'}
+          {confirmModal === 'reset' &&
+            'This restores every month and transfer back to the last Save (or the empty state if you never saved). Continue?'}
+          {confirmModal === 'delete' &&
+            'This permanently deletes the entire budget plan. Continue?'}
+          {confirmModal === 'reopen' &&
+            'Going back to planning ERASES every actual entry — actual amounts, any tasks added during actual entry, actual-phase transfers, and month approvals. Planned amounts and the plan itself stay exactly as they were at submit. Continue?'}
         </CModalBody>
         <CModalFooter>
           <CButton
@@ -164,6 +140,8 @@ const PlanHeader = ({
             size="sm"
             onClick={() => {
               if (confirmModal === 'reset') onPlanChange(localBudgetPlan.reset(project.id))
+              else if (confirmModal === 'reopen')
+                onPlanChange(localBudgetPlan.reopenPlanning(project.id))
               else onFullDelete()
               setConfirmModal(null)
             }}
@@ -183,7 +161,6 @@ PlanHeader.propTypes = {
   onPlanChange: PropTypes.func.isRequired,
   onFullDelete: PropTypes.func.isRequired,
   currentUser: PropTypes.string,
-  focusedMonth: PropTypes.string,
 }
 
 export default PlanHeader

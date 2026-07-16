@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import { CAlert, CButton, CCard, CCardBody, CCardHeader } from '@coreui/react'
 import { localBudgetPlan } from '../../../services/localBudgetPlan'
-import { monthsInRange } from '../../../services/budgetPlan'
+import { monthsInRange, computeWorkingPool, monthBaselines } from '../../../services/budgetPlan'
 import PlanHeader from './budget-plan/PlanHeader'
 import RecurringTasksEntry from './budget-plan/RecurringTasksEntry'
 import PlanningMonthCard from './budget-plan/PlanningMonthCard'
 import ActualMonthCard from './budget-plan/ActualMonthCard'
+import BaselineSplitStrip from './budget-plan/BaselineSplitStrip'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -17,11 +18,18 @@ const fmt = (n) =>
 
 const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) => {
   const [plan, setPlan] = useState(() => localBudgetPlan.getPlan(project.id))
-  const [focusedMonth, setFocusedMonth] = useState(null)
   const [submitError, setSubmitError] = useState('')
   const [initError, setInitError] = useState('')
 
   const months = monthsInRange(project.start_date, project.end_date)
+  const previewPoolPct = {
+    admin: project.admin_pct ?? 5,
+    hr: project.hr_pct ?? 5,
+    core: project.core_pct ?? 5,
+  }
+  const previewProjectValue = project.project_value || project.project_valuation || 0
+  const previewWorkingPool = computeWorkingPool(previewProjectValue, previewPoolPct)
+  const previewBaselines = monthBaselines(previewWorkingPool, months)
 
   const handleInitialize = () => {
     setInitError('')
@@ -70,6 +78,46 @@ const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) 
       <CCard className="shadow-sm mb-4">
         <CCardHeader className="fw-semibold">Budget Plan</CCardHeader>
         <CCardBody>
+          {months.length > 0 && (
+            <>
+              <div className="d-flex flex-wrap gap-3 mb-2">
+                <div>
+                  <div className="small text-body-secondary">Total Project Value</div>
+                  <div className="fw-bold">{fmt(previewProjectValue)}</div>
+                </div>
+                <div>
+                  <div className="small text-body-secondary">
+                    Project ({100 - previewPoolPct.admin - previewPoolPct.hr - previewPoolPct.core}
+                    %)
+                  </div>
+                  <div className="fw-bold">{fmt(previewWorkingPool)}</div>
+                </div>
+                <div>
+                  <div className="small text-body-secondary">Admin ({previewPoolPct.admin}%)</div>
+                  <div className="fw-bold">
+                    {fmt((previewProjectValue * previewPoolPct.admin) / 100)}
+                  </div>
+                </div>
+                <div>
+                  <div className="small text-body-secondary">HR ({previewPoolPct.hr}%)</div>
+                  <div className="fw-bold">
+                    {fmt((previewProjectValue * previewPoolPct.hr) / 100)}
+                  </div>
+                </div>
+                <div>
+                  <div className="small text-body-secondary">Core ({previewPoolPct.core}%)</div>
+                  <div className="fw-bold">
+                    {fmt((previewProjectValue * previewPoolPct.core) / 100)}
+                  </div>
+                </div>
+              </div>
+              <BaselineSplitStrip
+                months={months}
+                amounts={previewBaselines}
+                workingPool={previewWorkingPool}
+              />
+            </>
+          )}
           {canEdit ? (
             <>
               <CAlert color="info" className="small">
@@ -101,7 +149,6 @@ const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) 
           onPlanChange={setPlan}
           onFullDelete={handleFullDelete}
           currentUser={currentUser}
-          focusedMonth={focusedMonth}
         />
         <RecurringTasksEntry
           project={project}
@@ -119,7 +166,6 @@ const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) 
             canEdit={canEdit}
             onPlanChange={setPlan}
             currentUser={currentUser}
-            onFocus={() => setFocusedMonth(m.month)}
           />
         ))}
         {canEdit && (

@@ -32,6 +32,20 @@ const PHASE_OPTIONS = [
 
 const ACCENTS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2']
 
+const POOL_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
+
+/** This month's own net contribution to `pool` — money that moved specifically
+ * between THIS month and this pool, never other months' activity. Positive
+ * when the month gave the pool extra (increases the pool's take this month),
+ * negative when the month pulled money back from the pool (returns it to
+ * the project's own budget for this month). */
+const poolNetForMonth = (transfers, pool, month) =>
+  (transfers || []).reduce((s, t) => {
+    if (t.from === `month:${month}` && t.to === pool) return s + t.amount
+    if (t.to === `month:${month}` && t.from === pool) return s - t.amount
+    return s
+  }, 0)
+
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -57,15 +71,16 @@ const PlanningMonthCard = ({
   canEdit,
   onPlanChange,
   currentUser,
-  onFocus,
 }) => {
   const [resetConfirm, setResetConfirm] = useState(false)
   const [error, setError] = useState('')
+  const [poolInputDraft, setPoolInputDraft] = useState({})
   const [newTask, setNewTask] = useState(emptyNewTask)
   const [newSubtaskByTask, setNewSubtaskByTask] = useState({})
   const accent = ACCENTS[colorIndex % ACCENTS.length]
 
   const monthEntry = plan.months.find((m) => m.month === month)
+  const monthCount = plan.months.length
   const baselines = monthBaselines(
     computeWorkingPool(plan.project_value, plan.pool_pct),
     plan.months.map((m) => m.month),
@@ -133,13 +148,33 @@ const PlanningMonthCard = ({
       }),
     )
 
+  /** This month's own baseline share of `pool` — a static rate that never
+   * shifts because of what any OTHER month does, so a pool block only ever
+   * changes when THIS month's own transfers change. */
+  const poolMonthBaseline = (pool) =>
+    monthCount > 0 ? (plan.project_value * (plan.pool_pct[pool] || 0)) / 100 / monthCount : 0
+
+  const handlePoolBlockChange = (pool, value) => {
+    const current = poolMonthBaseline(pool) + poolNetForMonth(plan.transfers, pool, month)
+    const delta = Math.round(((parseFloat(value) || 0) - current) * 100) / 100
+    if (Math.abs(delta) < 0.005) return
+    run(() =>
+      localBudgetPlan.moveBalance(project.id, {
+        originMonth: month,
+        // Raising the block sends the extra from this month's own budget
+        // TO the pool; lowering it takes that much back FROM the pool
+        // into this month's budget — same convention as Send/Take below.
+        direction: delta > 0 ? 'send' : 'take',
+        targets: [pool],
+        amount: Math.abs(delta),
+        phase: 'planning',
+        createdBy: currentUser,
+      }),
+    )
+  }
+
   return (
-    <CCard
-      className="mb-3"
-      style={{ borderLeft: `4px solid ${accent}` }}
-      onFocus={onFocus}
-      onClick={onFocus}
-    >
+    <CCard className="mb-3" style={{ borderLeft: `4px solid ${accent}` }}>
       <CCardHeader
         style={{ background: `${accent}14` }}
         className="d-flex justify-content-between align-items-center"
@@ -160,6 +195,56 @@ const PlanningMonthCard = ({
         <div className="small text-body-secondary mb-2">
           Allocated: <strong>{fmt(allocated)}</strong> &nbsp;·&nbsp; Planned:{' '}
           <strong>{fmt(planned)}</strong>
+        </div>
+
+        <div className="d-flex gap-2 flex-wrap mb-3">
+          {['admin', 'hr', 'core'].map((pool) => {
+            const net = poolNetForMonth(plan.transfers, pool, month)
+            const amount = poolMonthBaseline(pool) + net
+            return (
+              <div key={pool} className="border rounded p-2 flex-grow-1" style={{ minWidth: 140 }}>
+                <div className="small text-body-secondary d-flex justify-content-between">
+                  <span>
+                    {POOL_LABELS[pool]} ({pool === 'admin' ? '' : 'max '}
+                    {plan.pool_pct[pool]}%)
+                  </span>
+                  {Math.abs(net) > 0.005 && (
+                    <span className="badge text-bg-warning" style={{ fontSize: '0.62rem' }}>
+                      adjusted
+                    </span>
+                  )}
+                </div>
+                {pool === 'admin' || !canEdit ? (
+                  <div className="fw-semibold">{fmt(amount)}</div>
+                ) : (
+                  <CFormInput
+                    size="sm"
+                    type="number"
+                    value={poolInputDraft[pool] ?? amount}
+                    onChange={(e) =>
+                      setPoolInputDraft((prev) => ({ ...prev, [pool]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return
+                      handlePoolBlockChange(pool, e.target.value)
+                      setPoolInputDraft((prev) => {
+                        const next = { ...prev }
+                        delete next[pool]
+                        return next
+                      })
+                    }}
+                    onBlur={() =>
+                      setPoolInputDraft((prev) => {
+                        const next = { ...prev }
+                        delete next[pool]
+                        return next
+                      })
+                    }
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {monthEntry.tasks.map((task) => (
@@ -385,7 +470,6 @@ PlanningMonthCard.propTypes = {
   canEdit: PropTypes.bool,
   onPlanChange: PropTypes.func.isRequired,
   currentUser: PropTypes.string,
-  onFocus: PropTypes.func,
 }
 
 export default PlanningMonthCard
