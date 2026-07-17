@@ -309,7 +309,7 @@ export const localEmployees = {
   },
 
   // ── updateSalaryDirect ────────────────────────────────────────────────────────
-  updateSalaryDirect(id, { new_salary, effective_date, remarks, new_designation }) {
+  updateSalaryDirect(id, { new_salary, effective_date, remarks, new_designation, ctc_breakdown }) {
     const rows = readAll()
     const idx = rows.findIndex((e) => e.id === id)
     if (idx === -1) throw new Error('Employee not found')
@@ -339,6 +339,7 @@ export const localEmployees = {
           effective_date,
           remarks: remarks || '',
           ...(new_designation ? { designation_changed_to: new_designation } : {}),
+          ...(ctc_breakdown ? { ctc_breakdown } : {}),
           created_at: ts,
         },
       ],

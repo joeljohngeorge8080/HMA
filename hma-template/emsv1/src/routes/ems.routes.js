@@ -18,6 +18,7 @@ const MyProfilePage = React.lazy(() => import('../modules/ems/staff-payroll/MyPr
 const EmployeeList = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeList'))
 const EmployeeProfile = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeProfile'))
 const EmployeeForm = React.lazy(() => import('../modules/ems/staff-payroll/EmployeeForm'))
+const SalaryInvoicePage = React.lazy(() => import('../modules/ems/staff-payroll/SalaryInvoicePage'))
 const AttendanceDashboard = React.lazy(
   () => import('../modules/ems/attendance/AttendanceDashboard'),
 )
@@ -51,6 +52,8 @@ const ExpenseAnalysis = React.lazy(
   () => import('../modules/ems/general-expenses/components/ExpenseAnalysis'),
 )
 const GstBillsPage = React.lazy(() => import('../modules/ems/finance/GstBillsPage'))
+const Gst2bComparisonPage = React.lazy(() => import('../modules/ems/finance/Gst2bComparisonPage'))
+const HrGstUploadPage = React.lazy(() => import('../modules/ems/finance/HrGstUploadPage'))
 
 const ExpenseManagementPage = React.lazy(
   () => import('../modules/ems/expense-management/ExpenseManagementPage'),
@@ -97,6 +100,12 @@ export const emsRoutes = [
     path: '/ems/staff-payroll/:id/edit',
     name: 'Edit Employee',
     element: EmployeeForm,
+    module: MODULE.STAFF_PAYROLL,
+  },
+  {
+    path: '/ems/staff-payroll/salary-invoice',
+    name: 'Salary Invoice',
+    element: SalaryInvoicePage,
     module: MODULE.STAFF_PAYROLL,
   },
   {
@@ -215,6 +224,18 @@ export const emsRoutes = [
     name: 'GST Bills',
     element: GstBillsPage,
     module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/finance/gst-2b-comparison',
+    name: 'GST 2B Comparison',
+    element: Gst2bComparisonPage,
+    module: MODULE.FINANCE,
+  },
+  {
+    path: '/ems/hr-admin/upload-gst-bill',
+    name: 'Upload GST Bill',
+    element: HrGstUploadPage,
+    module: MODULE.GST_UPLOAD,
   },
 
   {

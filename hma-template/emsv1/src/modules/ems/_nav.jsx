@@ -16,6 +16,7 @@ import {
   cilNotes,
   cilOptions,
   cilCalculator,
+  cilCloudUpload,
 } from '@coreui/icons'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
@@ -47,10 +48,22 @@ const emsNav = [
     roles: STAFF_ROLES,
     items: [
       {
-        component: CNavItem,
+        component: CNavGroup,
         name: 'Staff & Payroll',
-        to: '/ems/staff-payroll',
         icon: <CIcon icon={cilUser} customClassName="nav-icon" />,
+        items: [
+          {
+            component: CNavItem,
+            name: 'Staff List',
+            to: '/ems/staff-payroll',
+          },
+          {
+            component: CNavItem,
+            name: 'Salary Invoice',
+            to: '/ems/staff-payroll/salary-invoice',
+            icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+          },
+        ],
       },
       {
         component: CNavGroup,
@@ -81,6 +94,12 @@ const emsNav = [
         name: 'Global Core Pool',
         to: '/ems/core-pool/global',
         icon: <CIcon icon={cilMoney} customClassName="nav-icon" />,
+      },
+      {
+        component: CNavItem,
+        name: 'Upload GST Bill',
+        to: '/ems/hr-admin/upload-gst-bill',
+        icon: <CIcon icon={cilCloudUpload} customClassName="nav-icon" />,
       },
     ],
   },
@@ -113,7 +132,10 @@ const emsNav = [
     name: 'Finance',
     icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
     roles: STAFF_ROLES,
-    items: [{ component: CNavItem, name: 'GST Bills', to: '/ems/finance/gst-bills' }],
+    items: [
+      { component: CNavItem, name: 'GST Bills', to: '/ems/finance/gst-bills' },
+      { component: CNavItem, name: 'GST 2B Comparison', to: '/ems/finance/gst-2b-comparison' },
+    ],
   },
 
   // ── User Management (Admin + HR) ───────────────────────────────────

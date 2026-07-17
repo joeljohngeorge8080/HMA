@@ -31,6 +31,7 @@ import * as XLSX from 'xlsx-js-style'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
 import { localTasks } from '../../../services/localTasks'
+import { localBudgetPlan } from '../../../services/localBudgetPlan'
 import {
   computeWorkingPool,
   monthsInRange,
@@ -808,289 +809,293 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
 
   return (
     <>
-    <CCard className="shadow-sm mb-4">
-      <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span>📊 Monthly Plan</span>
-        <div className="d-flex align-items-center gap-2">
-          <CButton
-            size="sm"
-            color="secondary"
-            variant="ghost"
-            title="Refresh figures"
-            onClick={handleRefresh}
-          >
-            <CIcon icon={cilReload} size="sm" />
-          </CButton>
-          {project.monthly_plan?.length > 0 && (
-            <CBadge color={validation.valid ? 'success' : 'danger'}>
-              {validation.valid
-                ? `Balanced — ${fmt(validation.planTotal)}`
-                : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
-            </CBadge>
-          )}
-          {project.monthly_plan?.length > 0 && (
-            <CButton size="sm" color="success" className="text-white" onClick={handleExportExcel}>
-              📥 Export Excel
+      <CCard className="shadow-sm mb-4">
+        <CCardHeader className="bg-transparent fw-semibold pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span>📊 Monthly Plan</span>
+          <div className="d-flex align-items-center gap-2">
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="ghost"
+              title="Refresh figures"
+              onClick={handleRefresh}
+            >
+              <CIcon icon={cilReload} size="sm" />
             </CButton>
-          )}
-          {project.monthly_plan?.length > 0 && (
-            <CButton size="sm" color="primary" onClick={handleSave}>
-              💾 Save Monthly Plan
-            </CButton>
-          )}
-        </div>
-      </CCardHeader>
-      {saved && (
-        <CAlert color="success" className="mb-0 py-2 small rounded-0 text-center">
-          ✓ Monthly plan saved
-        </CAlert>
-      )}
-      {reallocError && (
-        <CAlert color="danger" className="mb-0 py-2 small rounded-0 text-center">
-          {reallocError}
-        </CAlert>
-      )}
-      <CCardBody className="p-0">
-        {/* ── Baseline split strip ────────────────────────────────────────── */}
-        {monthCount > 0 && (
-          <div style={{ padding: '12px 16px 4px' }}>
-            <div className="small text-body-secondary mb-2">
-              Project baseline: <strong>{fmt(workingPool)}</strong> across{' '}
-              <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} —{' '}
-              <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly
-            </div>
-            <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />
-          </div>
-        )}
-
-        {/* ── Empty state ─────────────────────────────────────────────────── */}
-        {!project.monthly_plan?.length && (
-          <div style={{ padding: '0 16px 16px' }}>
-            {canEdit ? (
-              <>
-                <CAlert color="info" className="small mb-3">
-                  No monthly plan yet. Click below to create empty entries for all {monthCount}{' '}
-                  month{monthCount !== 1 ? 's' : ''}.
-                </CAlert>
-                <CButton color="primary" onClick={handleInitialize}>
-                  ⚡ Initialize Monthly Plan
-                </CButton>
-              </>
-            ) : (
-              <CAlert color="info" className="small mb-0">
-                No monthly plan has been created yet.
-              </CAlert>
+            {project.monthly_plan?.length > 0 && (
+              <CBadge color={validation.valid ? 'success' : 'danger'}>
+                {validation.valid
+                  ? `Balanced — ${fmt(validation.planTotal)}`
+                  : `Off by ${fmt(Math.abs(validation.diff))} (plan ${fmt(validation.planTotal)} vs baseline ${fmt(validation.workingPool)})`}
+              </CBadge>
+            )}
+            {project.monthly_plan?.length > 0 && (
+              <CButton size="sm" color="success" className="text-white" onClick={handleExportExcel}>
+                📥 Export Excel
+              </CButton>
+            )}
+            {project.monthly_plan?.length > 0 && (
+              <CButton size="sm" color="primary" onClick={handleSave}>
+                💾 Save Monthly Plan
+              </CButton>
             )}
           </div>
+        </CCardHeader>
+        {saved && (
+          <CAlert color="success" className="mb-0 py-2 small rounded-0 text-center">
+            ✓ Monthly plan saved
+          </CAlert>
         )}
-
-        {/* ── Recurring Tasks ─────────────────────────────────────────────── */}
-        {project.monthly_plan?.length > 0 && (
-          <div style={{ padding: '16px 16px 0' }}>
-            <RecurringTasksSection
-              project={project}
-              onProjectChange={onProjectChange}
-              canEdit={canEdit}
-              monthCount={monthCount}
-              months={months}
-            />
-          </div>
+        {reallocError && (
+          <CAlert color="danger" className="mb-0 py-2 small rounded-0 text-center">
+            {reallocError}
+          </CAlert>
         )}
+        <CCardBody className="p-0">
+          {/* ── Baseline split strip ────────────────────────────────────────── */}
+          {monthCount > 0 && (
+            <div style={{ padding: '12px 16px 4px' }}>
+              <div className="small text-body-secondary mb-2">
+                Project baseline: <strong>{fmt(workingPool)}</strong> across{' '}
+                <strong>{monthCount}</strong> month{monthCount !== 1 ? 's' : ''} —{' '}
+                <strong>{fmt(baselinePerMonth)}</strong>/month if split evenly
+              </div>
+              <BaselineTable months={months} baselinePerMonth={baselinePerMonth} />
+            </div>
+          )}
 
-        {/* ── Per-month editable table ─────────────────────────────────────── */}
-        {project.monthly_plan?.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-            <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
-              <CTableHead color="light">
-                <CTableRow>
-                  <CTableHeaderCell>Month</CTableHeaderCell>
-                  <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>
-                    Project Total
-                  </CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
-                    Admin
-                  </CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
-                    HR
-                  </CTableHeaderCell>
-                  <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
-                    Core
-                  </CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {project.monthly_plan.map((m, idx) => {
-                  const adjustedFor = (pool) =>
-                    (project.pool_adjustments || []).some(
-                      (a) => a.pool === pool && a.month === m.month,
-                    )
-                  const projectReallocation = sumManualPoolAdjustments(
-                    project.pool_adjustments,
-                    m.month,
-                  )
-                  const projectTransfers = (project.pool_adjustments || []).filter(
-                    (a) => a.pool === 'project' && a.month === m.month,
-                  )
-                  const netProjectTransfer = projectTransfers.reduce(
-                    (s, a) => s + (a.amount || 0),
-                    0,
-                  )
-                  const monthActual = computeMonthActualTotal(m)
-                  const monthPlanned = computeEffectiveProjectMonthly(project, m.month)
-                  const surplus = Math.round((monthPlanned - monthActual) * 100) / 100
-                  const hasNextMonth = idx < project.monthly_plan.length - 1
+          {/* ── Empty state ─────────────────────────────────────────────────── */}
+          {!project.monthly_plan?.length && (
+            <div style={{ padding: '0 16px 16px' }}>
+              {canEdit ? (
+                <>
+                  <CAlert color="info" className="small mb-3">
+                    No monthly plan yet. Click below to create empty entries for all {monthCount}{' '}
+                    month{monthCount !== 1 ? 's' : ''}.
+                  </CAlert>
+                  <CButton color="primary" onClick={handleInitialize}>
+                    ⚡ Initialize Monthly Plan
+                  </CButton>
+                </>
+              ) : (
+                <CAlert color="info" className="small mb-0">
+                  No monthly plan has been created yet.
+                </CAlert>
+              )}
+            </div>
+          )}
 
-                  // Only allow revoking the LAST "Send → Next Month" in a chain.
-                  // Both sender (negative) and receiver (positive) months get entries with
-                  // source='actual_surplus_next_month'. Only negative amounts are outgoing
-                  // (i.e. this month sent surplus away). Filter to those only.
-                  const myNextMonthTransfers = projectTransfers.filter(
-                    (a) => a.source === 'actual_surplus_next_month' && (a.amount || 0) < 0,
-                  )
-                  const isChainContinued =
-                    myNextMonthTransfers.length > 0 &&
-                    (() => {
-                      const counterMonth =
-                        myNextMonthTransfers[myNextMonthTransfers.length - 1]?.counterMonth
-                      if (!counterMonth) return false
-                      // Check if the receiver month also sent surplus onward (amount < 0 = outgoing)
-                      return (project.pool_adjustments || []).some(
-                        (a) =>
-                          a.pool === 'project' &&
-                          a.month === counterMonth &&
-                          a.source === 'actual_surplus_next_month' &&
-                          (a.amount || 0) < 0,
+          {/* ── Recurring Tasks ─────────────────────────────────────────────── */}
+          {project.monthly_plan?.length > 0 && (
+            <div style={{ padding: '16px 16px 0' }}>
+              <RecurringTasksSection
+                project={project}
+                onProjectChange={onProjectChange}
+                canEdit={canEdit}
+                monthCount={monthCount}
+                months={months}
+              />
+            </div>
+          )}
+
+          {/* ── Per-month editable table ─────────────────────────────────────── */}
+          {project.monthly_plan?.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <CTable hover align="middle" className="mb-0" style={{ fontSize: '0.82rem' }}>
+                <CTableHead color="light">
+                  <CTableRow>
+                    <CTableHeaderCell>Month</CTableHeaderCell>
+                    <CTableHeaderCell>Phase Breakdown (Project)</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end" style={{ minWidth: 220 }}>
+                      Project Total
+                    </CTableHeaderCell>
+                    <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                      Admin
+                    </CTableHeaderCell>
+                    <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                      HR
+                    </CTableHeaderCell>
+                    <CTableHeaderCell className="text-end" style={{ minWidth: 140 }}>
+                      Core
+                    </CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {project.monthly_plan.map((m, idx) => {
+                    const adjustedFor = (pool) =>
+                      (project.pool_adjustments || []).some(
+                        (a) => a.pool === pool && a.month === m.month,
                       )
-                    })()
-                  const canRevokeNextMonthTransfer =
-                    myNextMonthTransfers.length > 0 && !isChainContinued
-                  return (
-                    <CTableRow key={m.month}>
-                      <CTableDataCell className="fw-semibold">{monthLabel(m.month)}</CTableDataCell>
-                      <CTableDataCell>
-                        {m.phases.map((ph, i) => (
-                          <div key={i} className="d-flex align-items-center gap-1 mb-1 flex-nowrap">
-                            <div className="d-flex flex-nowrap align-items-center gap-1">
-                              <CFormSelect
-                                size="sm"
-                                style={{ width: 110 }}
-                                value={ph.phase}
-                                disabled={!canEdit}
-                                onChange={(e) => handlePhaseChange(m.month, i, e.target.value)}
-                              >
-                                {PHASE_OPTIONS.map((p) => (
-                                  <option key={p.value} value={p.value}>
-                                    {p.label}
-                                  </option>
-                                ))}
-                              </CFormSelect>
-                              <CFormInput
-                                size="sm"
-                                style={{ width: 130 }}
-                                placeholder="Task / activity"
-                                value={ph.label}
-                                disabled={!canEdit}
-                                onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
-                              />
-                            </div>
-                            <div className="d-flex flex-nowrap align-items-center gap-1">
-                              <CInputGroup style={{ width: 190 }}>
-                                <CInputGroupText
-                                  style={{
-                                    background: '#cfe2ff',
-                                    color: '#084298',
-                                    fontWeight: 700,
-                                    fontSize: '0.78rem',
-                                  }}
-                                >
-                                  Planned ₹
-                                </CInputGroupText>
-                                <CFormInput
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  style={{ minWidth: 90 }}
-                                  value={ph.amount || ''}
+                    const projectReallocation = sumManualPoolAdjustments(
+                      project.pool_adjustments,
+                      m.month,
+                    )
+                    const projectTransfers = (project.pool_adjustments || []).filter(
+                      (a) => a.pool === 'project' && a.month === m.month,
+                    )
+                    const netProjectTransfer = projectTransfers.reduce(
+                      (s, a) => s + (a.amount || 0),
+                      0,
+                    )
+                    const monthActual = computeMonthActualTotal(m)
+                    const monthPlanned = computeEffectiveProjectMonthly(project, m.month)
+                    const surplus = Math.round((monthPlanned - monthActual) * 100) / 100
+                    const hasNextMonth = idx < project.monthly_plan.length - 1
+
+                    // Only allow revoking the LAST "Send → Next Month" in a chain.
+                    // Both sender (negative) and receiver (positive) months get entries with
+                    // source='actual_surplus_next_month'. Only negative amounts are outgoing
+                    // (i.e. this month sent surplus away). Filter to those only.
+                    const myNextMonthTransfers = projectTransfers.filter(
+                      (a) => a.source === 'actual_surplus_next_month' && (a.amount || 0) < 0,
+                    )
+                    const isChainContinued =
+                      myNextMonthTransfers.length > 0 &&
+                      (() => {
+                        const counterMonth =
+                          myNextMonthTransfers[myNextMonthTransfers.length - 1]?.counterMonth
+                        if (!counterMonth) return false
+                        // Check if the receiver month also sent surplus onward (amount < 0 = outgoing)
+                        return (project.pool_adjustments || []).some(
+                          (a) =>
+                            a.pool === 'project' &&
+                            a.month === counterMonth &&
+                            a.source === 'actual_surplus_next_month' &&
+                            (a.amount || 0) < 0,
+                        )
+                      })()
+                    const canRevokeNextMonthTransfer =
+                      myNextMonthTransfers.length > 0 && !isChainContinued
+                    return (
+                      <CTableRow key={m.month}>
+                        <CTableDataCell className="fw-semibold">
+                          {monthLabel(m.month)}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {m.phases.map((ph, i) => (
+                            <div
+                              key={i}
+                              className="d-flex align-items-center gap-1 mb-1 flex-nowrap"
+                            >
+                              <div className="d-flex flex-nowrap align-items-center gap-1">
+                                <CFormSelect
+                                  size="sm"
+                                  style={{ width: 110 }}
+                                  value={ph.phase}
                                   disabled={!canEdit}
-                                  onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
-                                />
-                              </CInputGroup>
-                              <CInputGroup style={{ width: 190 }}>
-                                <CInputGroupText
-                                  style={{
-                                    background: '#d1e7dd',
-                                    color: '#0a3622',
-                                    fontWeight: 700,
-                                    fontSize: '0.78rem',
-                                  }}
+                                  onChange={(e) => handlePhaseChange(m.month, i, e.target.value)}
                                 >
-                                  Actual ₹
-                                </CInputGroupText>
+                                  {PHASE_OPTIONS.map((p) => (
+                                    <option key={p.value} value={p.value}>
+                                      {p.label}
+                                    </option>
+                                  ))}
+                                </CFormSelect>
                                 <CFormInput
-                                  type="number"
-                                  min="0"
-                                  placeholder="0"
-                                  style={{ minWidth: 90 }}
-                                  value={ph.actual || ''}
+                                  size="sm"
+                                  style={{ width: 130 }}
+                                  placeholder="Task / activity"
+                                  value={ph.label}
                                   disabled={!canEdit}
-                                  onChange={(e) => handleActualChange(m.month, i, e.target.value)}
+                                  onChange={(e) => handleLabelChange(m.month, i, e.target.value)}
                                 />
-                              </CInputGroup>
+                              </div>
+                              <div className="d-flex flex-nowrap align-items-center gap-1">
+                                <CInputGroup style={{ width: 190 }}>
+                                  <CInputGroupText
+                                    style={{
+                                      background: '#cfe2ff',
+                                      color: '#084298',
+                                      fontWeight: 700,
+                                      fontSize: '0.78rem',
+                                    }}
+                                  >
+                                    Planned ₹
+                                  </CInputGroupText>
+                                  <CFormInput
+                                    type="number"
+                                    min="0"
+                                    placeholder="0"
+                                    style={{ minWidth: 90 }}
+                                    value={ph.amount || ''}
+                                    disabled={!canEdit}
+                                    onChange={(e) => handleAmountChange(m.month, i, e.target.value)}
+                                  />
+                                </CInputGroup>
+                                <CInputGroup style={{ width: 190 }}>
+                                  <CInputGroupText
+                                    style={{
+                                      background: '#d1e7dd',
+                                      color: '#0a3622',
+                                      fontWeight: 700,
+                                      fontSize: '0.78rem',
+                                    }}
+                                  >
+                                    Actual ₹
+                                  </CInputGroupText>
+                                  <CFormInput
+                                    type="number"
+                                    min="0"
+                                    placeholder="0"
+                                    style={{ minWidth: 90 }}
+                                    value={ph.actual || ''}
+                                    disabled={!canEdit}
+                                    onChange={(e) => handleActualChange(m.month, i, e.target.value)}
+                                  />
+                                </CInputGroup>
+                              </div>
+                              {canEdit && (
+                                <CButton
+                                  size="sm"
+                                  color="danger"
+                                  variant="ghost"
+                                  disabled={m.phases.length === 1}
+                                  onClick={() => handleRemovePhase(m.month, i)}
+                                >
+                                  <CIcon icon={cilTrash} size="sm" />
+                                </CButton>
+                              )}
                             </div>
-                            {canEdit && (
-                              <CButton
-                                size="sm"
-                                color="danger"
-                                variant="ghost"
-                                disabled={m.phases.length === 1}
-                                onClick={() => handleRemovePhase(m.month, i)}
-                              >
-                                <CIcon icon={cilTrash} size="sm" />
-                              </CButton>
-                            )}
-                          </div>
-                        ))}
-                        {canEdit && (
-                          <CButton
-                            size="sm"
-                            color="secondary"
-                            variant="outline"
-                            onClick={() => handleAddPhase(m.month)}
-                          >
-                            <CIcon icon={cilPlus} className="me-1" />
-                            Add Line
-                          </CButton>
-                        )}
-                      </CTableDataCell>
-                      <CTableDataCell className="text-end fw-bold">
-                        {fmt(monthPlanned)}
-                        {projectReallocation !== 0 && (
-                          <CBadge
-                            color="warning"
-                            shape="rounded-pill"
-                            className="ms-1"
-                            style={{ fontSize: '0.6rem' }}
-                          >
-                            adjusted
-                          </CBadge>
-                        )}
-                        {netProjectTransfer !== 0 && (
-                          <div className="mt-1">
+                          ))}
+                          {canEdit && (
+                            <CButton
+                              size="sm"
+                              color="secondary"
+                              variant="outline"
+                              onClick={() => handleAddPhase(m.month)}
+                            >
+                              <CIcon icon={cilPlus} className="me-1" />
+                              Add Line
+                            </CButton>
+                          )}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end fw-bold">
+                          {fmt(monthPlanned)}
+                          {projectReallocation !== 0 && (
                             <CBadge
-                              color={netProjectTransfer > 0 ? 'warning' : 'info'}
+                              color="warning"
                               shape="rounded-pill"
+                              className="ms-1"
                               style={{ fontSize: '0.6rem' }}
                             >
-                              {netProjectTransfer > 0 ? '−' : '+'}
-                              {fmt(Math.abs(netProjectTransfer))}{' '}
-                              {netProjectTransfer > 0 ? '→ given to' : '← from'}{' '}
-                              {projectTransfers
-                                .map((a) => monthLabelShort(a.counterMonth))
-                                .join(', ')}
+                              adjusted
                             </CBadge>
-                            {canRevokeNextMonthTransfer &&
-                              canEdit && (
+                          )}
+                          {netProjectTransfer !== 0 && (
+                            <div className="mt-1">
+                              <CBadge
+                                color={netProjectTransfer > 0 ? 'warning' : 'info'}
+                                shape="rounded-pill"
+                                style={{ fontSize: '0.6rem' }}
+                              >
+                                {netProjectTransfer > 0 ? '−' : '+'}
+                                {fmt(Math.abs(netProjectTransfer))}{' '}
+                                {netProjectTransfer > 0 ? '→ given to' : '← from'}{' '}
+                                {projectTransfers
+                                  .map((a) => monthLabelShort(a.counterMonth))
+                                  .join(', ')}
+                              </CBadge>
+                              {canRevokeNextMonthTransfer && canEdit && (
                                 <CButton
                                   size="sm"
                                   color="secondary"
@@ -1111,115 +1116,120 @@ const PlanTable = ({ project, onProjectChange, canEdit = false, currentUser = 'U
                                   Revoke
                                 </CButton>
                               )}
-                          </div>
-                        )}
-                        {surplus > 0 && canEdit && (
-                          <div className="d-flex flex-column gap-2 mt-2 align-items-stretch">
-                            <CButton
-                              color="success"
-                              className="fw-bold text-white"
-                              style={{ fontSize: '0.85rem', padding: '8px 14px' }}
-                              onClick={() => handleSendSurplusToPools(m.month, surplus)}
-                            >
-                              Send {fmt(surplus)} → HR/Core
-                            </CButton>
-                            {hasNextMonth && (
+                            </div>
+                          )}
+                          {surplus > 0 && canEdit && (
+                            <div className="d-flex flex-column gap-2 mt-2 align-items-stretch">
                               <CButton
-                                color="primary"
+                                color="success"
                                 className="fw-bold text-white"
                                 style={{ fontSize: '0.85rem', padding: '8px 14px' }}
-                                onClick={() => handleSendSurplusToNextMonth(m.month, surplus)}
+                                onClick={() => handleSendSurplusToPools(m.month, surplus)}
                               >
-                                Send {fmt(surplus)} → Next Month
+                                Send {fmt(surplus)} → HR/Core
                               </CButton>
-                            )}
-                          </div>
-                        )}
-                      </CTableDataCell>
-                      {['admin', 'hr', 'core'].map((pool) => (
-                        <CTableDataCell key={pool} className="text-end">
-                          <CInputGroup size="sm" style={{ width: 145, marginLeft: 'auto' }}>
-                            <CInputGroupText>₹</CInputGroupText>
-                            <CFormInput
-                              type="number"
-                              placeholder="0"
-                              value={computeEffectivePoolMonthly(project, pool, m.month) || ''}
-                              disabled={!canEdit}
-                              onChange={(e) =>
-                                handlePoolAmountChange(pool, m.month, e.target.value)
-                              }
-                            />
-                          </CInputGroup>
-                          <CInputGroup
-                            size="sm"
-                            style={{ minWidth: 80, marginLeft: 'auto', marginTop: 4 }}
-                          >
-                            <CFormInput
-                              type="number"
-                              step="0.1"
-                              placeholder="0"
-                              value={computeEffectivePoolPct(project, pool, m.month) || ''}
-                              disabled={!canEdit}
-                              onChange={(e) => handlePoolPctChange(pool, m.month, e.target.value)}
-                            />
-                            <CInputGroupText>%</CInputGroupText>
-                          </CInputGroup>
-                          {adjustedFor(pool) && (
-                            <CBadge
-                              color="warning"
-                              shape="rounded-pill"
-                              className="ms-1"
-                              style={{ fontSize: '0.6rem' }}
-                            >
-                              adjusted
-                            </CBadge>
+                              {hasNextMonth && (
+                                <CButton
+                                  color="primary"
+                                  className="fw-bold text-white"
+                                  style={{ fontSize: '0.85rem', padding: '8px 14px' }}
+                                  onClick={() => handleSendSurplusToNextMonth(m.month, surplus)}
+                                >
+                                  Send {fmt(surplus)} → Next Month
+                                </CButton>
+                              )}
+                            </div>
                           )}
                         </CTableDataCell>
-                      ))}
-                    </CTableRow>
-                  )
-                })}
-              </CTableBody>
-            </CTable>
-          </div>
-        )}
-      </CCardBody>
-    </CCard>
+                        {['admin', 'hr', 'core'].map((pool) => (
+                          <CTableDataCell key={pool} className="text-end">
+                            <CInputGroup size="sm" style={{ width: 145, marginLeft: 'auto' }}>
+                              <CInputGroupText>₹</CInputGroupText>
+                              <CFormInput
+                                type="number"
+                                placeholder="0"
+                                value={computeEffectivePoolMonthly(project, pool, m.month) || ''}
+                                disabled={!canEdit}
+                                onChange={(e) =>
+                                  handlePoolAmountChange(pool, m.month, e.target.value)
+                                }
+                              />
+                            </CInputGroup>
+                            <CInputGroup
+                              size="sm"
+                              style={{ minWidth: 80, marginLeft: 'auto', marginTop: 4 }}
+                            >
+                              <CFormInput
+                                type="number"
+                                step="0.1"
+                                placeholder="0"
+                                value={computeEffectivePoolPct(project, pool, m.month) || ''}
+                                disabled={!canEdit}
+                                onChange={(e) => handlePoolPctChange(pool, m.month, e.target.value)}
+                              />
+                              <CInputGroupText>%</CInputGroupText>
+                            </CInputGroup>
+                            {adjustedFor(pool) && (
+                              <CBadge
+                                color="warning"
+                                shape="rounded-pill"
+                                className="ms-1"
+                                style={{ fontSize: '0.6rem' }}
+                              >
+                                adjusted
+                              </CBadge>
+                            )}
+                          </CTableDataCell>
+                        ))}
+                      </CTableRow>
+                    )
+                  })}
+                </CTableBody>
+              </CTable>
+            </div>
+          )}
+        </CCardBody>
+      </CCard>
 
-    {/* Revoke confirmation modal */}
-    <CModal
-      visible={Boolean(revokeConfirm)}
-      onClose={() => setRevokeConfirm(null)}
-      alignment="center"
-      size="sm"
-    >
-      <CModalHeader>
-        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
-      </CModalHeader>
-      <CModalBody className="small">
-        <p className="mb-1">Are you sure you want to revoke the:</p>
-        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
-        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
-          This action cannot be undone without re-sending.
-        </p>
-      </CModalBody>
-      <CModalFooter>
-        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
-          Cancel
-        </CButton>
-        <CButton
-          color="danger"
-          size="sm"
-          onClick={() => {
-            revokeConfirm?.action()
-            setRevokeConfirm(null)
-          }}
-        >
-          Yes, Revoke
-        </CButton>
-      </CModalFooter>
-    </CModal>
-  </>
+      {/* Revoke confirmation modal */}
+      <CModal
+        visible={Boolean(revokeConfirm)}
+        onClose={() => setRevokeConfirm(null)}
+        alignment="center"
+        size="sm"
+      >
+        <CModalHeader>
+          <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+        </CModalHeader>
+        <CModalBody className="small">
+          <p className="mb-1">Are you sure you want to revoke the:</p>
+          <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+          <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+            This action cannot be undone without re-sending.
+          </p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevokeConfirm(null)}
+          >
+            Cancel
+          </CButton>
+          <CButton
+            color="danger"
+            size="sm"
+            onClick={() => {
+              revokeConfirm?.action()
+              setRevokeConfirm(null)
+            }}
+          >
+            Yes, Revoke
+          </CButton>
+        </CModalFooter>
+      </CModal>
+    </>
   )
 }
 
@@ -1424,14 +1434,56 @@ const monthBounds = (month) => {
  * pool+month is what unlocks HR to log actual expenses against it in EMS,
  * capped at the sent amount; a pool+month that's never sent simply never
  * becomes available there — that IS the PO's restriction, no separate
- * block action needed.
+ * block action needed. For projects on the new Budget Plan, HR and Core
+ * additionally can't be sent until the PO approves that month in the
+ * Budget Plan's actual phase (localBudgetPlan.approveMonth) — Admin is
+ * never gated by this.
  */
 const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser = 'Unknown' }) => {
-  const months = (project.monthly_plan || []).map((m) => m.month)
+  // New-model projects never populate project.monthly_plan (it's the old
+  // field — see budgetPlan.js/localBudgetPlan.js), so the month list and
+  // per-pool figures here fall back to the new budget plan when one
+  // exists; legacy projects with only the old monthly_plan keep working
+  // exactly as before.
+  const budgetPlan = localBudgetPlan.getPlan(project.id)
+  const months = budgetPlan
+    ? budgetPlan.months.map((m) => m.month)
+    : (project.monthly_plan || []).map((m) => m.month)
   const [selectedMonth, setSelectedMonth] = useState(months[0] || '')
   const [sendError, setSendError] = useState('')
   const [revokeConfirm, setRevokeConfirm] = useState(null) // { action: fn, label: string }
   const month = months.includes(selectedMonth) ? selectedMonth : months[0]
+
+  // This month's Admin/HR/Core figure. For a new-model plan: an even
+  // monthly slice of the pool's total cap, plus/minus any ledger transfer
+  // tagged to this exact month (an HR/Core cap adjustment or Admin draw
+  // targeting this month). For a legacy project, the old flat-rate model.
+  const poolMonthAmount = (pool, m) => {
+    if (!budgetPlan) return computeEffectivePoolMonthly(project, pool, m)
+    const cap = (budgetPlan.project_value * (budgetPlan.pool_pct[pool] || 0)) / 100
+    const flat =
+      budgetPlan.months.length > 0 ? Math.round((cap / budgetPlan.months.length) * 100) / 100 : 0
+    const monthNet = (budgetPlan.transfers || [])
+      .filter((t) => t.origin_month === m && (t.from === pool || t.to === pool))
+      .reduce((s, t) => s + (t.to === pool ? t.amount : -t.amount), 0)
+    return Math.round((flat + monthNet) * 100) / 100
+  }
+
+  const budgetMonthEntry = budgetPlan?.months.find((m) => m.month === month)
+
+  const transferredSubtasks =
+    budgetMonthEntry?.tasks.flatMap((t) =>
+      t.subtasks
+        .filter((s) => s.actual_status === 'transferred')
+        .map((s) => ({ ...s, taskName: t.name })),
+    ) || []
+
+  // HR/Core can only be sent once the PO has approved that month in the
+  // Budget Plan's actual phase — Admin is never gated by this. Legacy
+  // projects with no budgetPlan predate the approval concept entirely, so
+  // they're never blocked by it.
+  const monthApproved = budgetMonthEntry?.approved || false
+  const requiresApproval = (pool) => pool !== 'admin' && Boolean(budgetPlan)
 
   if (!months.length) {
     return (
@@ -1472,7 +1524,13 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
 
   const handleSend = (pool) => {
     setSendError('')
-    const amount = computeEffectivePoolMonthly(project, pool, month)
+    if (requiresApproval(pool) && !monthApproved) {
+      setSendError(
+        `${POOL_SEND_LABELS[pool]} for ${monthLabel(month)} can't be sent until the PO approves this month in the Budget Plan's actual phase.`,
+      )
+      return
+    }
+    const amount = poolMonthAmount(pool, month)
     if (amount <= 0) {
       setSendError(
         `${POOL_SEND_LABELS[pool]} for ${monthLabel(month)} is not allowed to take — there's no amount available to send (${fmt(amount)}).`,
@@ -1505,202 +1563,237 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
 
   return (
     <>
-    <CCard className="shadow-sm mb-4">
-      <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
-      <CCardBody>
-        <div className="small text-body-secondary mb-3">
-          Pick a month to see everything relevant to running it — tasks, milestones, assignees, and
-          the Admin/HR/Core split. Sending a pool+month unlocks HR to log actual expenses against it
-          in EMS, capped at the sent amount. A pool+month that&apos;s never sent stays unavailable
-          there — simply don&apos;t send it to restrict that month.
-        </div>
+      <CCard className="shadow-sm mb-4">
+        <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
+        <CCardBody>
+          <div className="small text-body-secondary mb-3">
+            Pick a month to see everything relevant to running it — tasks, milestones, assignees,
+            and the Admin/HR/Core split. Sending a pool+month unlocks HR to log actual expenses
+            against it in EMS, capped at the sent amount. A pool+month that&apos;s never sent stays
+            unavailable there — simply don&apos;t send it to restrict that month. HR and Core also
+            need the PO to approve that month in the Budget Plan&apos;s actual phase first; Admin
+            does not.
+          </div>
 
-        <CFormSelect
-          value={month}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          style={{ maxWidth: 220 }}
-          className="mb-3"
-        >
-          {months.map((m) => (
-            <option key={m} value={m}>
-              {monthLabel(m)}
-            </option>
-          ))}
-        </CFormSelect>
+          <CFormSelect
+            value={month}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            style={{ maxWidth: 220 }}
+            className="mb-3"
+          >
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </CFormSelect>
 
-        <CRow className="g-3">
-          <CCol xs={12} md={6}>
-            <CCard className="h-100">
-              <CCardHeader className="bg-transparent fw-semibold py-2">
-                🏁 Milestones <CBadge color="secondary">{monthInstallments.length}</CBadge>
-              </CCardHeader>
-              <CCardBody className="p-2">
-                {monthInstallments.length === 0 ? (
-                  <div className="text-center text-body-tertiary small py-2">
-                    No installment overlaps this month.
-                  </div>
-                ) : (
-                  monthInstallments.map((inst) => (
-                    <div
-                      key={inst.id}
-                      className="d-flex justify-content-between align-items-start border-bottom py-1 small"
-                    >
-                      <div>
-                        <div className="fw-medium">{inst.label}</div>
-                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                          {inst.percentage}% · {fmt(inst.amount)}
-                        </div>
-                      </div>
-                      <CBadge color="info">{inst.uc_status || 'Pending'}</CBadge>
+          <CRow className="g-3">
+            <CCol xs={12} md={6}>
+              <CCard className="h-100">
+                <CCardHeader className="bg-transparent fw-semibold py-2">
+                  🏁 Milestones <CBadge color="secondary">{monthInstallments.length}</CBadge>
+                </CCardHeader>
+                <CCardBody className="p-2">
+                  {monthInstallments.length === 0 ? (
+                    <div className="text-center text-body-tertiary small py-2">
+                      No installment overlaps this month.
                     </div>
-                  ))
-                )}
-              </CCardBody>
-            </CCard>
-          </CCol>
-
-          <CCol xs={12} md={6}>
-            <CCard className="h-100">
-              <CCardHeader className="bg-transparent fw-semibold py-2">
-                👤 Assignees <CBadge color="secondary">{assignees.length}</CBadge>
-              </CCardHeader>
-              <CCardBody className="p-2">
-                {assignees.length === 0 ? (
-                  <div className="text-center text-body-tertiary small py-2">
-                    No assignees on this month&apos;s tasks.
-                  </div>
-                ) : (
-                  <div className="d-flex flex-wrap gap-2">
-                    {assignees.map((a) => (
-                      <CBadge key={a} color="primary" shape="rounded-pill">
-                        {a}
-                      </CBadge>
-                    ))}
-                  </div>
-                )}
-              </CCardBody>
-            </CCard>
-          </CCol>
-
-          <CCol xs={12} md={6}>
-            <CCard className="h-100">
-              <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
-              <CCardBody className="p-2">
-                {sendError && (
-                  <CAlert color="danger" className="py-2 small mb-2">
-                    {sendError}
-                  </CAlert>
-                )}
-                {['admin', 'hr', 'core'].map((pool) => {
-                  const amount = computeEffectivePoolMonthly(project, pool, month)
-                  const sent = sentFor(pool)
-                  const notAllowed = amount <= 0
-                  return (
-                    <div
-                      key={pool}
-                      className="d-flex justify-content-between align-items-center border-bottom py-1 small"
-                    >
-                      <div>
-                        <div className="fw-medium">{POOL_SEND_LABELS[pool]}</div>
-                        <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                          Planned {fmt(amount)}
+                  ) : (
+                    monthInstallments.map((inst) => (
+                      <div
+                        key={inst.id}
+                        className="d-flex justify-content-between align-items-start border-bottom py-1 small"
+                      >
+                        <div>
+                          <div className="fw-medium">{inst.label}</div>
+                          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                            {inst.percentage}% · {fmt(inst.amount)}
+                          </div>
                         </div>
+                        <CBadge color="info">{inst.uc_status || 'Pending'}</CBadge>
                       </div>
-                      {sent ? (
-                        <div className="d-flex align-items-center gap-2">
+                    ))
+                  )}
+                </CCardBody>
+              </CCard>
+            </CCol>
+
+            <CCol xs={12} md={6}>
+              <CCard className="h-100">
+                <CCardHeader className="bg-transparent fw-semibold py-2">
+                  👤 Assignees <CBadge color="secondary">{assignees.length}</CBadge>
+                </CCardHeader>
+                <CCardBody className="p-2">
+                  {assignees.length === 0 ? (
+                    <div className="text-center text-body-tertiary small py-2">
+                      No assignees on this month&apos;s tasks.
+                    </div>
+                  ) : (
+                    <div className="d-flex flex-wrap gap-2">
+                      {assignees.map((a) => (
+                        <CBadge key={a} color="primary" shape="rounded-pill">
+                          {a}
+                        </CBadge>
+                      ))}
+                    </div>
+                  )}
+                </CCardBody>
+              </CCard>
+            </CCol>
+
+            <CCol xs={12} md={6}>
+              <CCard className="h-100">
+                <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
+                <CCardBody className="p-2">
+                  {sendError && (
+                    <CAlert color="danger" className="py-2 small mb-2">
+                      {sendError}
+                    </CAlert>
+                  )}
+                  {['admin', 'hr', 'core'].map((pool) => {
+                    const amount = poolMonthAmount(pool, month)
+                    const sent = sentFor(pool)
+                    const notAllowed = amount <= 0
+                    const blockedByApproval = requiresApproval(pool) && !monthApproved
+                    return (
+                      <div
+                        key={pool}
+                        className="d-flex justify-content-between align-items-center border-bottom py-1 small"
+                      >
+                        <div>
+                          <div className="fw-medium">{POOL_SEND_LABELS[pool]}</div>
+                          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                            Planned {fmt(amount)}
+                          </div>
+                        </div>
+                        {sent ? (
+                          <div className="d-flex align-items-center gap-2">
+                            <CBadge
+                              color="success"
+                              shape="rounded-pill"
+                              style={{ fontSize: '0.62rem' }}
+                            >
+                              Sent {fmt(sent.amount)}
+                            </CBadge>
+                            {canEdit && (
+                              <CButton
+                                size="sm"
+                                color="secondary"
+                                variant="ghost"
+                                onClick={() => handleRevoke(pool)}
+                              >
+                                Revoke
+                              </CButton>
+                            )}
+                          </div>
+                        ) : notAllowed ? (
                           <CBadge
-                            color="success"
+                            color="danger"
                             shape="rounded-pill"
                             style={{ fontSize: '0.62rem' }}
                           >
-                            Sent {fmt(sent.amount)}
+                            Not allowed to take
                           </CBadge>
-                          {canEdit && (
+                        ) : blockedByApproval ? (
+                          <CBadge
+                            color="warning"
+                            shape="rounded-pill"
+                            style={{ fontSize: '0.62rem' }}
+                          >
+                            Awaiting month approval
+                          </CBadge>
+                        ) : (
+                          canEdit && (
                             <CButton
                               size="sm"
-                              color="secondary"
-                              variant="ghost"
-                              onClick={() => handleRevoke(pool)}
+                              color="primary"
+                              variant="outline"
+                              onClick={() => handleSend(pool)}
                             >
-                              Revoke
+                              Send
                             </CButton>
-                          )}
-                        </div>
-                      ) : notAllowed ? (
-                        <CBadge color="danger" shape="rounded-pill" style={{ fontSize: '0.62rem' }}>
-                          Not allowed to take
-                        </CBadge>
-                      ) : (
-                        canEdit && (
-                          <CButton
-                            size="sm"
-                            color="primary"
-                            variant="outline"
-                            onClick={() => handleSend(pool)}
-                          >
-                            Send
-                          </CButton>
-                        )
-                      )}
-                    </div>
-                  )
-                })}
-                {actualEntries.length > 0 && (
-                  <div className="mt-2">
-                    <div className="small fw-semibold mb-1">Actual logged this month</div>
-                    {actualEntries.map((e) => (
-                      <div key={e.id} className="d-flex justify-content-between small">
-                        <span>
-                          {POOL_SEND_LABELS[e.pool]} — {e.label}
-                        </span>
-                        <span>{fmt(e.amount)}</span>
+                          )
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CCardBody>
-            </CCard>
-          </CCol>
-        </CRow>
-      </CCardBody>
-    </CCard>
+                    )
+                  })}
+                  {actualEntries.length > 0 && (
+                    <div className="mt-2">
+                      <div className="small fw-semibold mb-1">Actual logged this month</div>
+                      {actualEntries.map((e) => (
+                        <div key={e.id} className="d-flex justify-content-between small">
+                          <span>
+                            {POOL_SEND_LABELS[e.pool]} — {e.label}
+                          </span>
+                          <span>{fmt(e.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {transferredSubtasks.length > 0 && (
+                    <div className="mt-2">
+                      <div className="small fw-semibold mb-1">Transferred from Budget Plan</div>
+                      {transferredSubtasks.map((s) => (
+                        <div
+                          key={s.id}
+                          className="d-flex justify-content-between small text-success"
+                        >
+                          <span>
+                            {s.taskName} — {s.name}
+                          </span>
+                          <span>Money transferred — ₹0</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CCardBody>
+              </CCard>
+            </CCol>
+          </CRow>
+        </CCardBody>
+      </CCard>
 
-    {/* Revoke confirmation modal */}
-    <CModal
-      visible={Boolean(revokeConfirm)}
-      onClose={() => setRevokeConfirm(null)}
-      alignment="center"
-      size="sm"
-    >
-      <CModalHeader>
-        <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
-      </CModalHeader>
-      <CModalBody className="small">
-        <p className="mb-1">
-          Are you sure you want to revoke the sent budget for:
-        </p>
-        <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
-        <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
-          This will remove access for HR to log expenses against this allocation.
-        </p>
-      </CModalBody>
-      <CModalFooter>
-        <CButton color="secondary" variant="ghost" size="sm" onClick={() => setRevokeConfirm(null)}>
-          Cancel
-        </CButton>
-        <CButton
-          color="danger"
-          size="sm"
-          onClick={() => {
-            revokeConfirm?.action()
-            setRevokeConfirm(null)
-          }}
-        >
-          Yes, Revoke
-        </CButton>
-      </CModalFooter>
-    </CModal>
-  </>)
+      {/* Revoke confirmation modal */}
+      <CModal
+        visible={Boolean(revokeConfirm)}
+        onClose={() => setRevokeConfirm(null)}
+        alignment="center"
+        size="sm"
+      >
+        <CModalHeader>
+          <CModalTitle>⚠️ Confirm Revoke</CModalTitle>
+        </CModalHeader>
+        <CModalBody className="small">
+          <p className="mb-1">Are you sure you want to revoke the sent budget for:</p>
+          <p className="fw-semibold mb-0">{revokeConfirm?.label}</p>
+          <p className="text-danger mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
+            This will remove access for HR to log expenses against this allocation.
+          </p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton
+            color="secondary"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevokeConfirm(null)}
+          >
+            Cancel
+          </CButton>
+          <CButton
+            color="danger"
+            size="sm"
+            onClick={() => {
+              revokeConfirm?.action()
+              setRevokeConfirm(null)
+            }}
+          >
+            Yes, Revoke
+          </CButton>
+        </CModalFooter>
+      </CModal>
+    </>
+  )
 }
 
 ExpensePanel.propTypes = {

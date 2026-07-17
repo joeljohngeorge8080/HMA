@@ -6,6 +6,7 @@ export const MODULE = {
   EXPENSE_MANAGEMENT: 'expense_management',
   GENERAL_EXPENSES: 'general_expenses',
   FINANCE: 'finance',
+  GST_UPLOAD: 'gst_upload',
   REPORTS: 'reports',
   AUDIT_LOGS: 'audit_logs',
 

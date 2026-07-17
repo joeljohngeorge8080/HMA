@@ -44,7 +44,15 @@ const readWorkbookRows = (file) =>
 const dupKey = (x) =>
   `${(x.gstNo || '').toUpperCase()}|${(x.invoiceNumber || '').toUpperCase()}|${String(x.gstRate ?? '').trim()}|${String(x.totalValue ?? '').trim()}`
 
-const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
+const GstUploadModal = ({
+  visible,
+  onClose,
+  onImported,
+  uploadedBy = '',
+  projectId = null,
+  defaultDepartment = '',
+  defaultVertical = '',
+}) => {
   const fileRef = useRef(null)
   const [fileName, setFileName] = useState('')
   const [parsedEntries, setParsedEntries] = useState(null)
@@ -95,9 +103,12 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
         setParsedEntries(
           result.entries.map((en) => ({
             ...en,
-            duplicate: Boolean(
-              en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))
-            ),
+            // Sheets uploaded from a project's Financials tab or HR Admin
+            // don't always fill in Department/Vertical — default them so
+            // CSR eligibility and department filters still work correctly.
+            department: en.department || defaultDepartment,
+            vertical: en.vertical || defaultVertical,
+            duplicate: Boolean(en.gstNo && en.invoiceNumber && existingKeys.has(dupKey(en))),
           })),
         )
       }
@@ -110,8 +121,23 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
 
   const dupCount = parsedEntries ? parsedEntries.filter((x) => x.duplicate).length : 0
   const importCount = parsedEntries ? parsedEntries.length - (skipDuplicates ? dupCount : 0) : 0
+  const invalidGstCount = parsedEntries
+    ? parsedEntries.filter((x) => classifyGstin(x.gstNo) === 'invalid').length
+    : 0
+
+  // Rows whose GST No fails format/checksum validation. One invalid row
+  // blocks the whole file — fix the Excel and re-upload.
+  const invalidRows = parsedEntries
+    ? parsedEntries
+        .map((x, i) => ({ ...x, rowNo: i + 1 }))
+        .filter((x) => classifyGstin(x.gstNo) === 'invalid')
+    : []
 
   const handleImport = () => {
+    if (invalidGstCount > 0) {
+      setError('Cannot import while there are invalid GST numbers.')
+      return
+    }
     const toImport = parsedEntries
       .filter((x) => !(skipDuplicates && x.duplicate))
       .map(({ duplicate: _duplicate, ...rest }) => rest)
@@ -119,8 +145,8 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
       setError('Nothing to import — every row is a duplicate of an existing entry.')
       return
     }
-    const batch = localGstBills.batches.create({ fileName, uploadedBy })
-    localGstBills.entries.createMany(batch.id, toImport)
+    const batch = localGstBills.batches.create({ fileName, uploadedBy, projectId })
+    localGstBills.entries.createMany(batch.id, toImport, projectId)
     reset()
     onImported()
     onClose()
@@ -155,6 +181,23 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                 </>
               )}
             </p>
+            {invalidRows.length > 0 && (
+              <CAlert color="danger">
+                <strong>
+                  {invalidRows.length} row(s) have an invalid GST No — this file cannot be imported.
+                </strong>{' '}
+                Fix these rows in the Excel and upload it again:
+                <ul className="mb-0 mt-1">
+                  {invalidRows.map((x) => (
+                    <li key={x.rowNo}>
+                      Row {x.rowNo} — {x.partyName || 'Unknown party'}
+                      {x.invoiceNumber ? ` (Invoice ${x.invoiceNumber})` : ''}:{' '}
+                      {x.gstNo ? `"${x.gstNo}" is not a valid GSTIN` : 'GST No is missing'}
+                    </li>
+                  ))}
+                </ul>
+              </CAlert>
+            )}
             {dupCount > 0 && (
               <CFormCheck
                 id="gst-skip-dups"
@@ -191,7 +234,13 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                   {parsedEntries.map((x, i) => (
                     <tr
                       key={`${dupKey(x)}-${i}`}
-                      className={x.duplicate ? 'table-warning' : undefined}
+                      className={
+                        classifyGstin(x.gstNo) === 'invalid'
+                          ? 'table-danger'
+                          : x.duplicate
+                            ? 'table-warning'
+                            : undefined
+                      }
                     >
                       <td>{i + 1}</td>
                       <td>{x.department}</td>
@@ -202,7 +251,6 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
                         {classifyGstin(x.gstNo) === 'invalid' && (
                           <div className="text-danger small">Invalid GST No</div>
                         )}
-
                       </td>
                       <td className="text-nowrap">{x.invoiceDate}</td>
                       <td>{x.invoiceNumber}</td>
@@ -224,7 +272,11 @@ const GstUploadModal = ({ visible, onClose, onImported, uploadedBy = '' }) => {
         <CButton color="secondary" variant="outline" onClick={close}>
           Cancel
         </CButton>
-        <CButton color="primary" onClick={handleImport} disabled={!parsedEntries || busy}>
+        <CButton
+          color="primary"
+          onClick={handleImport}
+          disabled={!parsedEntries || busy || invalidRows.length > 0}
+        >
           Import {parsedEntries ? `${importCount} row(s)` : ''}
         </CButton>
       </CModalFooter>
@@ -237,6 +289,9 @@ GstUploadModal.propTypes = {
   onClose: PropTypes.func.isRequired,
   onImported: PropTypes.func.isRequired,
   uploadedBy: PropTypes.string,
+  projectId: PropTypes.string,
+  defaultDepartment: PropTypes.string,
+  defaultVertical: PropTypes.string,
 }
 
 export default GstUploadModal
