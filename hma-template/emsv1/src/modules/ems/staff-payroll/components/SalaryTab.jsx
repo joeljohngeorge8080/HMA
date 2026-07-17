@@ -44,11 +44,7 @@ const fmt = (n, decimals = 2) =>
     maximumFractionDigits: decimals,
   })
 
-const ALLOWED_INCREMENTS = [
-  { value: '3', label: '3%' },
-  { value: '6', label: '6%' },
-  { value: '8', label: '8%' },
-]
+
 
 const STATE_PT_MAP = {
   Kerala: 200,
@@ -87,7 +83,7 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
   const [showModal, setShowModal] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
-  const [incrementPct, setIncrementPct] = useState('3')
+  const [incrementPct, setIncrementPct] = useState('')
   const [effectiveDate, setEffectiveDate] = useState('')
   const [remarks, setRemarks] = useState('')
   const [incDesignation, setIncDesignation] = useState('')
@@ -370,7 +366,7 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
     setShowModal(false)
     setRemarks('')
     setEffectiveDate('')
-    setIncrementPct('3')
+    setIncrementPct('')
     setIncDesignation('')
     onSave()
     setSubmitting(false)
@@ -1060,18 +1056,16 @@ const SalaryTab = ({ employeeId, currentSalary, currentDesignation, canEdit, onS
 
             <div className="mb-3">
               <CFormLabel htmlFor="incPct">Increment Percentage *</CFormLabel>
-              <CFormSelect
+              <CFormInput
                 id="incPct"
+                type="number"
+                min="0.01"
+                step="0.01"
                 value={incrementPct}
                 onChange={(e) => setIncrementPct(e.target.value)}
+                placeholder="e.g. 7.5"
                 required
-              >
-                {ALLOWED_INCREMENTS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </CFormSelect>
+              />
             </div>
 
             {preview && (

@@ -9,7 +9,6 @@ import {
   CForm,
   CFormInput,
   CFormLabel,
-  CFormSelect,
   CModal,
   CModalBody,
   CModalFooter,
@@ -20,11 +19,6 @@ import {
 } from '@coreui/react'
 import api from '../../../../services/api'
 
-const INCREMENT_OPTIONS = [
-  { label: '3%', value: 3 },
-  { label: '6%', value: 6 },
-  { label: '8%', value: 8 },
-]
 
 const fmt = (n) =>
   Number(n).toLocaleString('en-IN', {
@@ -50,8 +44,8 @@ const SalaryUpdateModal = ({ visible, onClose, employeeId, currentSalary, onSave
 
   const handleSave = async (e) => {
     e.preventDefault()
-    if (!pct) {
-      setError('Please select an increment percentage')
+    if (!pct || parseFloat(pct) <= 0) {
+      setError('Please enter a valid increment percentage greater than 0')
       return
     }
     if (!effectiveDate) {
@@ -106,14 +100,15 @@ const SalaryUpdateModal = ({ visible, onClose, employeeId, currentSalary, onSave
               <CFormLabel className="fw-semibold">
                 Increment Percentage <span className="text-danger">*</span>
               </CFormLabel>
-              <CFormSelect value={pct} onChange={(e) => setPct(e.target.value)} required>
-                <option value="">Select %</option>
-                {INCREMENT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </CFormSelect>
+              <CFormInput
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={pct}
+                onChange={(e) => setPct(e.target.value)}
+                placeholder="e.g. 7.5"
+                required
+              />
             </CCol>
             <CCol md={6}>
               <CFormLabel className="fw-semibold">
