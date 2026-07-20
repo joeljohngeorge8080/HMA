@@ -8,6 +8,7 @@ import RecurringTasksEntry from './budget-plan/RecurringTasksEntry'
 import PlanningMonthCard from './budget-plan/PlanningMonthCard'
 import ActualMonthCard from './budget-plan/ActualMonthCard'
 import BaselineSplitStrip from './budget-plan/BaselineSplitStrip'
+import LedgerUploadPanel from './budget-plan/LedgerUploadPanel'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -217,6 +218,12 @@ const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) 
         canEdit={canEdit}
         onPlanChange={setPlan}
         onFullDelete={handleFullDelete}
+        currentUser={currentUser}
+      />
+      <LedgerUploadPanel
+        project={project}
+        plan={plan}
+        canEdit={canEdit}
         currentUser={currentUser}
       />
       {plan.months.map((m, i) => (
