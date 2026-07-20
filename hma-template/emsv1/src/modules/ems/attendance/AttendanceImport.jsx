@@ -900,9 +900,11 @@ const AttendanceImport = () => {
           <CCard className="mb-3 border-start border-start-info border-3">
             <CCardBody className="py-2 px-3 small text-body-secondary">
               <strong className="text-body me-2">Rules applied:</strong>
-              DS = Monthly Salary ÷ Working Days &nbsp;·&nbsp; HS = DS ÷ 8 &nbsp;·&nbsp; 7 free late
-              units/month (1 unit = 15 min) &nbsp;·&nbsp; ≥60 min late = Half Day (HS × 4),
-              overrides late unit rule
+              DS = Monthly Salary ÷ (Present + Absent + Weekly Off) &nbsp;·&nbsp; HS = DS ÷ 8
+              &nbsp;·&nbsp; 7 free late units/month, then 30/60/90/120 min late deducts 0.5/1/1.5/2
+              hrs &nbsp;·&nbsp; 60 free early-out minutes/month, then 60/120 min early deducts 1/2
+              hrs &nbsp;·&nbsp; &gt;120 min late or early-out = Half Day (HS × 4), overrides bracket
+              rate
             </CCardBody>
           </CCard>
 
@@ -941,140 +943,184 @@ const AttendanceImport = () => {
                     <CTableHeaderCell style={{ minWidth: 300 }}>
                       Remarks (How &amp; Why)
                     </CTableHeaderCell>
+                    <CTableHeaderCell className="text-end" style={{ minWidth: 110 }}>
+                      Recovery (₹)
+                    </CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {filteredSummaries.map((e) => (
-                    <CTableRow key={e.employee_id}>
-                      {/* Employee */}
-                      <CTableDataCell>
-                        <div className="fw-semibold small">{e.employee_id}</div>
-                        <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
-                          {e.employee_name}
-                        </div>
-                      </CTableDataCell>
+                  {filteredSummaries.map((e) => {
+                    // Same divisor/inputs as the Salary Deduction Summary
+                    // table below — this is just that same figure surfaced
+                    // per-row here too, at the rightmost column.
+                    let recovery = null
+                    try {
+                      const emp = localEmployees.getById(e.employee_id)
+                      const salary = emp?.current_salary ? parseFloat(emp.current_salary) : null
+                      const presentCount = e.present + e.total_half_days
+                      const absentCount = e.effective_absent
+                      const weeklyOffCount = e.weekly_off
+                      const workingDays = presentCount + absentCount + weeklyOffCount
+                      if (salary && workingDays > 0) {
+                        recovery = computeAttendanceDeduction({
+                          salary,
+                          presentCount,
+                          absentCount,
+                          weeklyOffCount,
+                          halfDayCount: e.total_half_days,
+                          lateDeductionHours: e.late_deduction_hours,
+                          earlyDeductionHours: e.early_deduction_hours,
+                        }).totalDeduction
+                      }
+                    } catch {
+                      recovery = null
+                    }
 
-                      {/* Attendance compact */}
-                      <CTableDataCell>
-                        <div className="d-flex flex-wrap gap-1" style={{ fontSize: '0.75rem' }}>
-                          <span className="text-success fw-semibold">{e.present}P</span>
-                          {e.absent > 0 && <CBadge color="danger">{e.absent}A</CBadge>}
-                          {e.total_half_days > 0 && (
-                            <CBadge color="warning" className="text-dark">
-                              {e.total_half_days}HD
-                            </CBadge>
-                          )}
-                          {e.on_leave > 0 && <CBadge color="primary">{e.on_leave}L</CBadge>}
-                          <span className="text-body-secondary">{e.weekly_off}WO</span>
-                          {e.weekly_off_worked > 0 && (
-                            <span className="text-body-secondary">{e.weekly_off_worked}WOP</span>
-                          )}
-                        </div>
-                        <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
-                          Avg: {e.avg_work_hhmm}
-                        </div>
-                      </CTableDataCell>
+                    return (
+                      <CTableRow key={e.employee_id}>
+                        {/* Employee */}
+                        <CTableDataCell>
+                          <div className="fw-semibold small">{e.employee_id}</div>
+                          <div className="text-body-secondary" style={{ fontSize: '0.75rem' }}>
+                            {e.employee_name}
+                          </div>
+                        </CTableDataCell>
 
-                      {/* Late entry / early out */}
-                      <CTableDataCell>
-                        {e.late_days === 0 && e.early_days === 0 && e.hd_violations.length === 0 ? (
-                          <span className="text-body-secondary small">Clean</span>
-                        ) : (
-                          <div style={{ fontSize: '0.75rem' }}>
-                            {e.late_days > 0 && (
-                              <div>
-                                <span className="fw-semibold">{e.late_days}</span> late day
-                                {e.late_days > 1 ? 's' : ''}
-                                <span className="text-body-secondary ms-1">
-                                  ({e.late_minutes_hhmm})
-                                </span>
-                                {' · '}
-                                Units: {e.late_units_used}/7
-                                {e.late_deduction_hours > 0 && (
-                                  <CBadge color="danger" className="ms-1">
-                                    +{e.late_deduction_hours.toFixed(1)}h
-                                  </CBadge>
-                                )}
-                              </div>
+                        {/* Attendance compact */}
+                        <CTableDataCell>
+                          <div className="d-flex flex-wrap gap-1" style={{ fontSize: '0.75rem' }}>
+                            <span className="text-success fw-semibold">{e.present}P</span>
+                            {e.absent > 0 && <CBadge color="danger">{e.absent}A</CBadge>}
+                            {e.total_half_days > 0 && (
+                              <CBadge color="warning" className="text-dark">
+                                {e.total_half_days}HD
+                              </CBadge>
                             )}
-                            {e.early_days > 0 && (
-                              <div>
-                                <span className="fw-semibold">{e.early_days}</span> early-out day
-                                {e.early_days > 1 ? 's' : ''}
-                                {' · '}
-                                Mins: {e.early_minutes_used}/{FREE_EARLY_OUT_MINUTES}
-                                {e.early_deduction_hours > 0 && (
-                                  <CBadge color="danger" className="ms-1">
-                                    +{e.early_deduction_hours.toFixed(1)}h
-                                  </CBadge>
-                                )}
-                              </div>
+                            {e.on_leave > 0 && <CBadge color="primary">{e.on_leave}L</CBadge>}
+                            <span className="text-body-secondary">{e.weekly_off}WO</span>
+                            {e.weekly_off_worked > 0 && (
+                              <span className="text-body-secondary">{e.weekly_off_worked}WOP</span>
                             )}
-                            {e.hd_violations.length > 0 && (
-                              <CBadge color="warning" className="mt-1 text-dark">
-                                {e.hd_violations.length} &gt;120 min (HD rule)
+                          </div>
+                          <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
+                            Avg: {e.avg_work_hhmm}
+                          </div>
+                        </CTableDataCell>
+
+                        {/* Late entry / early out */}
+                        <CTableDataCell>
+                          {e.late_days === 0 &&
+                          e.early_days === 0 &&
+                          e.hd_violations.length === 0 ? (
+                            <span className="text-body-secondary small">Clean</span>
+                          ) : (
+                            <div style={{ fontSize: '0.75rem' }}>
+                              {e.late_days > 0 && (
+                                <div>
+                                  <span className="fw-semibold">{e.late_days}</span> late day
+                                  {e.late_days > 1 ? 's' : ''}
+                                  <span className="text-body-secondary ms-1">
+                                    ({e.late_minutes_hhmm})
+                                  </span>
+                                  {' · '}
+                                  Units: {e.late_units_used}/7
+                                  {e.late_deduction_hours > 0 && (
+                                    <CBadge color="danger" className="ms-1">
+                                      +{e.late_deduction_hours.toFixed(1)}h
+                                    </CBadge>
+                                  )}
+                                </div>
+                              )}
+                              {e.early_days > 0 && (
+                                <div>
+                                  <span className="fw-semibold">{e.early_days}</span> early-out day
+                                  {e.early_days > 1 ? 's' : ''}
+                                  {' · '}
+                                  Mins: {e.early_minutes_used}/{FREE_EARLY_OUT_MINUTES}
+                                  {e.early_deduction_hours > 0 && (
+                                    <CBadge color="danger" className="ms-1">
+                                      +{e.early_deduction_hours.toFixed(1)}h
+                                    </CBadge>
+                                  )}
+                                </div>
+                              )}
+                              {e.hd_violations.length > 0 && (
+                                <CBadge color="warning" className="mt-1 text-dark">
+                                  {e.hd_violations.length} &gt;120 min (HD rule)
+                                </CBadge>
+                              )}
+                            </div>
+                          )}
+                        </CTableDataCell>
+
+                        {/* Deduction badges */}
+                        <CTableDataCell>
+                          <div className="d-flex flex-column gap-1">
+                            {e.remarks
+                              .filter((r) => ['absent', 'halfday', 'late'].includes(r.type))
+                              .map((r, i) => (
+                                <CBadge
+                                  key={i}
+                                  color={
+                                    r.type === 'absent'
+                                      ? 'danger'
+                                      : r.type === 'halfday'
+                                        ? 'warning'
+                                        : 'dark'
+                                  }
+                                  className={`text-start text-wrap${r.type === 'halfday' ? ' text-dark' : ''}`}
+                                  style={{ fontSize: '0.72rem', whiteSpace: 'normal' }}
+                                >
+                                  {r.icon} {r.label}
+                                </CBadge>
+                              ))}
+                            {!e.has_deduction && (
+                              <CBadge color="success" style={{ fontSize: '0.72rem' }}>
+                                No deductions
                               </CBadge>
                             )}
                           </div>
-                        )}
-                      </CTableDataCell>
+                        </CTableDataCell>
 
-                      {/* Deduction badges */}
-                      <CTableDataCell>
-                        <div className="d-flex flex-column gap-1">
-                          {e.remarks
-                            .filter((r) => ['absent', 'halfday', 'late'].includes(r.type))
-                            .map((r, i) => (
-                              <CBadge
-                                key={i}
-                                color={
-                                  r.type === 'absent'
-                                    ? 'danger'
-                                    : r.type === 'halfday'
-                                      ? 'warning'
-                                      : 'dark'
-                                }
-                                className={`text-start text-wrap${r.type === 'halfday' ? ' text-dark' : ''}`}
-                                style={{ fontSize: '0.72rem', whiteSpace: 'normal' }}
-                              >
-                                {r.icon} {r.label}
-                              </CBadge>
-                            ))}
-                          {!e.has_deduction && (
-                            <CBadge color="success" style={{ fontSize: '0.72rem' }}>
-                              No deductions
-                            </CBadge>
-                          )}
-                        </div>
-                      </CTableDataCell>
-
-                      {/* Remarks */}
-                      <CTableDataCell>
-                        <div className="d-flex flex-column gap-2">
-                          {e.remarks.map((r, i) => (
-                            <div key={i} style={{ fontSize: '0.75rem' }}>
-                              <span
-                                className={
-                                  r.type === 'absent'
-                                    ? 'text-danger fw-semibold'
-                                    : r.type === 'halfday'
-                                      ? 'fw-semibold'
-                                      : r.type === 'late'
+                        {/* Remarks */}
+                        <CTableDataCell>
+                          <div className="d-flex flex-column gap-2">
+                            {e.remarks.map((r, i) => (
+                              <div key={i} style={{ fontSize: '0.75rem' }}>
+                                <span
+                                  className={
+                                    r.type === 'absent'
+                                      ? 'text-danger fw-semibold'
+                                      : r.type === 'halfday'
                                         ? 'fw-semibold'
-                                        : r.type === 'clean'
-                                          ? 'text-success'
-                                          : 'text-body-secondary'
-                                }
-                              >
-                                {r.icon} {r.label}:{' '}
-                              </span>
-                              <span className="text-body-secondary">{r.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CTableDataCell>
-                    </CTableRow>
-                  ))}
+                                        : r.type === 'late'
+                                          ? 'fw-semibold'
+                                          : r.type === 'clean'
+                                            ? 'text-success'
+                                            : 'text-body-secondary'
+                                  }
+                                >
+                                  {r.icon} {r.label}:{' '}
+                                </span>
+                                <span className="text-body-secondary">{r.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CTableDataCell>
+
+                        {/* Recovery amount */}
+                        <CTableDataCell className="text-end fw-semibold">
+                          {recovery == null ? (
+                            <span className="text-body-secondary">-</span>
+                          ) : recovery > 0 ? (
+                            <span className="text-danger">− ₹ {recovery.toFixed(2)}</span>
+                          ) : (
+                            <span className="text-body-secondary">₹ 0.00</span>
+                          )}
+                        </CTableDataCell>
+                      </CTableRow>
+                    )
+                  })}
                 </CTableBody>
               </CTable>
             </CCardBody>

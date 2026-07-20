@@ -66,6 +66,61 @@ const SORT_OPTIONS = [
 
 const numCell = { textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
 
+// Whole days between an ISO timestamp and now — used to flag how long a
+// bill has sat "Not Accounted" so Finance/CEO can see accounting delay.
+const daysSince = (isoDate) => {
+  if (!isoDate) return null
+  const then = new Date(isoDate)
+  if (Number.isNaN(then.getTime())) return null
+  return Math.max(0, Math.floor((Date.now() - then.getTime()) / 86400000))
+}
+
+const delayBadgeColor = (days) => (days >= 8 ? 'danger' : days >= 4 ? 'warning' : 'secondary')
+
+// Two-segment status toggle: single click to flip state, both options always
+// visible and colored, instead of opening a dropdown to pick one — the
+// active option is filled, the inactive one outlined.
+const StatusToggle = ({ value, options, disabled, onChange, ariaLabel }) => (
+  <div className="btn-group btn-group-sm" role="group" aria-label={ariaLabel}>
+    {options.map((opt) => (
+      <button
+        key={opt.value}
+        type="button"
+        className={`btn btn-sm ${value === opt.value ? `btn-${opt.color}` : `btn-outline-${opt.color}`}`}
+        disabled={disabled}
+        onClick={() => value !== opt.value && onChange(opt.value)}
+      >
+        {opt.label}
+      </button>
+    ))}
+  </div>
+)
+
+StatusToggle.propTypes = {
+  value: PropTypes.string.isRequired,
+  options: PropTypes.arrayOf(
+    PropTypes.shape({
+      value: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+      color: PropTypes.string.isRequired,
+    }),
+  ).isRequired,
+  disabled: PropTypes.bool,
+  onChange: PropTypes.func.isRequired,
+  ariaLabel: PropTypes.string,
+}
+
+StatusToggle.defaultProps = { disabled: false, ariaLabel: undefined }
+
+const ACCOUNTED_OPTIONS = [
+  { value: 'Not Accounted', label: 'Not Accounted', color: 'danger' },
+  { value: 'Accounted', label: 'Accounted', color: 'success' },
+]
+const ELIGIBILITY_OPTIONS = [
+  { value: 'Not Eligible', label: 'Not Eligible', color: 'danger' },
+  { value: 'Eligible', label: 'Eligible', color: 'success' },
+]
+
 // Case-insensitive distinct values of one entry field, in alphabetical order.
 const distinctValues = (entries, field) => {
   const seen = new Map()
@@ -91,6 +146,7 @@ const filterAndSort = (entries, opts) => {
     sortBy = 'upload_asc',
     accountedFirst = false,
     accounted = 'all',
+    eligibility = 'all',
   } = opts
 
   let list = entries
@@ -115,6 +171,9 @@ const filterAndSort = (entries, opts) => {
   }
   if (accounted !== 'all') {
     list = list.filter((e) => (e.accounted || 'Not Accounted') === accounted)
+  }
+  if (eligibility !== 'all') {
+    list = list.filter((e) => (e.eligibility || 'Eligible') === eligibility)
   }
 
   const { key, dir } = SORT_OPTIONS.find((o) => o.value === sortBy) || SORT_OPTIONS[0]
@@ -257,6 +316,7 @@ const GstBillsView = ({
   const [exportFrom, setExportFrom] = useState('')
   const [exportTo, setExportTo] = useState('')
   const [exportAccounted, setExportAccounted] = useState('all') // 'all' | 'Accounted' | 'Not Accounted'
+  const [exportEligibility, setExportEligibility] = useState('all') // 'all' | 'Eligible' | 'Not Eligible'
 
   const reload = () => {
     setEntries(localGstBills.entries.list())
@@ -312,6 +372,32 @@ const GstBillsView = ({
     [rows],
   )
 
+  // Accounted vs. Not Accounted breakdown, plus a per-bill delay list (upload
+  // date vs. today) for Finance/CEO visibility into how long each pending
+  // bill has been sitting unaccounted. Computed over all scoped bills, not
+  // just the current on-screen filter, so it always reflects the true
+  // backlog regardless of what's filtered into view.
+  const accountingOverview = useMemo(() => {
+    if (!showFinanceFields) return null
+    const sumValue = (list) => list.reduce((s, e) => s + (Number(e.totalValue) || 0), 0)
+    const accounted = scopedEntries.filter((e) => (e.accounted || 'Not Accounted') === 'Accounted')
+    const notAccounted = scopedEntries.filter(
+      (e) => (e.accounted || 'Not Accounted') !== 'Accounted',
+    )
+    const delayed = notAccounted
+      .map((e) => ({ ...e, delayDays: daysSince(e.createdAt) }))
+      .filter((e) => e.delayDays != null)
+      .sort((a, b) => b.delayDays - a.delayDays)
+    return {
+      totalCount: scopedEntries.length,
+      accountedCount: accounted.length,
+      accountedValue: sumValue(accounted),
+      notAccountedCount: notAccounted.length,
+      notAccountedValue: sumValue(notAccounted),
+      delayed,
+    }
+  }, [scopedEntries, showFinanceFields])
+
   const clearAllFilters = () => {
     setDeptSelected([])
     setVertSelected([])
@@ -338,6 +424,7 @@ const GstBillsView = ({
         sortBy,
         accountedFirst: showFinanceFields,
         accounted: exportAccounted,
+        eligibility: exportEligibility,
       })
     }
     if (exportScope === 'custom') {
@@ -350,9 +437,10 @@ const GstBillsView = ({
         sortBy,
         accountedFirst: showFinanceFields,
         accounted: exportAccounted,
+        eligibility: exportEligibility,
       })
     }
-    // 'current' — exactly what the table shows, plus the accounted choice
+    // 'current' — exactly what the table shows, plus the accounted/eligibility choice
     return filterAndSort(scopedEntries, {
       deptSelected,
       vertSelected,
@@ -363,6 +451,7 @@ const GstBillsView = ({
       sortBy,
       accountedFirst: showFinanceFields,
       accounted: exportAccounted,
+      eligibility: exportEligibility,
     })
   }
 
@@ -393,6 +482,7 @@ const GstBillsView = ({
       label = parts.length > 0 ? parts.join(' · ') : 'All Departments'
     }
     if (exportAccounted !== 'all') label += ` · ${exportAccounted} only`
+    if (exportEligibility !== 'all') label += ` · ${exportEligibility} only`
     return label
   }
 
@@ -844,28 +934,36 @@ const GstBillsView = ({
                   {showFinanceFields && (
                     <>
                       <td>
-                        <CFormSelect
-                          size="sm"
-                          disabled={cellsDisabled}
-                          value={r.accounted}
-                          onChange={(e) => updateEntry(r.id, { accounted: e.target.value })}
-                          aria-label="Accounted status"
-                        >
-                          <option>Not Accounted</option>
-                          <option>Accounted</option>
-                        </CFormSelect>
+                        <div className="d-flex align-items-center gap-2">
+                          <StatusToggle
+                            value={r.accounted}
+                            options={ACCOUNTED_OPTIONS}
+                            disabled={cellsDisabled}
+                            onChange={(v) => updateEntry(r.id, { accounted: v })}
+                            ariaLabel="Accounted status"
+                          />
+                          {r.accounted !== 'Accounted' &&
+                            (() => {
+                              const days = daysSince(r.createdAt)
+                              return days == null ? null : (
+                                <CBadge
+                                  color={delayBadgeColor(days)}
+                                  title="Days since upload, still not accounted"
+                                >
+                                  {days === 0 ? 'Today' : `${days}d`}
+                                </CBadge>
+                              )
+                            })()}
+                        </div>
                       </td>
                       <td>
-                        <CFormSelect
-                          size="sm"
-                          disabled={cellsDisabled}
+                        <StatusToggle
                           value={r.eligibility}
-                          onChange={(e) => updateEntry(r.id, { eligibility: e.target.value })}
-                          aria-label="Eligibility"
-                        >
-                          <option>Eligible</option>
-                          <option>Not Eligible</option>
-                        </CFormSelect>
+                          options={ELIGIBILITY_OPTIONS}
+                          disabled={cellsDisabled}
+                          onChange={(v) => updateEntry(r.id, { eligibility: v })}
+                          ariaLabel="Eligibility"
+                        />
                       </td>
                     </>
                   )}
@@ -889,6 +987,69 @@ const GstBillsView = ({
         </div>
       )}
     </>
+  )
+
+  // Accounted vs. Not Accounted breakdown + per-bill delay list, shown on
+  // the Finance page only (not on restricted upload-only surfaces), placed
+  // before Upload History so the Head of Finance / CEO see the backlog
+  // before the raw upload log.
+  const accountingOverviewCard = accountingOverview && accountingOverview.totalCount > 0 && (
+    <CCard className="mb-4">
+      <CCardHeader className="fw-semibold">Accounting Status Overview</CCardHeader>
+      <CCardBody>
+        <CRow className="g-3 mb-3">
+          <CCol sm={4}>
+            <div className="small text-body-secondary">Total Bills</div>
+            <div className="fs-4 fw-bold">{accountingOverview.totalCount}</div>
+          </CCol>
+          <CCol sm={4}>
+            <div className="small text-body-secondary">Accounted</div>
+            <div className="fs-4 fw-bold text-success">
+              {accountingOverview.accountedCount}
+              <span className="fs-6 fw-normal text-body-secondary ms-2">
+                ({money(accountingOverview.accountedValue)})
+              </span>
+            </div>
+          </CCol>
+          <CCol sm={4}>
+            <div className="small text-body-secondary">Not Accounted</div>
+            <div className="fs-4 fw-bold text-danger">
+              {accountingOverview.notAccountedCount}
+              <span className="fs-6 fw-normal text-body-secondary ms-2">
+                ({money(accountingOverview.notAccountedValue)})
+              </span>
+            </div>
+          </CCol>
+        </CRow>
+
+        {accountingOverview.delayed.length > 0 && (
+          <>
+            <div className="fw-semibold small text-uppercase text-body-secondary mb-2">
+              Pending Accounting — Delay by Bill
+            </div>
+            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+              {accountingOverview.delayed.map((e) => (
+                <div
+                  key={e.id}
+                  className="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom small"
+                >
+                  <span>
+                    {e.partyName || 'Unknown party'} — Invoice {e.invoiceNumber || '—'} (
+                    {money(e.totalValue)}) · uploaded{' '}
+                    {e.createdAt ? new Date(e.createdAt).toLocaleDateString('en-IN') : '—'}
+                  </span>
+                  <CBadge color={delayBadgeColor(e.delayDays)} className="text-nowrap">
+                    {e.delayDays === 0
+                      ? 'Uploaded today'
+                      : `Delayed by ${e.delayDays} day${e.delayDays === 1 ? '' : 's'}`}
+                  </CBadge>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CCardBody>
+    </CCard>
   )
 
   return (
@@ -946,6 +1107,7 @@ const GstBillsView = ({
         ) : (
           <>
             {filterBarAndTable}
+            {accountingOverviewCard && <div className="mt-4">{accountingOverviewCard}</div>}
             {showActions && scopedBatches.length > 0 && (
               <div className="mt-4">
                 <div className="fw-semibold small text-body-secondary text-uppercase mb-2">
@@ -1201,6 +1363,39 @@ const GstBillsView = ({
             </div>
           </div>
 
+          {/* ── Section 4: Eligibility status ───────────────────────── */}
+          <div className="mb-3">
+            <div className="fw-semibold small text-uppercase text-body-secondary mb-2">
+              Eligibility Status
+            </div>
+            <div className="d-flex gap-4 flex-wrap">
+              <CFormCheck
+                type="radio"
+                name="export-eligibility"
+                id="export-eligibility-all"
+                label="All (eligible + not eligible)"
+                checked={exportEligibility === 'all'}
+                onChange={() => setExportEligibility('all')}
+              />
+              <CFormCheck
+                type="radio"
+                name="export-eligibility"
+                id="export-eligibility-yes"
+                label="Eligible only"
+                checked={exportEligibility === 'Eligible'}
+                onChange={() => setExportEligibility('Eligible')}
+              />
+              <CFormCheck
+                type="radio"
+                name="export-eligibility"
+                id="export-eligibility-no"
+                label="Not Eligible only"
+                checked={exportEligibility === 'Not Eligible'}
+                onChange={() => setExportEligibility('Not Eligible')}
+              />
+            </div>
+          </div>
+
           {/* ── Preview summary ─────────────────────────────────────── */}
           <CAlert color="info" className="small mb-0 py-2">
             <strong>Preview:</strong>{' '}
@@ -1212,6 +1407,9 @@ const GstBillsView = ({
             .
             {exportAccounted !== 'all' && (
               <span className="ms-1 fw-semibold">· {exportAccounted} only</span>
+            )}
+            {exportEligibility !== 'all' && (
+              <span className="ms-1 fw-semibold">· {exportEligibility} only</span>
             )}
           </CAlert>
         </CModalBody>
@@ -1228,6 +1426,7 @@ const GstBillsView = ({
               setExportFrom('')
               setExportTo('')
               setExportAccounted('all')
+              setExportEligibility('all')
             }}
           >
             Cancel
