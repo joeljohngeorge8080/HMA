@@ -23,6 +23,7 @@ import {
 } from '../../../../services/budgetPlan'
 import { localBudgetPlan } from '../../../../services/localBudgetPlan'
 import MonthPicker from './MonthPicker'
+import { ACTIVITY_OPTIONS, activityLabelOf } from './activityOptions'
 
 const PHASE_OPTIONS = [
   { value: 'design', label: 'Design' },
@@ -61,7 +62,7 @@ const monthLabel = (ym) => {
 }
 
 const emptyNewTask = { phase: 'design', name: '' }
-const emptyNewSubtask = { name: '', amount: '' }
+const emptyNewSubtask = { name: '', amount: '', activity: '', activityOther: '', subBudgetHead: '' }
 
 const PlanningMonthCard = ({
   project,
@@ -115,11 +116,14 @@ const PlanningMonthCard = ({
 
   const handleAddSubtask = (taskId) => {
     const draft = subtaskDraft(taskId)
-    if (!draft.name.trim()) return
+    if (!draft.name.trim() || !draft.activity) return
     run(() =>
       localBudgetPlan.addSubtask(project.id, month, taskId, {
         name: draft.name,
         planned_amount: parseFloat(draft.amount) || 0,
+        activity: draft.activity,
+        activity_other: draft.activityOther,
+        sub_budget_head: draft.subBudgetHead,
       }),
     )
     setNewSubtaskByTask((prev) => ({ ...prev, [taskId]: emptyNewSubtask }))
@@ -266,10 +270,18 @@ const PlanningMonthCard = ({
               )}
             </div>
             {task.subtasks.map((sub) => (
-              <div key={sub.id} className="d-flex gap-2 align-items-center mb-1 ms-3">
+              <div key={sub.id} className="d-flex gap-2 align-items-center mb-1 ms-3 flex-wrap">
                 <span className="small" style={{ width: 160 }}>
                   {sub.name}
                 </span>
+                <span className="small text-body-secondary" style={{ width: 150 }}>
+                  {activityLabelOf(sub.activity, sub.activity_other)}
+                </span>
+                {sub.sub_budget_head && (
+                  <span className="small text-body-tertiary" style={{ width: 140 }}>
+                    {sub.sub_budget_head}
+                  </span>
+                )}
                 <CFormInput
                   size="sm"
                   type="number"
@@ -303,13 +315,42 @@ const PlanningMonthCard = ({
               </div>
             ))}
             {canEdit && (
-              <div className="d-flex gap-2 align-items-center ms-3 mt-1">
+              <div className="d-flex gap-2 align-items-center ms-3 mt-1 flex-wrap">
                 <CFormInput
                   size="sm"
                   style={{ width: 160 }}
                   placeholder="Subtask"
                   value={subtaskDraft(task.id).name}
                   onChange={(e) => setSubtaskDraft(task.id, { name: e.target.value })}
+                />
+                <CFormSelect
+                  size="sm"
+                  style={{ width: 170 }}
+                  value={subtaskDraft(task.id).activity}
+                  onChange={(e) => setSubtaskDraft(task.id, { activity: e.target.value })}
+                >
+                  <option value="">Activity...</option>
+                  {ACTIVITY_OPTIONS.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </CFormSelect>
+                {subtaskDraft(task.id).activity === 'other' && (
+                  <CFormInput
+                    size="sm"
+                    style={{ width: 150 }}
+                    placeholder="Activity name"
+                    value={subtaskDraft(task.id).activityOther}
+                    onChange={(e) => setSubtaskDraft(task.id, { activityOther: e.target.value })}
+                  />
+                )}
+                <CFormInput
+                  size="sm"
+                  style={{ width: 150 }}
+                  placeholder="Sub-budget head"
+                  value={subtaskDraft(task.id).subBudgetHead}
+                  onChange={(e) => setSubtaskDraft(task.id, { subBudgetHead: e.target.value })}
                 />
                 <CFormInput
                   size="sm"
@@ -324,6 +365,11 @@ const PlanningMonthCard = ({
                   color="secondary"
                   variant="outline"
                   onClick={() => handleAddSubtask(task.id)}
+                  disabled={
+                    !subtaskDraft(task.id).activity ||
+                    (subtaskDraft(task.id).activity === 'other' &&
+                      !subtaskDraft(task.id).activityOther.trim())
+                  }
                 >
                   <CIcon icon={cilPlus} className="me-1" /> Subtask
                 </CButton>

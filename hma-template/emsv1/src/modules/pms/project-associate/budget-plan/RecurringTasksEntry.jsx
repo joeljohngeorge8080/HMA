@@ -12,6 +12,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash } from '@coreui/icons'
 import { localBudgetPlan } from '../../../../services/localBudgetPlan'
+import { ACTIVITY_OPTIONS, activityLabelOf } from './activityOptions'
 
 const PHASE_OPTIONS = [
   { value: 'design', label: 'Design' },
@@ -31,10 +32,19 @@ const emptyDraftTask = () => ({
   phase: 'design',
   name: '',
   totalAmount: '',
+  activity: '',
+  activityOther: '',
+  subBudgetHead: '',
   subtasks: [],
 })
 
-const emptySubtaskDraft = { name: '', totalAmount: '' }
+const emptySubtaskDraft = {
+  name: '',
+  totalAmount: '',
+  activity: '',
+  activityOther: '',
+  subBudgetHead: '',
+}
 
 /** A queued task's own total when it has no explicit subtasks, or the sum
  * of its subtask totals when it does — used only for the summary display. */
@@ -67,7 +77,8 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
 
   const addSubtaskToDraft = (taskId) => {
     const draft = subtaskDraft(taskId)
-    if (!draft.name.trim() || !(parseFloat(draft.totalAmount) > 0)) return
+    if (!draft.name.trim() || !(parseFloat(draft.totalAmount) > 0) || !draft.activity) return
+    if (draft.activity === 'other' && !draft.activityOther.trim()) return
     updateDraftTask(taskId, {
       subtasks: [
         ...(drafts.find((t) => t.id === taskId)?.subtasks || []),
@@ -83,7 +94,11 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
     updateDraftTask(taskId, { subtasks: task.subtasks.filter((s) => s.id !== subtaskDraftId) })
   }
 
-  const validDrafts = drafts.filter((t) => t.name.trim() && draftTaskTotal(t) > 0)
+  const draftActivityOk = (t) =>
+    t.subtasks.length > 0 || (t.activity && (t.activity !== 'other' || t.activityOther.trim()))
+  const validDrafts = drafts.filter(
+    (t) => t.name.trim() && draftTaskTotal(t) > 0 && draftActivityOk(t),
+  )
   const totalBudget = validDrafts.reduce((s, t) => s + draftTaskTotal(t), 0)
   const perMonth = monthCount > 0 ? totalBudget / monthCount : 0
 
@@ -99,7 +114,16 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
           phase: t.phase,
           name: t.name,
           totalAmount: t.totalAmount,
-          subtasks: t.subtasks.map((s) => ({ name: s.name, totalAmount: s.totalAmount })),
+          activity: t.activity,
+          activityOther: t.activityOther,
+          subBudgetHead: t.subBudgetHead,
+          subtasks: t.subtasks.map((s) => ({
+            name: s.name,
+            totalAmount: s.totalAmount,
+            activity: s.activity,
+            activityOther: s.activityOther,
+            subBudgetHead: s.subBudgetHead,
+          })),
         })),
       })
       onPlanChange(updated)
@@ -161,15 +185,50 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
                     onChange={(e) => updateDraftTask(task.id, { name: e.target.value })}
                   />
                   {task.subtasks.length === 0 && (
-                    <CFormInput
-                      size="sm"
-                      type="number"
-                      min="0"
-                      style={{ width: 130 }}
-                      placeholder="Total amount"
-                      value={task.totalAmount}
-                      onChange={(e) => updateDraftTask(task.id, { totalAmount: e.target.value })}
-                    />
+                    <>
+                      <CFormSelect
+                        size="sm"
+                        style={{ width: 170 }}
+                        value={task.activity}
+                        onChange={(e) => updateDraftTask(task.id, { activity: e.target.value })}
+                      >
+                        <option value="">Activity...</option>
+                        {ACTIVITY_OPTIONS.map((a) => (
+                          <option key={a.value} value={a.value}>
+                            {a.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                      {task.activity === 'other' && (
+                        <CFormInput
+                          size="sm"
+                          style={{ width: 150 }}
+                          placeholder="Activity name"
+                          value={task.activityOther}
+                          onChange={(e) =>
+                            updateDraftTask(task.id, { activityOther: e.target.value })
+                          }
+                        />
+                      )}
+                      <CFormInput
+                        size="sm"
+                        style={{ width: 150 }}
+                        placeholder="Sub-budget head"
+                        value={task.subBudgetHead}
+                        onChange={(e) =>
+                          updateDraftTask(task.id, { subBudgetHead: e.target.value })
+                        }
+                      />
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min="0"
+                        style={{ width: 130 }}
+                        placeholder="Total amount"
+                        value={task.totalAmount}
+                        onChange={(e) => updateDraftTask(task.id, { totalAmount: e.target.value })}
+                      />
+                    </>
                   )}
                   {draftTaskTotal(task) > 0 && monthCount > 0 && (
                     <span className="small text-body-secondary text-nowrap">
@@ -194,6 +253,14 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
                         <span className="small" style={{ width: 160 }}>
                           {sub.name}
                         </span>
+                        <span className="small text-body-secondary" style={{ width: 150 }}>
+                          {activityLabelOf(sub.activity, sub.activityOther)}
+                        </span>
+                        {sub.subBudgetHead && (
+                          <span className="small text-body-tertiary" style={{ width: 140 }}>
+                            {sub.subBudgetHead}
+                          </span>
+                        )}
                         <span className="small text-body-secondary">
                           {fmt(parseFloat(sub.totalAmount) || 0)} total
                         </span>
@@ -218,6 +285,35 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
                     value={subtaskDraft(task.id).name}
                     onChange={(e) => setSubtaskDraft(task.id, { name: e.target.value })}
                   />
+                  <CFormSelect
+                    size="sm"
+                    style={{ width: 170 }}
+                    value={subtaskDraft(task.id).activity}
+                    onChange={(e) => setSubtaskDraft(task.id, { activity: e.target.value })}
+                  >
+                    <option value="">Activity...</option>
+                    {ACTIVITY_OPTIONS.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </CFormSelect>
+                  {subtaskDraft(task.id).activity === 'other' && (
+                    <CFormInput
+                      size="sm"
+                      style={{ width: 150 }}
+                      placeholder="Activity name"
+                      value={subtaskDraft(task.id).activityOther}
+                      onChange={(e) => setSubtaskDraft(task.id, { activityOther: e.target.value })}
+                    />
+                  )}
+                  <CFormInput
+                    size="sm"
+                    style={{ width: 150 }}
+                    placeholder="Sub-budget head"
+                    value={subtaskDraft(task.id).subBudgetHead}
+                    onChange={(e) => setSubtaskDraft(task.id, { subBudgetHead: e.target.value })}
+                  />
                   <CFormInput
                     size="sm"
                     type="number"
@@ -232,6 +328,11 @@ const RecurringTasksEntry = ({ project, plan, canEdit, onPlanChange }) => {
                     color="secondary"
                     variant="outline"
                     onClick={() => addSubtaskToDraft(task.id)}
+                    disabled={
+                      !subtaskDraft(task.id).activity ||
+                      (subtaskDraft(task.id).activity === 'other' &&
+                        !subtaskDraft(task.id).activityOther.trim())
+                    }
                   >
                     <CIcon icon={cilPlus} className="me-1" /> Subtask
                   </CButton>
