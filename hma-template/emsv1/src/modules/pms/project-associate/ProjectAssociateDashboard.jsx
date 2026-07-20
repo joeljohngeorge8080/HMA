@@ -26,6 +26,9 @@ import {
   cilArrowRight,
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
+import useAuth from '../../../hooks/useAuth'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
 
 const fmt = (n) =>
   new Intl.NumberFormat('en-IN', {
@@ -49,15 +52,19 @@ const PHASE_META = {
 
 const ProjectAssociateDashboard = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const role = useRole()
+  const isPA = role === ROLE.PROJECT_ASSOCIATE
   const [stats, setStats] = useState(null)
   const [recentProjects, setRecentProjects] = useState([])
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
-    setStats(localProjects.getStats())
-    const { items } = localProjects.list({ pageSize: 5 })
+    const paId = isPA ? (user?.employee_id || '') : ''
+    setStats(isPA ? localProjects.getStatsForPA(paId) : localProjects.getStats())
+    const { items } = localProjects.list({ pageSize: 5, paId })
     setRecentProjects(items)
-  }, [])
+  }, [isPA, user?.employee_id])
 
   useEffect(() => {
     load()

@@ -45,6 +45,7 @@ import {
 } from '@coreui/icons'
 import { localProjects } from '../../../services/localProjects'
 import useRole from '../../../hooks/useRole'
+import useAuth from '../../../hooks/useAuth'
 import { ROLE } from '../../../constants/roles'
 import DeleteProjectConfirmModal from './DeleteProjectConfirmModal'
 
@@ -76,6 +77,8 @@ const ProjectListPage = () => {
   const [deleteModal, setDeleteModal] = useState({ visible: false, project: null })
 
   const role = useRole()
+  const { user } = useAuth()
+  const isPA = role === ROLE.PROJECT_ASSOCIATE
   const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
 
   // Sync filter when URL ?status= changes (e.g. clicking sidebar lifecycle items)
@@ -86,16 +89,22 @@ const ProjectListPage = () => {
 
   const load = useCallback(() => {
     localProjects.seedDemoData()
-    const result = localProjects.list(filters)
+    // PAs see only their own projects; all other roles see everything
+    const result = localProjects.list({
+      ...filters,
+      paId: isPA ? (user?.employee_id || '') : '',
+    })
     setProjects(result.items)
     setTotal(result.total)
-  }, [filters])
+  }, [filters, isPA, user?.employee_id])
 
   useEffect(() => {
     load()
   }, [load])
 
-  const stats = localProjects.getStats()
+  const stats = isPA
+    ? localProjects.getStatsForPA(user?.employee_id || '')
+    : localProjects.getStats()
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }))

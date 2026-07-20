@@ -45,6 +45,9 @@ import {
 } from '@coreui/icons'
 import { localProjects, localOfficers } from '../../../services/localProjects'
 import { localReports, REPORT_STATUS } from '../../../services/localReports'
+import useAuth from '../../../hooks/useAuth'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -407,6 +410,10 @@ const OfficerCard = ({ officer, projects, allReports }) => {
 
 const TeamOverviewPage = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const role = useRole()
+  const isPA = role === ROLE.PROJECT_ASSOCIATE
+
   const [officers, setOfficers] = useState([])
   const [projectsMap, setProjectsMap] = useState({})
   const [allReports, setAllReports] = useState([])
@@ -416,26 +423,39 @@ const TeamOverviewPage = () => {
     localProjects.seedDemoData()
     localReports.seedDemoData()
 
-    const { items: officerList } = localOfficers.list()
-    const { items: allProjects } = localProjects.list({ pageSize: 500 })
+    const paId = isPA ? (user?.employee_id || '') : ''
+    // PAs see only their scoped officers; Admins/CEO see all
+    const { items: officerList } = isPA
+      ? localOfficers.listForPA(paId)
+      : localOfficers.list()
+    const { items: allProjects } = localProjects.list({ pageSize: 500, paId })
     const { items: reports } = localReports.list({ pageSize: 1000 })
 
-    // Build officer → projects map
+    // Build officer → projects map (supports multi-officer via officer_ids[])
     const map = {}
     officerList.forEach((o) => {
-      map[o.id] = allProjects.filter((p) => p.officer_id === o.id || p.assigned_officer_id === o.id)
+      map[o.id] = allProjects.filter(
+        (p) =>
+          p.officer_id === o.id ||
+          p.assigned_officer_id === o.id ||
+          (p.officer_ids || []).includes(o.id),
+      )
     })
 
-    // Also capture projects with no assigned officer (unassigned)
-    const unassignedProjects = allProjects.filter((p) => !p.officer_id && !p.assigned_officer_id)
-    if (unassignedProjects.length) {
-      map['__unassigned__'] = unassignedProjects
+    // Also capture projects with no assigned officer (unassigned) — only for Admin view
+    if (!isPA) {
+      const unassignedProjects = allProjects.filter(
+        (p) => !p.officer_id && !p.assigned_officer_id && !(p.officer_ids?.length),
+      )
+      if (unassignedProjects.length) {
+        map['__unassigned__'] = unassignedProjects
+      }
     }
 
     setOfficers(officerList)
     setProjectsMap(map)
     setAllReports(reports)
-  }, [])
+  }, [isPA, user?.employee_id])
 
   useEffect(() => {
     load()

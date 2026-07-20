@@ -55,6 +55,23 @@ const SEEDED_USERS = [
     added_by: 'system',
     added_at: '2026-01-01T00:00:00.000Z',
   },
+  // ── Demo Project Associates ──
+  {
+    id: 'PA_DEMO_001',
+    full_name: 'Priya Menon',
+    google_email: 'pa1@hma.dev',
+    role: ROLE.PROJECT_ASSOCIATE,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'PA_DEMO_002',
+    full_name: 'Rahul Nair',
+    google_email: 'pa2@hma.dev',
+    role: ROLE.PROJECT_ASSOCIATE,
+    added_by: 'system',
+    added_at: '2026-01-01T00:00:00.000Z',
+  },
 ]
 
 // Local password accounts — checked before the backend on Employee ID login.
@@ -65,6 +82,9 @@ const PASSWORD_LOGINS = [
   { employee_id: 'ADMIN003', password: 'HmaAdmin@3', user_id: 'DEV_ADMIN_003' },
   { employee_id: 'ADMIN004', password: 'HmaAdmin@4', user_id: 'DEV_ADMIN_004' },
   { employee_id: 'ADMIN005', password: 'HmaAdmin@5', user_id: 'DEV_ADMIN_005' },
+  // Project Associate logins for testing scoped views
+  { employee_id: 'PA001', password: 'HmaPA@1', user_id: 'PA_DEMO_001' },
+  { employee_id: 'PA002', password: 'HmaPA@2', user_id: 'PA_DEMO_002' },
 ]
 
 export const verifyPasswordLogin = (employeeId, password) => {

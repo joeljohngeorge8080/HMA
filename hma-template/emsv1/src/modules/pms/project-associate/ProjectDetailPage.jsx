@@ -67,7 +67,7 @@ import {
   cilCloudUpload,
 } from '@coreui/icons'
 import { CChartDoughnut } from '@coreui/react-chartjs'
-import { localProjects } from '../../../services/localProjects'
+import { localProjects, localOfficers } from '../../../services/localProjects'
 import { localTasks } from '../../../services/localTasks'
 import { localPayroll } from '../../../services/localPayroll'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
@@ -715,7 +715,6 @@ const ProjectDetailPage = () => {
       setApprovals(DEMO_APPROVALS)
     }
   }, [id])
-
   // Sync when another component (e.g. EMS pool page, ExpensePanel) mutates
   // the project record in localStorage and fires hma_projects_changed.
   // Also listens to the native `storage` event so changes made in ANOTHER
@@ -746,6 +745,28 @@ const ProjectDetailPage = () => {
         <CButton color="primary" variant="outline" onClick={() => navigate('/pms/projects')}>
           Back to Projects
         </CButton>
+      </>
+    )
+  }
+
+  // Guard: PA can only view their own projects
+  if (role === ROLE.PROJECT_ASSOCIATE && project.project_associate_id && project.project_associate_id !== user?.employee_id) {
+    return (
+      <>
+        <CButton color="secondary" variant="ghost" size="sm" className="mb-3" onClick={() => navigate('/pms/projects')}>
+          <CIcon icon={cilArrowLeft} className="me-1" />
+          All Projects
+        </CButton>
+        <div className="text-center py-5">
+          <div style={{ fontSize: '4rem' }}>🔒</div>
+          <h5 className="fw-bold mt-3">Access Restricted</h5>
+          <p className="text-body-secondary">
+            This project is managed by a different Project Associate.
+          </p>
+          <CButton color="primary" onClick={() => navigate('/pms/projects')}>
+            View My Projects
+          </CButton>
+        </div>
       </>
     )
   }
@@ -1156,44 +1177,81 @@ const ProjectDetailPage = () => {
               </CRow>
             </CTabPane>
 
-            {/* Project Officer Tab */}
+            {/* Project Officer(s) Tab */}
             <CTabPane visible={activeTab === 1}>
-              {project.officer_id ? (
-                <CCard
-                  className="border-0 shadow-sm"
-                  style={{ borderRadius: '10px', maxWidth: '500px' }}
-                >
-                  <CCardBody>
-                    <div className="d-flex align-items-center gap-3 mb-4">
-                      <div
-                        className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-4"
-                        style={{ width: 64, height: 64, flexShrink: 0 }}
+              {(() => {
+                // Resolve officer objects from officer_ids[] (multi-officer)
+                const officerIds = project.officer_ids?.length
+                  ? project.officer_ids
+                  : project.officer_id ? [project.officer_id] : []
+                const officerObjects = officerIds
+                  .map((oid) => localOfficers.getById(oid))
+                  .filter(Boolean)
+
+                if (officerObjects.length === 0) {
+                  return (
+                    <CAlert color="warning" className="d-flex align-items-center gap-2">
+                      <CIcon icon={cilWarning} />
+                      No officer assigned.&nbsp;
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          navigate(`/pms/projects/${id}/edit`)
+                        }}
+                        className="fw-semibold"
                       >
-                        {project.officer_name?.charAt(0)}
-                      </div>
-                      <div>
-                        <h5 className="fw-bold mb-0">{project.officer_name}</h5>
-                        <div className="text-body-secondary small">Project Officer</div>
-                      </div>
-                    </div>
-                    {[{ icon: cilEnvelopeLetter, label: project.officer_email }].map((row, i) => (
-                      <div key={i} className="d-flex align-items-center gap-2 mb-2 small">
-                        <CIcon icon={row.icon} className="text-primary" />
-                        <span>{row.label}</span>
-                      </div>
+                        Assign one now →
+                      </a>
+                    </CAlert>
+                  )
+                }
+
+                return (
+                  <div className="d-flex flex-column gap-3">
+                    {officerObjects.map((officer, idx) => (
+                      <CCard
+                        key={officer.id}
+                        className="border-0 shadow-sm"
+                        style={{ borderRadius: '10px', maxWidth: '500px' }}
+                      >
+                        <CCardBody>
+                          <div className="d-flex align-items-center gap-3 mb-3">
+                            <div
+                              className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-4"
+                              style={{ width: 56, height: 56, flexShrink: 0 }}
+                            >
+                              {officer.name?.charAt(0)}
+                            </div>
+                            <div>
+                              <h6 className="fw-bold mb-0">{officer.name}</h6>
+                              <div className="text-body-secondary small">Project Officer</div>
+                              {idx === 0 && officerObjects.length > 1 && (
+                                <CBadge color="primary" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>Primary</CBadge>
+                              )}
+                            </div>
+                          </div>
+                          {[{ icon: cilEnvelopeLetter, label: officer.email }].map((row, i) => (
+                            <div key={i} className="d-flex align-items-center gap-2 mb-2 small">
+                              <CIcon icon={row.icon} className="text-primary" />
+                              <span>{row.label}</span>
+                            </div>
+                          ))}
+                          {idx === 0 && project.email_sent && (
+                            <CAlert
+                              color="success"
+                              className="mt-3 py-2 px-3 d-flex align-items-center gap-2 small mb-2"
+                            >
+                              <CIcon icon={cilEnvelopeLetter} />
+                              <div>
+                                Access email sent via <strong>AWS SES</strong>
+                              </div>
+                            </CAlert>
+                          )}
+                        </CCardBody>
+                      </CCard>
                     ))}
-                    {project.email_sent && (
-                      <CAlert
-                        color="success"
-                        className="mt-3 py-2 px-3 d-flex align-items-center gap-2 small mb-0"
-                      >
-                        <CIcon icon={cilEnvelopeLetter} />
-                        <div>
-                          Access email sent via <strong>AWS SES</strong>
-                        </div>
-                      </CAlert>
-                    )}
-                    <div className="mt-3">
+                    <div className="mt-1">
                       <CButton
                         color="primary"
                         variant="outline"
@@ -1201,27 +1259,12 @@ const ProjectDetailPage = () => {
                         onClick={() => navigate(`/pms/projects/${id}/edit`)}
                       >
                         <CIcon icon={cilPeople} className="me-1" />
-                        Reassign Officer
+                        Manage Officers
                       </CButton>
                     </div>
-                  </CCardBody>
-                </CCard>
-              ) : (
-                <CAlert color="warning" className="d-flex align-items-center gap-2">
-                  <CIcon icon={cilWarning} />
-                  No officer assigned. &nbsp;
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      navigate(`/pms/projects/${id}/edit`)
-                    }}
-                    className="fw-semibold"
-                  >
-                    Assign one now →
-                  </a>
-                </CAlert>
-              )}
+                  </div>
+                )
+              })()}
             </CTabPane>
 
             {/* Approvals Tab */}
