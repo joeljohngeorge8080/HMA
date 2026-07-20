@@ -128,29 +128,39 @@ const computeEmployeeDeduction = (emp, summary) => {
   const salary = parseFloat(emp.current_salary || 0)
   const presentCount = summary?.present_count || 0
   const absentCount = summary?.absent_count || 0
+  const weeklyOffCount = summary?.weekly_off_count || 0
   const halfDayCount = summary?.half_day_count || 0
-  const excessLateUnits = summary?.excess_late_units || 0
+  const lateDeductionHours = summary?.late_deduction_hours || 0
+  const earlyDeductionHours = summary?.early_deduction_hours || 0
   if (salary <= 0 || !summary) {
     return {
       absentDeduction: 0,
       halfDayDeduction: 0,
       lateDeduction: 0,
+      earlyDeduction: 0,
       totalDeduction: 0,
       absentCount,
       halfDayCount,
-      excessLateUnits,
     }
   }
-  const { absentDeduction, halfDayDeduction, lateDeduction, totalDeduction } =
-    computeAttendanceDeduction({ salary, presentCount, absentCount, halfDayCount, excessLateUnits })
+  const { absentDeduction, halfDayDeduction, lateDeduction, earlyDeduction, totalDeduction } =
+    computeAttendanceDeduction({
+      salary,
+      presentCount,
+      absentCount,
+      weeklyOffCount,
+      halfDayCount,
+      lateDeductionHours,
+      earlyDeductionHours,
+    })
   return {
     absentDeduction,
     halfDayDeduction,
     lateDeduction,
+    earlyDeduction,
     totalDeduction,
     absentCount,
     halfDayCount,
-    excessLateUnits,
   }
 }
 
@@ -392,7 +402,7 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                     Half-Day
                   </CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-center">
-                    Late (excess)
+                    Late/Early Out
                   </CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-end">Saved</CTableHeaderCell>
                 </CTableRow>
@@ -417,7 +427,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                     <CTableDataCell className="text-center">{r.absentCount || '—'}</CTableDataCell>
                     <CTableDataCell className="text-center">{r.halfDayCount || '—'}</CTableDataCell>
                     <CTableDataCell className="text-center">
-                      {r.excessLateUnits || '—'}
+                      {r.lateDeduction || r.earlyDeduction
+                        ? fmt((r.lateDeduction || 0) + (r.earlyDeduction || 0))
+                        : '—'}
                     </CTableDataCell>
                     <CTableDataCell className="text-end fw-semibold" style={{ color: '#06d6a0' }}>
                       {fmt(r.totalDeduction)}

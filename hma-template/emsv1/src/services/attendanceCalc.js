@@ -8,13 +8,22 @@ import {
   LATE_UNIT_MIN,
   HALF_DAY_THRESHOLD_MIN,
   HALF_DAY_DEDUCTION_HOURS,
+  LATE_BRACKET_MIN,
+  LATE_BRACKET_HOURS,
+  FREE_EARLY_OUT_MINUTES,
+  EARLY_OUT_HALF_DAY_THRESHOLD_MIN,
+  EARLY_OUT_BRACKET_MIN,
+  EARLY_OUT_BRACKET_HOURS,
   SHIFT_START_TIME,
+  SHIFT_END_TIME,
 } from '../constants/attendancePolicy'
 
-// >60 min late while Present → Half Day (priority rule), else standard
-// ceil(minutes/15) unit count. Only ever acts on status === 'Present' — a
-// no-op for every other status, so it's safe to re-run on already-processed
-// records (idempotent), which is what the backfill migration relies on.
+// >120 min late while Present → Half Day (priority rule), else standard
+// ceil(minutes/15) unit count (used only to track when the 7-free-unit pool
+// is exhausted — see computeMonthlyDeductionDetails for the actual $ amount).
+// Only ever acts on status === 'Present' — a no-op for every other status, so
+// it's safe to re-run on already-processed records (idempotent), which is
+// what the backfill migration relies on.
 export const classifyLateEntry = (status, lateMinutes) => {
   if (status !== 'Present' || !(lateMinutes > 0)) {
     return { status, lateUnits: 0, reclassifiedToHalfDay: false }
@@ -29,6 +38,19 @@ export const classifyLateEntry = (status, lateMinutes) => {
   }
 }
 
+// Mirror of classifyLateEntry for early punch-outs. >120 min early while
+// Present → Half Day (priority rule), independent of the monthly free-pool
+// state. No-op for every other status — idempotent, safe for the backfill.
+export const classifyEarlyOut = (status, earlyMinutes) => {
+  if (status !== 'Present' || !(earlyMinutes > 0)) {
+    return { status, reclassifiedToHalfDay: false }
+  }
+  if (earlyMinutes > EARLY_OUT_HALF_DAY_THRESHOLD_MIN) {
+    return { status: 'Half Day', reclassifiedToHalfDay: true }
+  }
+  return { status: 'Present', reclassifiedToHalfDay: false }
+}
+
 // Absent on a default-holiday date (Sunday, 2nd/4th Saturday) → Weekly Off.
 // Present/Half Day on that date is left untouched — a legitimate worked
 // weekly-off. No-op for every other status — also idempotent.
@@ -39,9 +61,59 @@ export const applyWeekendHolidayCorrection = (status, isDefaultHoliday) => {
   return { status, corrected: false }
 }
 
-// Confirmed formula: daily-salary divisor = present + absent days only.
-export const computeDailySalary = (salary, presentCount, absentCount) => {
-  const workingDays = presentCount + absentCount
+// Deduction-hours schedule for a late day AFTER the 7 free units are already
+// used up: 0-30 min → 0.5hr, 31-60 → 1hr, 61-90 → 1.5hr, 91-120 → 2hr.
+// (Beyond 120 min the record is already Half Day via classifyLateEntry.)
+export const computeLateBracketDeductionHours = (lateMinutes) =>
+  Math.ceil(lateMinutes / LATE_BRACKET_MIN) * LATE_BRACKET_HOURS
+
+// Deduction-hours schedule for an early-out day AFTER the 60 free minutes
+// are used up: 0-60 min early → 1hr, 61-120 → 2hr. (Beyond 120 min the
+// record is already Half Day via classifyEarlyOut.)
+export const computeEarlyOutBracketDeductionHours = (earlyMinutes) =>
+  Math.ceil(earlyMinutes / EARLY_OUT_BRACKET_MIN) * EARLY_OUT_BRACKET_HOURS
+
+// Two-stage monthly deduction algorithm, run once per employee per month over
+// that employee's Present/Half-Day records for the month SORTED by date
+// ascending (chronological order matters — the free pool is consumed by
+// whichever late/early days occur first in the month, and only days AFTER
+// the pool is already exhausted get bracket-deducted, per the confirmed
+// "7+1" precedent — the day that would exceed the pool still counts as free;
+// only strictly later days pay the bracket rate).
+//
+// records: Array<{ status, late_by_minutes, early_by_minutes }>
+export const computeMonthlyDeductionDetails = (records) => {
+  let lateUnitsUsed = 0
+  let earlyMinutesUsed = 0
+  let lateDeductionHours = 0
+  let earlyDeductionHours = 0
+
+  for (const r of records) {
+    if (r.status !== 'Present') continue
+
+    if (r.late_by_minutes > 0) {
+      if (lateUnitsUsed >= FREE_LATE_UNITS) {
+        lateDeductionHours += computeLateBracketDeductionHours(r.late_by_minutes)
+      } else {
+        lateUnitsUsed += Math.ceil(r.late_by_minutes / LATE_UNIT_MIN)
+      }
+    }
+
+    if (r.early_by_minutes > 0) {
+      if (earlyMinutesUsed >= FREE_EARLY_OUT_MINUTES) {
+        earlyDeductionHours += computeEarlyOutBracketDeductionHours(r.early_by_minutes)
+      } else {
+        earlyMinutesUsed += r.early_by_minutes
+      }
+    }
+  }
+
+  return { lateUnitsUsed, earlyMinutesUsed, lateDeductionHours, earlyDeductionHours }
+}
+
+// Confirmed formula: daily-salary divisor = present + absent + weekly-off days.
+export const computeDailySalary = (salary, presentCount, absentCount, weeklyOffCount = 0) => {
+  const workingDays = presentCount + absentCount + weeklyOffCount
   return workingDays > 0 ? salary / workingDays : 0
 }
 
@@ -51,16 +123,19 @@ export const computeAttendanceDeduction = ({
   salary,
   presentCount,
   absentCount,
+  weeklyOffCount = 0,
   halfDayCount,
-  excessLateUnits,
+  lateDeductionHours = 0,
+  earlyDeductionHours = 0,
 }) => {
-  const dailySalary = computeDailySalary(salary, presentCount, absentCount)
+  const dailySalary = computeDailySalary(salary, presentCount, absentCount, weeklyOffCount)
   const hourlySalary = computeHourlySalary(dailySalary)
 
   const absentDeduction = absentCount * dailySalary
   const halfDayDeduction = halfDayCount * HALF_DAY_DEDUCTION_HOURS * hourlySalary
-  const lateDeduction = excessLateUnits * (LATE_UNIT_MIN / 60) * hourlySalary
-  const totalDeduction = absentDeduction + halfDayDeduction + lateDeduction
+  const lateDeduction = lateDeductionHours * hourlySalary
+  const earlyDeduction = earlyDeductionHours * hourlySalary
+  const totalDeduction = absentDeduction + halfDayDeduction + lateDeduction + earlyDeduction
 
   return {
     dailySalary,
@@ -68,6 +143,7 @@ export const computeAttendanceDeduction = ({
     absentDeduction,
     halfDayDeduction,
     lateDeduction,
+    earlyDeduction,
     totalDeduction,
     netPayable: Math.max(0, salary - totalDeduction),
   }
@@ -134,4 +210,15 @@ export const computeLateMinutes = (inTime, shiftStartTime = SHIFT_START_TIME) =>
   const startMinutes = parseTimeToMinutes(shiftStartTime)
   if (inMinutes == null || startMinutes == null) return null
   return Math.max(0, inMinutes - startMinutes)
+}
+
+// Earliness ground truth: a record's own out_time vs. the official shift end
+// — same rationale as computeLateMinutes (the punch machine's own "Early By"
+// column is not trusted as the source of truth). Returns null when out_time
+// itself is missing.
+export const computeEarlyMinutes = (outTime, shiftEndTime = SHIFT_END_TIME) => {
+  const outMinutes = parseTimeToMinutes(outTime)
+  const endMinutes = parseTimeToMinutes(shiftEndTime)
+  if (outMinutes == null || endMinutes == null) return null
+  return Math.max(0, endMinutes - outMinutes)
 }

@@ -23,6 +23,7 @@ import {
 
 import { localSalaryDetails } from '../../../../services/localSalaryDetails'
 import { localAttendance } from '../../../../services/localAttendance'
+import { computeAttendanceDeduction } from '../../../../services/attendanceCalc'
 import { computeCTC, STATE_PT_MAP } from '../ctcUtils'
 
 const MONTHS = [
@@ -132,18 +133,44 @@ const MonthlySalaryDetailsTab = ({ employeeId, currentSalary, canEdit }) => {
   const [saveMsg, setSaveMsg] = useState('')
 
   // Load (or default) the record for the selected month whenever the
-  // employee or the selected month/year changes.
+  // employee or the selected month/year changes. Recovery auto-fills from
+  // the attendance-computed deduction ONLY when it's still empty/zero —
+  // never overwrites a value HR already typed in.
   useEffect(() => {
     setLoading(true)
     const daysInMonth = new Date(viewYear, viewMonth, 0).getDate()
     const record = localSalaryDetails.get(employeeId, viewYear, viewMonth)
-    if (record) {
-      setInputs(inputsFromRecord(record, daysInMonth))
-      setHasRecord(true)
-    } else {
-      setInputs(emptyInputs(daysInMonth, currentSalary))
-      setHasRecord(false)
+    const nextInputs = record
+      ? inputsFromRecord(record, daysInMonth)
+      : emptyInputs(daysInMonth, currentSalary)
+
+    if (!(Number(nextInputs.recovery) > 0)) {
+      const summary = localAttendance.getSummary(employeeId, viewYear, viewMonth)
+      const salary = Number(currentSalary) || 0
+      if (summary && salary > 0) {
+        const workingDays =
+          (summary.present_count || 0) +
+          (summary.absent_count || 0) +
+          (summary.weekly_off_count || 0)
+        if (workingDays > 0) {
+          const { totalDeduction } = computeAttendanceDeduction({
+            salary,
+            presentCount: summary.present_count || 0,
+            absentCount: summary.absent_count || 0,
+            weeklyOffCount: summary.weekly_off_count || 0,
+            halfDayCount: summary.half_day_count || 0,
+            lateDeductionHours: summary.late_deduction_hours || 0,
+            earlyDeductionHours: summary.early_deduction_hours || 0,
+          })
+          if (totalDeduction > 0) {
+            nextInputs.recovery = totalDeduction.toFixed(2)
+          }
+        }
+      }
     }
+
+    setInputs(nextInputs)
+    setHasRecord(!!record)
     setSaveMsg('')
     setLoading(false)
   }, [employeeId, viewYear, viewMonth, currentSalary])
@@ -378,6 +405,10 @@ const MonthlySalaryDetailsTab = ({ employeeId, currentSalary, canEdit }) => {
                       onChange={setField('recovery')}
                       disabled={!canEdit}
                     />
+                    <div className="text-body-secondary" style={{ fontSize: '0.7rem' }}>
+                      Auto-filled from this month&rsquo;s attendance deduction when left at 0 — edit
+                      freely, it won&rsquo;t be overwritten once you&rsquo;ve set a value.
+                    </div>
                   </InputRow>
                   <InputRow label="TND — Total Days in Month">
                     <CFormInput

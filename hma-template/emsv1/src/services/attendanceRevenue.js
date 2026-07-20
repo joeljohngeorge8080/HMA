@@ -9,10 +9,11 @@
  *
  * Deduction formula matches Attendance → Deductions exactly (via the shared
  * attendanceCalc.computeAttendanceDeduction):
- *   per-day rate  = monthly salary ÷ (present + absent days)
+ *   per-day rate  = monthly salary ÷ (present + absent + weekly-off days)
  *   absent        = absent days × per-day rate
- *   half-day      = half-day count × 4 × hourly rate
- *   late          = excess units (beyond 7 free) × per-day rate ÷ 32
+ *   half-day      = half-day count × 4 × hourly rate (>120 min late or early-out)
+ *   late          = bracket rate for late days beyond the 7 free units
+ *   early-out     = bracket rate for early-out days beyond the 60 free minutes
  * Paid leave (CL/SL/OD/COFF) is never deducted.
  */
 
@@ -24,17 +25,25 @@ const isTPC = (emp) => (emp.employee_category || emp.employment?.employee_catego
 
 const computeDeduction = (salary, summary) => {
   if (!summary || salary <= 0) {
-    return { absentDeduction: 0, halfDayDeduction: 0, lateDeduction: 0, totalDeduction: 0 }
+    return {
+      absentDeduction: 0,
+      halfDayDeduction: 0,
+      lateDeduction: 0,
+      earlyDeduction: 0,
+      totalDeduction: 0,
+    }
   }
-  const { absentDeduction, halfDayDeduction, lateDeduction, totalDeduction } =
+  const { absentDeduction, halfDayDeduction, lateDeduction, earlyDeduction, totalDeduction } =
     computeAttendanceDeduction({
       salary,
       presentCount: summary.present_count || 0,
       absentCount: summary.absent_count || 0,
+      weeklyOffCount: summary.weekly_off_count || 0,
       halfDayCount: summary.half_day_count || 0,
-      excessLateUnits: summary.excess_late_units || 0,
+      lateDeductionHours: summary.late_deduction_hours || 0,
+      earlyDeductionHours: summary.early_deduction_hours || 0,
     })
-  return { absentDeduction, halfDayDeduction, lateDeduction, totalDeduction }
+  return { absentDeduction, halfDayDeduction, lateDeduction, earlyDeduction, totalDeduction }
 }
 
 const tpcEmployees = () => localEmployees.list({ pageSize: 1000 }).items.filter(isTPC)

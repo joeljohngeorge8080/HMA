@@ -31,14 +31,17 @@ import { localEmployees } from '../../../services/localEmployees'
 import api from '../../../services/api'
 import {
   FREE_LATE_UNITS,
-  LATE_UNIT_MIN,
+  FREE_EARLY_OUT_MINUTES,
   HALF_DAY_DEDUCTION_HOURS,
   CL_MONTHLY_LIMIT,
 } from '../../../constants/attendancePolicy'
 import {
   classifyLateEntry,
+  classifyEarlyOut,
   computeAttendanceDeduction,
   computeLateMinutes,
+  computeEarlyMinutes,
+  computeMonthlyDeductionDetails,
 } from '../../../services/attendanceCalc'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -55,8 +58,6 @@ const fmtHHMM = (totalMin) => {
   const m = totalMin % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
-
-const fmtHrs = (min) => (min / 60).toFixed(2)
 
 // Generate plain-language remarks explaining each deduction trigger.
 // Salary figures are symbolic (× DS / × HS) since actual salary is in Payroll module.
@@ -92,14 +93,15 @@ const generateRemarks = (e) => {
   }
 
   // ── Half Day deduction (Priority Rule) ────────────────────────────────────
-  // Pace-marked Half Days + HMA rule violations (≥60 min late but marked Present)
+  // Pace-marked Half Days + HMA rule violations (>120 min late or >120 min
+  // early punch-out while Pace still marked Present)
   const totalHalfDays = e.half_day + e.hd_violations.length
 
   if (totalHalfDays > 0) {
     const parts = []
     if (e.half_day > 0) parts.push(`${e.half_day} marked by Pace`)
     if (e.hd_violations.length > 0) {
-      const dates = e.hd_violations.map((v) => `${v.date} (${v.late_by} late)`).join(', ')
+      const dates = e.hd_violations.map((v) => `${v.date} (${v.reason})`).join(', ')
       parts.push(
         `${e.hd_violations.length} HMA rule violation${e.hd_violations.length > 1 ? 's' : ''}: ${dates}`,
       )
@@ -110,39 +112,59 @@ const generateRemarks = (e) => {
       label: 'Half Day Deduction',
       text:
         `${totalHalfDays} Half Day${totalHalfDays > 1 ? 's' : ''} (${parts.join(' + ')}). ` +
-        `Rule: arrived ≥60 min late → 4-hr deduction (priority over late units). ` +
+        `Rule: >120 min late or >120 min early out → 4-hr deduction (priority over bracket rates). ` +
         `Deduction = ${totalHalfDays} × ${HALF_DAY_DEDUCTION_HOURS} × Hourly Salary (HS)`,
     })
   }
 
-  // ── Late entry deduction (excess units only; HD days excluded by priority rule) ──
-  if (e.excess_units > 0) {
-    const excessHrs = fmtHrs(e.excess_units * LATE_UNIT_MIN)
+  // ── Late entry deduction (bracket rate for days after the 7 free units) ──
+  if (e.late_deduction_hours > 0) {
     remarks.push({
       type: 'late',
       icon: '🟡',
       label: 'Late Entry Deduction',
       text:
-        `Late units used: ${e.normal_late_units} (7 free). ` +
-        `Excess: ${e.excess_units} unit${e.excess_units > 1 ? 's' : ''} ` +
-        `(${e.excess_units} × 15 min = ${e.excess_units * LATE_UNIT_MIN} min = ${excessHrs} hrs). ` +
-        `Deduction = ${excessHrs} × HS`,
+        `Late units used this month: ${e.late_units_used} (7 free). ` +
+        `Bracket deduction for days beyond the free allowance: ${e.late_deduction_hours.toFixed(2)} hrs. ` +
+        `Deduction = ${e.late_deduction_hours.toFixed(2)} × HS`,
     })
-  } else if (e.normal_late_units > 0) {
+  } else if (e.late_units_used > 0) {
     remarks.push({
       type: 'late_ok',
       icon: '🟢',
       label: 'Late Entry — Within Limit',
-      text: `Late units used: ${e.normal_late_units} / 7 free. ` + `No deduction.`,
+      text: `Late units used: ${e.late_units_used} / 7 free. ` + `No deduction.`,
     })
   }
 
-  if (remarks.filter((r) => ['absent', 'halfday', 'late'].includes(r.type)).length === 0) {
+  // ── Early punch-out deduction (bracket rate for days after the free hour) ──
+  if (e.early_deduction_hours > 0) {
+    remarks.push({
+      type: 'early',
+      icon: '🟡',
+      label: 'Early Punch-Out Deduction',
+      text:
+        `Early-out minutes used this month: ${e.early_minutes_used} (60 free). ` +
+        `Bracket deduction for days beyond the free hour: ${e.early_deduction_hours.toFixed(2)} hrs. ` +
+        `Deduction = ${e.early_deduction_hours.toFixed(2)} × HS`,
+    })
+  } else if (e.early_minutes_used > 0) {
+    remarks.push({
+      type: 'early_ok',
+      icon: '🟢',
+      label: 'Early Punch-Out — Within Limit',
+      text:
+        `Early-out minutes used: ${e.early_minutes_used} / ${FREE_EARLY_OUT_MINUTES} free. ` +
+        `No deduction.`,
+    })
+  }
+
+  if (remarks.filter((r) => ['absent', 'halfday', 'late', 'early'].includes(r.type)).length === 0) {
     remarks.push({
       type: 'clean',
       icon: '✅',
       label: 'No Deductions',
-      text: 'Full salary. No absent days, no excess late units, no half-day triggers.',
+      text: 'Full salary. No absent days, no excess late/early minutes, no half-day triggers.',
     })
   }
 
@@ -150,6 +172,9 @@ const generateRemarks = (e) => {
 }
 
 // ─── Core summary builder ────────────────────────────────────────────────────
+// Mirrors localAttendance.js's buildSummary + computeMonthlyDeductionDetails
+// exactly, so this preview always agrees with what actually gets persisted
+// on Confirm & Import.
 const buildEmployeeSummaries = (rows) => {
   const map = {}
 
@@ -164,19 +189,19 @@ const buildEmployeeSummaries = (rows) => {
         weekly_off: 0,
         // Days coded WOP/WO½P by Pace — a scheduled weekly-off the employee
         // still worked (full or half day). Kept separate from `weekly_off`
-        // (which only counts non-worked WO days) so present/half_day day
-        // counts stay correct for payroll, while the displayed "Weekly Off"
-        // total can still show WO + WOP combined.
+        // so present/half_day day counts stay correct for payroll, and
+        // displayed separately (P, A, WO, WOP) rather than combined.
         weekly_off_worked: 0,
         holiday: 0,
         on_leave: 0,
-        // Late split: normal (≤60 min) vs half-day (>60 min, priority rule applies)
-        normal_late_days: 0,
-        normal_late_minutes: 0, // ≤60 min late days → contribute to units
-        normal_late_units: 0, // per-day ceil(min/15) summed — correct unit count
-        hd_violations: [], // >60 min late but Pace marked Present → HD rule
+        late_days: 0, // informational: days with any late minutes
+        late_minutes_total: 0,
+        early_days: 0, // informational: days with any early-out minutes
+        early_minutes_total: 0,
+        hd_violations: [], // >120 min late or early while Pace marked Present → HD rule
         total_work_minutes: 0,
         work_days_with_duration: 0,
+        _records: [], // fed to computeMonthlyDeductionDetails below
       }
     }
 
@@ -204,33 +229,45 @@ const buildEmployeeSummaries = (rows) => {
     }
 
     // WOP/WO½P: Pace marked this a scheduled weekly-off day, but status
-    // ended up Present/Half Day because they worked it — count it toward
-    // "Weekly Off" reporting (WO = WO + WOP) without touching the
-    // present/half_day tallies above, which must stay correct for payroll.
+    // ended up Present/Half Day because they worked it. Reported as its own
+    // separate figure (not folded into `weekly_off`) so P/A/WO/WOP can each
+    // be shown distinctly, without touching the present/half_day tallies
+    // above, which must stay correct for payroll.
     if (r.is_weekly_off_type && r.status !== 'Weekly Off') {
       e.weekly_off_worked++
     }
 
-    // Lateness is derived from in_time vs. the official shift start, not
-    // trusted from Pace's own "Late By" export column — that column has been
-    // found to sit blank for entire employees/shifts even when in_time is
-    // clearly past the official start (matches localAttendance.js's saveImport,
-    // so this preview always agrees with what actually gets persisted).
-    const lateMin = computeLateMinutes(r.in_time)
-    if (lateMin != null) {
-      // classifyLateEntry only ever acts on status === 'Present' — Absent/Half
-      // Day records are correctly no-ops here.
-      const classified = classifyLateEntry(r.status, lateMin)
-      if (classified.reclassifiedToHalfDay) {
-        // Priority Rule: >60 min late while Present → Half Day; these minutes do NOT count as late units
-        e.hd_violations.push({ date: r.date, late_by: fmtHHMM(lateMin), lateMin })
-      } else if (classified.lateUnits > 0) {
-        // Normal late entry ≤60 min while Present → counts toward free units (per-day ceiling)
-        e.normal_late_days++
-        e.normal_late_minutes += lateMin
-        e.normal_late_units += classified.lateUnits
-      }
+    // Lateness/earliness are derived from in_time/out_time vs. the official
+    // shift window, not trusted from Pace's own "Late By"/"Early By" export
+    // columns — those have been found to be unreliable even when the punch
+    // times themselves are clearly outside the official window.
+    const lateMin = computeLateMinutes(r.in_time) || 0
+    const earlyMin = computeEarlyMinutes(r.out_time) || 0
+    const lateClassified = classifyLateEntry(r.status, lateMin)
+    const earlyClassified = classifyEarlyOut(lateClassified.status, earlyMin)
+    const effectiveStatus = earlyClassified.status
+
+    if (lateClassified.reclassifiedToHalfDay) {
+      e.hd_violations.push({ date: r.date, reason: `${fmtHHMM(lateMin)} late` })
     }
+    if (earlyClassified.reclassifiedToHalfDay) {
+      e.hd_violations.push({ date: r.date, reason: `${fmtHHMM(earlyMin)} early out` })
+    }
+    if (r.status === 'Present' && lateMin > 0) {
+      e.late_days++
+      e.late_minutes_total += lateMin
+    }
+    if (r.status === 'Present' && earlyMin > 0) {
+      e.early_days++
+      e.early_minutes_total += earlyMin
+    }
+
+    e._records.push({
+      date: r.date,
+      status: effectiveStatus,
+      late_by_minutes: lateMin,
+      early_by_minutes: earlyMin,
+    })
 
     if (r.work_duration) {
       const wMin = toMin(r.work_duration)
@@ -242,9 +279,9 @@ const buildEmployeeSummaries = (rows) => {
   }
 
   return Object.values(map)
-    .map((e) => {
-      const totalLateUnits = e.normal_late_units
-      const excessUnits = Math.max(0, totalLateUnits - FREE_LATE_UNITS)
+    .map(({ _records, ...e }) => {
+      const sortedRecords = [..._records].sort((a, b) => a.date.localeCompare(b.date))
+      const deductionDetails = computeMonthlyDeductionDetails(sortedRecords)
       const avgWorkMin =
         e.work_days_with_duration > 0
           ? Math.round(e.total_work_minutes / e.work_days_with_duration)
@@ -252,17 +289,19 @@ const buildEmployeeSummaries = (rows) => {
 
       const enriched = {
         ...e,
-        normal_late_units: totalLateUnits,
-        excess_units: excessUnits,
-        free_units_remaining: Math.max(0, FREE_LATE_UNITS - totalLateUnits),
+        late_units_used: deductionDetails.lateUnitsUsed,
+        late_deduction_hours: deductionDetails.lateDeductionHours,
+        early_minutes_used: deductionDetails.earlyMinutesUsed,
+        early_deduction_hours: deductionDetails.earlyDeductionHours,
+        free_units_remaining: Math.max(0, FREE_LATE_UNITS - deductionDetails.lateUnitsUsed),
         total_half_days: e.half_day + e.hd_violations.length,
         effective_absent: e.absent + Math.max(0, e.on_leave - CL_MONTHLY_LIMIT),
         avg_work_hhmm: fmtHHMM(avgWorkMin),
-        normal_late_hhmm: fmtHHMM(e.normal_late_minutes),
+        late_minutes_hhmm: fmtHHMM(e.late_minutes_total),
       }
       enriched.remarks = generateRemarks(enriched)
       enriched.has_deduction = enriched.remarks.some((r) =>
-        ['absent', 'halfday', 'late'].includes(r.type),
+        ['absent', 'halfday', 'late', 'early'].includes(r.type),
       )
       return enriched
     })
@@ -330,16 +369,17 @@ const Step = ({ n, label, active, done }) => (
 
 // ─── Deduction Summary component (Step 4) ────────────────────────────────────
 // For each employee, looks up their current_salary from local store and
-// calculates the exact deduction. Employees with no salary record show as
-// "Salary not on file" — the total only sums rows where salary is known.
+// calculates the exact deduction. Employees with no salary record on file
+// show "-" in every money column — the total only sums rows where salary is known.
 const DeductionSummary = ({ summaries, month, year }) => {
   const rows = summaries.map((e) => {
-    // Confirmed divisor: present + absent only (present here folds in Half
-    // Day, matching localAttendance.js's present_count semantics, so this
-    // preview and the production Deductions tab agree on what "present" means).
+    // Confirmed divisor: present + absent + weekly-off days (present here
+    // folds in Half Day, matching localAttendance.js's present_count
+    // semantics, so this preview and the production Deductions tab agree).
     const presentCount = e.present + e.total_half_days
     const absentCount = e.effective_absent
-    const workingDays = presentCount + absentCount
+    const weeklyOffCount = e.weekly_off
+    const workingDays = presentCount + absentCount + weeklyOffCount
 
     let salary = null
     try {
@@ -355,8 +395,10 @@ const DeductionSummary = ({ summaries, month, year }) => {
         salary,
         presentCount,
         absentCount,
+        weeklyOffCount,
         halfDayCount: e.total_half_days,
-        excessLateUnits: e.excess_units,
+        lateDeductionHours: e.late_deduction_hours,
+        earlyDeductionHours: e.early_deduction_hours,
       })
     }
 
@@ -368,6 +410,7 @@ const DeductionSummary = ({ summaries, month, year }) => {
       absentAmt: calc?.absentDeduction ?? null,
       hdAmt: calc?.halfDayDeduction ?? null,
       lateAmt: calc?.lateDeduction ?? null,
+      earlyAmt: calc?.earlyDeduction ?? null,
       deduction: calc?.totalDeduction ?? null,
     }
   })
@@ -424,7 +467,8 @@ const DeductionSummary = ({ summaries, month, year }) => {
               <CTableHeaderCell className="text-center">Daily Salary (DS)</CTableHeaderCell>
               <CTableHeaderCell className="text-center">Absent</CTableHeaderCell>
               <CTableHeaderCell className="text-center">Half Days</CTableHeaderCell>
-              <CTableHeaderCell className="text-center">Excess Late</CTableHeaderCell>
+              <CTableHeaderCell className="text-center">Late</CTableHeaderCell>
+              <CTableHeaderCell className="text-center">Early Out</CTableHeaderCell>
               <CTableHeaderCell className="text-center fw-bold">Total Deduction</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
@@ -435,6 +479,7 @@ const DeductionSummary = ({ summaries, month, year }) => {
               const absentAmt = hasSalary ? r.absentAmt : null
               const hdAmt = hasSalary ? r.hdAmt : null
               const lateAmt = hasSalary ? r.lateAmt : null
+              const earlyAmt = hasSalary ? r.earlyAmt : null
 
               return (
                 <CTableRow
@@ -448,48 +493,57 @@ const DeductionSummary = ({ summaries, month, year }) => {
                     </div>
                   </CTableDataCell>
                   <CTableDataCell className="text-center small">
-                    {r.salary !== null ? (
-                      `₹ ${r.salary.toLocaleString('en-IN')}`
-                    ) : (
-                      <span className="text-danger small">Not on file</span>
-                    )}
+                    {r.salary !== null ? `₹ ${r.salary.toLocaleString('en-IN')}` : '-'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center small text-body-secondary">
-                    {r.workingDays}
+                    {hasSalary ? r.workingDays : '-'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center small">
-                    {ds ? `₹ ${ds.toFixed(2)}` : '—'}
+                    {ds ? `₹ ${ds.toFixed(2)}` : '-'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center small">
-                    {absentAmt > 0 ? (
+                    {!hasSalary ? (
+                      '-'
+                    ) : absentAmt > 0 ? (
                       <span className="text-danger">− ₹ {absentAmt.toFixed(2)}</span>
                     ) : (
                       <span className="text-body-secondary">—</span>
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="text-center small">
-                    {hdAmt > 0 ? (
+                    {!hasSalary ? (
+                      '-'
+                    ) : hdAmt > 0 ? (
                       <span className="text-dark">− ₹ {hdAmt.toFixed(2)}</span>
                     ) : (
                       <span className="text-body-secondary">—</span>
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="text-center small">
-                    {lateAmt > 0 ? (
+                    {!hasSalary ? (
+                      '-'
+                    ) : lateAmt > 0 ? (
                       <span className="text-dark">− ₹ {lateAmt.toFixed(2)}</span>
                     ) : (
                       <span className="text-body-secondary">—</span>
                     )}
                   </CTableDataCell>
-                  <CTableDataCell className="text-center">
-                    {r.deduction !== null ? (
-                      r.deduction > 0 ? (
-                        <CBadge color="danger">− ₹ {r.deduction.toFixed(2)}</CBadge>
-                      ) : (
-                        <CBadge color="success">No deduction</CBadge>
-                      )
+                  <CTableDataCell className="text-center small">
+                    {!hasSalary ? (
+                      '-'
+                    ) : earlyAmt > 0 ? (
+                      <span className="text-dark">− ₹ {earlyAmt.toFixed(2)}</span>
                     ) : (
-                      <span className="text-body-secondary small">—</span>
+                      <span className="text-body-secondary">—</span>
+                    )}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-center">
+                    {!hasSalary ? (
+                      <span className="small">-</span>
+                    ) : r.deduction > 0 ? (
+                      <CBadge color="danger">− ₹ {r.deduction.toFixed(2)}</CBadge>
+                    ) : (
+                      <CBadge color="success">No deduction</CBadge>
                     )}
                   </CTableDataCell>
                 </CTableRow>
@@ -498,7 +552,7 @@ const DeductionSummary = ({ summaries, month, year }) => {
           </CTableBody>
           <tfoot>
             <tr style={{ background: 'var(--cui-tertiary-bg, #f8f9fa)', fontWeight: 600 }}>
-              <td colSpan={7} className="px-3 py-2 text-end">
+              <td colSpan={8} className="px-3 py-2 text-end">
                 Total Deduction
                 {missingCount > 0 && (
                   <span className="fw-normal text-body-secondary ms-2 small">
@@ -911,47 +965,54 @@ const AttendanceImport = () => {
                             </CBadge>
                           )}
                           {e.on_leave > 0 && <CBadge color="primary">{e.on_leave}L</CBadge>}
-                          <span className="text-body-secondary">
-                            {e.weekly_off + e.weekly_off_worked}WO
-                          </span>
+                          <span className="text-body-secondary">{e.weekly_off}WO</span>
+                          {e.weekly_off_worked > 0 && (
+                            <span className="text-body-secondary">{e.weekly_off_worked}WOP</span>
+                          )}
                         </div>
                         <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
                           Avg: {e.avg_work_hhmm}
                         </div>
                       </CTableDataCell>
 
-                      {/* Late entry */}
+                      {/* Late entry / early out */}
                       <CTableDataCell>
-                        {e.normal_late_days === 0 && e.hd_violations.length === 0 ? (
-                          <span className="text-body-secondary small">No late days</span>
+                        {e.late_days === 0 && e.early_days === 0 && e.hd_violations.length === 0 ? (
+                          <span className="text-body-secondary small">Clean</span>
                         ) : (
                           <div style={{ fontSize: '0.75rem' }}>
-                            {e.normal_late_days > 0 && (
+                            {e.late_days > 0 && (
                               <div>
-                                <span className="fw-semibold">{e.normal_late_days}</span> late day
-                                {e.normal_late_days > 1 ? 's' : ''}
+                                <span className="fw-semibold">{e.late_days}</span> late day
+                                {e.late_days > 1 ? 's' : ''}
                                 <span className="text-body-secondary ms-1">
-                                  ({e.normal_late_hhmm})
+                                  ({e.late_minutes_hhmm})
                                 </span>
+                                {' · '}
+                                Units: {e.late_units_used}/7
+                                {e.late_deduction_hours > 0 && (
+                                  <CBadge color="danger" className="ms-1">
+                                    +{e.late_deduction_hours.toFixed(1)}h
+                                  </CBadge>
+                                )}
                               </div>
                             )}
-                            {e.normal_late_units > 0 && (
+                            {e.early_days > 0 && (
                               <div>
-                                Units: {e.normal_late_units} / 7
-                                {e.excess_units > 0 ? (
+                                <span className="fw-semibold">{e.early_days}</span> early-out day
+                                {e.early_days > 1 ? 's' : ''}
+                                {' · '}
+                                Mins: {e.early_minutes_used}/{FREE_EARLY_OUT_MINUTES}
+                                {e.early_deduction_hours > 0 && (
                                   <CBadge color="danger" className="ms-1">
-                                    +{e.excess_units} excess
-                                  </CBadge>
-                                ) : (
-                                  <CBadge color="success" className="ms-1">
-                                    OK
+                                    +{e.early_deduction_hours.toFixed(1)}h
                                   </CBadge>
                                 )}
                               </div>
                             )}
                             {e.hd_violations.length > 0 && (
                               <CBadge color="warning" className="mt-1 text-dark">
-                                {e.hd_violations.length} ≥60 min (HD rule)
+                                {e.hd_violations.length} &gt;120 min (HD rule)
                               </CBadge>
                             )}
                           </div>

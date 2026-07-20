@@ -5,12 +5,19 @@
 import { localHolidays } from './localHolidays'
 import {
   classifyLateEntry,
+  classifyEarlyOut,
   applyWeekendHolidayCorrection,
   validateAttendanceIntegrity,
   computeMonthCoverage,
   computeLateMinutes,
+  computeEarlyMinutes,
+  computeMonthlyDeductionDetails,
 } from './attendanceCalc'
-import { FREE_LATE_UNITS, HALF_DAY_THRESHOLD_MIN } from '../constants/attendancePolicy'
+import {
+  FREE_LATE_UNITS,
+  HALF_DAY_THRESHOLD_MIN,
+  EARLY_OUT_HALF_DAY_THRESHOLD_MIN,
+} from '../constants/attendancePolicy'
 
 const KEYS = {
   uploads: 'hma_attendance_uploads',
@@ -70,24 +77,37 @@ const _rebuildMonthSummaries = (year, month) => {
 }
 
 // Applies all auto-correction rules to one candidate record before it's
-// persisted. Weekend rule only touches 'Absent'; late-entry rule only acts
-// on 'Present'; both are no-ops otherwise, so call order doesn't matter and
-// re-running this on an already-corrected record is idempotent — that's what
-// makes the one-time backfill safe.
+// persisted. Weekend rule only touches 'Absent'; late-entry/early-out rules
+// only act on 'Present'; all are no-ops otherwise, so call order doesn't
+// matter and re-running this on an already-corrected record is idempotent —
+// that's what makes the one-time backfill safe.
 //
-// Lateness is derived from in_time against the official shift start, NOT
-// trusted from the punch machine's own "Late By" export column — that column
-// has been found to sit blank for entire employees/shifts even when in_time
-// is clearly past the official start time. `lateByFallbackMinutes` (the
-// parsed Pace value) is only used when in_time itself is missing.
-const _applyRecordPolicy = (status, inTime, lateByFallbackMinutes, dateStr) => {
+// Lateness/earliness are derived from in_time/out_time against the official
+// shift window, NOT trusted from the punch machine's own "Late By"/"Early By"
+// export columns — those have been found to sit blank or unreliable even
+// when the punch times themselves are clearly outside the official window.
+// The `*ByFallbackMinutes` args (the parsed Pace values) are only used when
+// in_time/out_time themselves are missing.
+const _applyRecordPolicy = (
+  status,
+  inTime,
+  outTime,
+  lateByFallbackMinutes,
+  earlyByFallbackMinutes,
+  dateStr,
+) => {
   const holiday = localHolidays.getDefaultHoliday(dateStr)
   const weekend = applyWeekendHolidayCorrection(status, !!holiday)
 
   const derivedLateMinutes = computeLateMinutes(inTime)
   const lateMinutes = derivedLateMinutes != null ? derivedLateMinutes : lateByFallbackMinutes || 0
-
   const late = classifyLateEntry(weekend.status, lateMinutes)
+
+  const derivedEarlyMinutes = computeEarlyMinutes(outTime)
+  const earlyMinutes =
+    derivedEarlyMinutes != null ? derivedEarlyMinutes : earlyByFallbackMinutes || 0
+  const early = classifyEarlyOut(late.status, earlyMinutes)
+
   const autoCorrections = []
   if (weekend.corrected) {
     autoCorrections.push({
@@ -99,11 +119,16 @@ const _applyRecordPolicy = (status, inTime, lateByFallbackMinutes, dateStr) => {
       reason: `>${HALF_DAY_THRESHOLD_MIN} min late while Present — reclassified to Half Day`,
     })
   }
-  // lateMinutes is kept for display (e.g. "arrived 75 min late → Half Day")
-  // even when status was reclassified to Half Day — buildSummary already
-  // gates its own late-unit counting on status === 'Present', so this never
-  // leaks into payroll math for a non-Present day.
-  return { status: late.status, lateMinutes, autoCorrections }
+  if (early.reclassifiedToHalfDay) {
+    autoCorrections.push({
+      reason: `>${EARLY_OUT_HALF_DAY_THRESHOLD_MIN} min early punch-out while Present — reclassified to Half Day`,
+    })
+  }
+  // lateMinutes/earlyMinutes are kept for display (e.g. "arrived 75 min late
+  // → Half Day") even when status was reclassified — buildSummary already
+  // gates its own counting on status === 'Present', so this never leaks into
+  // payroll math for a non-Present day.
+  return { status: early.status, lateMinutes, earlyMinutes, autoCorrections }
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -172,14 +197,14 @@ const buildSummary = (records) => {
     }
     // Late units only ever count on Present days — Absent/Half Day records
     // must never contribute (a record with a stray late_by_minutes value on
-    // any other status should not reduce anyone's free-unit pool).
+    // any other status should not reduce anyone's free-unit pool). Any
+    // Present record here is already guaranteed ≤120 min late by
+    // _applyRecordPolicy's half-day reclassification, so no upper-bound
+    // guard is needed before counting units.
     if (r.status === 'Present' && r.late_by_minutes > 0) {
       lateDays++
       lateMinTotal += r.late_by_minutes
-      // Only entries ≤60 min late count as units; >60 min triggers half-day rule instead
-      if (r.late_by_minutes <= 60) {
-        lateUnitsTotal += Math.ceil(r.late_by_minutes / 15)
-      }
+      lateUnitsTotal += Math.ceil(r.late_by_minutes / 15)
     }
     if (r.early_by_minutes > 0) {
       earlyDays++
@@ -191,6 +216,12 @@ const buildSummary = (records) => {
 
   const workingDays = present + absent + halfDay + leave
   const avgWorkMin = workingDays > 0 ? Math.round(workMinTotal / workingDays) : 0
+
+  // Monthly two-stage deduction pass (free pool, then per-day bracket rate)
+  // — needs records in chronological order since the free pool is consumed
+  // by whichever late/early days occur first in the month.
+  const sortedRecords = [...records].sort((a, b) => a.date.localeCompare(b.date))
+  const deductionDetails = computeMonthlyDeductionDetails(sortedRecords)
 
   return {
     present_count: present,
@@ -205,6 +236,8 @@ const buildSummary = (records) => {
     late_minutes_total: lateMinTotal,
     late_units: lateUnitsTotal,
     excess_late_units: Math.max(0, lateUnitsTotal - FREE_LATE_UNITS),
+    late_deduction_hours: deductionDetails.lateDeductionHours,
+    early_deduction_hours: deductionDetails.earlyDeductionHours,
     early_days: earlyDays,
     early_hours: fmtDuration(earlyMinTotal),
     total_work_duration: fmtDuration(workMinTotal),
@@ -296,7 +329,14 @@ export const localAttendance = {
     const touchedEmployees = new Set()
 
     for (const [key, r] of dedupedRows) {
-      const policy = _applyRecordPolicy(r.status, r.in_time, toMinutes(r.late_by), r.date)
+      const policy = _applyRecordPolicy(
+        r.status,
+        r.in_time,
+        r.out_time,
+        toMinutes(r.late_by),
+        toMinutes(r.early_by),
+        r.date,
+      )
       const existing = existingByKey.get(key)
 
       const autoCorrectionEntries = policy.autoCorrections.map((c) => ({
@@ -329,8 +369,10 @@ export const localAttendance = {
         // alongside `status` so weekly-off reporting can count WO+WOP without
         // disturbing present_count (used for payroll).
         is_weekly_off_type: !!r.is_weekly_off_type,
-        early_by: r.early_by || null,
-        early_by_minutes: toMinutes(r.early_by),
+        // Derived from out_time vs. official shift end (see _applyRecordPolicy),
+        // not Pace's own "Early By" export column, for the same reason as late_by.
+        early_by: policy.earlyMinutes > 0 ? fmtHHMM(policy.earlyMinutes) : null,
+        early_by_minutes: policy.earlyMinutes || 0,
         overtime: r.overtime || null,
         overtime_minutes: toMinutes(r.overtime),
         shift: r.shift || '',
@@ -608,11 +650,13 @@ export const localAttendance = {
 // safe to re-run regardless (every underlying rule is an idempotent no-op
 // once already applied) — same pattern as seedLocalEmployees.js's migrations.
 //
-// v2 bump: v1 only corrected status; v2 also recomputes late_by/late_by_minutes
-// from in_time instead of trusting Pace's own (sometimes blank) Late By column
-// — bumping the flag key makes this re-run even for browsers that already
-// completed v1.
-const WEEKEND_HOLIDAY_BACKFILL_FLAG = 'hma_attendance_weekend_holiday_backfill_v2'
+// v3 bump: v1 only corrected status; v2 also recomputed late_by/late_by_minutes
+// from in_time instead of trusting Pace's own (sometimes blank) Late By column;
+// v3 additionally recomputes early_by/early_by_minutes from out_time and
+// applies the >120min half-day thresholds and the new late/early bracket
+// deduction schedule — bumping the flag key makes this re-run even for
+// browsers that already completed v1/v2.
+const WEEKEND_HOLIDAY_BACKFILL_FLAG = 'hma_attendance_weekend_holiday_backfill_v3'
 
 export const applyWeekendHolidayBackfill = () => {
   if (localStorage.getItem(WEEKEND_HOLIDAY_BACKFILL_FLAG)) return
@@ -622,19 +666,32 @@ export const applyWeekendHolidayBackfill = () => {
     const ts = now()
 
     const updated = rows.map((r) => {
-      const policy = _applyRecordPolicy(r.status, r.in_time, r.late_by_minutes, r.date)
+      const policy = _applyRecordPolicy(
+        r.status,
+        r.in_time,
+        r.out_time,
+        r.late_by_minutes,
+        r.early_by_minutes,
+        r.date,
+      )
       const statusChanged = policy.status !== r.status
       const lateChanged = (policy.lateMinutes || 0) !== (r.late_by_minutes || 0)
-      if (!statusChanged && !lateChanged) return r
+      const earlyChanged = (policy.earlyMinutes || 0) !== (r.early_by_minutes || 0)
+      if (!statusChanged && !lateChanged && !earlyChanged) return r
 
       affectedMonths.add(`${r.year}-${r.month}`)
       const reasons = policy.autoCorrections.map((c) => c.reason)
-      // A pure lateness fix (status unchanged) isn't covered by any reason
-      // above — record it explicitly so the audit trail explains why
-      // late_by/late_by_minutes changed on an otherwise-untouched record.
+      // A pure lateness/earliness fix (status unchanged) isn't covered by any
+      // reason above — record it explicitly so the audit trail explains why
+      // late_by/early_by changed on an otherwise-untouched record.
       if (!statusChanged && lateChanged) {
         reasons.push(
           `Late-by recomputed from in_time vs. official shift start (was ${r.late_by_minutes || 0} min, now ${policy.lateMinutes} min) — punch machine's own Late By column was unreliable`,
+        )
+      }
+      if (!statusChanged && earlyChanged) {
+        reasons.push(
+          `Early-by recomputed from out_time vs. official shift end (was ${r.early_by_minutes || 0} min, now ${policy.earlyMinutes} min) — punch machine's own Early By column was unreliable`,
         )
       }
       const autoCorrectionEntries = reasons.map((reason) => ({
@@ -650,6 +707,8 @@ export const applyWeekendHolidayBackfill = () => {
         status: policy.status,
         late_by: policy.lateMinutes > 0 ? fmtHHMM(policy.lateMinutes) : null,
         late_by_minutes: policy.lateMinutes || 0,
+        early_by: policy.earlyMinutes > 0 ? fmtHHMM(policy.earlyMinutes) : null,
+        early_by_minutes: policy.earlyMinutes || 0,
         corrections: [...(r.corrections || []), ...autoCorrectionEntries],
         updated_at: ts,
       }

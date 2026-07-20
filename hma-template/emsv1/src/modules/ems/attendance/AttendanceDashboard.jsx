@@ -375,6 +375,7 @@ const AttendanceDashboard = () => {
                           <CTableHeaderCell>Absent</CTableHeaderCell>
                           <CTableHeaderCell>Half Day</CTableHeaderCell>
                           <CTableHeaderCell>Weekly Off</CTableHeaderCell>
+                          <CTableHeaderCell>WOP</CTableHeaderCell>
                           <CTableHeaderCell>Leave</CTableHeaderCell>
                           <CTableHeaderCell>Late Days</CTableHeaderCell>
                           <CTableHeaderCell>Avg Hours</CTableHeaderCell>
@@ -394,9 +395,8 @@ const AttendanceDashboard = () => {
                               </CBadge>
                             </CTableDataCell>
                             <CTableDataCell>{s.half_day_count || 0}</CTableDataCell>
-                            <CTableDataCell>
-                              {(s.weekly_off_count || 0) + (s.weekly_off_worked_count || 0)}
-                            </CTableDataCell>
+                            <CTableDataCell>{s.weekly_off_count || 0}</CTableDataCell>
+                            <CTableDataCell>{s.weekly_off_worked_count || 0}</CTableDataCell>
                             <CTableDataCell>{s.leave_count || 0}</CTableDataCell>
                             <CTableDataCell>
                               {s.late_days > 0 ? (
