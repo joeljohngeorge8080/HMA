@@ -2,6 +2,16 @@
 // Mirrors: attendance_uploads, attendance_records, attendance_monthly_summary
 // Falls back to this when the FastAPI backend is not running.
 
+import { localHolidays } from './localHolidays'
+import {
+  classifyLateEntry,
+  applyWeekendHolidayCorrection,
+  validateAttendanceIntegrity,
+  computeMonthCoverage,
+  computeLateMinutes,
+} from './attendanceCalc'
+import { FREE_LATE_UNITS, HALF_DAY_THRESHOLD_MIN } from '../constants/attendancePolicy'
+
 const KEYS = {
   uploads: 'hma_attendance_uploads',
   records: 'hma_attendance_records',
@@ -14,6 +24,9 @@ const uid = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 const now = () => new Date().toISOString()
+const pad2 = (n) => String(n).padStart(2, '0')
+// Duration-style "HH:MM" formatter, matching Pace's own late_by string shape.
+const fmtHHMM = (min) => (min == null ? null : `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`)
 
 const read = (key) => {
   try {
@@ -56,6 +69,43 @@ const _rebuildMonthSummaries = (year, month) => {
   write(KEYS.summaries, [...otherSummaries, ...newSummaries])
 }
 
+// Applies all auto-correction rules to one candidate record before it's
+// persisted. Weekend rule only touches 'Absent'; late-entry rule only acts
+// on 'Present'; both are no-ops otherwise, so call order doesn't matter and
+// re-running this on an already-corrected record is idempotent — that's what
+// makes the one-time backfill safe.
+//
+// Lateness is derived from in_time against the official shift start, NOT
+// trusted from the punch machine's own "Late By" export column — that column
+// has been found to sit blank for entire employees/shifts even when in_time
+// is clearly past the official start time. `lateByFallbackMinutes` (the
+// parsed Pace value) is only used when in_time itself is missing.
+const _applyRecordPolicy = (status, inTime, lateByFallbackMinutes, dateStr) => {
+  const holiday = localHolidays.getDefaultHoliday(dateStr)
+  const weekend = applyWeekendHolidayCorrection(status, !!holiday)
+
+  const derivedLateMinutes = computeLateMinutes(inTime)
+  const lateMinutes = derivedLateMinutes != null ? derivedLateMinutes : lateByFallbackMinutes || 0
+
+  const late = classifyLateEntry(weekend.status, lateMinutes)
+  const autoCorrections = []
+  if (weekend.corrected) {
+    autoCorrections.push({
+      reason: `Default holiday (${holiday?.name}) — Absent corrected to Weekly Off`,
+    })
+  }
+  if (late.reclassifiedToHalfDay) {
+    autoCorrections.push({
+      reason: `>${HALF_DAY_THRESHOLD_MIN} min late while Present — reclassified to Half Day`,
+    })
+  }
+  // lateMinutes is kept for display (e.g. "arrived 75 min late → Half Day")
+  // even when status was reclassified to Half Day — buildSummary already
+  // gates its own late-unit counting on status === 'Present', so this never
+  // leaks into payroll math for a non-Present day.
+  return { status: late.status, lateMinutes, autoCorrections }
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_ORDER = ['Present', 'Half Day', 'Absent', 'On Leave', 'Holiday', 'Weekly Off']
@@ -84,6 +134,7 @@ const buildSummary = (records) => {
     holiday = 0,
     leave = 0,
     halfDay = 0,
+    weeklyOffWorked = 0,
     lateDays = 0,
     lateMinTotal = 0,
     lateUnitsTotal = 0,
@@ -114,7 +165,15 @@ const buildSummary = (records) => {
         weeklyOff++
         break
     }
-    if (r.late_by_minutes > 0) {
+    // WOP/WO½P: scheduled weekly-off worked (full or half day) — reported
+    // as part of "Weekly Off" (WO = WO + WOP) without touching present_count.
+    if (r.is_weekly_off_type && r.status !== 'Weekly Off') {
+      weeklyOffWorked++
+    }
+    // Late units only ever count on Present days — Absent/Half Day records
+    // must never contribute (a record with a stray late_by_minutes value on
+    // any other status should not reduce anyone's free-unit pool).
+    if (r.status === 'Present' && r.late_by_minutes > 0) {
       lateDays++
       lateMinTotal += r.late_by_minutes
       // Only entries ≤60 min late count as units; >60 min triggers half-day rule instead
@@ -138,13 +197,14 @@ const buildSummary = (records) => {
     absent_count: absent,
     half_day_count: halfDay,
     weekly_off_count: weeklyOff,
+    weekly_off_worked_count: weeklyOffWorked,
     holiday_count: holiday,
     leave_count: leave,
     late_days: lateDays,
     late_hours: fmtDuration(lateMinTotal),
     late_minutes_total: lateMinTotal,
     late_units: lateUnitsTotal,
-    excess_late_units: Math.max(0, lateUnitsTotal - 7),
+    excess_late_units: Math.max(0, lateUnitsTotal - FREE_LATE_UNITS),
     early_days: earlyDays,
     early_hours: fmtDuration(earlyMinTotal),
     total_work_duration: fmtDuration(workMinTotal),
@@ -152,6 +212,45 @@ const buildSummary = (records) => {
     avg_working_hours: fmtDuration(avgWorkMin),
     total_records: records.length,
   }
+}
+
+// ── integrity / coverage (private, reused by saveImport + public exports) ────
+
+const _getIntegrityWarnings = (year, month) => {
+  const daysInMonth = new Date(year, month, 0).getDate()
+  return read(KEYS.summaries)
+    .filter((s) => s.year === Number(year) && s.month === Number(month))
+    .map((s) => ({
+      employee_id: s.employee_id,
+      ...validateAttendanceIntegrity({
+        presentCount: s.present_count,
+        absentCount: s.absent_count,
+        halfDayCount: 0, // half_day is already folded into present_count
+        leaveCount: s.leave_count,
+        weeklyOffCount: s.weekly_off_count,
+        holidayCount: s.holiday_count,
+        daysInMonth,
+      }),
+    }))
+    .filter((w) => !w.valid)
+}
+
+const _getMonthCoverage = (year, month) => {
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const allDates = Array.from(
+    { length: daysInMonth },
+    (_, i) => `${year}-${pad2(month)}-${pad2(i + 1)}`,
+  )
+  const holidayMap = localHolidays.getMonthMap(year, month)
+  const defaultHolidaySet = new Set(
+    Object.keys(holidayMap).filter((d) => holidayMap[d].type !== 'custom'),
+  )
+  const recordedDateSet = new Set(
+    read(KEYS.records)
+      .filter((r) => r.year === Number(year) && r.month === Number(month))
+      .map((r) => r.date),
+  )
+  return computeMonthCoverage(allDates, defaultHolidaySet, recordedDateSet)
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
@@ -171,86 +270,104 @@ export const localAttendance = {
   },
 
   // ── saveImport ───────────────────────────────────────────────────────────────
-  // Called after parse + user confirms. Saves upload + all records + summaries.
+  // Called after parse + user confirms. Upserts records by employee_id+date so
+  // a partial (daily/weekly) re-upload for a month merges into what's already
+  // there instead of wiping it, applies the weekend/holiday + half-day policy
+  // corrections, then rebuilds the month's summaries from ALL of its records.
   saveImport({ fileName, year, month, uploadedBy, parsedRows }) {
     const ts = now()
     const uploadId = uid()
 
-    // De-duplicate: remove any existing records for same year+month if re-uploading
-    const existingRecords = read(KEYS.records).filter(
-      (r) => !(r.year === year && r.month === month),
-    )
-    const existingSummaries = read(KEYS.summaries).filter(
-      (s) => !(s.year === year && s.month === month),
-    )
-    const existingUploads = read(KEYS.uploads).filter(
-      (u) => !(u.year === year && u.month === month),
-    )
+    // Collapse duplicate employee_id+date rows within this file — last wins.
+    const dedupedRows = new Map()
+    for (const r of parsedRows) {
+      if (r._valid === false) continue
+      dedupedRows.set(`${r.employee_id}|${r.date}`, r)
+    }
 
-    // Create record rows
-    const newRecords = parsedRows
-      .filter((r) => r._valid !== false)
-      .map((r) => ({
+    // Upsert into the FULL existing record set (not just this year+month) —
+    // only the matched employee+date keys change, everything else survives.
+    const existingByKey = new Map()
+    for (const rec of read(KEYS.records)) {
+      existingByKey.set(`${rec.employee_id}|${rec.date}`, rec)
+    }
+
+    let newRecordCount = 0
+    const touchedEmployees = new Set()
+
+    for (const [key, r] of dedupedRows) {
+      const policy = _applyRecordPolicy(r.status, r.in_time, toMinutes(r.late_by), r.date)
+      const existing = existingByKey.get(key)
+
+      const autoCorrectionEntries = policy.autoCorrections.map((c) => ({
         id: uid(),
+        old_status: r.status,
+        new_status: policy.status,
+        reason: c.reason,
+        corrected_by: 'System (Attendance Policy)',
+        corrected_at: ts,
+      }))
+
+      existingByKey.set(key, {
+        id: existing?.id || uid(),
         upload_id: uploadId,
         employee_id: r.employee_id,
         employee_name: r.employee_name || '',
         date: r.date,
         year,
         month,
-        status: r.status,
+        status: policy.status,
         in_time: r.in_time || null,
         out_time: r.out_time || null,
         work_duration: r.work_duration || null,
         work_duration_minutes: toMinutes(r.work_duration),
-        late_by: r.late_by || null,
-        late_by_minutes: toMinutes(r.late_by),
+        // Derived from in_time vs. official shift start (see _applyRecordPolicy),
+        // not Pace's own "Late By" export column — see the comment above.
+        late_by: policy.lateMinutes > 0 ? fmtHHMM(policy.lateMinutes) : null,
+        late_by_minutes: policy.lateMinutes || 0,
+        // Pace's own WO/WOP/WO½P coding — see attendanceParser.js. Kept
+        // alongside `status` so weekly-off reporting can count WO+WOP without
+        // disturbing present_count (used for payroll).
+        is_weekly_off_type: !!r.is_weekly_off_type,
         early_by: r.early_by || null,
         early_by_minutes: toMinutes(r.early_by),
         overtime: r.overtime || null,
         overtime_minutes: toMinutes(r.overtime),
         shift: r.shift || '',
-        corrections: [],
-        created_at: ts,
-      }))
-
-    // Group records by employee → build per-employee monthly summary
-    const byEmployee = {}
-    for (const rec of newRecords) {
-      if (!byEmployee[rec.employee_id]) byEmployee[rec.employee_id] = []
-      byEmployee[rec.employee_id].push(rec)
+        corrections: [...(existing?.corrections || []), ...autoCorrectionEntries],
+        created_at: existing?.created_at || ts,
+        updated_at: ts,
+      })
+      touchedEmployees.add(r.employee_id)
+      if (!existing) newRecordCount++
     }
 
-    const newSummaries = Object.entries(byEmployee).map(([empId, recs]) => ({
-      id: uid(),
-      upload_id: uploadId,
-      employee_id: empId,
-      year,
-      month,
-      ...buildSummary(recs),
-      created_at: ts,
-    }))
-
-    // Build overall upload-level stats
-    const totalEmployees = Object.keys(byEmployee).length
     const uploadDoc = {
       id: uploadId,
       file_name: fileName,
       year,
       month,
-      total_records: newRecords.length,
-      valid_records: newRecords.length,
-      total_employees: totalEmployees,
+      total_records: dedupedRows.size,
+      valid_records: dedupedRows.size,
+      total_employees: touchedEmployees.size,
       uploaded_by: uploadedBy || 'HR',
       uploaded_at: ts,
       status: 'Completed',
     }
 
-    write(KEYS.uploads, [...existingUploads, uploadDoc])
-    write(KEYS.records, [...existingRecords, ...newRecords])
-    write(KEYS.summaries, [...existingSummaries, ...newSummaries])
+    write(KEYS.records, Array.from(existingByKey.values()))
+    // Uploads are appended, never deleted, so partial/repeated uploads for a
+    // month all remain visible in Upload History.
+    write(KEYS.uploads, [...read(KEYS.uploads), uploadDoc])
+    _rebuildMonthSummaries(year, month)
 
-    return { uploadId, totalRecords: newRecords.length, totalEmployees }
+    return {
+      uploadId,
+      totalRecords: dedupedRows.size,
+      totalEmployees: touchedEmployees.size,
+      newRecords: newRecordCount,
+      integrityWarnings: _getIntegrityWarnings(year, month),
+    }
   },
 
   // ── records ──────────────────────────────────────────────────────────────────
@@ -383,6 +500,27 @@ export const localAttendance = {
     }
   },
 
+  // ── integrity / coverage ──────────────────────────────────────────────────
+  // Flags any employee-month whose recorded days exceed the calendar days in
+  // that month — should never fire under normal upsert operation; a signal
+  // of a data/parsing bug if it does.
+  getIntegrityWarnings(year, month) {
+    return _getIntegrityWarnings(year, month)
+  },
+
+  // Working-days coverage for a month (how many non-holiday dates have at
+  // least one record yet, and which are still missing) — lets HR see whether
+  // a series of daily/weekly uploads has fully covered the month.
+  getMonthCoverage(year, month) {
+    return _getMonthCoverage(year, month)
+  },
+
+  // Publicly expose the existing rebuild helper (previously private-only) —
+  // purely additive, no existing call site destructures this module.
+  rebuildMonthSummaries(year, month) {
+    return _rebuildMonthSummaries(year, month)
+  },
+
   // ── holiday calendar integration ─────────────────────────────────────────────
   // Called by GeneralCalendar when HR adds a custom holiday.
   // Flips every Absent record on that date to Holiday so no deduction is applied.
@@ -461,4 +599,69 @@ export const localAttendance = {
   },
 
   isValidStatus,
+}
+
+// ── one-time backfill ──────────────────────────────────────────────────────
+// Runs the weekend/holiday + half-day + in_time-derived-lateness policy over
+// whatever attendance data is already sitting in this browser (imported
+// before this policy existed). Flag-guarded so it only ever runs once, and
+// safe to re-run regardless (every underlying rule is an idempotent no-op
+// once already applied) — same pattern as seedLocalEmployees.js's migrations.
+//
+// v2 bump: v1 only corrected status; v2 also recomputes late_by/late_by_minutes
+// from in_time instead of trusting Pace's own (sometimes blank) Late By column
+// — bumping the flag key makes this re-run even for browsers that already
+// completed v1.
+const WEEKEND_HOLIDAY_BACKFILL_FLAG = 'hma_attendance_weekend_holiday_backfill_v2'
+
+export const applyWeekendHolidayBackfill = () => {
+  if (localStorage.getItem(WEEKEND_HOLIDAY_BACKFILL_FLAG)) return
+  try {
+    const rows = read(KEYS.records)
+    const affectedMonths = new Set()
+    const ts = now()
+
+    const updated = rows.map((r) => {
+      const policy = _applyRecordPolicy(r.status, r.in_time, r.late_by_minutes, r.date)
+      const statusChanged = policy.status !== r.status
+      const lateChanged = (policy.lateMinutes || 0) !== (r.late_by_minutes || 0)
+      if (!statusChanged && !lateChanged) return r
+
+      affectedMonths.add(`${r.year}-${r.month}`)
+      const reasons = policy.autoCorrections.map((c) => c.reason)
+      // A pure lateness fix (status unchanged) isn't covered by any reason
+      // above — record it explicitly so the audit trail explains why
+      // late_by/late_by_minutes changed on an otherwise-untouched record.
+      if (!statusChanged && lateChanged) {
+        reasons.push(
+          `Late-by recomputed from in_time vs. official shift start (was ${r.late_by_minutes || 0} min, now ${policy.lateMinutes} min) — punch machine's own Late By column was unreliable`,
+        )
+      }
+      const autoCorrectionEntries = reasons.map((reason) => ({
+        id: uid(),
+        old_status: r.status,
+        new_status: policy.status,
+        reason,
+        corrected_by: 'System (Attendance Policy Backfill)',
+        corrected_at: ts,
+      }))
+      return {
+        ...r,
+        status: policy.status,
+        late_by: policy.lateMinutes > 0 ? fmtHHMM(policy.lateMinutes) : null,
+        late_by_minutes: policy.lateMinutes || 0,
+        corrections: [...(r.corrections || []), ...autoCorrectionEntries],
+        updated_at: ts,
+      }
+    })
+
+    write(KEYS.records, updated)
+    for (const key of affectedMonths) {
+      const [y, m] = key.split('-').map(Number)
+      _rebuildMonthSummaries(y, m)
+    }
+    localStorage.setItem(WEEKEND_HOLIDAY_BACKFILL_FLAG, '1')
+  } catch (err) {
+    console.warn('[applyWeekendHolidayBackfill] Failed:', err)
+  }
 }

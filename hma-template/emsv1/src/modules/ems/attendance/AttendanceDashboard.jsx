@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
+  CAlert,
   CBadge,
   CButton,
   CCard,
@@ -11,6 +12,7 @@ import {
   CNav,
   CNavItem,
   CNavLink,
+  CProgress,
   CRow,
   CSpinner,
   CTable,
@@ -24,7 +26,14 @@ import {
   CTooltip,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCalendar, cilCloudUpload, cilMoney, cilPencil, cilPeople } from '@coreui/icons'
+import {
+  cilCalendar,
+  cilCloudUpload,
+  cilMoney,
+  cilPencil,
+  cilPeople,
+  cilWarning,
+} from '@coreui/icons'
 
 import { usePermission } from '../../../hooks/usePermission'
 import { MODULE } from '../../../constants/modules'
@@ -74,6 +83,8 @@ const AttendanceDashboard = () => {
   const [agg, setAgg] = useState(null)
   const [uploads, setUploads] = useState([])
   const [summaries, setSummaries] = useState([])
+  const [coverage, setCoverage] = useState(null)
+  const [integrityWarnings, setIntegrityWarnings] = useState([])
   const [loading, setLoading] = useState(true)
   const [calendarEmp, setCalendarEmp] = useState(null)
 
@@ -88,6 +99,8 @@ const AttendanceDashboard = () => {
         setUploads(uploadsRes.data.items || [])
         setSummaries(sumRes.data.items || [])
         setAgg(sumRes.data.aggregate || null)
+        setCoverage(localAttendance.getMonthCoverage(year, month))
+        setIntegrityWarnings(localAttendance.getIntegrityWarnings(year, month))
       } catch {
         const localUploads = localAttendance.listUploads({ year, month })
         const localSums = localAttendance.listMonthlySummaries({ year, month })
@@ -95,6 +108,8 @@ const AttendanceDashboard = () => {
         setUploads(localUploads)
         setSummaries(localSums)
         setAgg(localAgg)
+        setCoverage(localAttendance.getMonthCoverage(year, month))
+        setIntegrityWarnings(localAttendance.getIntegrityWarnings(year, month))
       } finally {
         setLoading(false)
       }
@@ -239,6 +254,61 @@ const AttendanceDashboard = () => {
                 </div>
               )}
 
+              {/* Month Coverage */}
+              {coverage && (
+                <CCard className="mb-4">
+                  <CCardHeader>
+                    <strong>Month Coverage</strong>
+                  </CCardHeader>
+                  <CCardBody>
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <span className="small">
+                        {coverage.coveredWorkingDays} of {coverage.totalWorkingDays} working days
+                        uploaded
+                      </span>
+                      {coverage.isComplete ? (
+                        <CBadge color="success">Complete</CBadge>
+                      ) : (
+                        <CBadge color="warning">Incomplete</CBadge>
+                      )}
+                    </div>
+                    <CProgress
+                      value={
+                        coverage.totalWorkingDays > 0
+                          ? (coverage.coveredWorkingDays / coverage.totalWorkingDays) * 100
+                          : 0
+                      }
+                      color={coverage.isComplete ? 'success' : 'warning'}
+                    />
+                    {!coverage.isComplete && coverage.missingDates.length > 0 && (
+                      <div className="text-body-secondary small mt-2">
+                        Missing: {coverage.missingDates.slice(0, 10).join(', ')}
+                        {coverage.missingDates.length > 10 &&
+                          ` and ${coverage.missingDates.length - 10} more`}
+                      </div>
+                    )}
+                  </CCardBody>
+                </CCard>
+              )}
+
+              {/* Data integrity warnings */}
+              {integrityWarnings.length > 0 && (
+                <CAlert color="danger" className="mb-4">
+                  <CIcon icon={cilWarning} className="me-1" />
+                  <strong>Data integrity warning:</strong> some employees have more recorded days
+                  than exist in {MONTHS[month - 1]} {year} — likely duplicate or misclassified
+                  records.
+                  <ul className="mb-0 mt-1">
+                    {integrityWarnings.map((w) => (
+                      <li key={w.employee_id}>
+                        {w.employee_id}: recorded {w.total} days but this month has {w.daysInMonth}{' '}
+                        calendar days (over by {w.overBy})
+                      </li>
+                    ))}
+                  </ul>
+                </CAlert>
+              )}
+
               {/* Upload History */}
               <CCard className="mb-4">
                 <CCardHeader className="d-flex align-items-center justify-content-between">
@@ -324,7 +394,9 @@ const AttendanceDashboard = () => {
                               </CBadge>
                             </CTableDataCell>
                             <CTableDataCell>{s.half_day_count || 0}</CTableDataCell>
-                            <CTableDataCell>{s.weekly_off_count || 0}</CTableDataCell>
+                            <CTableDataCell>
+                              {(s.weekly_off_count || 0) + (s.weekly_off_worked_count || 0)}
+                            </CTableDataCell>
                             <CTableDataCell>{s.leave_count || 0}</CTableDataCell>
                             <CTableDataCell>
                               {s.late_days > 0 ? (

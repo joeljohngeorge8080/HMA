@@ -71,6 +71,21 @@ const normalizeStatus = (raw) => {
   return STATUS_NORMALIZE[trimmed] || STATUS_NORMALIZE[trimmed.toUpperCase()] || null
 }
 
+// Pace's own "weekly off" code family — WO (didn't work), WOP ("Weekly Off
+// Present" — worked a full day on their off day), WO½P ("Weekly Off Half
+// Present" — worked half a day on it). All three represent the SAME
+// scheduled weekly-off calendar day; only the normalized `status` above
+// differs (Weekly Off / Present / Half Day) based on whether they attended.
+// Kept as a separate flag (not folded into `status`) so "Weekly Off" reporting
+// can show WO+WOP+WO½P together without disturbing present_count/payroll math,
+// which must keep treating a worked WOP/WO½P day as attendance.
+const WEEKLY_OFF_CODES = new Set(['WO', 'WOP', 'WO½P', 'WEEKLY OFF'])
+const isWeeklyOffCode = (raw) => {
+  if (!raw) return false
+  const trimmed = String(raw).trim()
+  return WEEKLY_OFF_CODES.has(trimmed) || WEEKLY_OFF_CODES.has(trimmed.toUpperCase())
+}
+
 // "8:25" or "00:00" → "08:25" | null for "00:00" (zero means no activity)
 const normTime = (val) => {
   if (val == null || val === '') return null
@@ -261,6 +276,7 @@ export const parseAttendanceExcel = (file) =>
               employee_name: employeeName,
               date,
               status,
+              is_weekly_off_type: isWeeklyOffCode(statusRaw),
               in_time: inTime,
               out_time: outTime,
               work_duration: duration,

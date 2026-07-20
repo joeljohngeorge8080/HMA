@@ -162,6 +162,12 @@ const buildEmployeeSummaries = (rows) => {
         absent: 0,
         half_day: 0,
         weekly_off: 0,
+        // Days coded WOP/WO½P by Pace — a scheduled weekly-off the employee
+        // still worked (full or half day). Kept separate from `weekly_off`
+        // (which only counts non-worked WO days) so present/half_day day
+        // counts stay correct for payroll, while the displayed "Weekly Off"
+        // total can still show WO + WOP combined.
+        weekly_off_worked: 0,
         holiday: 0,
         on_leave: 0,
         // Late split: normal (≤60 min) vs half-day (>60 min, priority rule applies)
@@ -195,6 +201,14 @@ const buildEmployeeSummaries = (rows) => {
       case 'On Leave':
         e.on_leave++
         break
+    }
+
+    // WOP/WO½P: Pace marked this a scheduled weekly-off day, but status
+    // ended up Present/Half Day because they worked it — count it toward
+    // "Weekly Off" reporting (WO = WO + WOP) without touching the
+    // present/half_day tallies above, which must stay correct for payroll.
+    if (r.is_weekly_off_type && r.status !== 'Weekly Off') {
+      e.weekly_off_worked++
     }
 
     // Lateness is derived from in_time vs. the official shift start, not
@@ -897,7 +911,9 @@ const AttendanceImport = () => {
                             </CBadge>
                           )}
                           {e.on_leave > 0 && <CBadge color="primary">{e.on_leave}L</CBadge>}
-                          <span className="text-body-secondary">{e.weekly_off}WO</span>
+                          <span className="text-body-secondary">
+                            {e.weekly_off + e.weekly_off_worked}WO
+                          </span>
                         </div>
                         <div className="text-body-secondary mt-1" style={{ fontSize: '0.72rem' }}>
                           Avg: {e.avg_work_hhmm}

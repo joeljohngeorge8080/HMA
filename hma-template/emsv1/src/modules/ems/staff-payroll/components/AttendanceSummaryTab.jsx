@@ -19,6 +19,12 @@ import {
 import api from '../../../../services/api'
 import { localAttendance } from '../../../../services/localAttendance'
 import { localHolidays } from '../../../../services/localHolidays'
+import { localEmployees } from '../../../../services/localEmployees'
+import {
+  computeAttendanceDeduction,
+  parseTimeToMinutes,
+  formatMinutesAsTime,
+} from '../../../../services/attendanceCalc'
 
 const MONTHS = [
   'January',
@@ -152,6 +158,34 @@ const AttendanceSummaryTab = ({ employeeId }) => {
     return m
   }, [records])
 
+  const avgCheckInTime = useMemo(() => {
+    const minutes = records
+      .filter((r) => (r.status === 'Present' || r.status === 'Half Day') && r.in_time)
+      .map((r) => parseTimeToMinutes(r.in_time))
+      .filter((m) => m != null)
+    if (minutes.length === 0) return null
+    return formatMinutesAsTime(minutes.reduce((sum, m) => sum + m, 0) / minutes.length)
+  }, [records])
+
+  const deductionInfo = useMemo(() => {
+    if (!summary) return null
+    let salary = null
+    try {
+      const emp = localEmployees.getById(employeeId)
+      salary = emp?.current_salary ? parseFloat(emp.current_salary) : null
+    } catch {
+      salary = null
+    }
+    if (!salary) return null
+    return computeAttendanceDeduction({
+      salary,
+      presentCount: summary.present_count || 0,
+      absentCount: summary.absent_count || 0,
+      halfDayCount: summary.half_day_count || 0,
+      excessLateUnits: summary.excess_late_units || 0,
+    })
+  }, [summary, employeeId])
+
   const { weeks } = useMemo(() => {
     const daysInMonth = new Date(viewYear, viewMonth, 0).getDate()
     const firstDow = new Date(viewYear, viewMonth - 1, 1).getDay()
@@ -229,6 +263,48 @@ const AttendanceSummaryTab = ({ employeeId }) => {
                   </CCard>
                 </CCol>
               ))}
+            </CRow>
+          )}
+
+          {/* Avg check-in + deduction impact */}
+          {summary && (
+            <CRow className="g-2 mb-4">
+              <CCol xs={6} md={3}>
+                <CCard className="border-top border-top-primary border-3 h-100">
+                  <CCardBody className="text-center py-2 px-1">
+                    <div className="fs-4 fw-bold text-primary">{avgCheckInTime ?? '—'}</div>
+                    <div style={{ fontSize: 11 }} className="text-body-secondary mt-1">
+                      Avg Check-in Time
+                    </div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol xs={6} md={3}>
+                <CCard className="border-top border-top-danger border-3 h-100">
+                  <CCardBody className="text-center py-2 px-1">
+                    <div className="fs-4 fw-bold text-danger">
+                      {deductionInfo
+                        ? `₹ ${deductionInfo.totalDeduction.toFixed(2)}`
+                        : 'Not on file'}
+                    </div>
+                    <div style={{ fontSize: 11 }} className="text-body-secondary mt-1">
+                      This Month&rsquo;s Deduction
+                    </div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol xs={6} md={3}>
+                <CCard className="border-top border-top-success border-3 h-100">
+                  <CCardBody className="text-center py-2 px-1">
+                    <div className="fs-4 fw-bold text-success">
+                      {deductionInfo ? `₹ ${deductionInfo.netPayable.toFixed(2)}` : '—'}
+                    </div>
+                    <div style={{ fontSize: 11 }} className="text-body-secondary mt-1">
+                      Net Payable
+                    </div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
             </CRow>
           )}
 

@@ -7,34 +7,34 @@
  * Only TPC-category employees contribute — Permanent/FTC deductions are
  * surfaced as "savings" elsewhere but are NOT pooled as revenue.
  *
- * Deduction formula matches Attendance → Deductions exactly:
- *   per-day rate  = monthly salary ÷ days in month
+ * Deduction formula matches Attendance → Deductions exactly (via the shared
+ * attendanceCalc.computeAttendanceDeduction):
+ *   per-day rate  = monthly salary ÷ (present + absent days)
  *   absent        = absent days × per-day rate
- *   half-day      = half-day count × ½ per-day rate
+ *   half-day      = half-day count × 4 × hourly rate
  *   late          = excess units (beyond 7 free) × per-day rate ÷ 32
  * Paid leave (CL/SL/OD/COFF) is never deducted.
  */
 
 import { localAttendance } from './localAttendance'
 import { localEmployees } from './localEmployees'
+import { computeAttendanceDeduction } from './attendanceCalc'
 
 const isTPC = (emp) => (emp.employee_category || emp.employment?.employee_category || '') === 'TPC'
 
-const computeDeduction = (salary, summary, year, month) => {
+const computeDeduction = (salary, summary) => {
   if (!summary || salary <= 0) {
     return { absentDeduction: 0, halfDayDeduction: 0, lateDeduction: 0, totalDeduction: 0 }
   }
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const perDayRate = salary / daysInMonth
-  const absentDeduction = (summary.absent_count || 0) * perDayRate
-  const halfDayDeduction = (summary.half_day_count || 0) * (perDayRate / 2)
-  const lateDeduction = (summary.excess_late_units || 0) * (perDayRate / 32)
-  return {
-    absentDeduction,
-    halfDayDeduction,
-    lateDeduction,
-    totalDeduction: absentDeduction + halfDayDeduction + lateDeduction,
-  }
+  const { absentDeduction, halfDayDeduction, lateDeduction, totalDeduction } =
+    computeAttendanceDeduction({
+      salary,
+      presentCount: summary.present_count || 0,
+      absentCount: summary.absent_count || 0,
+      halfDayCount: summary.half_day_count || 0,
+      excessLateUnits: summary.excess_late_units || 0,
+    })
+  return { absentDeduction, halfDayDeduction, lateDeduction, totalDeduction }
 }
 
 const tpcEmployees = () => localEmployees.list({ pageSize: 1000 }).items.filter(isTPC)
@@ -56,7 +56,7 @@ export const attendanceRevenue = {
       .map((emp) => {
         const salary = parseFloat(emp.current_salary || 0)
         const summary = byEmpId[emp.employee_id]
-        const d = computeDeduction(salary, summary, year, month)
+        const d = computeDeduction(salary, summary)
         return {
           employee_id: emp.employee_id,
           employee_name: emp.employee_name,
