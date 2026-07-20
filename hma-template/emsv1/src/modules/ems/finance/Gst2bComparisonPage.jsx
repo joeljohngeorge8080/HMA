@@ -48,9 +48,23 @@ const readWorkbookRows = (file) =>
     reader.readAsArrayBuffer(file)
   })
 
-const StatusBadge = ({ matched, presentLabel, absentLabel }) => (
-  <CBadge color={matched ? 'success' : 'danger'}>{matched ? presentLabel : absentLabel}</CBadge>
-)
+const diffText = (n) => {
+  if (!n) return ''
+  const sign = n > 0 ? '+' : '−'
+  return `${sign}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+const StatusBadge = ({ status, amountDiff, absentLabel }) => {
+  if (status === 'matched') return <CBadge color="success">Matched</CBadge>
+  if (status === 'partial') {
+    return (
+      <CBadge color="warning" className="text-dark">
+        Amount differs ({diffText(amountDiff)})
+      </CBadge>
+    )
+  }
+  return <CBadge color="danger">{absentLabel}</CBadge>
+}
 
 const FilePicker = ({ label, hint, fileName, error, loading, onPick }) => {
   const inputRef = useRef(null)
@@ -189,6 +203,7 @@ const Gst2bComparisonPage = () => {
       },
       cell: { font: { sz: 10 }, border },
       matched: { font: { sz: 10, color: { rgb: '1E7A34' } }, border },
+      partial: { font: { sz: 10, bold: true, color: { rgb: '7F6000' } }, border },
       unmatched: { font: { sz: 10, bold: true, color: { rgb: 'B00020' } }, border },
     }
     const txt = (v, s) => ({ v: v == null || v === '' ? '' : String(v), t: 's', s })
@@ -198,6 +213,14 @@ const Gst2bComparisonPage = () => {
       z: '#,##0.00',
       s,
     })
+    const styleFor = (status) =>
+      status === 'matched'
+        ? styles.matched
+        : status === 'partial'
+          ? styles.partial
+          : styles.unmatched
+    const statusText = (status, absentLabel) =>
+      status === 'matched' ? 'Matched' : status === 'partial' ? 'Amount differs' : absentLabel
 
     const wb = XLSXStyle.utils.book_new()
 
@@ -209,6 +232,7 @@ const Gst2bComparisonPage = () => {
         'Invoice Date',
         'Invoice Value',
         'Taxable Value',
+        'Difference',
         'Status',
       ]
       const aoa = [
@@ -219,7 +243,7 @@ const Gst2bComparisonPage = () => {
         [],
         headers.map((h) => txt(h, styles.head)),
         ...result.gstr2bRows.map((r) => {
-          const s = r.matched ? styles.matched : styles.unmatched
+          const s = styleFor(r.status)
           return [
             txt(r.gstin, s),
             txt(r.tradeName, s),
@@ -227,7 +251,8 @@ const Gst2bComparisonPage = () => {
             txt(r.invoiceDate, s),
             num(r.invoiceValue, s),
             num(r.taxableValue, s),
-            txt(r.matched ? 'Matched' : 'Not present in our report', s),
+            r.status === 'partial' ? num(r.amountDiff, s) : txt('', s),
+            txt(statusText(r.status, 'Not present in our report'), s),
           ]
         }),
       ]
@@ -245,6 +270,7 @@ const Gst2bComparisonPage = () => {
         'Invoice Number',
         'Invoice Date',
         'Total Value',
+        'Difference',
         'Status',
       ]
       const aoa = [
@@ -255,7 +281,7 @@ const Gst2bComparisonPage = () => {
         [],
         headers.map((h) => txt(h, styles.head)),
         ...result.ownRows.map((r) => {
-          const s = r.matched ? styles.matched : styles.unmatched
+          const s = styleFor(r.status)
           return [
             txt(r.gstNo, s),
             txt(r.partyName, s),
@@ -263,7 +289,8 @@ const Gst2bComparisonPage = () => {
             txt(r.invoiceNumber, s),
             txt(r.invoiceDate, s),
             num(r.totalValue, s),
-            txt(r.matched ? 'Matched' : 'Not present in GSTR-2B', s),
+            r.status === 'partial' ? num(r.amountDiff, s) : txt('', s),
+            txt(statusText(r.status, 'Not present in GSTR-2B'), s),
           ]
         }),
       ]
@@ -285,7 +312,8 @@ const Gst2bComparisonPage = () => {
           <h4 className="mb-1">GST 2B Comparison</h4>
           <p className="text-body-secondary mb-0 small">
             Upload the GSTR-2B download and the GST Bills report side by side to check which
-            invoices match on GST number + invoice number.
+            invoices match on GST number + invoice number, and flag any where the total value
+            differs (partial match).
           </p>
         </div>
         {result && (
@@ -329,10 +357,18 @@ const Gst2bComparisonPage = () => {
           <CAlert color="info" className="mb-3">
             GSTR-2B: <strong>{result.summary.gstr2bCount}</strong> invoice(s) · Our Report:{' '}
             <strong>{result.summary.ownCount}</strong> invoice(s) · Matched:{' '}
-            <strong>{result.summary.matchedCount}</strong> · Only in GSTR-2B:{' '}
+            <strong>{result.summary.matchedCount}</strong> · Amount differs:{' '}
+            <strong>{result.summary.partialCount}</strong> · Only in GSTR-2B:{' '}
             <strong>{result.summary.onlyInGstr2bCount}</strong> · Only in our report:{' '}
             <strong>{result.summary.onlyInOwnCount}</strong>
           </CAlert>
+          {result.summary.partialCount > 0 && (
+            <CAlert color="warning" className="mb-3">
+              <strong>{result.summary.partialCount}</strong> invoice(s) matched on GST number +
+              invoice number but have a different total value between the two sheets — check the
+              &ldquo;Amount differs&rdquo; rows below.
+            </CAlert>
+          )}
 
           <CRow className="g-3">
             <CCol md={6}>
@@ -347,6 +383,7 @@ const Gst2bComparisonPage = () => {
                         <CTableHeaderCell>GSTIN</CTableHeaderCell>
                         <CTableHeaderCell>Invoice No</CTableHeaderCell>
                         <CTableHeaderCell className="text-end">Value</CTableHeaderCell>
+                        <CTableHeaderCell className="text-end">Difference</CTableHeaderCell>
                         <CTableHeaderCell>Status</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
@@ -358,10 +395,13 @@ const Gst2bComparisonPage = () => {
                           <CTableDataCell className="text-end small">
                             {money(r.invoiceValue)}
                           </CTableDataCell>
+                          <CTableDataCell className="text-end small text-warning-emphasis">
+                            {diffText(r.amountDiff)}
+                          </CTableDataCell>
                           <CTableDataCell>
                             <StatusBadge
-                              matched={r.matched}
-                              presentLabel="Matched"
+                              status={r.status}
+                              amountDiff={r.amountDiff}
                               absentLabel="Not in our report"
                             />
                           </CTableDataCell>
@@ -384,6 +424,7 @@ const Gst2bComparisonPage = () => {
                         <CTableHeaderCell>GST No</CTableHeaderCell>
                         <CTableHeaderCell>Invoice No</CTableHeaderCell>
                         <CTableHeaderCell className="text-end">Value</CTableHeaderCell>
+                        <CTableHeaderCell className="text-end">Difference</CTableHeaderCell>
                         <CTableHeaderCell>Status</CTableHeaderCell>
                       </CTableRow>
                     </CTableHead>
@@ -395,10 +436,13 @@ const Gst2bComparisonPage = () => {
                           <CTableDataCell className="text-end small">
                             {money(r.totalValue)}
                           </CTableDataCell>
+                          <CTableDataCell className="text-end small text-warning-emphasis">
+                            {diffText(r.amountDiff)}
+                          </CTableDataCell>
                           <CTableDataCell>
                             <StatusBadge
-                              matched={r.matched}
-                              presentLabel="Matched"
+                              status={r.status}
+                              amountDiff={r.amountDiff}
                               absentLabel="Not in GSTR-2B"
                             />
                           </CTableDataCell>

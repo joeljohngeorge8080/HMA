@@ -18,6 +18,7 @@ import {
 import api from '../../../services/api'
 import { localAttendance } from '../../../services/localAttendance'
 import { localEmployees } from '../../../services/localEmployees'
+import { computeAttendanceDeduction } from '../../../services/attendanceCalc'
 
 const MONTHS = [
   'January',
@@ -79,42 +80,62 @@ const DeductionSummary = ({ year, month }) => {
 
   const rows = useMemo(() => {
     return summaries.map((s) => {
-      const info = empMap[s.employee_id] || { name: '—', salary: 0 }
-      const salary = info.salary
+      const info = empMap[s.employee_id]
+      const hasSalary = !!info && info.salary > 0
+      const salary = info?.salary || 0
 
+      const presentCount = s.present_count || 0 // already folds in half-day
       const absentCount = s.absent_count || 0
+      const weeklyOffCount = s.weekly_off_count || 0
       const halfDayCount = s.half_day_count || 0 // already counted inside present_count
-      const excessLateUnits = s.excess_late_units || 0 // units beyond 7 free
+      const lateDeductionHours = s.late_deduction_hours || 0
+      const earlyDeductionHours = s.early_deduction_hours || 0
+      const workingDays = presentCount + absentCount + weeklyOffCount
 
-      // Daily Salary = Monthly Salary / Total Days in Month (per business rules)
-      const daysInMonth = new Date(year, month, 0).getDate()
-      const perDayRate = salary / daysInMonth
-
-      // LOP (Loss of Pay) = absent days + half-day entries count as 0.5 each
-      // Paid leaves are NOT deducted
-      const absentDeduction = absentCount * perDayRate
-      const halfDayDeduction = halfDayCount * (perDayRate / 2)
-
-      // Late deduction: per business rules — only excess units (beyond 7 free) are deducted
-      // 1 unit = 15 min; hourly rate = perDayRate / 8; 15-min deduction = perDayRate / 32
-      const lateDeduction = excessLateUnits * (perDayRate / 32)
-
-      const totalDeduction = absentDeduction + halfDayDeduction + lateDeduction
-      const netPayable = Math.max(0, salary - totalDeduction)
+      const {
+        dailySalary: perDayRate,
+        absentDeduction,
+        halfDayDeduction,
+        lateDeduction,
+        earlyDeduction,
+        totalDeduction,
+        netPayable,
+      } = hasSalary
+        ? computeAttendanceDeduction({
+            salary,
+            presentCount,
+            absentCount,
+            weeklyOffCount,
+            halfDayCount,
+            lateDeductionHours,
+            earlyDeductionHours,
+          })
+        : {
+            dailySalary: 0,
+            absentDeduction: 0,
+            halfDayDeduction: 0,
+            lateDeduction: 0,
+            earlyDeduction: 0,
+            totalDeduction: 0,
+            netPayable: 0,
+          }
 
       return {
         key: s.id || s.employee_id,
         employee_id: s.employee_id,
-        name: info.name,
+        name: info?.name || '—',
+        hasSalary,
         salary,
-        daysInMonth,
+        workingDays,
         perDayRate,
         halfDayCount,
         absentCount,
-        excessLateUnits,
+        lateDeductionHours,
+        earlyDeductionHours,
         absentDeduction,
         halfDayDeduction,
         lateDeduction,
+        earlyDeduction,
         totalDeduction,
         netPayable,
       }
@@ -129,14 +150,16 @@ const DeductionSummary = ({ year, month }) => {
           absentDeduction: acc.absentDeduction + r.absentDeduction,
           halfDayDeduction: acc.halfDayDeduction + r.halfDayDeduction,
           lateDeduction: acc.lateDeduction + r.lateDeduction,
+          earlyDeduction: acc.earlyDeduction + r.earlyDeduction,
           totalDeduction: acc.totalDeduction + r.totalDeduction,
-          netPayable: acc.netPayable + r.netPayable,
+          netPayable: r.hasSalary ? acc.netPayable + r.netPayable : acc.netPayable,
         }),
         {
           salary: 0,
           absentDeduction: 0,
           halfDayDeduction: 0,
           lateDeduction: 0,
+          earlyDeduction: 0,
           totalDeduction: 0,
           netPayable: 0,
         },
@@ -200,12 +223,14 @@ const DeductionSummary = ({ year, month }) => {
       </CRow>
 
       <p className="text-body-secondary small mb-3">
-        <strong>Per-day rate</strong> = monthly salary ÷ total days in month.&nbsp;
+        <strong>Per-day rate</strong> = monthly salary ÷ (present + absent + weekly-off days).&nbsp;{' '}
         <strong>Absent deduction</strong> = absent days × per-day rate.&nbsp;
-        <strong>Half-day deduction</strong> = half-day count × ½ per-day rate.&nbsp;
-        <strong>Late deduction</strong> = excess units (beyond 7 free) × per-day rate ÷ 32 (1 unit =
-        15 min; hourly rate = per-day ÷ 8; 15-min = hourly ÷ 4).&nbsp; Paid leave (CL/SL/OD/COFF) is
-        not deducted.
+        <strong>Half-day deduction</strong> = half-day count × 4 × hourly rate (&gt;120 min late or
+        early-out).&nbsp; <strong>Late deduction</strong> = bracket rate for late days beyond the 7
+        free units (30/60/90/120 min → 0.5/1/1.5/2 hrs).&nbsp; <strong>Early-out deduction</strong>{' '}
+        = bracket rate for early-out days beyond the 60 free minutes (60/120 min early → 1/2
+        hrs).&nbsp; Paid leave (CL/SL/OD/COFF) is not deducted. Employees with no salary on file
+        show &ldquo;-&rdquo;.
       </p>
 
       <CCard>
@@ -221,14 +246,14 @@ const DeductionSummary = ({ year, month }) => {
                 <CTableHeaderCell>Emp ID</CTableHeaderCell>
                 <CTableHeaderCell>Name</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Gross Salary</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">Days in Month</CTableHeaderCell>
+                <CTableHeaderCell className="text-center">Working Days (P+A)</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Per-Day Rate</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Absent</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Absent Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-center">Half Days</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Half-Day Ded.</CTableHeaderCell>
-                <CTableHeaderCell className="text-center">Late Units (excess)</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Late Ded.</CTableHeaderCell>
+                <CTableHeaderCell className="text-end text-danger">Early-Out Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-danger">Total Ded.</CTableHeaderCell>
                 <CTableHeaderCell className="text-end text-success">Net Payable</CTableHeaderCell>
               </CTableRow>
@@ -238,10 +263,14 @@ const DeductionSummary = ({ year, month }) => {
                 <CTableRow key={r.key}>
                   <CTableDataCell className="fw-semibold">{r.employee_id}</CTableDataCell>
                   <CTableDataCell>{r.name}</CTableDataCell>
-                  <CTableDataCell className="text-end">{fmt(r.salary)}</CTableDataCell>
-                  <CTableDataCell className="text-center">{r.daysInMonth}</CTableDataCell>
+                  <CTableDataCell className="text-end">
+                    {r.hasSalary ? fmt(r.salary) : '-'}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-center">
+                    {r.hasSalary ? r.workingDays : '-'}
+                  </CTableDataCell>
                   <CTableDataCell className="text-end small text-body-secondary">
-                    {fmt(r.perDayRate)}
+                    {r.hasSalary ? fmt(r.perDayRate) : '-'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center">
                     {r.absentCount > 0 ? (
@@ -251,7 +280,7 @@ const DeductionSummary = ({ year, month }) => {
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="text-end text-danger">
-                    {r.absentDeduction > 0 ? fmt(r.absentDeduction) : '—'}
+                    {!r.hasSalary ? '-' : r.absentDeduction > 0 ? fmt(r.absentDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-center">
                     {r.halfDayCount > 0 ? (
@@ -261,23 +290,19 @@ const DeductionSummary = ({ year, month }) => {
                     )}
                   </CTableDataCell>
                   <CTableDataCell className="text-end text-danger">
-                    {r.halfDayDeduction > 0 ? fmt(r.halfDayDeduction) : '—'}
-                  </CTableDataCell>
-                  <CTableDataCell className="text-center">
-                    {r.excessLateUnits > 0 ? (
-                      <span className="text-warning fw-semibold">{r.excessLateUnits}</span>
-                    ) : (
-                      <span className="text-body-secondary">—</span>
-                    )}
+                    {!r.hasSalary ? '-' : r.halfDayDeduction > 0 ? fmt(r.halfDayDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-end text-danger">
-                    {r.lateDeduction > 0 ? fmt(r.lateDeduction) : '—'}
+                    {!r.hasSalary ? '-' : r.lateDeduction > 0 ? fmt(r.lateDeduction) : '—'}
+                  </CTableDataCell>
+                  <CTableDataCell className="text-end text-danger">
+                    {!r.hasSalary ? '-' : r.earlyDeduction > 0 ? fmt(r.earlyDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-end fw-semibold text-danger">
-                    {r.totalDeduction > 0 ? fmt(r.totalDeduction) : '—'}
+                    {!r.hasSalary ? '-' : r.totalDeduction > 0 ? fmt(r.totalDeduction) : '—'}
                   </CTableDataCell>
                   <CTableDataCell className="text-end fw-bold text-success">
-                    {fmt(r.netPayable)}
+                    {r.hasSalary ? fmt(r.netPayable) : '-'}
                   </CTableDataCell>
                 </CTableRow>
               ))}
@@ -296,9 +321,11 @@ const DeductionSummary = ({ year, month }) => {
                 <CTableDataCell className="text-end text-danger">
                   {fmt(totals.halfDayDeduction)}
                 </CTableDataCell>
-                <CTableDataCell />
                 <CTableDataCell className="text-end text-danger">
                   {fmt(totals.lateDeduction)}
+                </CTableDataCell>
+                <CTableDataCell className="text-end text-danger">
+                  {fmt(totals.earlyDeduction)}
                 </CTableDataCell>
                 <CTableDataCell className="text-end text-danger">
                   {fmt(totals.totalDeduction)}

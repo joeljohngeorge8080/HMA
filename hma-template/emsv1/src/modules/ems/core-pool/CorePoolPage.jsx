@@ -46,6 +46,7 @@ import {
 import { localPayroll } from '../../../services/localPayroll'
 import { localAttendance } from '../../../services/localAttendance'
 import { attendanceRevenue } from '../../../services/attendanceRevenue'
+import { computeAttendanceDeduction } from '../../../services/attendanceCalc'
 
 // ── Core Salary Expense store ─────────────────────────────────────────────────
 // Tracks which employees' salaries are formally registered as core overhead.
@@ -123,35 +124,43 @@ const YEARS = [THIS_YEAR - 1, THIS_YEAR, THIS_YEAR + 1]
 const isProjectAssigned = (emp) =>
   !emp.isOverhead || /project officer/i.test(emp.employment?.designation || '')
 
-const computeEmployeeDeduction = (emp, summary, year, month) => {
+const computeEmployeeDeduction = (emp, summary) => {
   const salary = parseFloat(emp.current_salary || 0)
+  const presentCount = summary?.present_count || 0
   const absentCount = summary?.absent_count || 0
+  const weeklyOffCount = summary?.weekly_off_count || 0
   const halfDayCount = summary?.half_day_count || 0
-  const excessLateUnits = summary?.excess_late_units || 0
+  const lateDeductionHours = summary?.late_deduction_hours || 0
+  const earlyDeductionHours = summary?.early_deduction_hours || 0
   if (salary <= 0 || !summary) {
     return {
       absentDeduction: 0,
       halfDayDeduction: 0,
       lateDeduction: 0,
+      earlyDeduction: 0,
       totalDeduction: 0,
       absentCount,
       halfDayCount,
-      excessLateUnits,
     }
   }
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const perDayRate = salary / daysInMonth
-  const absentDeduction = absentCount * perDayRate
-  const halfDayDeduction = halfDayCount * (perDayRate / 2)
-  const lateDeduction = excessLateUnits * (perDayRate / 32)
+  const { absentDeduction, halfDayDeduction, lateDeduction, earlyDeduction, totalDeduction } =
+    computeAttendanceDeduction({
+      salary,
+      presentCount,
+      absentCount,
+      weeklyOffCount,
+      halfDayCount,
+      lateDeductionHours,
+      earlyDeductionHours,
+    })
   return {
     absentDeduction,
     halfDayDeduction,
     lateDeduction,
-    totalDeduction: absentDeduction + halfDayDeduction + lateDeduction,
+    earlyDeduction,
+    totalDeduction,
     absentCount,
     halfDayCount,
-    excessLateUnits,
   }
 }
 
@@ -296,14 +305,14 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
         .map((emp) => ({
           emp,
           groupLabel,
-          ...computeEmployeeDeduction(emp, summaryByEmpId[emp.employee_id], year, month),
+          ...computeEmployeeDeduction(emp, summaryByEmpId[emp.employee_id]),
         }))
         .filter((r) => r.totalDeduction > 0)
         .sort((a, b) => b.totalDeduction - a.totalDeduction)
       const total = rows.reduce((s, r) => s + r.totalDeduction, 0)
       return { rows, total }
     },
-    [summaryByEmpId, year, month],
+    [summaryByEmpId],
   )
 
   const core = useMemo(() => computeGroup(coreEmployees, 'Core'), [computeGroup, coreEmployees])
@@ -393,7 +402,7 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                     Half-Day
                   </CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-center">
-                    Late (excess)
+                    Late/Early Out
                   </CTableHeaderCell>
                   <CTableHeaderCell className="border-0 py-2 text-end">Saved</CTableHeaderCell>
                 </CTableRow>
@@ -418,7 +427,9 @@ const LeaveSavingsSummary = ({ coreEmployees, assignedEmployees }) => {
                     <CTableDataCell className="text-center">{r.absentCount || '—'}</CTableDataCell>
                     <CTableDataCell className="text-center">{r.halfDayCount || '—'}</CTableDataCell>
                     <CTableDataCell className="text-center">
-                      {r.excessLateUnits || '—'}
+                      {r.lateDeduction || r.earlyDeduction
+                        ? fmt((r.lateDeduction || 0) + (r.earlyDeduction || 0))
+                        : '—'}
                     </CTableDataCell>
                     <CTableDataCell className="text-end fw-semibold" style={{ color: '#06d6a0' }}>
                       {fmt(r.totalDeduction)}
