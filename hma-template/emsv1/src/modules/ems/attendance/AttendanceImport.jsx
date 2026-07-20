@@ -20,7 +20,14 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilCheckCircle, cilCloudUpload, cilWarning, cilX } from '@coreui/icons'
+import {
+  cilArrowLeft,
+  cilCheckCircle,
+  cilCloudDownload,
+  cilCloudUpload,
+  cilWarning,
+  cilX,
+} from '@coreui/icons'
 import { useSelector } from 'react-redux'
 
 import { usePermission } from '../../../hooks/usePermission'
@@ -40,6 +47,7 @@ import {
   computeAttendanceDeduction,
   computeLateMinutes,
 } from '../../../services/attendanceCalc'
+import * as XLSX from 'xlsx'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -627,6 +635,165 @@ const AttendanceImport = () => {
     }
   }
 
+  // ── Export to Excel ───────────────────────────────────────────────────────────
+
+  const handleExportExcel = () => {
+    const monthName = MONTHS[month - 1]
+
+    // Build per-employee rows with full deduction calc
+    const dataRows = employeeSummaries.map((e) => {
+      const presentCount = e.present + e.total_half_days
+      const absentCount = e.effective_absent
+      const workingDays = presentCount + absentCount
+
+      let salary = null
+      try {
+        const emp = localEmployees.getById(e.employee_id)
+        salary = emp?.current_salary ? parseFloat(emp.current_salary) : null
+      } catch {
+        salary = null
+      }
+
+      let calc = null
+      if (salary !== null && workingDays > 0) {
+        calc = computeAttendanceDeduction({
+          salary,
+          presentCount,
+          absentCount,
+          halfDayCount: e.total_half_days,
+          excessLateUnits: e.excess_units,
+        })
+      }
+
+      const fmtINR = (n) => (n != null ? parseFloat(n.toFixed(2)) : '')
+      const remarkText = e.remarks.map((r) => `${r.label}: ${r.text}`).join(' | ')
+
+      return {
+        'Employee ID': e.employee_id,
+        'Employee Name': e.employee_name,
+        'Monthly Salary (₹)': salary ?? 'Not on file',
+        'Present Days': e.present,
+        'Absent Days': e.absent,
+        'Half Days (Pace)': e.half_day,
+        'Half Days (HMA Rule >60 min)': e.hd_violations.length,
+        'Total Half Days': e.total_half_days,
+        'Weekly Off': e.weekly_off,
+        Holiday: e.holiday,
+        'On Leave': e.on_leave,
+        'Excess Leave (treated Absent)': Math.max(0, e.on_leave - CL_MONTHLY_LIMIT),
+        'Effective Absent (incl. excess leave)': absentCount,
+        'Working Days (Present + Absent)': workingDays,
+        'Daily Salary (₹)': fmtINR(calc?.dailySalary),
+        'Hourly Salary (₹)': fmtINR(calc?.hourlySalary),
+        'Absent Deduction (₹)': fmtINR(calc?.absentDeduction),
+        'Half Day Deduction (₹)': fmtINR(calc?.halfDayDeduction),
+        'Late Days (≤60 min)': e.normal_late_days,
+        'Late Units Used': e.normal_late_units,
+        'Free Units Allowed': Math.min(e.normal_late_units, FREE_LATE_UNITS),
+        'Excess Late Units': e.excess_units,
+        'Excess Late Hours':
+          e.excess_units > 0 ? parseFloat(((e.excess_units * LATE_UNIT_MIN) / 60).toFixed(2)) : 0,
+        'Late Deduction (₹)': fmtINR(calc?.lateDeduction),
+        'Total Deduction (₹)': fmtINR(calc?.totalDeduction),
+        'Net Payable (₹)':
+          salary != null && calc != null ? fmtINR(Math.max(0, salary - calc.totalDeduction)) : '',
+        Status: e.has_deduction ? 'Has Deductions' : 'No Deductions',
+        Remarks: remarkText,
+      }
+    })
+
+    // Sheet 1: Full Analysis
+    const ws1 = XLSX.utils.aoa_to_sheet([
+      [`Attendance Analysis Report — ${monthName} ${year}`],
+      [`Generated: ${new Date().toLocaleString('en-IN')}`],
+      [
+        `Policy: ${FREE_LATE_UNITS} free late units/month · 1 unit = ${LATE_UNIT_MIN} min · ≥60 min late = Half Day · Leave limit: ${CL_MONTHLY_LIMIT}/month`,
+      ],
+      [],
+    ])
+    XLSX.utils.sheet_add_json(ws1, dataRows, { origin: 'A5' })
+    ws1['!cols'] = [
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 11 },
+      { wch: 9 },
+      { wch: 10 },
+      { wch: 28 },
+      { wch: 32 },
+      { wch: 28 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 55 },
+    ]
+
+    // Sheet 2: Summary
+    const knownCalcs = dataRows.filter((r) => typeof r['Total Deduction (₹)'] === 'number')
+    const totalDeduction = knownCalcs.reduce((s, r) => s + r['Total Deduction (₹)'], 0)
+    const totalNetPayable = knownCalcs.reduce((s, r) => s + (r['Net Payable (₹)'] || 0), 0)
+    const missingCount = dataRows.length - knownCalcs.length
+
+    const summaryData = [
+      [`Attendance Import Summary — ${monthName} ${year}`],
+      [],
+      ['Metric', 'Value'],
+      ['Total Employees', employeeSummaries.length],
+      ['Employees With Deductions', employeeSummaries.filter((e) => e.has_deduction).length],
+      ['Employees With No Deductions', employeeSummaries.filter((e) => !e.has_deduction).length],
+      ['Employees Missing Salary Data', missingCount],
+      [],
+      ['Deduction Totals (employees with salary on file)', ''],
+      [
+        'Total Absent Deduction (₹)',
+        parseFloat(knownCalcs.reduce((s, r) => s + (r['Absent Deduction (₹)'] || 0), 0).toFixed(2)),
+      ],
+      [
+        'Total Half Day Deduction (₹)',
+        parseFloat(
+          knownCalcs.reduce((s, r) => s + (r['Half Day Deduction (₹)'] || 0), 0).toFixed(2),
+        ),
+      ],
+      [
+        'Total Late Deduction (₹)',
+        parseFloat(knownCalcs.reduce((s, r) => s + (r['Late Deduction (₹)'] || 0), 0).toFixed(2)),
+      ],
+      ['Total Deduction (₹)', parseFloat(totalDeduction.toFixed(2))],
+      ['Total Net Payable (₹)', parseFloat(totalNetPayable.toFixed(2))],
+      [],
+      ['Attendance Totals (all employees)', ''],
+      ['Total Present Days', employeeSummaries.reduce((s, e) => s + e.present, 0)],
+      ['Total Absent Days', employeeSummaries.reduce((s, e) => s + e.absent, 0)],
+      ['Total Half Days', employeeSummaries.reduce((s, e) => s + e.total_half_days, 0)],
+      ['Total Weekly Off', employeeSummaries.reduce((s, e) => s + e.weekly_off, 0)],
+      ['Total On Leave', employeeSummaries.reduce((s, e) => s + e.on_leave, 0)],
+      ['Total Holiday', employeeSummaries.reduce((s, e) => s + e.holiday, 0)],
+    ]
+
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryData)
+    ws2['!cols'] = [{ wch: 45 }, { wch: 22 }]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws2, 'Summary')
+    XLSX.utils.book_append_sheet(wb, ws1, 'Full Analysis')
+    XLSX.writeFile(wb, `Attendance_Report_${monthName}_${year}.xlsx`)
+  }
+
   // ── Derived data ─────────────────────────────────────────────────────────────
 
   const statusCounts = parsedRows.reduce((acc, r) => {
@@ -1007,6 +1174,26 @@ const AttendanceImport = () => {
           <div className="mt-4">
             <DeductionSummary summaries={employeeSummaries} month={month} year={year} />
           </div>
+
+          {/* Download Excel */}
+          <CCard className="mt-3 border-start border-start-success border-3">
+            <CCardBody className="py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <div className="fw-semibold">
+                  <CIcon icon={cilCloudDownload} className="me-2 text-success" />
+                  Download Full Report
+                </div>
+                <div className="text-body-secondary small mt-1">
+                  Excel workbook with attendance breakdown, salary deductions, and summary — same
+                  calculations as the table above.
+                </div>
+              </div>
+              <CButton color="success" variant="outline" onClick={handleExportExcel}>
+                <CIcon icon={cilCloudDownload} className="me-2" />
+                Download Excel Report
+              </CButton>
+            </CCardBody>
+          </CCard>
 
           <div className="d-flex gap-2 mt-3">
             <CButton color="secondary" variant="outline" onClick={() => setStep(1)}>
