@@ -29,13 +29,17 @@ import { parseAttendanceExcel } from '../../../services/attendanceParser'
 import { localAttendance } from '../../../services/localAttendance'
 import { localEmployees } from '../../../services/localEmployees'
 import api from '../../../services/api'
-
-// ─── Business Rules constants (03_Business_Rules.md) ─────────────────────────
-const FREE_LATE_UNITS = 7 // free units per month
-const LATE_UNIT_MIN = 15 // 1 unit = 15 minutes
-const HALF_DAY_THRESHOLD_MIN = 60 // >60 min late → Half Day (priority rule; docs: "more than one hour")
-const HALF_DAY_DEDUCTION_HOURS = 4 // Half Day = 4 hrs deduction
-const CL_MONTHLY_LIMIT = 1 // Casual Leave: 1 per month
+import {
+  FREE_LATE_UNITS,
+  LATE_UNIT_MIN,
+  HALF_DAY_DEDUCTION_HOURS,
+  CL_MONTHLY_LIMIT,
+} from '../../../constants/attendancePolicy'
+import {
+  classifyLateEntry,
+  computeAttendanceDeduction,
+  computeLateMinutes,
+} from '../../../services/attendanceCalc'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -193,18 +197,24 @@ const buildEmployeeSummaries = (rows) => {
         break
     }
 
-    if (r.late_by) {
-      const lateMin = toMin(r.late_by)
-      if (lateMin > 0) {
-        if (lateMin > HALF_DAY_THRESHOLD_MIN && r.status === 'Present') {
-          // Priority Rule: >60 min late → Half Day; these minutes do NOT count as late units
-          e.hd_violations.push({ date: r.date, late_by: r.late_by, lateMin })
-        } else {
-          // Normal late entry ≤60 min → counts toward 7 free units (per-day ceiling)
-          e.normal_late_days++
-          e.normal_late_minutes += lateMin
-          e.normal_late_units += Math.ceil(lateMin / LATE_UNIT_MIN)
-        }
+    // Lateness is derived from in_time vs. the official shift start, not
+    // trusted from Pace's own "Late By" export column — that column has been
+    // found to sit blank for entire employees/shifts even when in_time is
+    // clearly past the official start (matches localAttendance.js's saveImport,
+    // so this preview always agrees with what actually gets persisted).
+    const lateMin = computeLateMinutes(r.in_time)
+    if (lateMin != null) {
+      // classifyLateEntry only ever acts on status === 'Present' — Absent/Half
+      // Day records are correctly no-ops here.
+      const classified = classifyLateEntry(r.status, lateMin)
+      if (classified.reclassifiedToHalfDay) {
+        // Priority Rule: >60 min late while Present → Half Day; these minutes do NOT count as late units
+        e.hd_violations.push({ date: r.date, late_by: fmtHHMM(lateMin), lateMin })
+      } else if (classified.lateUnits > 0) {
+        // Normal late entry ≤60 min while Present → counts toward free units (per-day ceiling)
+        e.normal_late_days++
+        e.normal_late_minutes += lateMin
+        e.normal_late_units += classified.lateUnits
       }
     }
 
@@ -310,8 +320,12 @@ const Step = ({ n, label, active, done }) => (
 // "Salary not on file" — the total only sums rows where salary is known.
 const DeductionSummary = ({ summaries, month, year }) => {
   const rows = summaries.map((e) => {
-    // Working days = all days excluding weekly off + holidays
-    const workingDays = e.present + e.absent + e.half_day + e.on_leave + e.hd_violations.length
+    // Confirmed divisor: present + absent only (present here folds in Half
+    // Day, matching localAttendance.js's present_count semantics, so this
+    // preview and the production Deductions tab agree on what "present" means).
+    const presentCount = e.present + e.total_half_days
+    const absentCount = e.effective_absent
+    const workingDays = presentCount + absentCount
 
     let salary = null
     try {
@@ -321,19 +335,27 @@ const DeductionSummary = ({ summaries, month, year }) => {
       salary = null
     }
 
-    let deduction = null
+    let calc = null
     if (salary !== null && workingDays > 0) {
-      const ds = salary / workingDays // Daily Salary
-      const hs = ds / 8 // Hourly Salary
-
-      const absentDeduction = e.effective_absent * ds
-      const hdDeduction = e.total_half_days * HALF_DAY_DEDUCTION_HOURS * hs
-      const lateDeduction = ((e.excess_units * LATE_UNIT_MIN) / 60) * hs
-
-      deduction = absentDeduction + hdDeduction + lateDeduction
+      calc = computeAttendanceDeduction({
+        salary,
+        presentCount,
+        absentCount,
+        halfDayCount: e.total_half_days,
+        excessLateUnits: e.excess_units,
+      })
     }
 
-    return { ...e, salary, deduction, workingDays }
+    return {
+      ...e,
+      salary,
+      workingDays,
+      dailySalary: calc?.dailySalary ?? null,
+      absentAmt: calc?.absentDeduction ?? null,
+      hdAmt: calc?.halfDayDeduction ?? null,
+      lateAmt: calc?.lateDeduction ?? null,
+      deduction: calc?.totalDeduction ?? null,
+    }
   })
 
   const knownRows = rows.filter((r) => r.deduction !== null)
@@ -395,11 +417,10 @@ const DeductionSummary = ({ summaries, month, year }) => {
           <CTableBody>
             {rows.map((r) => {
               const hasSalary = r.salary !== null && r.workingDays > 0
-              const ds = hasSalary ? r.salary / r.workingDays : null
-              const hs = ds ? ds / 8 : null
-              const absentAmt = hasSalary ? r.effective_absent * ds : null
-              const hdAmt = hasSalary ? r.total_half_days * HALF_DAY_DEDUCTION_HOURS * hs : null
-              const lateAmt = hasSalary ? ((r.excess_units * LATE_UNIT_MIN) / 60) * hs : null
+              const ds = hasSalary ? r.dailySalary : null
+              const absentAmt = hasSalary ? r.absentAmt : null
+              const hdAmt = hasSalary ? r.hdAmt : null
+              const lateAmt = hasSalary ? r.lateAmt : null
 
               return (
                 <CTableRow
@@ -492,7 +513,9 @@ const DeductionSummary = ({ summaries, month, year }) => {
   )
 }
 
-const STEPS = ['Select Period', 'Upload File', 'Preview Data', 'Review & Confirm', 'Complete']
+const STEPS = ['Select Period', 'Upload File', 'Review & Confirm', 'Complete']
+// Internal step values skip 2 (preview removed); map to visual positions for the indicator
+const STEP_DISPLAY = { 0: 0, 1: 1, 3: 2, 4: 3 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -564,7 +587,7 @@ const AttendanceImport = () => {
           setYear(detectedYear)
           setMonth(detectedMonth)
         }
-        setStep(2)
+        setStep(3)
       }
     } catch (err) {
       setParseErrors([err.message])
@@ -612,7 +635,7 @@ const AttendanceImport = () => {
   }, {})
   const uniqueEmployees = [...new Set(parsedRows.map((r) => r.employee_id))].length
 
-  // Only computed when entering step 3 (employee analysis)
+  // Computed once parse is done (step 3+)
   const employeeSummaries = step >= 3 ? buildEmployeeSummaries(parsedRows) : []
   const withDeductions = employeeSummaries.filter((e) => e.has_deduction)
   const cleanEmployees = employeeSummaries.filter((e) => !e.has_deduction)
@@ -647,11 +670,17 @@ const AttendanceImport = () => {
         <CCardBody className="py-3">
           <div className="d-flex gap-4 flex-wrap">
             {STEPS.map((label, i) => (
-              <Step key={label} n={i + 1} label={label} active={step === i} done={step > i} />
+              <Step
+                key={label}
+                n={i + 1}
+                label={label}
+                active={STEP_DISPLAY[step] === i}
+                done={STEP_DISPLAY[step] > i}
+              />
             ))}
           </div>
           <CProgress
-            value={((step + 1) / STEPS.length) * 100}
+            value={((STEP_DISPLAY[step] + 1) / STEPS.length) * 100}
             className="mt-3"
             style={{ height: 4 }}
           />
@@ -762,110 +791,6 @@ const AttendanceImport = () => {
               <CButton color="primary" onClick={handleParse} disabled={!file || parsing}>
                 {parsing && <CSpinner size="sm" className="me-2" />}
                 Validate &amp; Parse
-              </CButton>
-            </div>
-          </CCardBody>
-        </CCard>
-      )}
-
-      {/* ── Step 2: Raw Preview ───────────────────────────────────────────────── */}
-      {step === 2 && (
-        <CCard>
-          <CCardHeader>
-            <strong>
-              Step 3 — Preview ({parsedRows.length} records, {uniqueEmployees} employees)
-            </strong>
-          </CCardHeader>
-          <CCardBody>
-            {periodMismatch ? (
-              <CAlert color="warning" className="small mb-3 py-2">
-                <CIcon icon={cilWarning} className="me-1" />
-                Period mismatch: you selected{' '}
-                <strong>
-                  {MONTHS[month - 1]} {year}
-                </strong>{' '}
-                but the file contains data for{' '}
-                <strong>
-                  {MONTHS[periodMismatch.detectedMonth - 1]} {periodMismatch.detectedYear}
-                </strong>
-                . Period has been auto-corrected to match the file.
-              </CAlert>
-            ) : (
-              <CAlert color="success" className="small mb-3 py-2">
-                Period auto-detected from file:{' '}
-                <strong>
-                  {MONTHS[month - 1]} {year}
-                </strong>
-              </CAlert>
-            )}
-
-            <div className="d-flex flex-wrap gap-2 mb-3">
-              {Object.entries(statusCounts).map(([status, count]) => (
-                <CBadge
-                  key={status}
-                  color={STATUS_COLORS[status] || 'secondary'}
-                  className="fs-6 px-3 py-1"
-                >
-                  {status}: {count}
-                </CBadge>
-              ))}
-            </div>
-
-            {parseWarnings.length > 0 && (
-              <CAlert color="warning" className="small mb-3 py-2">
-                <CIcon icon={cilWarning} className="me-1" />
-                {parseWarnings.length} rows were skipped (duplicates or empty IDs).
-              </CAlert>
-            )}
-
-            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-              <CTable hover responsive bordered small>
-                <CTableHead color="light" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                  <CTableRow>
-                    <CTableHeaderCell>Emp ID</CTableHeaderCell>
-                    <CTableHeaderCell>Name</CTableHeaderCell>
-                    <CTableHeaderCell>Date</CTableHeaderCell>
-                    <CTableHeaderCell>Status</CTableHeaderCell>
-                    <CTableHeaderCell>In</CTableHeaderCell>
-                    <CTableHeaderCell>Out</CTableHeaderCell>
-                    <CTableHeaderCell>Duration</CTableHeaderCell>
-                    <CTableHeaderCell>Late By</CTableHeaderCell>
-                    <CTableHeaderCell>OT</CTableHeaderCell>
-                  </CTableRow>
-                </CTableHead>
-                <CTableBody>
-                  {parsedRows.slice(0, 50).map((r, i) => (
-                    <CTableRow key={i}>
-                      <CTableDataCell className="fw-semibold">{r.employee_id}</CTableDataCell>
-                      <CTableDataCell>{r.employee_name || '—'}</CTableDataCell>
-                      <CTableDataCell>{r.date}</CTableDataCell>
-                      <CTableDataCell>
-                        <CBadge color={STATUS_COLORS[r.status] || 'secondary'}>{r.status}</CBadge>
-                      </CTableDataCell>
-                      <CTableDataCell>{r.in_time || '—'}</CTableDataCell>
-                      <CTableDataCell>{r.out_time || '—'}</CTableDataCell>
-                      <CTableDataCell>{r.work_duration || '—'}</CTableDataCell>
-                      <CTableDataCell>
-                        {r.late_by ? <CBadge color="warning">{r.late_by}</CBadge> : '—'}
-                      </CTableDataCell>
-                      <CTableDataCell>{r.overtime || '—'}</CTableDataCell>
-                    </CTableRow>
-                  ))}
-                </CTableBody>
-              </CTable>
-            </div>
-            {parsedRows.length > 50 && (
-              <p className="text-body-secondary small mt-2">
-                Showing first 50 of {parsedRows.length} records.
-              </p>
-            )}
-
-            <div className="d-flex gap-2 mt-3">
-              <CButton color="secondary" variant="outline" onClick={() => setStep(1)}>
-                ← Back
-              </CButton>
-              <CButton color="primary" onClick={() => setStep(3)}>
-                Next: Employee Analysis →
               </CButton>
             </div>
           </CCardBody>
@@ -1084,7 +1009,7 @@ const AttendanceImport = () => {
           </div>
 
           <div className="d-flex gap-2 mt-3">
-            <CButton color="secondary" variant="outline" onClick={() => setStep(2)}>
+            <CButton color="secondary" variant="outline" onClick={() => setStep(1)}>
               ← Back
             </CButton>
             <CButton color="success" onClick={handleConfirmImport} disabled={saving}>

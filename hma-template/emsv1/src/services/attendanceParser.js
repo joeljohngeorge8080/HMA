@@ -48,10 +48,11 @@ const STATUS_NORMALIZE = {
   WO: 'Weekly Off',
   L: 'On Leave',
   H: 'Holiday',
-  // "Weekly Off Present" — employee worked on their scheduled day off
-  WOP: 'Present',
+  // "Weekly Off Present" — employee worked on their scheduled day off;
+  // counted as Weekly Off so the weekly_off total = WO + WOP
+  WOP: 'Weekly Off',
   // "Weekly Off Half Present" — worked half a day on their day off
-  'WO½P': 'Half Day',
+  'WO½P': 'Weekly Off',
   // "Half Present" — attended for half a day
   '½P': 'Half Day',
   // Long-form variants
