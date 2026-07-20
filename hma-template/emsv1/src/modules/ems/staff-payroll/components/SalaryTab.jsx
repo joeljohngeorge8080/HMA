@@ -35,7 +35,7 @@ import api from '../../../../services/api'
 import { localEmployees } from '../../../../services/localEmployees'
 import { localAttendance } from '../../../../services/localAttendance'
 import { DESIGNATIONS } from '../../../../constants/employeeConstants'
-import { computeCTC } from '../ctcUtils'
+import { computeCTC, STATE_PT_MAP } from '../ctcUtils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n, decimals = 2) =>
@@ -43,21 +43,6 @@ const fmt = (n, decimals = 2) =>
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
-
-
-
-const STATE_PT_MAP = {
-  Kerala: 200,
-  Karnataka: 200,
-  Maharashtra: 200,
-  'Tamil Nadu': 167,
-  'West Bengal': 110,
-  'Andhra Pradesh': 150,
-  Telangana: 150,
-  Gujarat: 0,
-  Delhi: 0,
-  Other: 0,
-}
 
 // ─── Small breakdown table row ────────────────────────────────────────────────
 const BreakRow = ({ label, value, sub, colorClass }) => (

@@ -3,6 +3,21 @@
 // pure-component file and Vite Fast Refresh works correctly.
 // Based on ctc detailed list.csv format.
 
+// Shared between SalaryTab.jsx and MonthlySalaryDetailsTab.jsx so the two
+// tabs never carry independent copies of this lookup that could drift apart.
+export const STATE_PT_MAP = {
+  Kerala: 200,
+  Karnataka: 200,
+  Maharashtra: 200,
+  'Tamil Nadu': 167,
+  'West Bengal': 110,
+  'Andhra Pradesh': 150,
+  Telangana: 150,
+  Gujarat: 0,
+  Delhi: 0,
+  Other: 0,
+}
+
 export const computeCTC = ({
   idealBasic = 0,
   tnd = 30,
