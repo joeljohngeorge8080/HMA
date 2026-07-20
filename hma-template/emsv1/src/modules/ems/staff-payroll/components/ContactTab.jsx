@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import { CAlert, CButton, CCol, CForm, CFormInput, CFormLabel, CRow, CSpinner } from '@coreui/react'
 import api from '../../../../services/api'
+import { localEmployees } from '../../../../services/localEmployees'
 
 const ContactTab = ({ employeeId, contact, canEdit, onSave }) => {
   const [editing, setEditing] = useState(false)
@@ -26,7 +27,13 @@ const ContactTab = ({ employeeId, contact, canEdit, onSave }) => {
       setEditing(false)
       onSave()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Save failed')
+      try {
+        localEmployees.update(employeeId, { contact: form })
+        setEditing(false)
+        onSave()
+      } catch (localErr) {
+        setError(err.response?.data?.detail || localErr.message || 'Save failed')
+      }
     } finally {
       setSaving(false)
     }
@@ -62,6 +69,10 @@ const ContactTab = ({ employeeId, contact, canEdit, onSave }) => {
             onChange={set('mobile_number')}
             disabled={!editing}
             required
+            pattern="^\d{10}$"
+            title="10-digit Mobile Number"
+            maxLength={10}
+            minLength={10}
           />
         </CCol>
         <CCol md={4}>
@@ -99,7 +110,7 @@ const ContactTab = ({ employeeId, contact, canEdit, onSave }) => {
               </CButton>
             </>
           ) : (
-            <CButton color="primary" type="button" onClick={() => setEditing(true)}>
+            <CButton color="primary" type="button" onClick={(e) => { e.preventDefault(); setEditing(true); }}>
               Edit
             </CButton>
           )}
