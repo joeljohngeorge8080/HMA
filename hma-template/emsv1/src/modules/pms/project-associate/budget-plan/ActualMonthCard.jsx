@@ -20,10 +20,11 @@ import {
   monthBaselines,
   computeWorkingPool,
   monthActualTotal,
+  monthPlannedTotal,
 } from '../../../../services/budgetPlan'
 import { localBudgetPlan } from '../../../../services/localBudgetPlan'
+import { localProjectLedger } from '../../../../services/localProjectLedger'
 import MonthPicker from './MonthPicker'
-import LedgerMonthBlock from './LedgerMonthBlock'
 import { ACTIVITY_OPTIONS, activityLabelOf } from './activityOptions'
 
 const PHASE_OPTIONS = [
@@ -87,6 +88,11 @@ const ActualMonthCard = ({
   )
   const allocated = monthAllocated(baselines[month], plan.transfers, month)
   const actualSoFar = monthActualTotal(monthEntry.tasks)
+  const plannedTotal = monthPlannedTotal(monthEntry.tasks)
+  const ledgerExists = !!localProjectLedger.get(project.id)
+  const ledgerTotal = ledgerExists
+    ? localProjectLedger.rowsForMonth(project.id, month).reduce((s, r) => s + r.amount, 0)
+    : 0
   // Approving a month freezes it — every edit below (pool blocks, actual
   // entry, add task, send/take, this month's own Reset) is gated on this,
   // separately from `canEdit` which is the PO/owner permission check.
@@ -214,29 +220,36 @@ const ActualMonthCard = ({
             </span>
           )}
         </div>
-        {canEdit && (
-          <div className="d-flex gap-2">
-            {monthEntry.approved ? (
-              <CButton size="sm" color="secondary" variant="outline" onClick={handleUnapprove}>
-                Un-approve
-              </CButton>
-            ) : (
-              <CButton size="sm" color="success" variant="outline" onClick={handleApprove}>
-                Approve
-              </CButton>
-            )}
-            {!monthEntry.approved && (
-              <CButton
-                size="sm"
-                color="secondary"
-                variant="ghost"
-                onClick={() => setResetConfirm(true)}
-              >
-                <CIcon icon={cilReload} size="sm" className="me-1" /> Reset this month
-              </CButton>
-            )}
-          </div>
-        )}
+        <div className="d-flex align-items-center gap-3">
+          {ledgerExists && (
+            <span className="small text-body-secondary text-end">
+              Planned {fmt(plannedTotal)} · Ledger {fmt(ledgerTotal)}
+            </span>
+          )}
+          {canEdit && (
+            <div className="d-flex gap-2">
+              {monthEntry.approved ? (
+                <CButton size="sm" color="secondary" variant="outline" onClick={handleUnapprove}>
+                  Un-approve
+                </CButton>
+              ) : (
+                <CButton size="sm" color="success" variant="outline" onClick={handleApprove}>
+                  Approve
+                </CButton>
+              )}
+              {!monthEntry.approved && (
+                <CButton
+                  size="sm"
+                  color="secondary"
+                  variant="ghost"
+                  onClick={() => setResetConfirm(true)}
+                >
+                  <CIcon icon={cilReload} size="sm" className="me-1" /> Reset this month
+                </CButton>
+              )}
+            </div>
+          )}
+        </div>
       </CCardHeader>
       <CCardBody>
         <div className="d-flex gap-2 flex-wrap mb-3">
@@ -403,14 +416,6 @@ const ActualMonthCard = ({
             )}
           </div>
         ))}
-
-        <LedgerMonthBlock
-          project={project}
-          month={month}
-          tasks={monthEntry.tasks}
-          monthEditable={monthEditable}
-          onPlanChange={onPlanChange}
-        />
 
         {monthEditable && monthShortfall > 0.005 && (
           <div className="mt-2 mb-3 p-2 border rounded bg-body-tertiary">

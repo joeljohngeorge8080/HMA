@@ -16,6 +16,11 @@ import {
 
 const KEY = 'hma_budget_plans_v1'
 
+/** Name of the single actual task collapseLedgerTotal writes/updates per
+ * month — matched by name so re-collapsing overwrites in place instead of
+ * duplicating a line every time the PO re-uploads a corrected ledger. */
+export const LEDGER_TASK_NAME = 'Uploaded from Excel — Ledger'
+
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 const now = () => new Date().toISOString()
 
@@ -621,6 +626,52 @@ export const localBudgetPlan = {
     const monthEntry = plan.months.find((m) => m.month === month)
     if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
     monthEntry.approved = false
+    writeAll(all)
+    return plan
+  },
+
+  /**
+   * Sends a project ledger upload's month total into that month's actual
+   * phase as a single line (the "Collapse to actual" button). Finds the
+   * task by LEDGER_TASK_NAME and overwrites its one subtask's actual_amount
+   * if it already exists, otherwise creates both — so re-collapsing after a
+   * corrected re-upload updates in place instead of piling up duplicates.
+   */
+  collapseLedgerTotal(projectId, month, amount) {
+    const all = readAll()
+    const plan = requirePlan(all, projectId)
+    localBudgetPlan.requireSubmitted(plan)
+    const monthEntry = plan.months.find((m) => m.month === month)
+    if (!monthEntry) throw new Error(`${month} is not part of this plan.`)
+    if (monthEntry.approved) throw new Error('Un-approve this month before updating it.')
+    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100
+    const existingTask = monthEntry.tasks.find(
+      (t) => t.added_in_actual && t.name === LEDGER_TASK_NAME,
+    )
+    if (existingTask && existingTask.subtasks[0]) {
+      existingTask.subtasks[0].actual_amount = amt
+      existingTask.subtasks[0].actual_status = amt > 0 ? 'entered' : 'pending'
+    } else {
+      monthEntry.tasks.push({
+        id: uid('task'),
+        phase: 'implementation',
+        name: LEDGER_TASK_NAME,
+        recurring: false,
+        added_in_actual: true,
+        subtasks: [
+          {
+            id: uid('sub'),
+            name: 'Ledger total',
+            planned_amount: 0,
+            actual_amount: amt,
+            actual_status: amt > 0 ? 'entered' : 'pending',
+            activity: 'other',
+            activity_other: 'Ledger upload',
+            sub_budget_head: '',
+          },
+        ],
+      })
+    }
     writeAll(all)
     return plan
   },

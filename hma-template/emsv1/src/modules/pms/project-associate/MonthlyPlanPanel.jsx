@@ -30,7 +30,6 @@ import { cilPlus, cilTrash, cilReload } from '@coreui/icons'
 import * as XLSX from 'xlsx-js-style'
 import { localProjects } from '../../../services/localProjects'
 import { localProjectExpenses } from '../../../services/localProjectExpenses'
-import { localTasks } from '../../../services/localTasks'
 import { localBudgetPlan } from '../../../services/localBudgetPlan'
 import {
   computeWorkingPool,
@@ -1419,17 +1418,9 @@ ActualSpendPanel.propTypes = {
 
 const POOL_SEND_LABELS = { admin: 'Admin', hr: 'HR', core: 'Core' }
 
-const monthBounds = (month) => {
-  const [y, m] = month.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` }
-}
-
 /**
- * The PO's month-by-month execution surface: pick a month from the
- * dropdown and see everything relevant to running it — that month's tasks,
- * milestones (installments overlapping it), assignees, and the
- * Admin/HR/Core expense split with Send/Revoke actions (see
+ * The PO's month-by-month expense-management surface: pick a month from the
+ * dropdown and send/revoke that month's Admin/HR/Core expense split (see
  * localProjects.sendPoolAllocation/revokePoolAllocation). Sending a
  * pool+month is what unlocks HR to log actual expenses against it in EMS,
  * capped at the sent amount; a pool+month that's never sent simply never
@@ -1498,20 +1489,6 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
     )
   }
 
-  const { start: monthStart, end: monthEnd } = monthBounds(month)
-
-  const monthTasks = localTasks
-    .getByProject(project.id)
-    .filter((t) => (t.due_date || t.target_date || '').slice(0, 7) === month)
-
-  const monthInstallments = (project.installments || []).filter((inst) => {
-    const instEnd = inst.end_date || inst.target_date
-    if (!inst.start_date || !instEnd) return false
-    return inst.start_date <= monthEnd && instEnd >= monthStart
-  })
-
-  const assignees = [...new Set(monthTasks.map((t) => t.assignee).filter(Boolean))]
-
   // Excludes pool: 'project' — those are shown (and kept live) by the Actual
   // Expense card above; mirroring them here too would go stale between the
   // two components' independent renders and duplicate the same entry twice.
@@ -1567,12 +1544,11 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
         <CCardHeader className="bg-transparent fw-semibold pt-3">📤 Expense</CCardHeader>
         <CCardBody>
           <div className="small text-body-secondary mb-3">
-            Pick a month to see everything relevant to running it — tasks, milestones, assignees,
-            and the Admin/HR/Core split. Sending a pool+month unlocks HR to log actual expenses
-            against it in EMS, capped at the sent amount. A pool+month that&apos;s never sent stays
-            unavailable there — simply don&apos;t send it to restrict that month. HR and Core also
-            need the PO to approve that month in the Budget Plan&apos;s actual phase first; Admin
-            does not.
+            Pick a month and send/revoke its Admin/HR/Core split. Sending a pool+month unlocks HR to
+            log actual expenses against it in EMS, capped at the sent amount. A pool+month
+            that&apos;s never sent stays unavailable there — simply don&apos;t send it to restrict
+            that month. HR and Core also need the PO to approve that month in the Budget Plan&apos;s
+            actual phase first; Admin does not.
           </div>
 
           <CFormSelect
@@ -1588,169 +1564,101 @@ const ExpensePanel = ({ project, onProjectChange, canEdit = false, currentUser =
             ))}
           </CFormSelect>
 
-          <CRow className="g-3">
-            <CCol xs={12} md={6}>
-              <CCard className="h-100">
-                <CCardHeader className="bg-transparent fw-semibold py-2">
-                  🏁 Milestones <CBadge color="secondary">{monthInstallments.length}</CBadge>
-                </CCardHeader>
-                <CCardBody className="p-2">
-                  {monthInstallments.length === 0 ? (
-                    <div className="text-center text-body-tertiary small py-2">
-                      No installment overlaps this month.
-                    </div>
-                  ) : (
-                    monthInstallments.map((inst) => (
-                      <div
-                        key={inst.id}
-                        className="d-flex justify-content-between align-items-start border-bottom py-1 small"
-                      >
-                        <div>
-                          <div className="fw-medium">{inst.label}</div>
-                          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                            {inst.percentage}% · {fmt(inst.amount)}
-                          </div>
-                        </div>
-                        <CBadge color="info">{inst.uc_status || 'Pending'}</CBadge>
+          <CCard>
+            <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
+            <CCardBody className="p-2">
+              {sendError && (
+                <CAlert color="danger" className="py-2 small mb-2">
+                  {sendError}
+                </CAlert>
+              )}
+              {['admin', 'hr', 'core'].map((pool) => {
+                const amount = poolMonthAmount(pool, month)
+                const sent = sentFor(pool)
+                const notAllowed = amount <= 0
+                const blockedByApproval = requiresApproval(pool) && !monthApproved
+                return (
+                  <div
+                    key={pool}
+                    className="d-flex justify-content-between align-items-center border-bottom py-1 small"
+                  >
+                    <div>
+                      <div className="fw-medium">{POOL_SEND_LABELS[pool]}</div>
+                      <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
+                        Planned {fmt(amount)}
                       </div>
-                    ))
-                  )}
-                </CCardBody>
-              </CCard>
-            </CCol>
-
-            <CCol xs={12} md={6}>
-              <CCard className="h-100">
-                <CCardHeader className="bg-transparent fw-semibold py-2">
-                  👤 Assignees <CBadge color="secondary">{assignees.length}</CBadge>
-                </CCardHeader>
-                <CCardBody className="p-2">
-                  {assignees.length === 0 ? (
-                    <div className="text-center text-body-tertiary small py-2">
-                      No assignees on this month&apos;s tasks.
                     </div>
-                  ) : (
-                    <div className="d-flex flex-wrap gap-2">
-                      {assignees.map((a) => (
-                        <CBadge key={a} color="primary" shape="rounded-pill">
-                          {a}
+                    {sent ? (
+                      <div className="d-flex align-items-center gap-2">
+                        <CBadge
+                          color="success"
+                          shape="rounded-pill"
+                          style={{ fontSize: '0.62rem' }}
+                        >
+                          Sent {fmt(sent.amount)}
                         </CBadge>
-                      ))}
-                    </div>
-                  )}
-                </CCardBody>
-              </CCard>
-            </CCol>
-
-            <CCol xs={12} md={6}>
-              <CCard className="h-100">
-                <CCardHeader className="bg-transparent fw-semibold py-2">💰 Expenses</CCardHeader>
-                <CCardBody className="p-2">
-                  {sendError && (
-                    <CAlert color="danger" className="py-2 small mb-2">
-                      {sendError}
-                    </CAlert>
-                  )}
-                  {['admin', 'hr', 'core'].map((pool) => {
-                    const amount = poolMonthAmount(pool, month)
-                    const sent = sentFor(pool)
-                    const notAllowed = amount <= 0
-                    const blockedByApproval = requiresApproval(pool) && !monthApproved
-                    return (
-                      <div
-                        key={pool}
-                        className="d-flex justify-content-between align-items-center border-bottom py-1 small"
-                      >
-                        <div>
-                          <div className="fw-medium">{POOL_SEND_LABELS[pool]}</div>
-                          <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>
-                            Planned {fmt(amount)}
-                          </div>
-                        </div>
-                        {sent ? (
-                          <div className="d-flex align-items-center gap-2">
-                            <CBadge
-                              color="success"
-                              shape="rounded-pill"
-                              style={{ fontSize: '0.62rem' }}
-                            >
-                              Sent {fmt(sent.amount)}
-                            </CBadge>
-                            {canEdit && (
-                              <CButton
-                                size="sm"
-                                color="secondary"
-                                variant="ghost"
-                                onClick={() => handleRevoke(pool)}
-                              >
-                                Revoke
-                              </CButton>
-                            )}
-                          </div>
-                        ) : notAllowed ? (
-                          <CBadge
-                            color="danger"
-                            shape="rounded-pill"
-                            style={{ fontSize: '0.62rem' }}
+                        {canEdit && (
+                          <CButton
+                            size="sm"
+                            color="secondary"
+                            variant="ghost"
+                            onClick={() => handleRevoke(pool)}
                           >
-                            Not allowed to take
-                          </CBadge>
-                        ) : blockedByApproval ? (
-                          <CBadge
-                            color="warning"
-                            shape="rounded-pill"
-                            style={{ fontSize: '0.62rem' }}
-                          >
-                            Awaiting month approval
-                          </CBadge>
-                        ) : (
-                          canEdit && (
-                            <CButton
-                              size="sm"
-                              color="primary"
-                              variant="outline"
-                              onClick={() => handleSend(pool)}
-                            >
-                              Send
-                            </CButton>
-                          )
+                            Revoke
+                          </CButton>
                         )}
                       </div>
-                    )
-                  })}
-                  {actualEntries.length > 0 && (
-                    <div className="mt-2">
-                      <div className="small fw-semibold mb-1">Actual logged this month</div>
-                      {actualEntries.map((e) => (
-                        <div key={e.id} className="d-flex justify-content-between small">
-                          <span>
-                            {POOL_SEND_LABELS[e.pool]} — {e.label}
-                          </span>
-                          <span>{fmt(e.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {transferredSubtasks.length > 0 && (
-                    <div className="mt-2">
-                      <div className="small fw-semibold mb-1">Transferred from Budget Plan</div>
-                      {transferredSubtasks.map((s) => (
-                        <div
-                          key={s.id}
-                          className="d-flex justify-content-between small text-success"
+                    ) : notAllowed ? (
+                      <CBadge color="danger" shape="rounded-pill" style={{ fontSize: '0.62rem' }}>
+                        Not allowed to take
+                      </CBadge>
+                    ) : blockedByApproval ? (
+                      <CBadge color="warning" shape="rounded-pill" style={{ fontSize: '0.62rem' }}>
+                        Awaiting month approval
+                      </CBadge>
+                    ) : (
+                      canEdit && (
+                        <CButton
+                          size="sm"
+                          color="primary"
+                          variant="outline"
+                          onClick={() => handleSend(pool)}
                         >
-                          <span>
-                            {s.taskName} — {s.name}
-                          </span>
-                          <span>Money transferred — ₹0</span>
-                        </div>
-                      ))}
+                          Send
+                        </CButton>
+                      )
+                    )}
+                  </div>
+                )
+              })}
+              {actualEntries.length > 0 && (
+                <div className="mt-2">
+                  <div className="small fw-semibold mb-1">Actual logged this month</div>
+                  {actualEntries.map((e) => (
+                    <div key={e.id} className="d-flex justify-content-between small">
+                      <span>
+                        {POOL_SEND_LABELS[e.pool]} — {e.label}
+                      </span>
+                      <span>{fmt(e.amount)}</span>
                     </div>
-                  )}
-                </CCardBody>
-              </CCard>
-            </CCol>
-          </CRow>
+                  ))}
+                </div>
+              )}
+              {transferredSubtasks.length > 0 && (
+                <div className="mt-2">
+                  <div className="small fw-semibold mb-1">Transferred from Budget Plan</div>
+                  {transferredSubtasks.map((s) => (
+                    <div key={s.id} className="d-flex justify-content-between small text-success">
+                      <span>
+                        {s.taskName} — {s.name}
+                      </span>
+                      <span>Money transferred — ₹0</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CCardBody>
+          </CCard>
         </CCardBody>
       </CCard>
 

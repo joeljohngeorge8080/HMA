@@ -67,31 +67,33 @@ export const localProjectLedger = {
   },
 
   /**
-   * Sums uploaded rows by month + activity (plan §6 decision B — Budget Head
-   * does not split the total). Committed rows are excluded by default (plan
-   * P9) since they're not yet real spend. Rows whose activity is still
-   * unmapped are excluded — commit-time mapping should leave none, but this
-   * stays defensive rather than silently mis-grouping them under 'other'.
+   * Row-level detail for one month — Date, Particulars, Amount, Budget Head,
+   * Activity, Phase — sorted by date. Excludes committed rows by default
+   * (plan P9 — not yet real spend); callers that show them anyway should
+   * still exclude them from any total, e.g. via `row.committed`.
    */
-  aggregateByMonthActivity(projectId, { includeCommitted = false } = {}) {
+  rowsForMonth(projectId, month, { includeCommitted = false } = {}) {
     const ledger = readAll()[projectId]
-    if (!ledger) return {}
+    if (!ledger) return []
     const overrides = ledger.activity_overrides || {}
-    const out = {}
+    return ledger.rows
+      .filter((row) => row.month === month && (includeCommitted || !row.committed))
+      .map((row) => ({ row, eff: effectiveActivity(row, overrides) }))
+      .filter(({ eff }) => eff)
+      .map(({ row, eff }) => ({ ...row, activityLabel: activityLabelOf(eff.value, eff.other) }))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  },
+
+  /** Every month with at least one resolvable-activity row, sorted ascending
+   * — drives which month sections the ledger view renders. */
+  monthsWithData(projectId) {
+    const ledger = readAll()[projectId]
+    if (!ledger) return []
+    const overrides = ledger.activity_overrides || {}
+    const months = new Set()
     ledger.rows.forEach((row) => {
-      if (row.committed && !includeCommitted) return
-      const eff = effectiveActivity(row, overrides)
-      if (!eff) return
-      const key = eff.value === 'other' ? `other:${eff.other}` : eff.value
-      out[row.month] = out[row.month] || {}
-      out[row.month][key] = out[row.month][key] || {
-        value: eff.value,
-        other: eff.other,
-        label: activityLabelOf(eff.value, eff.other),
-        total: 0,
-      }
-      out[row.month][key].total = Math.round((out[row.month][key].total + row.amount) * 100) / 100
+      if (effectiveActivity(row, overrides)) months.add(row.month)
     })
-    return out
+    return [...months].sort()
   },
 }
