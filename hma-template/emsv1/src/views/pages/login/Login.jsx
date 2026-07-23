@@ -262,10 +262,10 @@ const Login = () => {
                           { label: 'Heads', role: 'Heads', id: 'DEV002', name: 'Dev Head' },
                           { label: 'HR', role: 'HR', id: 'DEV003', name: 'Dev HR' },
                           {
-                            label: 'Project Associate',
-                            role: 'Project Associate',
+                            label: 'Project Coordinator',
+                            role: 'Project Coordinator',
                             id: 'DEV_PA_001',
-                            name: 'Dev Project Associate',
+                            name: 'Dev Project Coordinator',
                             redirect: '/pms/pa/dashboard',
                           },
                           {

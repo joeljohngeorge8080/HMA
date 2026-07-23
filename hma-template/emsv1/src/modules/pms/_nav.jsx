@@ -28,14 +28,14 @@ const pmsNav = [
     to: '/pms/dashboard',
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
   },
-  // ── Project Associate section ──
+  // ── Project Coordinator section ──
   {
     component: CNavGroup,
-    name: 'Project Associate',
+    name: 'Project Coordinator',
     icon: <CIcon icon={cilBriefcase} customClassName="nav-icon" />,
-    badge: { color: 'primary', text: 'PA' },
+    badge: { color: 'primary', text: 'PC' },
     items: [
-      { component: CNavItem, name: 'PA Dashboard', to: '/pms/pa/dashboard' },
+      { component: CNavItem, name: 'PC Dashboard', to: '/pms/pa/dashboard' },
       {
         component: CNavItem,
         name: 'Community Development',

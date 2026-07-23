@@ -12,7 +12,7 @@ export const ROLE = {
   CEO: 'CEO',
   HEADS: 'Heads',
   HR: 'HR',
-  PROJECT_ASSOCIATE: 'Project Associate',
+  PROJECT_ASSOCIATE: 'Project Coordinator',
   PROJECT_OFFICER: 'Project Officer',
   EMPLOYEE: 'Employee',
 }

@@ -117,7 +117,7 @@ const ProjectAssociateDashboard = () => {
           🏗️
         </div>
         <div className="position-relative">
-          <h3 className="fw-bold mb-1">Project Associate Dashboard</h3>
+          <h3 className="fw-bold mb-1">Project Coordinator Dashboard</h3>
           <p className="mb-3 opacity-75">Manage projects, assign officers, and track progress</p>
           <div className="d-flex gap-2 flex-wrap">
             <CButton
