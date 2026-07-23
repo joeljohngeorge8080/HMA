@@ -41,6 +41,7 @@ import BankAccountTab from './components/BankAccountTab'
 import FamilyTab from './components/FamilyTab'
 import DocumentsTab from './components/DocumentsTab'
 import SalaryTab from './components/SalaryTab'
+import MonthlySalaryDetailsTab from './components/MonthlySalaryDetailsTab'
 import AttendanceSummaryTab from './components/AttendanceSummaryTab'
 import ChangeStatusModal from './components/ChangeStatusModal'
 import ManageAccessModal from './components/ManageAccessModal'
@@ -67,6 +68,7 @@ const TABS = [
   { key: 'family', label: 'Family' },
   { key: 'documents', label: 'Documents' },
   { key: 'salary', label: 'Salary & Payroll' },
+  { key: 'monthly_salary', label: 'Monthly Salary Details' },
   { key: 'attendance', label: 'Attendance' },
 ]
 
@@ -313,6 +315,13 @@ const EmployeeProfile = () => {
                 currentDesignation={profile.employment?.designation || ''}
                 canEdit={canEdit}
                 onSave={refreshProfile}
+              />
+            </CTabPane>
+            <CTabPane visible={activeTab === 'monthly_salary'}>
+              <MonthlySalaryDetailsTab
+                employeeId={profile.employee_id}
+                currentSalary={profile.current_salary}
+                canEdit={canEdit}
               />
             </CTabPane>
             <CTabPane visible={activeTab === 'attendance'}>

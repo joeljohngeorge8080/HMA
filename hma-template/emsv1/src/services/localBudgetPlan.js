@@ -142,7 +142,12 @@ export const localBudgetPlan = {
     return plan
   },
 
-  addSubtask(projectId, month, taskId, { name, planned_amount }) {
+  addSubtask(
+    projectId,
+    month,
+    taskId,
+    { name, planned_amount, activity, activity_other, sub_budget_head },
+  ) {
     const all = readAll()
     const plan = requirePlan(all, projectId)
     const monthEntry = plan.months.find((m) => m.month === month)
@@ -150,12 +155,21 @@ export const localBudgetPlan = {
     const task = monthEntry.tasks.find((t) => t.id === taskId)
     if (!task) throw new Error('Task not found.')
     if (!task.added_in_actual) localBudgetPlan.requirePlanning(plan)
+    if (!activity || !activity.trim()) {
+      throw new Error('Select an Activity before adding this subtask.')
+    }
+    if (activity === 'other' && !(activity_other || '').trim()) {
+      throw new Error('Enter a name for the "Other" activity.')
+    }
     task.subtasks.push({
       id: uid('sub'),
       name: (name || '').trim(),
       planned_amount: Math.round((parseFloat(planned_amount) || 0) * 100) / 100,
       actual_amount: 0,
       actual_status: 'pending',
+      activity: activity.trim(),
+      activity_other: activity === 'other' ? activity_other.trim() : '',
+      sub_budget_head: (sub_budget_head || '').trim(),
     })
     writeAll(all)
     return plan
@@ -202,30 +216,65 @@ export const localBudgetPlan = {
     localBudgetPlan.requirePlanning(plan)
     if (!tasks || tasks.length === 0) throw new Error('Add at least one task before applying.')
 
+    const validateActivity = (label, activity, activityOther) => {
+      if (!activity || !activity.trim()) {
+        throw new Error(`"${label}" needs an Activity selected.`)
+      }
+      if (activity === 'other' && !(activityOther || '').trim()) {
+        throw new Error(`"${label}" needs a name for the "Other" activity.`)
+      }
+    }
+
     const monthCount = plan.months.length
-    const prepared = tasks.map(({ phase, name, totalAmount, subtasks }) => {
-      if (!name || !name.trim()) throw new Error('Every task needs a name.')
-      const trimmedName = name.trim()
-      const hasSubtasks = subtasks && subtasks.length > 0
+    const prepared = tasks.map(
+      ({ phase, name, totalAmount, activity, activityOther, subBudgetHead, subtasks }) => {
+        if (!name || !name.trim()) throw new Error('Every task needs a name.')
+        const trimmedName = name.trim()
+        const hasSubtasks = subtasks && subtasks.length > 0
 
-      if (hasSubtasks) {
-        const preparedSubtasks = subtasks.map(({ name: subName, totalAmount: subTotal }) => {
-          if (!subName || !subName.trim()) throw new Error('Every subtask needs a name.')
-          const amt = Math.round((parseFloat(subTotal) || 0) * 100) / 100
-          if (amt <= 0) throw new Error(`"${subName}" needs an amount greater than zero.`)
-          return { name: subName.trim(), shares: equalSplit(amt, monthCount) }
-        })
-        return { phase, name: trimmedName, subtasks: preparedSubtasks }
-      }
+        if (hasSubtasks) {
+          const preparedSubtasks = subtasks.map(
+            ({
+              name: subName,
+              totalAmount: subTotal,
+              activity: subActivity,
+              activityOther: subActivityOther,
+              subBudgetHead: subBudgetHeadValue,
+            }) => {
+              if (!subName || !subName.trim()) throw new Error('Every subtask needs a name.')
+              validateActivity(subName.trim(), subActivity, subActivityOther)
+              const amt = Math.round((parseFloat(subTotal) || 0) * 100) / 100
+              if (amt <= 0) throw new Error(`"${subName}" needs an amount greater than zero.`)
+              return {
+                name: subName.trim(),
+                shares: equalSplit(amt, monthCount),
+                activity: subActivity.trim(),
+                activity_other: subActivity === 'other' ? subActivityOther.trim() : '',
+                sub_budget_head: (subBudgetHeadValue || '').trim(),
+              }
+            },
+          )
+          return { phase, name: trimmedName, subtasks: preparedSubtasks }
+        }
 
-      const amt = Math.round((parseFloat(totalAmount) || 0) * 100) / 100
-      if (amt <= 0) throw new Error(`"${trimmedName}" needs an amount greater than zero.`)
-      return {
-        phase,
-        name: trimmedName,
-        subtasks: [{ name: trimmedName, shares: equalSplit(amt, monthCount) }],
-      }
-    })
+        validateActivity(trimmedName, activity, activityOther)
+        const amt = Math.round((parseFloat(totalAmount) || 0) * 100) / 100
+        if (amt <= 0) throw new Error(`"${trimmedName}" needs an amount greater than zero.`)
+        return {
+          phase,
+          name: trimmedName,
+          subtasks: [
+            {
+              name: trimmedName,
+              shares: equalSplit(amt, monthCount),
+              activity: activity.trim(),
+              activity_other: activity === 'other' ? activityOther.trim() : '',
+              sub_budget_head: (subBudgetHead || '').trim(),
+            },
+          ],
+        }
+      },
+    )
 
     plan.months.forEach((monthEntry, i) => {
       prepared.forEach((task) => {
@@ -241,6 +290,9 @@ export const localBudgetPlan = {
             planned_amount: sub.shares[i],
             actual_amount: 0,
             actual_status: 'pending',
+            activity: sub.activity,
+            activity_other: sub.activity_other,
+            sub_budget_head: sub.sub_budget_head,
           })),
         })
       })
