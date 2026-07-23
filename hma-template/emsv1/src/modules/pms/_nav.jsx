@@ -36,6 +36,19 @@ const pmsNav = [
     badge: { color: 'primary', text: 'PC' },
     items: [
       { component: CNavItem, name: 'PC Dashboard', to: '/pms/pa/dashboard' },
+      { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
+      { component: CNavItem, name: 'Create Project', to: '/pms/projects/create' },
+      { component: CNavItem, name: 'Project Officers', to: '/pms/project-teams/officers' },
+      { component: CNavItem, name: 'Team Overview', to: '/pms/pa/team-overview' },
+    ],
+  },
+  // ── Project Associate section ──
+  {
+    component: CNavGroup,
+    name: 'Project Associate',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    badge: { color: 'secondary', text: 'PA' },
+    items: [
       {
         component: CNavItem,
         name: 'Community Development',
