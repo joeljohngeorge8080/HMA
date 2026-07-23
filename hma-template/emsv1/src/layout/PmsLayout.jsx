@@ -14,11 +14,11 @@ const ROLE_NAV_MAP = {
   [ROLE.PROJECT_ASSOCIATE]: (nav) =>
     nav.filter(
       (item) =>
-        item.name === 'Project Associate' ||
+        item.name === 'Project Coordinator' ||
         item.name === 'Switch to EMS' ||
         item.name === 'Dashboard',
     ),
-  [ROLE.PROJECT_OFFICER]: (nav) => nav.filter((item) => item.name !== 'Project Associate'),
+  [ROLE.PROJECT_OFFICER]: (nav) => nav.filter((item) => item.name !== 'Project Coordinator'),
 }
 
 const PmsLayout = () => {

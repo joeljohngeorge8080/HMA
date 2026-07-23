@@ -298,7 +298,7 @@ const ProjectOfficersPage = () => {
         </div>
         <div className="flex-grow-1">
           <div className="fw-bold fs-6">
-            Project Associate Access&nbsp;
+            Project Coordinator Access&nbsp;
             <CBadge
               color="light"
               className="text-dark ms-1"
@@ -308,7 +308,7 @@ const ProjectOfficersPage = () => {
             </CBadge>
           </div>
           <div className="opacity-75 small">
-            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong> — you can view,
+            Logged in as <strong>{user?.full_name || 'Project Coordinator'}</strong> — you can view,
             add and edit Project Officers
           </div>
         </div>
@@ -316,7 +316,7 @@ const ProjectOfficersPage = () => {
           className="small opacity-75 d-none d-md-flex align-items-center gap-1 px-3 py-1 rounded-pill"
           style={{ background: 'rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}
         >
-          Admin &nbsp;›&nbsp; <strong>Project Associate</strong> &nbsp;›&nbsp; Project Officer
+          Admin &nbsp;›&nbsp; <strong>Project Coordinator</strong> &nbsp;›&nbsp; Project Officer
           &nbsp;›&nbsp; Field Personnel
         </div>
       </div>
@@ -519,7 +519,7 @@ const ProjectOfficersPage = () => {
                       variant="outline"
                       size="sm"
                       className="me-1"
-                      title="Edit officer (Project Associate privilege)"
+                      title="Edit officer (Project Coordinator privilege)"
                       onClick={(e) => openEdit(officer, e)}
                     >
                       <CIcon icon={cilPen} style={{ width: 13, height: 13 }} />
@@ -719,7 +719,7 @@ const ProjectOfficersPage = () => {
           >
             <CIcon icon={cilShieldAlt} />
             <div>
-              You have <strong>Project Associate</strong> privileges — you can edit this officer's
+              You have <strong>Project Coordinator</strong> privileges — you can edit this officer's
               details.
             </div>
           </div>
