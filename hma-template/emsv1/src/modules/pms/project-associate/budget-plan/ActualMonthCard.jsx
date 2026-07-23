@@ -23,6 +23,7 @@ import {
 } from '../../../../services/budgetPlan'
 import { localBudgetPlan } from '../../../../services/localBudgetPlan'
 import MonthPicker from './MonthPicker'
+import LedgerMonthBlock from './LedgerMonthBlock'
 import { ACTIVITY_OPTIONS, activityLabelOf } from './activityOptions'
 
 const PHASE_OPTIONS = [
@@ -402,6 +403,14 @@ const ActualMonthCard = ({
             )}
           </div>
         ))}
+
+        <LedgerMonthBlock
+          project={project}
+          month={month}
+          tasks={monthEntry.tasks}
+          monthEditable={monthEditable}
+          onPlanChange={onPlanChange}
+        />
 
         {monthEditable && monthShortfall > 0.005 && (
           <div className="mt-2 mb-3 p-2 border rounded bg-body-tertiary">
