@@ -15,6 +15,7 @@ const ROLE_NAV_MAP = {
     nav.filter(
       (item) =>
         item.name === 'Project Coordinator' ||
+        item.name === 'Project Associate' ||
         item.name === 'Switch to EMS' ||
         item.name === 'Dashboard',
     ),
