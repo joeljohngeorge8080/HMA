@@ -328,7 +328,7 @@ export const localProjects = {
     }
   },
 
-  list({ search = '', status = '', phase = '', officerId = '', page = 1, pageSize = 50 } = {}) {
+  list({ search = '', status = '', phase = '', officerId = '', dept = '', page = 1, pageSize = 50 } = {}) {
     let items = read(PROJECTS_KEY)
     if (search) {
       const q = search.toLowerCase()
@@ -344,6 +344,18 @@ export const localProjects = {
     if (phase) items = items.filter((p) => p.phase === phase)
     if (officerId)
       items = items.filter((p) => p.officer_id === officerId || p.assigned_officer_id === officerId)
+    // Department filter: maps to project_type categories
+    if (dept === 'community_development') {
+      items = items.filter((p) => {
+        const t = (p.project_type || '').toLowerCase()
+        return t.includes('consultancy') || t.includes('community') || t.includes('m cup') || t.includes('mcup')
+      })
+    } else if (dept === 'public_health') {
+      items = items.filter((p) => {
+        const t = (p.project_type || '').toLowerCase()
+        return t.includes('public health') || t.includes('health')
+      })
+    }
 
     items = [...items].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
     const total = items.length

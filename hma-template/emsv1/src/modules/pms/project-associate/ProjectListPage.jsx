@@ -62,6 +62,11 @@ const STATUS_META = {
   completed: { label: 'Completed', color: 'success' },
 }
 
+const DEPT_META = {
+  community_development: { label: 'Community Development', color: 'success' },
+  public_health: { label: 'Public Health', color: 'info' },
+}
+
 const ProjectListPage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -71,6 +76,7 @@ const ProjectListPage = () => {
     search: '',
     status: searchParams.get('status') || '',
     phase: '',
+    dept: searchParams.get('dept') || '',
   })
   const [toast, setToast] = useState(null)
   const [deleteModal, setDeleteModal] = useState({ visible: false, project: null })
@@ -78,10 +84,11 @@ const ProjectListPage = () => {
   const role = useRole()
   const canDelete = role === ROLE.PROJECT_OFFICER || role === ROLE.PROJECT_ASSOCIATE
 
-  // Sync filter when URL ?status= changes (e.g. clicking sidebar lifecycle items)
+  // Sync filter when URL ?status= or ?dept= changes
   useEffect(() => {
     const s = searchParams.get('status') || ''
-    setFilters((prev) => ({ ...prev, status: s }))
+    const d = searchParams.get('dept') || ''
+    setFilters((prev) => ({ ...prev, status: s, dept: d }))
   }, [searchParams])
 
   const load = useCallback(() => {
@@ -95,13 +102,24 @@ const ProjectListPage = () => {
     load()
   }, [load])
 
-  const stats = localProjects.getStats()
+  const activeDept = DEPT_META[filters.dept] || null
+
+  // Compute stat-chip counts from the dept-filtered pool (ignoring status/search)
+  // so the chips always reflect totals within the current category view.
+  const deptPool = localProjects.list({ dept: filters.dept, pageSize: 9999 }).items
+  const stats = {
+    total: deptPool.length,
+    ongoing: deptPool.filter((p) => p.status === 'ongoing').length,
+    approved: deptPool.filter((p) => p.status === 'approved').length,
+    pipeline: deptPool.filter((p) => p.status === 'pipeline').length,
+    completed: deptPool.filter((p) => p.status === 'completed').length,
+  }
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
   }
 
-  const clearFilters = () => setFilters({ search: '', status: '', phase: '' })
+  const clearFilters = () => setFilters({ search: '', status: '', phase: '', dept: '' })
 
   const handleDeleteConfirm = () => {
     const proj = deleteModal.project
@@ -116,9 +134,24 @@ const ProjectListPage = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
-          <h4 className="fw-bold mb-1">All Projects</h4>
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <h4 className="fw-bold mb-0">
+              {activeDept ? activeDept.label + ' Projects' : 'All Projects'}
+            </h4>
+            {activeDept && (
+              <CBadge color={activeDept.color} shape="rounded-pill" className="px-2">
+                {filters.dept === 'community_development' ? 'CD' : 'PH'}
+              </CBadge>
+            )}
+          </div>
           <p className="text-body-secondary mb-0 small">
             {total} project{total !== 1 ? 's' : ''} total
+            {activeDept && (
+              <span className="ms-1">
+                · filtered by{' '}
+                <span className={`text-${activeDept.color} fw-medium`}>{activeDept.label}</span>
+              </span>
+            )}
           </p>
         </div>
         <CButton
