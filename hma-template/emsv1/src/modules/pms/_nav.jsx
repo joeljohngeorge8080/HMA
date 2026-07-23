@@ -36,6 +36,18 @@ const pmsNav = [
     badge: { color: 'primary', text: 'PA' },
     items: [
       { component: CNavItem, name: 'PA Dashboard', to: '/pms/pa/dashboard' },
+      {
+        component: CNavItem,
+        name: 'Community Development',
+        to: '/pms/projects?dept=community_development',
+        badge: { color: 'success', text: 'CD' },
+      },
+      {
+        component: CNavItem,
+        name: 'Public Health',
+        to: '/pms/projects?dept=public_health',
+        badge: { color: 'info', text: 'PH' },
+      },
       { component: CNavItem, name: 'All Projects', to: '/pms/projects' },
       { component: CNavItem, name: 'Create Project', to: '/pms/projects/create' },
       { component: CNavItem, name: 'Project Officers', to: '/pms/project-teams/officers' },
