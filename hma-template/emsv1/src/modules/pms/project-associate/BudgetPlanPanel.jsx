@@ -225,6 +225,7 @@ const BudgetPlanPanel = ({ project, canEdit = false, currentUser = 'Unknown' }) 
         plan={plan}
         canEdit={canEdit}
         currentUser={currentUser}
+        onPlanChange={setPlan}
       />
       {plan.months.map((m, i) => (
         <ActualMonthCard
