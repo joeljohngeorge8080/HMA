@@ -87,9 +87,6 @@ const DEFAULT = {
   },
   bank_accounts: [],
   family_members: [],
-  initial_project: '',
-  initial_project_date: '',
-  initial_project_remarks: '',
   account: {
     google_email: '',
     default_password: '',
@@ -299,9 +296,6 @@ const EmployeeForm = () => {
           google_email: form.account?.google_email?.trim().toLowerCase(),
           default_password: form.account?.default_password,
           user_role: form.account?.user_role || 'Project Officer',
-          initial_project: form.initial_project || undefined,
-          initial_project_date: form.initial_project_date || undefined,
-          initial_project_remarks: form.initial_project_remarks || undefined,
         }
         delete withProject.account
         try {
@@ -799,41 +793,6 @@ const EmployeeForm = () => {
                 </F>
               </CCol>
 
-              {/* Project Assignment — shown only for SDP department */}
-              {isProjectDept && (
-                <>
-                  <CCol md={12}>
-                    <hr className="my-1" />
-                    <div className="fw-semibold small text-info mb-2">
-                      Project Assignment
-                      <span className="text-body-secondary fw-normal ms-2">
-                        (logged for audit trail)
-                      </span>
-                    </div>
-                  </CCol>
-                  <CCol md={5}>
-                    <F label="Assign to Project">
-                      <CFormInput
-                        {...register('initial_project')}
-                        placeholder="e.g. Smart City Phase 2"
-                      />
-                    </F>
-                  </CCol>
-                  <CCol md={3}>
-                    <F label="Assigned Date">
-                      <CFormInput type="date" {...register('initial_project_date')} />
-                    </F>
-                  </CCol>
-                  <CCol md={4}>
-                    <F label="Remarks">
-                      <CFormInput
-                        {...register('initial_project_remarks')}
-                        placeholder="Optional notes"
-                      />
-                    </F>
-                  </CCol>
-                </>
-              )}
             </CRow>
           </CAccordionBody>
         </CAccordionItem>
