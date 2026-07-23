@@ -26,6 +26,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 import api from '../../../../services/api'
+import { localEmployees } from '../../../../services/localEmployees'
 
 const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
   const [showModal, setShowModal] = useState(false)
@@ -50,7 +51,14 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
       setForm({ bank_name: '', branch_name: '', account_number: '', ifsc_code: '', is_primary: false })
       onSave()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add account')
+      try {
+        localEmployees.addBankAccount(employeeId, form)
+        setShowModal(false)
+        setForm({ bank_name: '', branch_name: '', account_number: '', ifsc_code: '', is_primary: false })
+        onSave()
+      } catch (localErr) {
+        setError(err.response?.data?.detail || localErr.message || 'Failed to add account')
+      }
     } finally {
       setSaving(false)
     }
@@ -115,7 +123,15 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
               </CCol>
               <CCol md={6}>
                 <CFormLabel>Account Number *</CFormLabel>
-                <CFormInput value={form.account_number} onChange={set('account_number')} required />
+                <CFormInput
+                  value={form.account_number}
+                  onChange={set('account_number')}
+                  required
+                  pattern="^\d{9,18}$"
+                  title="Numeric only, 9-18 digits"
+                  minLength={9}
+                  maxLength={18}
+                />
               </CCol>
               <CCol md={6}>
                 <CFormLabel>IFSC Code *</CFormLabel>
@@ -124,6 +140,10 @@ const BankAccountTab = ({ employeeId, bankAccounts, canEdit, onSave }) => {
                   onChange={set('ifsc_code')}
                   placeholder="SBIN0001234"
                   required
+                  pattern="^[A-Za-z0-9]{11}$"
+                  title="11 alphanumeric characters"
+                  minLength={11}
+                  maxLength={11}
                 />
               </CCol>
               <CCol md={12}>

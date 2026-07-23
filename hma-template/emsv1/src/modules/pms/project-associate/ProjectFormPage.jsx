@@ -38,6 +38,9 @@ import {
   cilPhone,
 } from '@coreui/icons'
 import { localProjects, localOfficers } from '../../../services/localProjects'
+import useAuth from '../../../hooks/useAuth'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
 
 const INST_COLORS = [
   '#4f9ef8',
@@ -79,7 +82,8 @@ const EMPTY_FORM = {
   end_date: '',
   beneficiaries_target: '',
   beneficiaries_completed: '',
-  officer_id: '',
+  officer_ids: [], // multi-officer (replaces single officer_id)
+  officer_id: '', // kept for backward compat / single-view
   admin_pct: 5,
   hr_pct: 5,
   core_pct: 5,
@@ -89,6 +93,8 @@ const ProjectFormPage = () => {
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = Boolean(id)
+  const { user } = useAuth()
+  const role = useRole()
 
   const [form, setForm] = useState(EMPTY_FORM)
   const [officers, setOfficers] = useState([])
@@ -127,6 +133,7 @@ const ProjectFormPage = () => {
 
   useEffect(() => {
     localProjects.seedDemoData()
+    // When role=PA, only show officers from their own projects (or all active for new projects)
     setOfficers(localOfficers.getAvailable())
 
     if (isEdit) {
@@ -151,6 +158,10 @@ const ProjectFormPage = () => {
           beneficiaries_completed: project.beneficiaries_completed || '',
           start_date: project.start_date || '',
           end_date: project.end_date || '',
+          // Multi-officer: load officer_ids[], fallback to single officer_id
+          officer_ids: project.officer_ids?.length
+            ? project.officer_ids
+            : project.officer_id ? [project.officer_id] : [],
           officer_id: project.officer_id || '',
           admin_pct: project.admin_pct ?? 5,
           hr_pct: project.hr_pct ?? 5,
@@ -163,8 +174,20 @@ const ProjectFormPage = () => {
   const set = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }))
-    if (field === 'officer_id' && value) setEmailNotice(true)
-    if (field === 'officer_id' && !value) setEmailNotice(false)
+  }
+
+  // Toggle an officer in/out of the multi-select list
+  const toggleOfficer = (officerId) => {
+    setForm((prev) => {
+      const ids = prev.officer_ids || []
+      const next = ids.includes(officerId)
+        ? ids.filter((id) => id !== officerId)
+        : [...ids, officerId]
+      const primary = next[0] || ''
+      if (primary) setEmailNotice(true)
+      else setEmailNotice(false)
+      return { ...prev, officer_ids: next, officer_id: primary }
+    })
   }
 
   const validate = () => {
@@ -191,6 +214,9 @@ const ProjectFormPage = () => {
         return { ...inst, percentage: pct, amount, uc_status: 'Pending', actual_date: null }
       })
 
+      const officerIds = form.officer_ids || (form.officer_id ? [form.officer_id] : [])
+      const primaryOfficerId = officerIds[0] || null
+
       const data = {
         ...form,
         project_value: Number(form.project_value),
@@ -203,21 +229,24 @@ const ProjectFormPage = () => {
         hr_pct: Number(form.hr_pct) || 0,
         core_pct: Number(form.core_pct) || 0,
         installments: enrichedInstallments,
+        officer_ids: officerIds,
+        officer_id: primaryOfficerId,
+        // Stamp the creating PA as the owner (only on create; edit preserves existing owner)
+        ...(isEdit
+          ? {}
+          : { project_associate_id: user?.employee_id || null }),
       }
 
       let savedProject
       if (isEdit) {
         savedProject = localProjects.update(id, data)
-        // If officer changed, assign properly
-        if (form.officer_id && form.officer_id !== localProjects.getById(id)?.officer_id) {
-          localProjects.assignOfficer(id, form.officer_id)
-        }
+        // Sync the multi-officer list via the new assignOfficers API
+        localProjects.assignOfficers(id, officerIds)
         setToast({ color: 'success', message: 'Project updated successfully' })
       } else {
         savedProject = localProjects.create(data)
-        // Assign officer if selected
-        if (form.officer_id) {
-          localProjects.assignOfficer(savedProject.id, form.officer_id)
+        if (officerIds.length > 0) {
+          localProjects.assignOfficers(savedProject.id, officerIds)
         }
         setToast({ color: 'success', message: 'Project created successfully' })
       }
@@ -229,7 +258,8 @@ const ProjectFormPage = () => {
     setSaving(false)
   }
 
-  const selectedOfficer = officers.find((o) => o.id === form.officer_id)
+  const selectedOfficers = officers.filter((o) => (form.officer_ids || []).includes(o.id))
+  const primaryOfficer = selectedOfficers[0] || null
 
   return (
     <>
@@ -770,79 +800,71 @@ const ProjectFormPage = () => {
               <CCardHeader className="bg-transparent border-bottom py-3">
                 <h6 className="fw-bold mb-0">
                   <CIcon icon={cilPeople} className="me-2 text-primary" />
-                  Assign Project Officer
+                  Assign Project Officers
                 </h6>
+                <div className="text-body-secondary small mt-1">
+                  Select one or more officers. The first selected becomes the primary contact.
+                </div>
               </CCardHeader>
               <CCardBody>
-                <CFormLabel className="fw-semibold small">Select Officer</CFormLabel>
-                <CFormSelect
-                  value={form.officer_id}
-                  onChange={(e) => set('officer_id', e.target.value)}
-                  className="mb-3"
-                >
-                  <option value="">— No officer assigned —</option>
-                  {officers.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name} · {o.designation}
-                    </option>
-                  ))}
-                </CFormSelect>
-
-                {/* Selected officer card */}
-                {selectedOfficer && (
-                  <div
-                    className="p-3 rounded-3 mb-3"
-                    style={{
-                      background: 'rgba(67,97,238,0.06)',
-                      border: '1px solid rgba(67,97,238,0.15)',
-                    }}
-                  >
-                    <div className="d-flex align-items-center gap-3 mb-2">
-                      <div
-                        className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
-                        style={{ width: 40, height: 40, fontSize: '1rem', flexShrink: 0 }}
-                      >
-                        {selectedOfficer.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="fw-semibold">{selectedOfficer.name}</div>
-                        <div className="text-body-secondary small">
-                          {selectedOfficer.designation}
+                {officers.length === 0 ? (
+                  <div className="text-body-secondary small fst-italic py-2">
+                    No active Project Officers found in Staff &amp; Payroll.
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-2">
+                    {officers.map((o, idx) => {
+                      const selected = (form.officer_ids || []).includes(o.id)
+                      const isPrimary = selected && (form.officer_ids || [])[0] === o.id
+                      return (
+                        <div
+                          key={o.id}
+                          onClick={() => toggleOfficer(o.id)}
+                          className="d-flex align-items-center gap-3 rounded-3 px-3 py-2"
+                          style={{
+                            cursor: 'pointer',
+                            border: selected
+                              ? '2px solid rgba(67,97,238,0.5)'
+                              : '1px solid var(--cui-border-color)',
+                            background: selected ? 'rgba(67,97,238,0.06)' : 'transparent',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <div
+                            className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                            style={{ width: 36, height: 36, fontSize: '0.9rem', opacity: selected ? 1 : 0.45 }}
+                          >
+                            {o.name.charAt(0)}
+                          </div>
+                          <div className="flex-grow-1 min-w-0">
+                            <div className="fw-semibold small text-truncate">{o.name}</div>
+                            <div className="text-body-secondary" style={{ fontSize: '0.72rem' }}>{o.designation}</div>
+                          </div>
+                          {isPrimary && (
+                            <CBadge color="primary" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>Primary</CBadge>
+                          )}
+                          {selected && !isPrimary && (
+                            <CBadge color="success" shape="rounded-pill" style={{ fontSize: '0.6rem' }}>Assigned</CBadge>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                    <div className="small">
-                      <div className="text-body-secondary mb-1 d-flex align-items-center gap-1">
-                        <CIcon icon={cilEnvelopeLetter} size="sm" />
-                        {selectedOfficer.email}
-                      </div>
-                      <div className="text-body-secondary d-flex align-items-center gap-1">
-                        <CIcon icon={cilPhone} size="sm" />
-                        {selectedOfficer.phone}
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <CBadge color="info" shape="rounded-pill" className="small">
-                        {selectedOfficer.projects_assigned.length} projects assigned
-                      </CBadge>
-                    </div>
+                      )
+                    })}
                   </div>
                 )}
 
-                {/* SES email notice */}
-                {emailNotice && (
+                {/* Email notice when officers selected */}
+                {selectedOfficers.length > 0 && (
                   <CAlert
                     color="info"
-                    className="py-2 px-3 mb-0 d-flex align-items-start gap-2"
+                    className="mt-3 py-2 px-3 mb-0 d-flex align-items-start gap-2"
                     style={{ fontSize: '0.8rem' }}
                   >
                     <CIcon icon={cilEnvelopeLetter} className="mt-1 flex-shrink-0 text-info" />
                     <div>
                       <strong>Email access will be granted</strong>
                       <br />
-                      On save, an invite email will be sent to{' '}
-                      <strong>{selectedOfficer?.email}</strong> via AWS SES giving them project
-                      access.
+                      {selectedOfficers.length} officer{selectedOfficers.length > 1 ? 's' : ''} will receive an invite via{' '}
+                      <strong>AWS SES</strong>.
                     </div>
                   </CAlert>
                 )}

@@ -28,6 +28,19 @@ const DEV_USERS = {
     role: 'Employee',
     google_email: 'dev009@hma.dev',
   },
+  // ── Demo Project Associates (for testing scoped views) ──
+  DEV_PA1: {
+    employee_id: 'PA_DEMO_001',
+    full_name: 'Priya Menon (PA)',
+    role: 'Project Associate',
+    google_email: 'pa1@hma.dev',
+  },
+  DEV_PA2: {
+    employee_id: 'PA_DEMO_002',
+    full_name: 'Rahul Nair (PA)',
+    role: 'Project Associate',
+    google_email: 'pa2@hma.dev',
+  },
 }
 
 const isDevMode = () => import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === 'true'

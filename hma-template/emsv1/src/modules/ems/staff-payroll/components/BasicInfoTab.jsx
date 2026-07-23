@@ -133,7 +133,7 @@ const BasicInfoTab = ({ profile, canEdit, onSave }) => {
               </CButton>
             </>
           ) : (
-            <CButton color="primary" type="button" onClick={() => setEditing(true)}>
+            <CButton color="primary" type="button" onClick={(e) => { e.preventDefault(); setEditing(true); }}>
               Edit
             </CButton>
           )}

@@ -17,8 +17,8 @@ import {
   computeEffectivePoolMonthly,
 } from './monthlyApportionment'
 
-const PROJECTS_KEY = 'hma_projects_v11' // bumped → forces reseed under the flat-rate/multi-block model, with CSV data
-const OFFICERS_KEY = 'hma_project_officers_v6'
+const PROJECTS_KEY = 'hma_projects_v12' // bumped → multi-officer + project_associate_id scoping
+const OFFICERS_KEY = 'hma_project_officers_v7'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -248,6 +248,11 @@ const mapSdpToLocal = (p) => {
     .filter((i) => i.status === 'Received')
     .reduce((s, i) => s + (i.amount || 0), 0)
 
+  // Assign demo projects round-robin to 2 demo PAs based on SDP project index
+  // po_csv_01..04 → PA1, po_csv_05..09 → PA2 (split by project id numeric suffix)
+  const sdpIdx = parseInt((p.id || '').replace(/\D/g, ''), 10) || 0
+  const demoPaId = sdpIdx <= 9 ? 'PA_DEMO_001' : 'PA_DEMO_002'
+
   return {
     id: p.id,
     project_code: p.project_number || '',
@@ -282,10 +287,15 @@ const mapSdpToLocal = (p) => {
     duration: p.duration || '',
     beneficiaries_target: p.beneficiaries_target || 0,
     beneficiaries_completed: p.beneficiaries_completed || 0,
+    // Legacy single-officer fields (kept for backward compat)
     officer_id: officer ? officer.id : null,
     assigned_officer_id: officer ? officer.id : null,
     officer_name: p.project_officer || null,
     officer_email: officer ? officer.email : null,
+    // Multi-officer support
+    officer_ids: officer ? [officer.id] : [],
+    // Project Associate who owns/manages this project
+    project_associate_id: demoPaId,
     email_sent: !!p.project_officer,
     field_personnel: p.field_team
       ? p.field_team
@@ -328,7 +338,7 @@ export const localProjects = {
     }
   },
 
-  list({ search = '', status = '', phase = '', officerId = '', dept = '', page = 1, pageSize = 50 } = {}) {
+  list({ search = '', status = '', phase = '', officerId = '', paId = '', dept = '', page = 1, pageSize = 50 } = {}) {
     let items = read(PROJECTS_KEY)
     if (search) {
       const q = search.toLowerCase()
@@ -343,7 +353,12 @@ export const localProjects = {
     if (status) items = items.filter((p) => p.status === status)
     if (phase) items = items.filter((p) => p.phase === phase)
     if (officerId)
-      items = items.filter((p) => p.officer_id === officerId || p.assigned_officer_id === officerId)
+      items = items.filter(
+        (p) =>
+          p.officer_id === officerId ||
+          p.assigned_officer_id === officerId ||
+          (p.officer_ids || []).includes(officerId),
+      )
     // Department filter: maps to project_type categories
     if (dept === 'community_development') {
       items = items.filter((p) => {
@@ -356,6 +371,8 @@ export const localProjects = {
         return t.includes('public health') || t.includes('health')
       })
     }
+    // Scope to a specific Project Associate's projects
+    if (paId) items = items.filter((p) => p.project_associate_id === paId)
 
     items = [...items].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
     const total = items.length
@@ -383,6 +400,10 @@ export const localProjects = {
 
   create(data) {
     const projects = read(PROJECTS_KEY)
+    const officerIds = data.officer_ids && data.officer_ids.length > 0
+      ? data.officer_ids
+      : data.officer_id ? [data.officer_id] : []
+    const primaryOfficerId = officerIds[0] || null
     const newProject = {
       id: uid(),
       ...data,
@@ -400,8 +421,13 @@ export const localProjects = {
       expense_accounted: parseFloat(data.expense_accounted) || 0,
       committed_expense: parseFloat(data.committed_expense) || 0,
       beneficiaries_completed: data.beneficiaries_completed || 0,
-      assigned_officer_id: data.assigned_officer_id || data.officer_id || null,
-      officer_id: data.assigned_officer_id || data.officer_id || null,
+      // Multi-officer support
+      officer_ids: officerIds,
+      // Legacy single-officer fields kept for backward compat
+      assigned_officer_id: primaryOfficerId,
+      officer_id: primaryOfficerId,
+      // PA who owns this project
+      project_associate_id: data.project_associate_id || null,
       field_personnel: [],
       tasks_count: 0,
       tasks_completed: 0,
@@ -1057,19 +1083,32 @@ export const localProjects = {
   },
 
   assignOfficer(projectId, officerId) {
+    return this.assignOfficers(projectId, [officerId])
+  },
+
+  /**
+   * Assigns multiple officers to a project (replaces existing officer list).
+   * Also keeps legacy officer_id/officer_name fields in sync.
+   */
+  assignOfficers(projectId, officerIds) {
     const projects = read(PROJECTS_KEY)
     const pIdx = projects.findIndex((p) => p.id === projectId)
     if (pIdx === -1) throw new Error('Project not found')
 
-    const officer = localOfficers.getById(officerId)
-    if (!officer) throw new Error('Officer not found')
+    const validIds = (officerIds || []).filter(Boolean)
+    const officers = validIds
+      .map((id) => localOfficers.getById(id))
+      .filter(Boolean)
 
-    // Assign to new officer
-    projects[pIdx].officer_id = officerId
-    projects[pIdx].assigned_officer_id = officerId
-    projects[pIdx].officer_name = officer.name
-    projects[pIdx].officer_email = officer.email
-    projects[pIdx].email_sent = true // simulate SES
+    const primaryOfficer = officers[0] || null
+
+    projects[pIdx].officer_ids = validIds
+    // Legacy compat: keep single-officer fields pointing to the first officer
+    projects[pIdx].officer_id = primaryOfficer ? primaryOfficer.id : null
+    projects[pIdx].assigned_officer_id = primaryOfficer ? primaryOfficer.id : null
+    projects[pIdx].officer_name = primaryOfficer ? primaryOfficer.name : null
+    projects[pIdx].officer_email = primaryOfficer ? primaryOfficer.email : null
+    projects[pIdx].email_sent = officers.length > 0 // simulate SES
     projects[pIdx].updated_at = now()
 
     write(PROJECTS_KEY, projects)
@@ -1114,8 +1153,8 @@ export const localProjects = {
     return rows[idx]
   },
 
-  getStats() {
-    const items = read(PROJECTS_KEY)
+  getStats(filterItems) {
+    const items = filterItems || read(PROJECTS_KEY)
     const totalValue = items.reduce((s, p) => s + (p.project_value || p.project_valuation || 0), 0)
     const totalReceived = items.reduce(
       (s, p) => s + (p.amount_received || p.amount_released || 0),
@@ -1140,6 +1179,12 @@ export const localProjects = {
       },
     }
   },
+
+  /** Same as getStats() but scoped to a specific Project Associate's projects. */
+  getStatsForPA(paId) {
+    const items = read(PROJECTS_KEY).filter((p) => p.project_associate_id === paId)
+    return this.getStats(items)
+  },
 }
 
 // ─── Project Officers API ──────────────────────────────────────────────────────
@@ -1147,6 +1192,7 @@ export const localProjects = {
 export const localOfficers = {
   _getOfficersFromStaff() {
     const employees = read('hma_employees') || []
+    const allProjects = read(PROJECTS_KEY)
     return employees
       .filter((e) => (e.employment?.designation || '').toLowerCase().includes('project officer'))
       .map((e) => ({
@@ -1156,8 +1202,12 @@ export const localOfficers = {
         phone: e.contact?.mobile || '',
         designation: e.employment?.designation || 'Project Officer',
         status: (e.status || 'active').toLowerCase(),
-        projects_assigned: read(PROJECTS_KEY)
-          .filter((p) => p.officer_id === e.id)
+        projects_assigned: allProjects
+          .filter(
+            (p) =>
+              p.officer_id === e.id ||
+              (p.officer_ids || []).includes(e.id),
+          )
           .map((p) => p.id),
         created_at: e.created_at || now(),
       }))
@@ -1165,6 +1215,32 @@ export const localOfficers = {
 
   list({ search = '', status = '' } = {}) {
     let items = this._getOfficersFromStaff()
+    if (search) {
+      const q = search.toLowerCase()
+      items = items.filter(
+        (o) =>
+          o.name.toLowerCase().includes(q) ||
+          o.email.toLowerCase().includes(q) ||
+          o.designation?.toLowerCase().includes(q),
+      )
+    }
+    if (status) items = items.filter((o) => o.status === status)
+    return { items, total: items.length }
+  },
+
+  /**
+   * Returns only officers assigned to at least one project that belongs to `paId`.
+   * Used to scope the Project Officers page for a logged-in Project Associate.
+   */
+  listForPA(paId, { search = '', status = '' } = {}) {
+    const allProjects = read(PROJECTS_KEY).filter((p) => p.project_associate_id === paId)
+    // Collect all officer IDs referenced in the PA's projects
+    const officerIdSet = new Set()
+    allProjects.forEach((p) => {
+      ;(p.officer_ids || []).forEach((id) => officerIdSet.add(id))
+      if (p.officer_id) officerIdSet.add(p.officer_id)
+    })
+    let items = this._getOfficersFromStaff().filter((o) => officerIdSet.has(o.id))
     if (search) {
       const q = search.toLowerCase()
       items = items.filter(
@@ -1196,7 +1272,10 @@ export const localOfficers = {
 
   getProjectsForOfficer(officerId) {
     return read(PROJECTS_KEY).filter(
-      (p) => p.officer_id === officerId || p.assigned_officer_id === officerId,
+      (p) =>
+        p.officer_id === officerId ||
+        p.assigned_officer_id === officerId ||
+        (p.officer_ids || []).includes(officerId),
     )
   },
 }

@@ -56,7 +56,18 @@ import {
 } from '@coreui/icons'
 import { localOfficers, localProjects } from '../../../services/localProjects'
 import useAuth from '../../../hooks/useAuth'
-import { DESIGNATIONS } from '../../../constants/employeeConstants'
+import useRole from '../../../hooks/useRole'
+import { ROLE } from '../../../constants/roles'
+// Only PO-relevant designations shown in the Add Officer modal
+const PO_DESIGNATIONS = [
+  'Field Assistant',
+  'Project Lead (HMA)',
+  'Project Officer',
+  'Project Officer (Community Development)',
+  'Project Officer (Public Health)',
+  'Project Officer (IT)',
+  'Senior Project Officer',
+]
 
 const EMPTY_FORM = { name: '', email: '', phone: '', designation: '', officer_type: '' }
 
@@ -112,7 +123,7 @@ const OfficerForm = ({ form, setField, formErrors }) => (
           invalid={!!formErrors.designation}
         >
           <option value="">Select...</option>
-          {DESIGNATIONS.map((d) => (
+          {PO_DESIGNATIONS.map((d) => (
             <option key={d} value={d}>
               {d}
             </option>
@@ -153,6 +164,8 @@ const OfficerForm = ({ form, setField, formErrors }) => (
 const ProjectOfficersPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const role = useRole()
+  const isPA = role === ROLE.PROJECT_ASSOCIATE
 
   const [officers, setOfficers] = useState([])
   const [total, setTotal] = useState(0)
@@ -178,10 +191,13 @@ const ProjectOfficersPage = () => {
   // ── Load ────────────────────────────────────────────────────────────────────
   const load = useCallback(() => {
     localProjects.seedDemoData()
-    const result = localOfficers.list(filters)
+    // PAs see only officers on their own projects; Admins/CEO/Heads see everyone
+    const result = isPA
+      ? localOfficers.listForPA(user?.employee_id || '', filters)
+      : localOfficers.list(filters)
     setOfficers(result.items)
     setTotal(result.total)
-  }, [filters])
+  }, [filters, isPA, user?.employee_id])
 
   useEffect(() => {
     load()
@@ -298,18 +314,20 @@ const ProjectOfficersPage = () => {
         </div>
         <div className="flex-grow-1">
           <div className="fw-bold fs-6">
-            Project Coordinator Access&nbsp;
+            {isPA ? 'Project Associate Access' : 'Admin / Full Access'} 
             <CBadge
               color="light"
               className="text-dark ms-1"
               style={{ fontSize: '0.65rem', verticalAlign: 'middle' }}
             >
-              Superior Role
+              {isPA ? 'Scoped to Your Projects' : 'All Officers'}
             </CBadge>
           </div>
           <div className="opacity-75 small">
-            Logged in as <strong>{user?.full_name || 'Project Coordinator'}</strong> — you can view,
-            add and edit Project Officers
+            Logged in as <strong>{user?.full_name || 'Project Associate'}</strong>
+            {isPA
+              ? ' — showing only officers assigned to your projects'
+              : ' — showing all project officers across the organisation'}
           </div>
         </div>
         <div

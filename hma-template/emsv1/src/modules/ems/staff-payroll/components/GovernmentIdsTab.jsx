@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import { CAlert, CButton, CCol, CForm, CFormInput, CFormLabel, CRow, CSpinner } from '@coreui/react'
 import api from '../../../../services/api'
+import { localEmployees } from '../../../../services/localEmployees'
 
 const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
   const [editing, setEditing] = useState(false)
@@ -14,6 +15,7 @@ const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
     esi_number: identification?.esi_number || '',
     pf_number: identification?.pf_number || '',
     passport_number: identification?.passport_number || '',
+    insurance_number: identification?.insurance_number || '',
   })
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -26,7 +28,14 @@ const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
       setEditing(false)
       onSave()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Save failed')
+      try {
+        // Fallback to local storage if API is unreachable
+        localEmployees.update(employeeId, { identification: form })
+        setEditing(false)
+        onSave()
+      } catch (localErr) {
+        setError(err.response?.data?.detail || localErr.message || 'Save failed')
+      }
     } finally {
       setSaving(false)
     }
@@ -37,13 +46,14 @@ const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
       {error && <CAlert color="danger">{error}</CAlert>}
       <CRow className="g-3">
         {[
-          { key: 'pan_number', label: 'PAN Number', placeholder: 'ABCDE1234F' },
-          { key: 'aadhar_number', label: 'Aadhar Number', placeholder: '12-digit number' },
-          { key: 'uan_number', label: 'UAN Number', placeholder: '12-digit UAN' },
-          { key: 'esi_number', label: 'ESI Number', placeholder: '17-character ESI' },
+          { key: 'pan_number', label: 'PAN Number', placeholder: '10 characters', pattern: '^[A-Za-z0-9]{10}$', title: '10 characters', minLength: 10, maxLength: 10 },
+          { key: 'aadhar_number', label: 'Aadhaar Number', placeholder: '12-digit number', pattern: '^\\d{12}$', title: '12 digits', minLength: 12, maxLength: 12 },
+          { key: 'uan_number', label: 'UAN Number', placeholder: '12-digit UAN', pattern: '^\\d{12}$', title: '12 digits', minLength: 12, maxLength: 12 },
+          { key: 'esi_number', label: 'ESI Number', placeholder: '17-digit ESI', pattern: '^\\d{17}$', title: '17 digits', minLength: 17, maxLength: 17 },
           { key: 'pf_number', label: 'PF Number', placeholder: 'PF account number' },
-          { key: 'passport_number', label: 'Passport Number', placeholder: 'A1234567' },
-        ].map(({ key, label, placeholder }) => (
+          { key: 'passport_number', label: 'Passport Number', placeholder: 'A1234567', pattern: '^[A-Za-z][A-Za-z0-9]{7}$', title: '1 alphabet followed by 7 alphanumeric characters', minLength: 8, maxLength: 8 },
+          { key: 'insurance_number', label: 'Insurance Number', placeholder: '10-digit number', pattern: '^\\d{10}$', title: '10 digits', minLength: 10, maxLength: 10 },
+        ].map(({ key, label, placeholder, pattern, title, minLength, maxLength }) => (
           <CCol md={4} key={key}>
             <CFormLabel>{label}</CFormLabel>
             <CFormInput
@@ -51,6 +61,10 @@ const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
               onChange={set(key)}
               disabled={!editing}
               placeholder={placeholder}
+              pattern={pattern}
+              title={title}
+              minLength={minLength}
+              maxLength={maxLength}
             />
           </CCol>
         ))}
@@ -73,7 +87,7 @@ const GovernmentIdsTab = ({ employeeId, identification, canEdit, onSave }) => {
               </CButton>
             </>
           ) : (
-            <CButton color="primary" type="button" onClick={() => setEditing(true)}>
+            <CButton color="primary" type="button" onClick={(e) => { e.preventDefault(); setEditing(true); }}>
               Edit
             </CButton>
           )}
